@@ -75,16 +75,16 @@ export const Trades: React.FC<TradesProps> = ({
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 md:px-10 py-8 sm:py-10 relative z-10 space-y-10 sm:space-y-12">
 
         {/* ── Header ── */}
-        <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-8" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-8 border-b border-white/10">
           <div className="space-y-2">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#B38B21' }}>
                 <RefreshCcw size={16} className="text-black" style={{ animation: 'spin 8s linear infinite' }} />
               </div>
-              <span className="text-[10px] font-bold uppercase tracking-[0.35em] text-white/30"></span>
+              <span className="text-[10px] font-bold uppercase tracking-[0.35em] text-white/60"></span>
             </div>
             <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight leading-none text-white">Trade In</h1>
-            <p className="text-xs text-white/30 font-medium mt-1">Get the best value for your current device</p>
+            <p className="text-xs text-white/60 font-medium mt-1">Get the best value for your current device</p>
           </div>
 
           {/* Trust badges */}
@@ -94,9 +94,9 @@ export const Trades: React.FC<TradesProps> = ({
               { icon: <Award size={12} style={{ color: '#B38B21' }} />, label: 'Best Price Guarantee' },
               { icon: <Zap size={12} className="text-amber-400" />, label: 'Same Day Processing' },
             ].map((b, i) => (
-              <div key={i} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full" style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}>
+              <div key={i} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5">
                 {b.icon}
-                <span className="text-[10px] font-semibold tracking-wide text-white/40">{b.label}</span>
+                <span className="text-[10px] font-semibold tracking-wide text-white/70">{b.label}</span>
               </div>
             ))}
           </div>
@@ -118,7 +118,7 @@ export const Trades: React.FC<TradesProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {/* Model select with search */}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-white/30 flex items-center gap-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-white/60 flex items-center gap-1.5">
                     <Smartphone size={11} style={{ color: '#B38B21' }} /> Model
                   </label>
                   <div className="relative">
@@ -130,14 +130,14 @@ export const Trades: React.FC<TradesProps> = ({
                         setCurrentPhone(e.target.value);
                         setCurrentSearch(e.target.value);
                       }}
-                      className="w-full border border-white/8 rounded-xl px-4 py-3 text-sm font-semibold text-white outline-none transition-all focus:border-white/20 pl-10"
+                      className="w-full border border-white/20 rounded-xl px-4 py-3 text-sm font-semibold text-white outline-none transition-all focus:border-white/40 pl-10"
                       style={{ backgroundColor: 'var(--bb-bg)' }}
                     />
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/60" />
                   </div>
                   {currentSearch && (
                     <div className="absolute z-20 w-full mt-1 border border-white/10 rounded-xl shadow-lg max-h-40 overflow-y-auto" style={{ backgroundColor: 'var(--bb-surface)' }}>
-                      {Object.keys(valuations).filter(v => 
+                      {Object.keys(valuations).filter(v =>
                         v.toLowerCase().includes(currentSearch.toLowerCase())
                       ).map(v => (
                         <button
@@ -166,7 +166,7 @@ export const Trades: React.FC<TradesProps> = ({
 
                 {/* Color Selection */}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-white/30 flex items-center gap-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-white/60 flex items-center gap-1.5">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#B38B21' }} /> Color
                   </label>
                   <div className="flex flex-wrap gap-2">
@@ -174,25 +174,24 @@ export const Trades: React.FC<TradesProps> = ({
                       <button
                         key={color}
                         onClick={() => setSelectedColor(color)}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${
-                          selectedColor === color
-                            ? 'border-[#B38B21] bg-[#B38B21]/20 text-[#B38B21]'
-                            : 'border-white/10 hover:border-white/20 text-white/60'
-                        }`}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${selectedColor === color
+                          ? 'border-[#B38B21] bg-[#B38B21]/20 text-[#B38B21]'
+                          : 'border-white/10 hover:border-white/20 text-white/60'
+                          }`}
                       >
-                        <div 
+                        <div
                           className="w-4 h-4 rounded-full border-2"
-                          style={{ 
+                          style={{
                             backgroundColor: color.toLowerCase() === 'black' ? '#000' :
-                                             color.toLowerCase() === 'white' ? '#fff' :
-                                             color.toLowerCase() === 'red' ? '#ef4444' :
-                                             color.toLowerCase() === 'blue' ? '#3b82f6' :
-                                             color.toLowerCase() === 'green' ? '#10b981' :
-                                             color.toLowerCase() === 'purple' ? '#a855f7' :
-                                             color.toLowerCase() === 'pink' ? '#ec4899' :
-                                             color.toLowerCase() === 'gold' ? '#f59e0b' :
-                                             color.toLowerCase() === 'silver' ? '#9ca3af' :
-                                             '#6b7280',
+                              color.toLowerCase() === 'white' ? '#fff' :
+                                color.toLowerCase() === 'red' ? '#ef4444' :
+                                  color.toLowerCase() === 'blue' ? '#3b82f6' :
+                                    color.toLowerCase() === 'green' ? '#10b981' :
+                                      color.toLowerCase() === 'purple' ? '#a855f7' :
+                                        color.toLowerCase() === 'pink' ? '#ec4899' :
+                                          color.toLowerCase() === 'gold' ? '#f59e0b' :
+                                            color.toLowerCase() === 'silver' ? '#9ca3af' :
+                                              '#6b7280',
                             borderColor: selectedColor === color ? '#B38B21' : 'rgba(255,255,255,0.3)'
                           }}
                         />
@@ -204,7 +203,7 @@ export const Trades: React.FC<TradesProps> = ({
 
                 {/* Condition */}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-white/30 flex items-center gap-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-white/60 flex items-center gap-1.5">
                     <Scale size={11} style={{ color: '#B38B21' }} /> Condition
                   </label>
                   <div className="space-y-1.5">
@@ -214,15 +213,14 @@ export const Trades: React.FC<TradesProps> = ({
                         onClick={() => setCondition(key)}
                         className={`w-full text-left px-4 py-2.5 rounded-xl border transition-all duration-200 flex items-center justify-between
                           ${condition === key
-                            ? 'border-white/20 bg-white/5'
-                            : 'border-white/5 hover:border-white/10'
+                            ? 'border-white/40 bg-white/10'
+                            : 'border-white/10 hover:border-white/20'
                           }`}
-                        style={{ backgroundColor: condition === key ? 'rgba(255,255,255,0.04)' : 'transparent' }}
                       >
                         <div className="flex items-center gap-2.5">
                           <div className={`w-1.5 h-1.5 rounded-full ${dot}`} />
                           <span className="text-xs font-semibold text-white/70">{label}</span>
-                          <span className="text-[10px] text-white/25 hidden sm:block">— {desc}</span>
+                          <span className="text-[10px] text-white/60 hidden sm:block">— {desc}</span>
                         </div>
                         {condition === key && (
                           <div className="w-4 h-4 rounded-full flex items-center justify-center" style={{ backgroundColor: '#B38B21' }}>
@@ -236,15 +234,15 @@ export const Trades: React.FC<TradesProps> = ({
               </div>
 
               {/* Valuation row */}
-              <div className="flex items-center justify-between pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+              <div className="flex items-center justify-between pt-4 border-t border-white/10">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/25 mb-1">Estimated Value</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/60 mb-1">Estimated Value</p>
                   <p className="text-2xl font-black tracking-tight" style={{ color: '#B38B21' }}>
                     {formatCurrency(tradeInValue)}
                   </p>
                 </div>
                 {currentPhone && (
-                  <span className="text-xs font-semibold text-white/30 px-3 py-1.5 rounded-lg border border-white/8">
+                  <span className="text-xs font-semibold text-white/60 px-3 py-1.5 rounded-lg border border-white/8">
                     {Math.round(conditionMultiplier[condition] * 100)}% of base value
                   </span>
                 )}
@@ -259,12 +257,12 @@ export const Trades: React.FC<TradesProps> = ({
                   <h2 className="text-sm font-black uppercase tracking-widest text-white/80">Select New Device</h2>
                 </div>
                 <div className="relative w-full sm:w-64">
-                  <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/25" />
+                  <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/60" />
                   <input
                     placeholder="Search..."
                     value={targetSearch}
                     onChange={e => setTargetSearch(e.target.value)}
-                    className="w-full border border-white/8 rounded-xl pl-9 pr-4 py-2.5 text-xs font-medium text-white outline-none transition-all focus:border-white/20"
+                    className="w-full border border-white/20 rounded-xl pl-9 pr-4 py-2.5 text-xs font-medium text-white outline-none transition-all focus:border-white/40"
                     style={{ backgroundColor: 'var(--bb-surface)' }}
                   />
                 </div>
@@ -277,8 +275,8 @@ export const Trades: React.FC<TradesProps> = ({
                     onClick={() => setTargetPhoneId(p.id)}
                     className="relative rounded-2xl border cursor-pointer transition-all duration-300 p-4 flex flex-col items-center gap-3 text-center group"
                     style={{
-                      backgroundColor: targetPhoneId === p.id ? 'rgba(179,139,33,0.06)' : '#0d0d0b',
-                      borderColor: targetPhoneId === p.id ? 'rgba(179,139,33,0.5)' : 'rgba(255,255,255,0.06)',
+                      backgroundColor: targetPhoneId === p.id ? 'rgba(179,139,33,0.1)' : 'var(--bb-surface)',
+                      borderColor: targetPhoneId === p.id ? 'rgba(179,139,33,0.5)' : 'rgba(255,255,255,0.15)',
                       boxShadow: targetPhoneId === p.id ? '0 0 20px rgba(179,139,33,0.12)' : 'none',
                     }}
                   >
@@ -291,14 +289,14 @@ export const Trades: React.FC<TradesProps> = ({
                       <img src={p.image} alt={p.name} className="w-16 h-16 object-contain transition-transform duration-300 group-hover:scale-105" />
                     </div>
                     <div className="space-y-1">
-                      <p className="text-[10px] font-bold text-white/30 uppercase tracking-wider">{p.category}</p>
+                      <p className="text-[10px] font-bold text-white/60 uppercase tracking-wider">{p.category}</p>
                       <h4 className="text-xs font-bold text-white leading-tight">{p.name}</h4>
                       <p className="text-sm font-black text-white">{formatCurrency(p.price)}</p>
                     </div>
                     {p.specs && p.specs.length > 0 && (
                       <div className="flex flex-wrap justify-center gap-1">
                         {p.specs.slice(0, 2).map((s, i) => (
-                          <span key={i} className="px-2 py-0.5 rounded-full text-[9px] font-semibold text-white/30" style={{ backgroundColor: 'rgba(255,255,255,0.02)' }}>
+                          <span key={i} className="px-2 py-0.5 rounded-full text-[9px] font-semibold text-white/60 bg-white/5">
                             {s}
                           </span>
                         ))}
@@ -306,10 +304,10 @@ export const Trades: React.FC<TradesProps> = ({
                     )}
                   </div>
                 )) : (
-                  <div className="col-span-full py-16 rounded-2xl border border-dashed border-white/8 flex flex-col items-center justify-center gap-3" style={{ backgroundColor: 'var(--bb-surface)' }}>
-                    <Info size={32} className="text-white/10" />
-                    <p className="text-xs font-semibold text-white/20">No devices match your search</p>
-                    <button onClick={() => setTargetSearch('')} className="text-[10px] text-white/30 hover:text-white transition-colors underline">Clear search</button>
+                  <div className="col-span-full py-16 rounded-2xl border border-dashed border-white/20 flex flex-col items-center justify-center gap-3" style={{ backgroundColor: 'var(--bb-surface)' }}>
+                    <Info size={32} className="text-white/20" />
+                    <p className="text-xs font-semibold text-white/50">No devices match your search</p>
+                    <button onClick={() => setTargetSearch('')} className="text-[10px] text-white/60 hover:text-white transition-colors underline">Clear search</button>
                   </div>
                 )}
               </div>
@@ -322,31 +320,30 @@ export const Trades: React.FC<TradesProps> = ({
                   <span className="w-6 h-6 rounded-lg text-[10px] font-black text-black flex items-center justify-center" style={{ backgroundColor: '#B38B21' }}>02</span>
                   <h2 className="text-sm font-black uppercase tracking-widest text-white/80">Choose Color</h2>
                 </div>
-                <p className="text-xs text-white/40">Select your preferred color for the new device</p>
+                <p className="text-xs text-white/70">Select your preferred color for the new device</p>
                 <div className="flex flex-wrap gap-2">
                   {['Black', 'White', 'Red', 'Blue', 'Green', 'Purple', 'Pink', 'Gold', 'Silver'].map(color => (
                     <button
                       key={color}
                       onClick={() => setTargetColor(color)}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${
-                        targetColor === color
-                          ? 'border-[#B38B21] bg-[#B38B21]/20 text-[#B38B21]'
-                          : 'border-white/10 hover:border-white/20 text-white/60'
-                      }`}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${targetColor === color
+                        ? 'border-[#B38B21] bg-[#B38B21]/20 text-[#B38B21]'
+                        : 'border-white/10 hover:border-white/20 text-white/60'
+                        }`}
                     >
-                      <div 
+                      <div
                         className="w-4 h-4 rounded-full border-2"
-                        style={{ 
+                        style={{
                           backgroundColor: color.toLowerCase() === 'black' ? '#000' :
-                                           color.toLowerCase() === 'white' ? '#fff' :
-                                           color.toLowerCase() === 'red' ? '#ef4444' :
-                                           color.toLowerCase() === 'blue' ? '#3b82f6' :
-                                           color.toLowerCase() === 'green' ? '#10b981' :
-                                           color.toLowerCase() === 'purple' ? '#a855f7' :
-                                           color.toLowerCase() === 'pink' ? '#ec4899' :
-                                           color.toLowerCase() === 'gold' ? '#f59e0b' :
-                                           color.toLowerCase() === 'silver' ? '#9ca3af' :
-                                           '#6b7280',
+                            color.toLowerCase() === 'white' ? '#fff' :
+                              color.toLowerCase() === 'red' ? '#ef4444' :
+                                color.toLowerCase() === 'blue' ? '#3b82f6' :
+                                  color.toLowerCase() === 'green' ? '#10b981' :
+                                    color.toLowerCase() === 'purple' ? '#a855f7' :
+                                      color.toLowerCase() === 'pink' ? '#ec4899' :
+                                        color.toLowerCase() === 'gold' ? '#f59e0b' :
+                                          color.toLowerCase() === 'silver' ? '#9ca3af' :
+                                            '#6b7280',
                           borderColor: targetColor === color ? '#B38B21' : 'rgba(255,255,255,0.3)'
                         }}
                       />
@@ -368,7 +365,7 @@ export const Trades: React.FC<TradesProps> = ({
               {/* Visual comparison */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl p-3 space-y-2 text-center" style={{ backgroundColor: 'var(--bb-bg)' }}>
-                  <p className="text-[9px] font-bold text-white/25 uppercase tracking-widest">Your Device</p>
+                  <p className="text-[9px] font-bold text-white/60 uppercase tracking-widest">Your Device</p>
                   <div className="h-14 flex items-center justify-center">
                     {currentPhone
                       ? <p className="text-xs font-bold text-white/60">{currentPhone}</p>
@@ -379,7 +376,7 @@ export const Trades: React.FC<TradesProps> = ({
                 </div>
 
                 <div className="rounded-xl p-3 space-y-2 text-center" style={{ backgroundColor: 'var(--bb-bg)' }}>
-                  <p className="text-[9px] font-bold text-white/25 uppercase tracking-widest">New Device</p>
+                  <p className="text-[9px] font-bold text-white/60 uppercase tracking-widest">New Device</p>
                   <div className="h-14 flex items-center justify-center overflow-hidden">
                     {targetPhone
                       ? <img src={targetPhone.image} alt="" className="h-12 w-12 object-contain" />
@@ -397,11 +394,11 @@ export const Trades: React.FC<TradesProps> = ({
                   { label: 'Device price', value: targetPhone ? formatCurrency(targetPhone.price) : '—', color: 'text-white/50' },
                 ].map((row, i) => (
                   <div key={i} className="flex items-center justify-between">
-                    <span className="text-xs text-white/30">{row.label}</span>
+                    <span className="text-xs text-white/60">{row.label}</span>
                     <span className={`text-xs font-bold ${row.color}`}>{row.value}</span>
                   </div>
                 ))}
-                <div className="h-px bg-white/6 my-1" />
+                <div className="h-px bg-white/5 my-1" />
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-white/50">Balance Due</span>
                   <span className="text-lg font-black" style={{ color: '#B38B21' }}>{formatCurrency(difference)}</span>
@@ -416,29 +413,29 @@ export const Trades: React.FC<TradesProps> = ({
 
               {/* Final amount */}
               <div className="text-center py-4 border-t border-b" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-white/25 mb-2">Final Payment</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-white/60 mb-2">Final Payment</p>
                 <p className="text-4xl font-black tracking-tight" style={{ color: '#B38B21' }}>{formatCurrency(difference)}</p>
                 <p className="text-[10px] text-white/20 mt-1">Inc. VAT (12.5%)</p>
 
-              {/* CTA */}
-              <button
-                disabled={!targetPhoneId || !currentPhone}
-                onClick={() => setShowConfirmPopup(true)}
-                className="w-full py-4 rounded-xl text-xs font-black uppercase tracking-widest text-black flex items-center justify-center gap-3 transition-all duration-200 disabled:opacity-20 disabled:cursor-not-allowed group"
-                style={{ backgroundColor: '#B38B21' }}
-                onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.filter = 'brightness(1.1)'; }}
-                onMouseLeave={e => { if (!e.currentTarget.disabled) e.currentTarget.style.filter = ''; }}
-              >
-                Confirm Trade
-                <ArrowRight size={15} className="group-hover:translate-x-1 transition-transform" />
-              </button>
+                {/* CTA */}
+                <button
+                  disabled={!targetPhoneId || !currentPhone}
+                  onClick={() => setShowConfirmPopup(true)}
+                  className="w-full py-4 rounded-xl text-xs font-black uppercase tracking-widest text-black flex items-center justify-center gap-3 transition-all duration-200 disabled:opacity-20 disabled:cursor-not-allowed group"
+                  style={{ backgroundColor: '#B38B21' }}
+                  onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.filter = 'brightness(1.1)'; }}
+                  onMouseLeave={e => { if (!e.currentTarget.disabled) e.currentTarget.style.filter = ''; }}
+                >
+                  Confirm Trade
+                  <ArrowRight size={15} className="group-hover:translate-x-1 transition-transform" />
+                </button>
 
-<div className="flex items-center justify-center gap-2 text-white/20">
-                <ShieldCheck size={12} style={{ color: '#B38B21' }} />
-                <span className="text-[10px] font-medium">Precision Exchange Program</span>
+                <div className="flex items-center justify-center gap-2 text-white/20">
+                  <ShieldCheck size={12} style={{ color: '#B38B21' }} />
+                  <span className="text-[10px] font-medium">Precision Exchange Program</span>
+                </div>
               </div>
             </div>
-          </div>
 
             {/* Guarantee card */}
             <div className="rounded-2xl p-5 space-y-2" style={{ backgroundColor: 'rgba(179,139,33,0.04)', borderLeft: '2px solid rgba(179,139,33,0.15)' }}>
@@ -446,7 +443,7 @@ export const Trades: React.FC<TradesProps> = ({
                 <Award size={15} style={{ color: '#B38B21' }} />
                 <h4 className="text-xs font-black uppercase tracking-wider text-white/70">Best Value Guarantee</h4>
               </div>
-              <p className="text-[10px] text-white/30 leading-relaxed">
+              <p className="text-[10px] text-white/60 leading-relaxed">
                 Find a better offer within 48 hours and we'll match it plus 10%.
               </p>
             </div>
@@ -458,9 +455,9 @@ export const Trades: React.FC<TradesProps> = ({
           <div className="flex items-end justify-between">
             <div>
               <h2 className="text-xl font-black uppercase tracking-tight text-white">Upgrade Essentials</h2>
-              <p className="text-[10px] text-white/30 mt-1 uppercase tracking-widest">Complete your new kit</p>
+              <p className="text-[10px] text-white/60 mt-1 uppercase tracking-widest">Complete your new kit</p>
             </div>
-            <Link to="/store" className="text-[10px] font-bold uppercase tracking-wider text-white/30 hover:text-white transition-colors flex items-center gap-2 group">
+            <Link to="/store" className="text-[10px] font-bold uppercase tracking-wider text-white/60 hover:text-white transition-colors flex items-center gap-2 group">
               View All <ArrowRight size={13} className="group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
@@ -484,32 +481,32 @@ export const Trades: React.FC<TradesProps> = ({
       {/* Confirmation Popup */}
       {showConfirmPopup && (
         <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-black border border-white/10 rounded-3xl p-8 max-w-md w-full mx-auto shadow-2xl">
+          <div className="border border-white/10 rounded-3xl p-8 max-w-md w-full mx-auto shadow-2xl" style={{ backgroundColor: 'var(--bb-surface)' }}>
             {/* Header */}
             <div className="text-center mb-6">
               <div className="w-16 h-16 bg-[#B38B21]/20 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CheckCircle2 size={32} className="text-[#B38B21]" />
               </div>
               <h3 className="text-2xl font-black text-white mb-2">Trade-In Confirmed!</h3>
-              <p className="text-sm text-gray-400">Your trade-in reservation has been successfully initiated</p>
+              <p className="text-sm text-white/70">Your trade-in reservation has been successfully initiated</p>
             </div>
 
             {/* Trade Details */}
             <div className="space-y-4 mb-6">
               <div className="flex justify-between items-center py-3 border-b border-white/5">
-                <span className="text-sm text-gray-400">Device Trading In</span>
+                <span className="text-sm text-white/70">Device Trading In</span>
                 <span className="text-sm font-semibold text-white">{currentPhone}</span>
               </div>
               <div className="flex justify-between items-center py-3 border-b border-white/5">
-                <span className="text-sm text-gray-400">Device Getting</span>
+                <span className="text-sm text-white/40">Device Getting</span>
                 <span className="text-sm font-semibold text-white">{targetPhones.find(p => p.id === targetPhoneId)?.name || 'Selected Device'}</span>
               </div>
               <div className="flex justify-between items-center py-3 border-b border-white/5">
-                <span className="text-sm text-gray-400">Trade-In Value</span>
+                <span className="text-sm text-white/40">Trade-In Value</span>
                 <span className="text-sm font-semibold text-[#B38B21]">{formatCurrency(tradeInValue)}</span>
               </div>
               <div className="flex justify-between items-center py-3">
-                <span className="text-sm text-gray-400">Final Payment</span>
+                <span className="text-sm text-white/40">Final Payment</span>
                 <span className="text-lg font-black text-white">{formatCurrency(difference)}</span>
               </div>
             </div>
@@ -517,7 +514,7 @@ export const Trades: React.FC<TradesProps> = ({
             {/* Next Steps */}
             <div className="bg-[#B38B21]/5 border border-[#B38B21]/20 rounded-xl p-4 mb-6">
               <h4 className="text-sm font-semibold text-[#B38B21] mb-2">Next Steps</h4>
-              <ul className="space-y-1 text-xs text-gray-300">
+              <ul className="space-y-1 text-xs text-white/50">
                 <li>• Diagnostic appointment scheduled within 24hrs</li>
                 <li>• Bring your device and original packaging</li>
                 <li>• Receive instant credit upon approval</li>

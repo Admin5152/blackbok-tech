@@ -25,7 +25,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onToggleCompare
 }) => {
   const { theme } = useAppContext();
-  const frameBorder = theme === 'dark' ? 'border-white/10' : 'border-black/10';
   const [selectedColor, setSelectedColor] = useState('');
   const [showColorPicker, setShowColorPicker] = useState(false);
 
@@ -36,14 +35,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
   return (
     <div
-      className={`group bg-[#080808] border rounded-xl overflow-hidden transition-all duration-700 flex flex-col h-full cursor-pointer relative ${isCompared ? 'border-[#CDA032]' : 'border-white/[0.03] hover:border-[#CDA032]/20 shadow-2xl'}`}
+      className={`group border rounded-xl overflow-hidden transition-all duration-700 flex flex-col h-full cursor-pointer relative ${isCompared ? 'border-[#CDA032]' : 'border-white/[0.03] hover:border-[#CDA032]/20 shadow-2xl'}`}
+      style={{ backgroundColor: 'var(--bb-surface)' }}
     >
       {/* Corner frame borders */}
-      <div className="pointer-events-none absolute inset-0 z-10">
-        <div className={`absolute top-2 left-2 w-8 h-8 border-t border-l rounded-tl-lg transition-colors ${frameBorder}`} />
-        <div className={`absolute top-2 right-2 w-8 h-8 border-t border-r rounded-tr-lg transition-colors ${frameBorder}`} />
-        <div className={`absolute bottom-2 left-2 w-8 h-8 border-b border-l rounded-bl-lg transition-colors ${frameBorder}`} />
-        <div className={`absolute bottom-2 right-2 w-8 h-8 border-b border-r rounded-br-lg transition-colors ${frameBorder}`} />
+      <div className="pointer-events-none absolute inset-0 z-0">
+        <div className={`absolute bottom-2 left-2 w-12 h-12 border-b-2 border-l-2 rounded-bl-xl transition-colors ${theme === 'dark' ? 'border-white/20' : 'border-[#CDA032]/40'}`} />
+        <div className={`absolute bottom-2 right-2 w-12 h-12 border-b-2 border-r-2 rounded-br-xl transition-colors ${theme === 'dark' ? 'border-white/20' : 'border-[#CDA032]/40'}`} />
       </div>
       <div className="absolute top-2 left-2 z-20 flex flex-col gap-1">
         {product.new && (
@@ -71,7 +69,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </button>
       </div>
 
-      <Link to="/product/$productId" params={{ productId: product.id } as any} className="flex-1 flex flex-col">
+      <Link to="/product/$productId" params={{ productId: product.id } as any} className="flex-1 flex flex-col relative z-20">
         <div className="relative h-32 bg-black rounded-t-2xl overflow-hidden group-hover:scale-[1.02] transition-transform duration-500">
           <img
             src={product.image}
@@ -111,7 +109,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           {/* Color Selection */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[8px] text-white/30 font-medium">Color</span>
+              <span className="text-[8px] text-white/50 font-medium italic">Color Options</span>
               <button
                 onClick={() => setShowColorPicker(!showColorPicker)}
                 className="text-[8px] text-[#CDA032] hover:text-[#CDA032]/80 transition-colors"
@@ -169,16 +167,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             <div className="flex items-baseline gap-2">
               <span className="text-base font-black text-white tracking-tighter">{formatCurrency(product.price)}</span>
               {product.discount && (
-                <span className="text-[8px] text-white/10 line-through font-bold">
+                <span className="text-[8px] text-white/30 line-through font-bold">
                   {formatCurrency(product.price * (1 + product.discount / 100))}
                 </span>
               )}
             </div>
             <button
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleAddToCartWithColor(); }}
-              className="w-full py-3 border border-white/[0.02] hover:border-[#CDA032] group-hover:bg-[#CDA032]/5 rounded-xl text-[9px] font-black uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-2"
+              className="w-full py-3 bg-[#CDA032] hover:bg-[#B38B21] text-black rounded-xl text-[9px] font-black uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-[#CDA032]/20"
             >
-              <ShoppingCart size={13} /> ADD TO CART
+              <ShoppingCart size={13} strokeWidth={3} /> ADD TO CART
             </button>
           </div>
         </div>

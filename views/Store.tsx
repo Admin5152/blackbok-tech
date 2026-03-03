@@ -36,10 +36,7 @@ export const Store: React.FC<StoreProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedColors, setSelectedColors] = useState<string[]>([]);
-  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState({ min: 0, max: 15000 });
-  const [inStockOnly, setInStockOnly] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const isLight = theme === 'light';
 
@@ -49,38 +46,13 @@ export const Store: React.FC<StoreProps> = ({
       const matchesSearch = p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q);
       const matchesCategory = selectedCategory === 'All' || p.category === selectedCategory;
       const matchesPrice = p.price >= priceRange.min && p.price <= priceRange.max;
-      const matchesStock = !inStockOnly || p.stock > 0;
-      const matchesColors = selectedColors.length === 0 || (p.variants && p.variants.some(v => v.name === 'Color' && v.options.some(opt => selectedColors.includes(opt))));
-      const matchesBrand = selectedBrands.length === 0 || selectedBrands.some(brand => p.name.toLowerCase().includes(brand.toLowerCase()));
-      
-      return matchesSearch && matchesCategory && matchesPrice && matchesStock && matchesColors && matchesBrand;
+
+      return matchesSearch && matchesCategory && matchesPrice;
     });
-    
+
     return results.sort((a, b) => b.stock - a.stock);
-  }, [products, searchTerm, selectedCategory, priceRange, inStockOnly, selectedColors, selectedBrands]);
+  }, [products, searchTerm, selectedCategory, priceRange]);
 
-  const availableColors = useMemo(() => {
-    const colors = new Set<string>();
-    products.forEach(p => {
-      if (p.variants) {
-        p.variants.forEach(v => {
-          if (v.name === 'Color') {
-            v.options.forEach(opt => colors.add(opt));
-          }
-        });
-      }
-    });
-    return Array.from(colors);
-  }, [products]);
-
-  const availableBrands = useMemo(() => {
-    const brands = new Set<string>();
-    products.forEach(p => {
-      const brand = p.name.split(' ')[0];
-      brands.add(brand);
-    });
-    return Array.from(brands);
-  }, [products]);
 
   const categoryOptions: { label: string; value: Category | 'All'; icon: React.ReactNode; count?: number }[] = [
     { label: 'ALL PRODUCTS', value: 'All', icon: <LayoutGrid size={14} />, count: products.length },
@@ -91,20 +63,14 @@ export const Store: React.FC<StoreProps> = ({
   ];
 
   const activeFiltersCount = [
-    selectedCategory !== 'All', 
-    priceRange.min > 0, 
-    priceRange.max < 15000, 
-    inStockOnly,
-    selectedColors.length > 0,
-    selectedBrands.length > 0
+    selectedCategory !== 'All',
+    priceRange.min > 0,
+    priceRange.max < 15000
   ].filter(Boolean).length;
 
   const clearAllFilters = () => {
     setSelectedCategory('All');
     setPriceRange({ min: 0, max: 15000 });
-    setInStockOnly(false);
-    setSelectedColors([]);
-    setSelectedBrands([]);
     setSearchTerm('');
   };
 
@@ -116,7 +82,7 @@ export const Store: React.FC<StoreProps> = ({
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: pageBg, color: isLight ? '#000' : '#fff' }}>
-      
+
       {/* Search Bar */}
       <div className="sticky top-0 z-40 border-b" style={{ backgroundColor: pageBg, borderColor: borderFaint }}>
         <div className="max-w-7xl mx-auto px-4 py-4">
@@ -138,21 +104,20 @@ export const Store: React.FC<StoreProps> = ({
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-12 pr-4 py-3 rounded-xl text-sm focus:outline-none transition-all"
-                  style={{ 
-                    backgroundColor: panelBg, 
+                  style={{
+                    backgroundColor: panelBg,
                     border: `1px solid ${borderSubtle}`,
                     color: isLight ? '#000' : '#fff'
                   }}
                 />
               </div>
             </div>
-            
+
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                  activeFiltersCount > 0 ? 'bg-[#CDA032] text-black' : 'border'
-                }`}
+                className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeFiltersCount > 0 ? 'bg-[#CDA032] text-black' : 'border'
+                  }`}
                 style={{
                   backgroundColor: activeFiltersCount > 0 ? '#CDA032' : panelBg,
                   borderColor: borderSubtle,
@@ -167,7 +132,7 @@ export const Store: React.FC<StoreProps> = ({
                   </span>
                 )}
               </button>
-              
+
               <div className="flex items-center gap-1 border rounded-lg p-1" style={{ borderColor: borderSubtle }}>
                 <button
                   onClick={() => setViewMode('grid')}
@@ -189,11 +154,11 @@ export const Store: React.FC<StoreProps> = ({
 
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex gap-6">
-          
+
           {/* Filters Sidebar */}
           <div className={`${showFilters ? 'block' : 'hidden'} lg:block w-64 flex-shrink-0`}>
             <div className="rounded-2xl p-6 space-y-6" style={{ backgroundColor: panelBg, border: `1px solid ${borderSubtle}` }}>
-              
+
               {/* Categories */}
               <div>
                 <h3 className="text-sm font-bold mb-3 uppercase tracking-wider">Categories</h3>
@@ -202,9 +167,8 @@ export const Store: React.FC<StoreProps> = ({
                     <button
                       key={cat.value}
                       onClick={() => setSelectedCategory(cat.value)}
-                      className={`w-full flex items-center justify-between p-3 rounded-lg text-sm transition-all ${
-                        selectedCategory === cat.value ? 'bg-[#CDA032] text-black' : 'hover:bg-white/5'
-                      }`}
+                      className={`w-full flex items-center justify-between p-3 rounded-lg text-sm transition-all ${selectedCategory === cat.value ? 'bg-[#CDA032] text-black' : 'hover:bg-white/5'
+                        }`}
                     >
                       <div className="flex items-center gap-2">
                         {cat.icon}
@@ -231,8 +195,8 @@ export const Store: React.FC<StoreProps> = ({
                         value={priceRange.min}
                         onChange={(e) => setPriceRange(prev => ({ ...prev, min: parseInt(e.target.value) || 0 }))}
                         className="flex-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-[#CDA032] transition-colors"
-                        style={{ 
-                          backgroundColor: panelBg, 
+                        style={{
+                          backgroundColor: panelBg,
                           borderColor: borderSubtle,
                           color: isLight ? '#000' : '#fff'
                         }}
@@ -259,8 +223,8 @@ export const Store: React.FC<StoreProps> = ({
                         value={priceRange.max}
                         onChange={(e) => setPriceRange(prev => ({ ...prev, max: parseInt(e.target.value) || 15000 }))}
                         className="flex-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-[#CDA032] transition-colors"
-                        style={{ 
-                          backgroundColor: panelBg, 
+                        style={{
+                          backgroundColor: panelBg,
                           borderColor: borderSubtle,
                           color: isLight ? '#000' : '#fff'
                         }}
@@ -279,68 +243,6 @@ export const Store: React.FC<StoreProps> = ({
                 </div>
               </div>
 
-              {/* Colors */}
-              {availableColors.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-bold mb-3 uppercase tracking-wider">Colors</h3>
-                  <div className="space-y-2">
-                    {availableColors.map(color => (
-                      <label key={color} className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selectedColors.includes(color)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedColors(prev => [...prev, color]);
-                            } else {
-                              setSelectedColors(prev => prev.filter(c => c !== color));
-                            }
-                          }}
-                          className="rounded"
-                        />
-                        <span className="text-sm">{color}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Brands */}
-              <div>
-                <h3 className="text-sm font-bold mb-3 uppercase tracking-wider">Brands</h3>
-                <div className="space-y-2">
-                  {availableBrands.map(brand => (
-                    <label key={brand} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedBrands.includes(brand)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedBrands(prev => [...prev, brand]);
-                          } else {
-                            setSelectedBrands(prev => prev.filter(b => b !== brand));
-                          }
-                        }}
-                        className="rounded"
-                      />
-                      <span className="text-sm">{brand}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* In Stock Only */}
-              <div>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={inStockOnly}
-                    onChange={(e) => setInStockOnly(e.target.checked)}
-                    className="rounded"
-                  />
-                  <span className="text-sm">In Stock Only</span>
-                </label>
-              </div>
 
               {/* Clear Filters */}
               {activeFiltersCount > 0 && (

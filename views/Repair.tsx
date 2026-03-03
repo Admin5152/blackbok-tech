@@ -102,7 +102,7 @@ export const Repair: React.FC = () => {
     { id: 5, label: 'Confirm', icon: CheckCircle2 }
   ];
 
-  const inputClass = "w-full border border-white/8 rounded-xl px-4 py-3 text-sm text-white outline-none transition-all focus:border-white/20 placeholder:text-white/20";
+  const inputClass = "w-full border border-white/20 rounded-xl px-4 py-3 text-sm text-white outline-none transition-all focus:border-white/40 placeholder:text-white/40";
   const inputBg = { backgroundColor: 'var(--bb-surface)' };
 
   return (
@@ -115,7 +115,7 @@ export const Repair: React.FC = () => {
       <div className="max-w-3xl mx-auto relative z-10 space-y-8">
 
         {/* Header */}
-        <header className="flex items-center gap-3 pb-6" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <header className="flex items-center gap-3 pb-6 border-b border-white/10">
           <button
             onClick={() => navigate({ to: '/' })}
             className="p-3 rounded-xl border border-white/10 hover:border-white/20 transition-colors"
@@ -128,13 +128,13 @@ export const Repair: React.FC = () => {
           </div>
           <div>
             <h1 className="text-2xl font-black uppercase tracking-tight text-white leading-none">Repair Service</h1>
-            <p className="text-[10px] text-white/30 mt-0.5 font-medium tracking-wide">Professional diagnostics & repairs</p>
+            <p className="text-[10px] text-white/60 mt-0.5 font-medium tracking-wide">Professional diagnostics & repairs</p>
           </div>
         </header>
 
         {/* Stepper */}
         <div className="flex items-center justify-between relative px-2">
-          <div className="absolute top-[18px] left-0 w-full h-px" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }} />
+          <div className="absolute top-[18px] left-0 w-full h-px border-t border-white/10" />
           <div
             className="absolute top-[18px] left-0 h-px transition-all duration-500"
             style={{ width: `${((step - 1) / 4) * 100}%`, backgroundColor: '#B38B21' }}
@@ -142,14 +142,14 @@ export const Repair: React.FC = () => {
           {steps.map(s => (
             <div key={s.id} className="relative z-10 flex flex-col items-center gap-1.5 px-1" style={{ backgroundColor: 'var(--bb-bg)' }}>
               <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all border text-xs font-black ${step > s.id
-                  ? 'text-black border-transparent'
-                  : step === s.id
-                    ? 'text-white border-white/20'
-                    : 'text-white/20 border-white/6'
+                ? 'text-black border-transparent'
+                : step === s.id
+                  ? 'text-white border-white/20'
+                  : 'text-white/50 border-white/6'
                 }`} style={{ backgroundColor: step > s.id ? '#B38B21' : step === s.id ? 'rgba(255,255,255,0.06)' : 'transparent' }}>
                 {step > s.id ? <Check size={15} strokeWidth={3} /> : <s.icon size={15} />}
               </div>
-              <span className={`text-[9px] font-bold uppercase tracking-wider hidden sm:block ${step >= s.id ? 'text-white/50' : 'text-white/15'}`}>
+              <span className={`text-[9px] font-bold uppercase tracking-wider hidden sm:block ${step >= s.id ? 'text-white/50' : 'text-white/40'}`}>
                 {s.label}
               </span>
             </div>
@@ -169,15 +169,11 @@ export const Repair: React.FC = () => {
                     <button
                       key={type.id}
                       onClick={() => setFormData({ ...formData, deviceType: type.id })}
-                      className="relative p-3 rounded-xl border text-center transition-all duration-200 group"
-                      style={{
-                        backgroundColor: formData.deviceType === type.id ? 'rgba(255,255,255,0.05)' : 'transparent',
-                        borderColor: formData.deviceType === type.id ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.06)',
-                      }}
+                      className={`relative p-3 rounded-xl border text-center transition-all duration-200 group ${formData.deviceType === type.id ? 'bg-white/10 border-white/30 shadow-lg' : 'border-white/15'}`}
                     >
-                      <type.icon size={18} className={`mx-auto mb-1.5 transition-colors ${formData.deviceType === type.id ? 'text-white' : 'text-white/30 group-hover:text-white/50'}`} />
+                      <type.icon size={18} className={`mx-auto mb-1.5 transition-colors ${formData.deviceType === type.id ? 'text-white' : 'text-white/60 group-hover:text-white/50'}`} />
                       <p className={`text-[10px] font-bold uppercase tracking-wide transition-colors ${formData.deviceType === type.id ? 'text-white' : 'text-white/40'}`}>{type.label}</p>
-                      <p className="text-[8px] text-white/20 mt-0.5 hidden sm:block">{type.desc}</p>
+                      <p className="text-[8px] text-white/50 mt-0.5 hidden sm:block">{type.desc}</p>
                       {formData.deviceType === type.id && (
                         <div className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center" style={{ backgroundColor: '#B38B21' }}>
                           <Check size={9} className="text-black" strokeWidth={3} />
@@ -188,7 +184,7 @@ export const Repair: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 pt-6" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+              <div className="grid grid-cols-2 gap-4 pt-6 border-t border-white/10">
                 <div className="space-y-2">
                   <FieldLabel icon={<Package size={11} />} label="Brand" required />
                   <div className="relative">
@@ -201,7 +197,7 @@ export const Repair: React.FC = () => {
                       <option value="">Select brand</option>
                       {brands.map(b => <option key={b} value={b}>{b}</option>)}
                     </select>
-                    <ArrowRight size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 pointer-events-none rotate-90" />
+                    <ArrowRight size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 pointer-events-none rotate-90" />
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -216,23 +212,19 @@ export const Repair: React.FC = () => {
                 </div>
               </div>
 
-              <div className="space-y-4 pt-6" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+              <div className="space-y-4 pt-6 border-t border-white/10">
                 <SectionTitle icon={<Activity size={15} />} title="Device Condition" required />
                 <div className="grid grid-cols-2 gap-2">
                   {conditions.map(cond => (
                     <button
                       key={cond.id}
                       onClick={() => setFormData({ ...formData, condition: cond.id })}
-                      className="flex items-center gap-3 p-3 rounded-xl border text-left transition-all duration-200"
-                      style={{
-                        backgroundColor: formData.condition === cond.id ? 'rgba(255,255,255,0.04)' : 'transparent',
-                        borderColor: formData.condition === cond.id ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.06)',
-                      }}
+                      className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all duration-200 ${formData.condition === cond.id ? 'bg-white/10 border-white/20 shadow-sm' : 'border-white/10 hover:border-white/15'}`}
                     >
                       <div className={`w-2 h-2 rounded-full flex-shrink-0 ${cond.dot}`} />
                       <div>
                         <p className={`text-xs font-bold transition-colors ${formData.condition === cond.id ? 'text-white' : 'text-white/50'}`}>{cond.label}</p>
-                        <p className="text-[9px] text-white/25 mt-0.5">{cond.desc}</p>
+                        <p className="text-[9px] text-white/50 mt-0.5">{cond.desc}</p>
                       </div>
                       {formData.condition === cond.id && (
                         <div className="ml-auto w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#B38B21' }}>
@@ -251,7 +243,7 @@ export const Repair: React.FC = () => {
             <div className="space-y-8">
               <div className="space-y-3">
                 <SectionTitle icon={<AlertCircle size={15} />} title="Describe the Issue" required />
-                <p className="text-[10px] text-white/30">Provide detailed information about the problem you're experiencing</p>
+                <p className="text-[10px] text-white/60">Provide detailed information about the problem you're experiencing</p>
                 <textarea
                   placeholder="Example: Screen is cracked in the top right corner. Touch still works but there's visible damage..."
                   value={formData.description}
@@ -260,7 +252,7 @@ export const Repair: React.FC = () => {
                   className={inputClass + " resize-none leading-relaxed"}
                   style={inputBg}
                 />
-                <div className="flex justify-between text-[9px] text-white/25">
+                <div className="flex justify-between text-[9px] text-white/50">
                   <span>Minimum 10 characters</span>
                   <span className={formData.description.length >= 10 ? 'text-emerald-400' : ''}>{formData.description.length} chars</span>
                 </div>
@@ -283,15 +275,11 @@ export const Repair: React.FC = () => {
                     <button
                       key={level.id}
                       onClick={() => setFormData({ ...formData, urgency: level.id })}
-                      className="p-4 rounded-xl border text-center transition-all duration-200"
-                      style={{
-                        backgroundColor: formData.urgency === level.id ? 'rgba(255,255,255,0.04)' : 'transparent',
-                        borderColor: formData.urgency === level.id ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.06)',
-                      }}
+                      className={`p-4 rounded-xl border text-center transition-all duration-200 ${formData.urgency === level.id ? 'bg-white/10 border-white/30 shadow-lg' : 'border-white/10'}`}
                     >
-                      <level.icon size={18} className={`mx-auto mb-2 ${formData.urgency === level.id ? 'text-white' : 'text-white/25'}`} />
+                      <level.icon size={18} className={`mx-auto mb-2 ${formData.urgency === level.id ? 'text-white' : 'text-white/50'}`} />
                       <p className={`text-[10px] font-bold uppercase tracking-wide mb-1 ${formData.urgency === level.id ? 'text-white' : 'text-white/40'}`}>{level.label}</p>
-                      <p className="text-[9px] text-white/25 mb-2">{level.desc}</p>
+                      <p className="text-[9px] text-white/50 mb-2">{level.desc}</p>
                       <p className="text-[10px] font-bold" style={{ color: '#B38B21' }}>
                         {level.price === 0 ? 'FREE' : `+${formatCurrency(level.price)}`}
                       </p>
@@ -316,9 +304,9 @@ export const Repair: React.FC = () => {
                     className={`${inputClass} pl-12`}
                     style={inputBg}
                   />
-                  <Calendar 
-                    size={16} 
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none"
+                  <Calendar
+                    size={16}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-white/60 pointer-events-none"
                   />
                 </div>
               </div>
@@ -338,7 +326,7 @@ export const Repair: React.FC = () => {
                       }}
                     >
                       <p className={`text-sm font-black mb-0.5 ${formData.timeSlot === slot.id ? 'text-white' : 'text-white/50'}`}>{slot.time}</p>
-                      <p className="text-[9px] text-white/25">{slot.available ? slot.label : 'Booked'}</p>
+                      <p className="text-[9px] text-white/50">{slot.available ? slot.label : 'Booked'}</p>
                     </button>
                   ))}
                 </div>
@@ -361,7 +349,7 @@ export const Repair: React.FC = () => {
             <div className="space-y-6">
               <div>
                 <SectionTitle icon={<User size={15} />} title="Contact Information" />
-                <p className="text-[10px] text-white/30 mt-1">We'll use these details to confirm your appointment</p>
+                <p className="text-[10px] text-white/60 mt-1">We'll use these details to confirm your appointment</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -421,7 +409,7 @@ export const Repair: React.FC = () => {
                   <CheckCircle2 size={28} style={{ color: '#B38B21' }} />
                 </div>
                 <h3 className="text-lg font-black uppercase tracking-tight mb-1">Review Your Request</h3>
-                <p className="text-[10px] text-white/30">Verify all details before submitting</p>
+                <p className="text-[10px] text-white/60">Verify all details before submitting</p>
               </div>
 
               <div className="space-y-2">
@@ -437,11 +425,11 @@ export const Repair: React.FC = () => {
                     <div className="flex items-center gap-3">
                       <item.icon size={15} style={{ color: '#B38B21' }} />
                       <div>
-                        <p className="text-[9px] text-white/30 uppercase tracking-wider mb-0.5">{item.label}</p>
+                        <p className="text-[9px] text-white/60 uppercase tracking-wider mb-0.5">{item.label}</p>
                         <p className="text-xs font-semibold text-white">{item.value}</p>
                       </div>
                     </div>
-                    <button onClick={() => setStep(item.editStep)} className="text-[9px] font-bold text-white/30 hover:text-white transition-colors uppercase tracking-wider">
+                    <button onClick={() => setStep(item.editStep)} className="text-[9px] font-bold text-white/60 hover:text-white transition-colors uppercase tracking-wider">
                       Edit
                     </button>
                   </div>
@@ -450,7 +438,7 @@ export const Repair: React.FC = () => {
 
               {formData.description && (
                 <div className="p-4 rounded-xl" style={{ backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                  <p className="text-[9px] text-white/30 uppercase tracking-wider mb-2">Issue Description</p>
+                  <p className="text-[9px] text-white/60 uppercase tracking-wider mb-2">Issue Description</p>
                   <p className="text-xs text-white/60 leading-relaxed">{formData.description}</p>
                 </div>
               )}
@@ -508,7 +496,7 @@ export const Repair: React.FC = () => {
           ))}
         </div>
       </div>
-    </div>
+    </div >
   );
 };
 

@@ -26,7 +26,7 @@ import { Cart } from './views/Cart';
 import { Checkout } from './views/Checkout';
 import { Trades } from './views/Trades';
 import { Admin } from './views/Admin';
-import { orders } from './data/orders';
+// import { orders } from './data/orders'; 
 import { QuickViewModal } from './components/QuickViewModal';
 import { CompareModal } from './components/CompareModal';
 import { WelcomeScreen } from './components/WelcomeScreen';
