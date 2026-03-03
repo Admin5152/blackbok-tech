@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Search, Filter, Grid3x3, List, Smartphone, Laptop as LaptopIcon, Watch, Gamepad2, LayoutGrid, X, ChevronDown, ArrowLeft, Plus, Minus } from 'lucide-react';
+import { Search, Filter, Grid3x3, List, Smartphone, Laptop as LaptopIcon, Watch, Gamepad2, LayoutGrid, X, ChevronDown, ArrowLeft } from 'lucide-react';
 import { Product, Category } from '../types';
 import { ProductCard } from '../components/ProductCard';
 import { formatCurrency } from '../lib/utils';
@@ -155,44 +155,26 @@ export const Store: React.FC<StoreProps> = ({
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex gap-6">
 
-          {/* Filters Sidebar Drawer Overlay */}
-          <div
-            className={`fixed inset-0 bg-black/60 z-50 backdrop-blur-sm transition-opacity duration-300 ${showFilters ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
-            onClick={() => setShowFilters(false)}
-          />
-
-          {/* Filters Sidebar Drawer */}
-          <div
-            className={`fixed top-0 left-0 h-full w-[320px] sm:w-[400px] z-50 transform transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)] ${showFilters ? 'translate-x-0' : '-translate-x-full'}`}
-            style={{ backgroundColor: panelBg, borderRight: `1px solid ${borderSubtle}` }}
-          >
-            <div className="h-full overflow-y-auto p-6 sm:p-8 space-y-8 no-scrollbar">
-              <div className="flex items-center justify-between pb-6 border-b" style={{ borderColor: borderSubtle }}>
-                <h2 className="text-2xl font-bold tracking-tight">Filters</h2>
-                <button
-                  onClick={() => setShowFilters(false)}
-                  className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-                >
-                  <X size={24} />
-                </button>
-              </div>
+          {/* Filters Sidebar */}
+          <div className={`${showFilters ? 'block' : 'hidden'} lg:block w-64 flex-shrink-0`}>
+            <div className="rounded-2xl p-6 space-y-6" style={{ backgroundColor: panelBg, border: `1px solid ${borderSubtle}` }}>
 
               {/* Categories */}
               <div>
-                <h3 className="text-xs font-black mb-4 uppercase tracking-[0.2em] opacity-60">Categories</h3>
+                <h3 className="text-sm font-bold mb-3 uppercase tracking-wider">Categories</h3>
                 <div className="space-y-2">
                   {categoryOptions.map(cat => (
                     <button
                       key={cat.value}
                       onClick={() => setSelectedCategory(cat.value)}
-                      className={`w-full flex items-center justify-between p-4 rounded-xl text-sm font-medium transition-all ${selectedCategory === cat.value ? 'bg-[#CDA032] text-black shadow-lg shadow-[#CDA032]/20 scale-[1.02]' : 'hover:bg-black/5 dark:hover:bg-white/5'
+                      className={`w-full flex items-center justify-between p-3 rounded-lg text-sm transition-all ${selectedCategory === cat.value ? 'bg-[#CDA032] text-black' : 'hover:bg-white/5'
                         }`}
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
                         {cat.icon}
                         <span>{cat.label}</span>
                       </div>
-                      <span className={`text-xs ${selectedCategory === cat.value ? 'opacity-80' : 'opacity-40'}`}>{cat.count}</span>
+                      <span className="text-xs opacity-60">{cat.count}</span>
                     </button>
                   ))}
                 </div>
@@ -200,17 +182,11 @@ export const Store: React.FC<StoreProps> = ({
 
               {/* Price Range */}
               <div>
-                <h3 className="text-xs font-black mb-4 uppercase tracking-[0.2em] opacity-60">Price Range</h3>
-                <div className="space-y-6">
+                <h3 className="text-sm font-bold mb-3 uppercase tracking-wider">Price Range</h3>
+                <div className="space-y-3">
                   <div>
-                    <label className="text-xs opacity-60 font-medium mb-2 block">Min Price</label>
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => setPriceRange(prev => ({ ...prev, min: Math.max(0, prev.min - 100) }))}
-                        className="p-2 sm:p-3 rounded-xl border border-transparent bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors flex items-center justify-center shrink-0 w-11 h-11"
-                      >
-                        <Minus size={16} />
-                      </button>
+                    <label className="text-xs opacity-60">Min Price</label>
+                    <div className="flex items-center gap-2">
                       <input
                         type="number"
                         min="0"
@@ -218,30 +194,27 @@ export const Store: React.FC<StoreProps> = ({
                         step="100"
                         value={priceRange.min}
                         onChange={(e) => setPriceRange(prev => ({ ...prev, min: parseInt(e.target.value) || 0 }))}
-                        className="flex-1 w-full px-4 py-3 border rounded-xl text-center text-sm font-medium focus:outline-none focus:border-[#CDA032] focus:ring-1 focus:ring-[#CDA032] transition-colors"
+                        className="flex-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-[#CDA032] transition-colors"
                         style={{
-                          backgroundColor: isLight ? '#fff' : '#000',
+                          backgroundColor: panelBg,
                           borderColor: borderSubtle,
                           color: isLight ? '#000' : '#fff'
                         }}
                       />
-                      <button
-                        onClick={() => setPriceRange(prev => ({ ...prev, min: Math.min(prev.max, prev.min + 100) }))}
-                        className="p-2 sm:p-3 rounded-xl border border-transparent bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors flex items-center justify-center shrink-0 w-11 h-11"
-                      >
-                        <Plus size={16} />
-                      </button>
+                      <input
+                        type="range"
+                        min="0"
+                        max="15000"
+                        step="100"
+                        value={priceRange.min}
+                        onChange={(e) => setPriceRange(prev => ({ ...prev, min: parseInt(e.target.value) }))}
+                        className="w-24 accent-[#CDA032]"
+                      />
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs opacity-60 font-medium mb-2 block">Max Price</label>
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => setPriceRange(prev => ({ ...prev, max: Math.max(prev.min, prev.max - 100) }))}
-                        className="p-2 sm:p-3 rounded-xl border border-transparent bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors flex items-center justify-center shrink-0 w-11 h-11"
-                      >
-                        <Minus size={16} />
-                      </button>
+                    <label className="text-xs opacity-60">Max Price</label>
+                    <div className="flex items-center gap-2">
                       <input
                         type="number"
                         min="0"
@@ -249,19 +222,22 @@ export const Store: React.FC<StoreProps> = ({
                         step="100"
                         value={priceRange.max}
                         onChange={(e) => setPriceRange(prev => ({ ...prev, max: parseInt(e.target.value) || 15000 }))}
-                        className="flex-1 w-full px-4 py-3 border rounded-xl text-center text-sm font-medium focus:outline-none focus:border-[#CDA032] focus:ring-1 focus:ring-[#CDA032] transition-colors"
+                        className="flex-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-[#CDA032] transition-colors"
                         style={{
-                          backgroundColor: isLight ? '#fff' : '#000',
+                          backgroundColor: panelBg,
                           borderColor: borderSubtle,
                           color: isLight ? '#000' : '#fff'
                         }}
                       />
-                      <button
-                        onClick={() => setPriceRange(prev => ({ ...prev, max: Math.min(15000, prev.max + 100) }))}
-                        className="p-2 sm:p-3 rounded-xl border border-transparent bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors flex items-center justify-center shrink-0 w-11 h-11"
-                      >
-                        <Plus size={16} />
-                      </button>
+                      <input
+                        type="range"
+                        min="0"
+                        max="15000"
+                        step="100"
+                        value={priceRange.max}
+                        onChange={(e) => setPriceRange(prev => ({ ...prev, max: parseInt(e.target.value) }))}
+                        className="w-24 accent-[#CDA032]"
+                      />
                     </div>
                   </div>
                 </div>
@@ -270,14 +246,13 @@ export const Store: React.FC<StoreProps> = ({
 
               {/* Clear Filters */}
               {activeFiltersCount > 0 && (
-                <div className="pt-6 border-t" style={{ borderColor: borderSubtle }}>
-                  <button
-                    onClick={clearAllFilters}
-                    className="w-full py-4 border-2 border-transparent bg-black/5 dark:bg-white/5 rounded-xl text-sm font-bold tracking-wide transition-all hover:bg-black/10 dark:hover:bg-white/10"
-                  >
-                    Clear All Filters
-                  </button>
-                </div>
+                <button
+                  onClick={clearAllFilters}
+                  className="w-full py-2 border rounded-lg text-sm font-medium transition-all hover:bg-white/5"
+                  style={{ borderColor: borderSubtle }}
+                >
+                  Clear All Filters
+                </button>
               )}
             </div>
           </div>
@@ -322,52 +297,22 @@ export const Store: React.FC<StoreProps> = ({
                 {filteredProducts.map(product => (
                   <div
                     key={product.id}
-                    className="flex flex-col sm:flex-row gap-6 p-5 rounded-xl border hover:border-[#CDA032]/50 transition-all shadow-sm"
+                    className="flex gap-4 p-4 rounded-xl border hover:border-[#CDA032]/50 transition-all"
                     style={{ backgroundColor: panelBg, borderColor: borderSubtle }}
                   >
-                    <div
-                      className="w-full sm:w-32 h-32 shrink-0 cursor-pointer overflow-hidden rounded-lg bg-black/5 dark:bg-white/5 flex items-center justify-center p-2"
-                      onClick={() => navigateTo('product', product.id)}
-                    >
-                      <img
-                        src={product.image}
-                        alt={product.name}
-                        className="w-full h-full object-contain hover:scale-105 transition-transform duration-500"
-                      />
-                    </div>
-
-                    <div className="flex-1 flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-start justify-between gap-4">
-                          <h3
-                            className="font-bold text-lg cursor-pointer hover:text-[#CDA032] transition-colors"
-                            onClick={() => navigateTo('product', product.id)}
-                          >
-                            {product.name}
-                          </h3>
-                          <span className="font-black text-lg text-[#CDA032] shrink-0">{formatCurrency(product.price)}</span>
-                        </div>
-                        <p className="text-sm opacity-60 mt-1.5 leading-relaxed line-clamp-2 max-w-2xl">{product.description}</p>
-                      </div>
-
-                      <div className="flex items-center gap-3 mt-6 justify-end flex-wrap">
-                        <button
-                          onClick={() => onQuickView(product)}
-                          className="px-5 py-2.5 rounded-lg text-xs font-black uppercase tracking-wider transition-colors border hover:bg-black/5 dark:hover:bg-white/5"
-                          style={{ borderColor: borderSubtle }}
-                        >
-                          Quick View
-                        </button>
-                        <button
-                          onClick={() => navigateTo('product', product.id)}
-                          className="px-5 py-2.5 rounded-lg text-xs font-black uppercase tracking-wider transition-colors border hover:bg-black/5 dark:hover:bg-white/5"
-                          style={{ borderColor: borderSubtle }}
-                        >
-                          Details
-                        </button>
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      className="w-20 h-20 object-cover rounded-lg"
+                    />
+                    <div className="flex-1">
+                      <h3 className="font-medium">{product.name}</h3>
+                      <p className="text-sm opacity-60">{product.description}</p>
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="font-bold text-[#CDA032]">{formatCurrency(product.price)}</span>
                         <button
                           onClick={() => onAddToCart(product)}
-                          className="px-5 py-2.5 bg-[#CDA032] text-black rounded-lg text-xs font-black uppercase tracking-wider hover:scale-105 active:scale-95 transition-all shadow-md shadow-[#CDA032]/10"
+                          className="px-4 py-2 bg-[#CDA032] text-black rounded-lg text-sm font-medium"
                         >
                           Add to Cart
                         </button>

@@ -14,60 +14,88 @@ export const Footer: React.FC<FooterProps> = ({ theme }) => {
     <footer className={`py-14 sm:py-20 px-4 sm:px-6 lg:px-8 border-t ${isLight ? 'bg-[#E8E8E8] border-black/10 text-black' : 'bg-black border-white/5 text-white'}`}>
       <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-4 gap-10 sm:gap-16 md:gap-24">
         <div className="space-y-8">
-           <h2 className="text-3xl font-black italic tracking-tighter uppercase">BLACKBOX</h2>
-           <p className={`text-[10px] leading-relaxed max-w-[240px] font-black uppercase tracking-[0.3em] italic ${isLight ? 'text-black/50' : 'text-white/20'}`}>
-             Elite hardware repository & specialized diagnostics. Precision establishes the baseline.
-           </p>
-           <div className="flex items-center gap-3">
-             <a
-               href="https://wa.me/"
-               target="_blank"
-               rel="noreferrer"
-               aria-label="WhatsApp"
-               className={`glow-border w-11 h-11 inline-flex items-center justify-center ${isLight ? 'bg-white text-black' : 'bg-black/30 text-white'}`}
-             >
-               <MessageCircle size={18} />
-             </a>
-             <a
-               href="https://instagram.com/"
-               target="_blank"
-               rel="noreferrer"
-               aria-label="Instagram"
-               className={`glow-border w-11 h-11 inline-flex items-center justify-center ${isLight ? 'bg-white text-black' : 'bg-black/30 text-white'}`}
-             >
-               <Instagram size={18} />
-             </a>
-             <a
-               href="https://linkedin.com/"
-               target="_blank"
-               rel="noreferrer"
-               aria-label="LinkedIn"
-               className={`glow-border w-11 h-11 inline-flex items-center justify-center ${isLight ? 'bg-white text-black' : 'bg-black/30 text-white'}`}
-             >
-               <Linkedin size={18} />
-             </a>
-           </div>
+          <h2 className="text-3xl font-black italic tracking-tighter uppercase">BLACKBOX</h2>
+          <p className={`text-[10px] leading-relaxed max-w-[240px] font-black uppercase tracking-[0.3em] italic ${isLight ? 'text-black/50' : 'text-white/20'}`}>
+            Elite hardware repository & specialized diagnostics. Precision establishes the baseline.
+          </p>
+          <div className="flex items-center gap-3">
+            <a
+              href="https://wa.me/"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="WhatsApp"
+              className={`glow-border w-11 h-11 inline-flex items-center justify-center ${isLight ? 'bg-white text-black' : 'bg-black/30 text-white'}`}
+            >
+              <MessageCircle size={18} />
+            </a>
+            <a
+              href="https://instagram.com/"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Instagram"
+              className={`glow-border w-11 h-11 inline-flex items-center justify-center ${isLight ? 'bg-white text-black' : 'bg-black/30 text-white'}`}
+            >
+              <Instagram size={18} />
+            </a>
+            <a
+              href="https://linkedin.com/"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="LinkedIn"
+              className={`glow-border w-11 h-11 inline-flex items-center justify-center ${isLight ? 'bg-white text-black' : 'bg-black/30 text-white'}`}
+            >
+              <Linkedin size={18} />
+            </a>
+          </div>
         </div>
-        <div className="space-y-6">
-          <h4 className={`text-[10px] font-black uppercase tracking-[0.4em] ${isLight ? 'text-black/30' : 'text-white/10'}`}>Directory</h4>
-          <ul className={`space-y-4 text-[10px] font-black uppercase tracking-[0.3em] ${isLight ? 'text-black/50' : 'text-white/40'}`}>
-            <li><Link to="/repair" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Lab Diagnostics</Link></li>
-            <li><Link to="/store" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Hardware Bench</Link></li>
-            <li><Link to="/profile" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Identity Log</Link></li>
-          </ul>
+
+        {/* Links Grid */}
+        <div className="md:col-span-3 grid grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="space-y-6">
+            <h4 className={`text-[10px] font-black uppercase tracking-[0.4em] ${isLight ? 'text-black/30' : 'text-white/10'}`}>Directory</h4>
+            <ul className={`space-y-4 text-[10px] font-black uppercase tracking-[0.3em] ${isLight ? 'text-black/50' : 'text-white/40'}`}>
+              <li><Link to="/repair" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Lab Diagnostics</Link></li>
+              <li><Link to="/store" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Hardware Bench</Link></li>
+              <li><Link to="/profile" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Identity Log</Link></li>
+              <li><Link to="/about" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>About BlackBox</Link></li>
+              <li><Link to="/faq" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Help / FAQ</Link></li>
+            </ul>
+          </div>
+
+          <div className="space-y-6">
+            <h4 className={`text-[10px] font-black uppercase tracking-[0.4em] ${isLight ? 'text-black/30' : 'text-white/10'}`}>Products</h4>
+            <ul className={`space-y-4 text-[10px] font-black uppercase tracking-[0.3em] ${isLight ? 'text-black/50' : 'text-white/40'}`}>
+              <li><Link to="/store" search={{ category: 'iPhone' } as any} className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>iPhone</Link></li>
+              <li><Link to="/store" search={{ category: 'Gaming' } as any} className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Gaming</Link></li>
+              <li><Link to="/store" search={{ category: 'Laptop' } as any} className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Laptop</Link></li>
+              <li><Link to="/store" search={{ category: 'Accessories' } as any} className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Accessories</Link></li>
+            </ul>
+          </div>
+
+          <div className="space-y-6">
+            <h4 className={`text-[10px] font-black uppercase tracking-[0.4em] ${isLight ? 'text-black/30' : 'text-white/10'}`}>Policies</h4>
+            <ul className={`space-y-4 text-[10px] font-black uppercase tracking-[0.3em] ${isLight ? 'text-black/50' : 'text-white/40'}`}>
+              <li><Link to="/trades" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Trade-In Program</Link></li>
+              <li><a href="#" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Returns & Exchanges</a></li>
+              <li><a href="#" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Privacy Policy</a></li>
+              <li><a href="#" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Terms of Service</a></li>
+            </ul>
+          </div>
+
+          <div className="space-y-6">
+            <h4 className={`text-[10px] font-black uppercase tracking-[0.4em] ${isLight ? 'text-black/30' : 'text-white/10'}`}>Branch</h4>
+            <ul className={`space-y-4 text-[10px] font-black uppercase tracking-[0.3em] ${isLight ? 'text-black/50' : 'text-white/40'}`}>
+              <li className="flex items-center gap-3 italic"><MapPin size={14} /> KNUST, Kumasi, GH</li>
+              <li className="flex items-center gap-3 italic"><Phone size={14} /> +233 50 123 4567</li>
+            </ul>
+          </div>
         </div>
-        <div className="space-y-6">
-          <h4 className={`text-[10px] font-black uppercase tracking-[0.4em] ${isLight ? 'text-black/30' : 'text-white/10'}`}>Branch</h4>
-          <ul className={`space-y-4 text-[10px] font-black uppercase tracking-[0.3em] ${isLight ? 'text-black/50' : 'text-white/40'}`}>
-            <li className="flex items-center gap-3 italic"><MapPin size={14}/> KNUST, Kumasi, GH</li>
-            <li className="flex items-center gap-3 italic"><Phone size={14}/> +233 50 123 4567</li>
-          </ul>
-        </div>
-        <div className="flex flex-col items-start md:items-end justify-start md:justify-end gap-2">
+        {/* Bottom Credits */}
+        <div className="md:col-span-4 flex flex-col md:flex-row items-center justify-between gap-4 pt-10 mt-10 border-t border-black/5 dark:border-white/5">
           <p className={`text-[9px] font-black uppercase tracking-[0.4em] italic ${isLight ? 'text-black/30' : 'text-white/10'}`}>© 2025 BLACKBOX. EST. KUMASI.</p>
           <p className={`text-[9px] font-black uppercase tracking-[0.35em] italic ${isLight ? 'text-black/30' : 'text-white/10'}`}>Built by C Colt.</p>
         </div>
       </div>
-    </footer>
+    </footer >
   );
 };

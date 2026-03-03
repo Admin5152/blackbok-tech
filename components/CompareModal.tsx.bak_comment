@@ -13,15 +13,15 @@ interface CompareModalProps {
   onAddToCart: (p: Product) => void;
 }
 
-export const CompareModal: React.FC<CompareModalProps> = ({
-  products, allProducts, isOpen, onClose, onRemove, onAdd, onAddToCart
+export const CompareModal: React.FC<CompareModalProps> = ({ 
+  products, allProducts, isOpen, onClose, onRemove, onAdd, onAddToCart 
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddDevices, setShowAddDevices] = useState(false);
 
   if (!isOpen) return null;
 
-  const availableProducts = allProducts.filter(p =>
+  const availableProducts = allProducts.filter(p => 
     !products.find(cp => cp.id === p.id) &&
     (searchTerm === '' || p.name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
@@ -29,7 +29,7 @@ export const CompareModal: React.FC<CompareModalProps> = ({
   return (
     <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 md:p-12">
       <div className="absolute inset-0 bg-black/95 backdrop-blur-3xl" onClick={onClose} />
-
+      
       <div className="relative w-full max-w-[1440px] bg-black border border-white/10 rounded-[2rem] md:rounded-[3rem] shadow-2xl flex flex-col max-h-[95vh] overflow-hidden">
         <div className="p-4 md:p-6 border-b border-white/5 flex items-center justify-between bg-black">
           <div className="flex items-center gap-3">
@@ -106,7 +106,7 @@ export const CompareModal: React.FC<CompareModalProps> = ({
                 <div className="flex gap-4 overflow-x-auto pb-4">
                   {products.map((p) => (
                     <div key={p.id} className="flex-1 min-w-[220px] max-w-[260px]">
-                      <div className="bg-[#050505] border border-white/10 rounded-2xl overflow-hidden h-full flex flex-col">
+                      <div className="bg-[#050505] border border-white/10 rounded-2xl overflow-hidden">
                         {/* Product Header */}
                         <div className="relative p-3 border-b border-white/5 bg-black">
                           <button
@@ -130,18 +130,18 @@ export const CompareModal: React.FC<CompareModalProps> = ({
                         <div className="p-3 space-y-2.5">
                           <div className="space-y-2">
                             <h4 className="text-[11px] font-black uppercase tracking-widest text-white/30">Price</h4>
-                            <div className="flex flex-col gap-1.5">
-                              <span className="text-base font-black text-white break-words">{formatCurrency(p.price)}</span>
+                            <div className="flex gap-2 items-center">
+                              <span className="text-base font-black text-white">{formatCurrency(p.price)}</span>
                               {products.length > 1 && (
-                                <div className="flex flex-wrap gap-1.5">
+                                <div className="flex gap-1">
                                   {products.map(other => {
-                                    if (other.id === p.id) return null;
                                     const priceDiff = other.price - p.price;
                                     return (
-                                      <div key={other.id} className="flex-shrink-0">
-                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${priceDiff > 0 ? 'bg-red-500/10 text-red-400' : 'bg-emerald-500/10 text-emerald-400'
-                                          }`}>
-                                          {priceDiff > 0 ? '+' : '-'}{formatCurrency(Math.abs(priceDiff))}
+                                      <div key={other.id} className="text-center">
+                                        <span className={`text-sm font-medium ${
+                                          priceDiff > 0 ? 'text-red-400' : priceDiff < 0 ? 'text-green-400' : 'text-white/60'
+                                        }`}>
+                                          {priceDiff > 0 ? '+' : ''}{Math.abs(priceDiff)}
                                         </span>
                                       </div>
                                     );
@@ -158,16 +158,16 @@ export const CompareModal: React.FC<CompareModalProps> = ({
                                 const bestPrice = Math.min(...products.map(p => p.price));
                                 const bestStock = products.filter(p => p.stock > 0).length;
                                 const bestRating = Math.max(...products.map(p => p.rating || 0));
-
+                                
                                 const isBestPrice = p.price === bestPrice;
                                 const isBestStock = p.stock > 0 && bestStock === 1;
                                 const isBestRating = p.rating === bestRating;
-
+                                
                                 const wins = [];
                                 if (isBestPrice) wins.push('Best Price');
                                 if (isBestStock) wins.push('In Stock');
                                 if (isBestRating) wins.push('Top Rated');
-
+                                
                                 return (
                                   <div className="flex gap-1">
                                     {wins.map((win, i) => (
@@ -184,8 +184,9 @@ export const CompareModal: React.FC<CompareModalProps> = ({
                           <div className="space-y-2">
                             <h4 className="text-[11px] font-black uppercase tracking-widest text-white/30">Status</h4>
                             <div className="flex items-center gap-2">
-                              <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${p.stock > 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
-                                }`}>
+                              <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                                p.stock > 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
+                              }`}>
                                 {p.stock > 0 ? 'IN STOCK' : 'OUT OF STOCK'}
                               </span>
                             </div>
@@ -196,8 +197,9 @@ export const CompareModal: React.FC<CompareModalProps> = ({
                             <div className="flex items-center gap-2">
                               <div className="flex gap-0.5">
                                 {[...Array(5)].map((_, i) => (
-                                  <div key={i} className={`w-2 h-2 rounded-full ${i < Math.floor(p.rating || 4) ? 'bg-[#B38B21]' : 'bg-white/10'
-                                    }`} />
+                                  <div key={i} className={`w-2 h-2 rounded-full ${
+                                    i < Math.floor(p.rating || 4) ? 'bg-[#B38B21]' : 'bg-white/10'
+                                  }`} />
                                 ))}
                               </div>
                               <span className="text-sm text-white/60">({p.reviewCount || 0})</span>
@@ -363,8 +365,9 @@ export const CompareModal: React.FC<CompareModalProps> = ({
                         <td className="p-2 text-[9px] font-black uppercase tracking-widest text-white/30">Stock</td>
                         {products.map(p => (
                           <td key={p.id} className="p-2 text-center">
-                            <span className={`px-1 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${p.stock > 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
-                              }`}>
+                            <span className={`px-1 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${
+                              p.stock > 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
+                            }`}>
                               {p.stock > 0 ? 'Available' : 'Out of Stock'}
                             </span>
                           </td>
@@ -377,8 +380,9 @@ export const CompareModal: React.FC<CompareModalProps> = ({
                             <div className="flex items-center justify-center gap-0.5">
                               <div className="flex gap-0.5">
                                 {[...Array(5)].map((_, i) => (
-                                  <div key={i} className={`w-1.5 h-1.5 rounded-full ${i < Math.floor(p.rating || 4) ? 'bg-[#B38B21]' : 'bg-white/10'
-                                    }`} />
+                                  <div key={i} className={`w-1.5 h-1.5 rounded-full ${
+                                    i < Math.floor(p.rating || 4) ? 'bg-[#B38B21]' : 'bg-white/10'
+                                  }`} />
                                 ))}
                               </div>
                               <span className="text-xs text-white/60">({p.reviewCount || 0})</span>
@@ -399,10 +403,10 @@ export const CompareModal: React.FC<CompareModalProps> = ({
                         {products.map(p => (
                           <td key={p.id} className="p-2 text-center">
                             <span className="text-xs text-white/60">
-                              {p.category === 'iPhone' ? 'Mobile Users' :
-                                p.category === 'Laptop' ? 'Professionals' :
-                                  p.category === 'Gaming' ? 'Gamers' :
-                                    p.category === 'Accessories' ? 'General Use' : 'Tech Enthusiasts'}
+                              {p.category === 'iPhone' ? 'Mobile Users' : 
+                               p.category === 'Laptop' ? 'Professionals' :
+                               p.category === 'Gaming' ? 'Gamers' :
+                               p.category === 'Accessories' ? 'General Use' : 'Tech Enthusiasts'}
                             </span>
                           </td>
                         ))}

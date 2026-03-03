@@ -18,35 +18,35 @@
 }
 
 html[data-theme="light"] {
-  --bb-bg: #f2f2f2;
+  --bb-bg: #f5f5f7;
   --bb-surface: #ffffff;
-  --bb-surface-2: #f7f7f7;
-  --bb-text: #0a0a0a;
-  --bb-muted: rgba(0, 0, 0, 0.6);
+  --bb-surface-2: #f2f2f2;
+  --bb-text: #1d1d1f;
+  --bb-muted: rgba(29, 29, 31, 0.6);
 
-  /* Still “white glow”, but with a subtle dark lift so it reads on light surfaces */
-  --bb-border: rgba(255, 255, 255, 0.95);
-  --bb-glow-1: rgba(255, 255, 255, 0.55);
-  --bb-glow-2: rgba(255, 255, 255, 0.30);
-  --bb-glow-3: rgba(0, 0, 0, 0.10);
+  /* Clean subtle borders */
+  --bb-border: rgba(0, 0, 0, 0.08);
+  --bb-glow-1: rgba(0, 0, 0, 0.04);
+  --bb-glow-2: rgba(0, 0, 0, 0.02);
+  --bb-glow-3: rgba(0, 0, 0, 0.01);
 }
 
 /* Light-mode compatibility layer for legacy dark-first Tailwind classes.
    This keeps existing screens readable without rewriting every component. */
-html[data-theme="light"] .text-white { color: rgba(0, 0, 0, 0.92) !important; }
-html[data-theme="light"] .text-white\/90 { color: rgba(0, 0, 0, 0.90) !important; }
-html[data-theme="light"] .text-white\/80 { color: rgba(0, 0, 0, 0.80) !important; }
-html[data-theme="light"] .text-white\/70 { color: rgba(0, 0, 0, 0.70) !important; }
-html[data-theme="light"] .text-white\/60 { color: rgba(0, 0, 0, 0.60) !important; }
-html[data-theme="light"] .text-white\/50 { color: rgba(0, 0, 0, 0.50) !important; }
-html[data-theme="light"] .text-white\/40 { color: rgba(0, 0, 0, 0.40) !important; }
-html[data-theme="light"] .text-white\/35 { color: rgba(0, 0, 0, 0.35) !important; }
-html[data-theme="light"] .text-white\/30 { color: rgba(0, 0, 0, 0.30) !important; }
-html[data-theme="light"] .text-white\/25 { color: rgba(0, 0, 0, 0.25) !important; }
-html[data-theme="light"] .text-white\/20 { color: rgba(0, 0, 0, 0.20) !important; }
-html[data-theme="light"] .text-white\/15 { color: rgba(0, 0, 0, 0.15) !important; }
-html[data-theme="light"] .text-white\/10 { color: rgba(0, 0, 0, 0.10) !important; }
-html[data-theme="light"] .text-white\/5 { color: rgba(0, 0, 0, 0.05) !important; }
+html[data-theme="light"] .text-white { color: var(--bb-text) !important; }
+html[data-theme="light"] .text-white\/90 { color: rgba(29, 29, 31, 0.90) !important; }
+html[data-theme="light"] .text-white\/80 { color: rgba(29, 29, 31, 0.80) !important; }
+html[data-theme="light"] .text-white\/70 { color: rgba(29, 29, 31, 0.70) !important; }
+html[data-theme="light"] .text-white\/60 { color: rgba(29, 29, 31, 0.60) !important; }
+html[data-theme="light"] .text-white\/50 { color: rgba(29, 29, 31, 0.50) !important; }
+html[data-theme="light"] .text-white\/40 { color: rgba(29, 29, 31, 0.40) !important; }
+html[data-theme="light"] .text-white\/35 { color: rgba(29, 29, 31, 0.35) !important; }
+html[data-theme="light"] .text-white\/30 { color: rgba(29, 29, 31, 0.30) !important; }
+html[data-theme="light"] .text-white\/25 { color: rgba(29, 29, 31, 0.25) !important; }
+html[data-theme="light"] .text-white\/20 { color: rgba(29, 29, 31, 0.20) !important; }
+html[data-theme="light"] .text-white\/15 { color: rgba(29, 29, 31, 0.15) !important; }
+html[data-theme="light"] .text-white\/10 { color: rgba(29, 29, 31, 0.10) !important; }
+html[data-theme="light"] .text-white\/5 { color: rgba(29, 29, 31, 0.05) !important; }
 
 html[data-theme="light"] .placeholder\:text-white\/40::placeholder { color: rgba(0, 0, 0, 0.40) !important; }
 html[data-theme="light"] .placeholder\:text-white\/30::placeholder { color: rgba(0, 0, 0, 0.30) !important; }
@@ -61,7 +61,7 @@ html[data-theme="light"] .border-white\/8 { border-color: rgba(0, 0, 0, 0.08) !i
 html[data-theme="light"] .border-white\/6 { border-color: rgba(0, 0, 0, 0.06) !important; }
 html[data-theme="light"] .border-white\/5 { border-color: rgba(0, 0, 0, 0.05) !important; }
 
-html[data-theme="light"] .bg-black { background-color: var(--bb-surface) !important; }
+html[data-theme="light"] .bg-black { background-color: var(--bb-surface) !important; box-shadow: 0 4px 24px rgba(0,0,0,0.04); }
 html[data-theme="light"] .bg-black\/50 { background-color: rgba(0, 0, 0, 0.04) !important; }
 html[data-theme="light"] .bg-black\/40 { background-color: rgba(0, 0, 0, 0.04) !important; }
 html[data-theme="light"] .bg-black\/30 { background-color: rgba(0, 0, 0, 0.03) !important; }
