@@ -10,7 +10,7 @@ import {
   useLocation,
   createMemoryHistory
 } from '@tanstack/react-router';
-import { X, CheckCircle2, Activity, Scale, RefreshCcw, Home as HomeIcon, ShoppingBag, Wrench, ShoppingCart, User as UserIcon, LogOut, ChevronRight, ChevronDown, Settings } from 'lucide-react';
+import { X, CheckCircle2, Activity, Scale, RefreshCcw, Home as HomeIcon, ShoppingBag, Wrench, ShoppingCart, User as UserIcon, LogOut, ChevronRight, Settings } from 'lucide-react';
 import { Product, User, CartItem, Category, RepairRequest, Order } from './types';
 import { getProducts, createOrder } from './lib/api';
 import { INITIAL_PRODUCTS } from './constants';
@@ -26,8 +26,6 @@ import { Cart } from './views/Cart';
 import { Checkout } from './views/Checkout';
 import { Trades } from './views/Trades';
 import { Admin } from './views/Admin';
-import { AboutUs } from './views/AboutUs';
-import { FAQ } from './views/FAQ';
 // import { orders } from './data/orders'; 
 import { QuickViewModal } from './components/QuickViewModal';
 import { CompareModal } from './components/CompareModal';
@@ -197,24 +195,6 @@ const adminRoute = createRoute({
   },
 });
 
-const aboutRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/about',
-  component: () => {
-    const context = useAppContext();
-    return <AboutUs theme={context.theme} />;
-  },
-});
-
-const faqRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/faq',
-  component: () => {
-    const context = useAppContext();
-    return <FAQ theme={context.theme} />;
-  },
-});
-
 const routeTree = rootRoute.addChildren([
   indexRoute,
   storeRoute,
@@ -226,8 +206,6 @@ const routeTree = rootRoute.addChildren([
   profileRoute,
   authRoute,
   adminRoute,
-  aboutRoute,
-  faqRoute,
 ]);
 
 const memoryHistory = createMemoryHistory({
@@ -435,21 +413,12 @@ function RootComponent() {
         </main>
 
         {compareIds.length > 0 && (
-          <div className="fixed top-24 right-5 z-[100] flex items-center bg-[#B38B21] rounded-full shadow-[0_10px_40px_rgba(179,139,33,0.4)] transition-transform hover:scale-[1.02] overflow-hidden">
-            <button
-              onClick={() => setIsCompareOpen(true)}
-              className="pl-6 pr-4 py-4 text-black font-black text-[10px] uppercase tracking-[0.4em] flex items-center gap-3 border-r border-black/10 hover:bg-black/5 transition-colors"
-            >
-              <Scale size={16} /> Compare ({compareIds.length})
-            </button>
-            <button
-              onClick={() => setCompareIds([])}
-              className="px-4 py-4 text-black hover:bg-black/10 transition-colors"
-              aria-label="Clear Compare"
-            >
-              <X size={16} />
-            </button>
-          </div>
+          <button
+            onClick={() => setIsCompareOpen(true)}
+            className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[100] px-10 py-5 bg-[#B38B21] text-black font-black rounded-full text-[10px] uppercase tracking-[0.4em] flex items-center gap-4 shadow-[0_10px_40px_rgba(179,139,33,0.4)] transition-transform hover:scale-105"
+          >
+            <Scale size={18} /> Compare ({compareIds.length})
+          </button>
         )}
 
         <QuickViewModal
@@ -537,65 +506,17 @@ function RootComponent() {
               <div className="flex-1 overflow-auto py-4 px-3 space-y-1">
                 {[
                   { id: 'home', label: 'Home', icon: HomeIcon, path: '/' },
-                  { id: 'store', label: 'Products', icon: ShoppingBag, path: '/store', subItems: ['iPhone', 'Laptop', 'Accessories', 'Gaming', 'Audio'] },
+                  { id: 'store', label: 'Products', icon: ShoppingBag, path: '/store' },
                   { id: 'trades', label: 'Trades', icon: RefreshCcw, path: '/trades' },
                   { id: 'repair', label: 'Repairs', icon: Wrench, path: '/repair' },
                   { id: 'cart', label: 'Cart', icon: ShoppingCart, path: '/cart', count: cart.length },
                   { id: 'profile', label: 'Account', icon: UserIcon, path: '/profile' }
-                ].map((item: any) => {
+                ].map((item) => {
                   const isActive = location.pathname === item.path;
-
-                  if (item.subItems) {
-                    return (
-                      <details key={item.id} className="group/nav w-full">
-                        <summary className={`list-none flex items-center justify-between p-4 rounded-xl transition-all cursor-pointer select-none ${isActive
-                          ? isLight ? 'bg-black text-white shadow-lg' : 'bg-white/10 text-white shadow-[0_0_20px_rgba(205,160,50,0.15)]'
-                          : isLight ? 'text-black/60 hover:bg-black/5' : 'text-white/40 hover:bg-white/5 hover:text-white'
-                          }`}
-                        >
-                          <div
-                            className="flex items-center gap-4 flex-1"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              navigateTo(item.path === '/' ? 'home' : item.id);
-                              setIsMobileMenuOpen(false);
-                            }}
-                          >
-                            <item.icon size={18} className={isActive ? 'text-[#CDA032]' : ''} />
-                            <span className="text-[11px] font-black uppercase tracking-[0.15em]">{item.label}</span>
-                          </div>
-
-                          <div className="flex items-center gap-2 pl-4">
-                            <ChevronDown size={14} className={`transition-transform duration-300 group-open/nav:rotate-180 ${isActive ? 'text-[#CDA032]' : ''}`} />
-                          </div>
-                        </summary>
-
-                        <div className="flex flex-col gap-1 pl-12 pr-4 pt-2 pb-4 animate-in fade-in slide-in-from-top-2">
-                          {item.subItems.map((sub: string) => (
-                            <button
-                              key={sub}
-                              onClick={() => {
-                                setSelectedCategory(sub as any);
-                                navigateTo('store');
-                                setIsMobileMenuOpen(false);
-                              }}
-                              className={`text-left py-3 text-[10px] font-black uppercase tracking-[0.2em] transition-colors rounded-lg px-3 ${isLight ? 'text-black/50 hover:text-black hover:bg-black/5' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
-                            >
-                              {sub}
-                            </button>
-                          ))}
-                        </div>
-                      </details>
-                    );
-                  }
-
                   return (
                     <button
                       key={item.id}
-                      onClick={() => {
-                        navigateTo(item.path === '/' ? 'home' : item.id);
-                        setIsMobileMenuOpen(false);
-                      }}
+                      onClick={() => navigateTo(item.id)}
                       className={`w-full flex items-center justify-between p-4 rounded-xl transition-all group ${isActive
                         ? isLight ? 'bg-black text-white shadow-lg' : 'bg-white/10 text-white shadow-[0_0_20px_rgba(205,160,50,0.15)]'
                         : isLight ? 'text-black/60 hover:bg-black/5' : 'text-white/40 hover:bg-white/5 hover:text-white'

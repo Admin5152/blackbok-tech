@@ -5,9 +5,10 @@ import { supabase } from '../lib/supabase';
 import { useAppContext } from '../App';
 import { CartItem, Order } from '../types';
 import { formatCurrency, generateId } from '../lib/utils';
+import { signIn, signUp, getUserProfile } from '../lib/api';
 
 export const Checkout: React.FC = () => {
-  const { user, cart, setCart, orders, setOrders, notify } = useAppContext();
+  const { user, setUser, cart, setCart, orders, setOrders, notify } = useAppContext();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -24,22 +25,65 @@ export const Checkout: React.FC = () => {
     saveCard: false
   });
 
-  const [shippingMethod, setShippingMethod] = useState('standard');
+  const [shippingMethod, setShippingMethod] = useState('deliver');
   const shippingCosts = {
-    standard: 0,
-    express: 15,
-    overnight: 35
+    deliver: 50,
+    pickup: 0
   };
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const shippingCost = shippingCosts[shippingMethod as keyof typeof shippingCosts];
   const total = subtotal + shippingCost;
 
+  // Auth State for Inline Login
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+  const [authForm, setAuthForm] = useState({ name: '', email: '', password: '' });
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+
+  const handleAuthSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsAuthenticating(true);
+
+    try {
+      if (authMode === 'login') {
+        const { user: authUser } = await signIn(authForm.email, authForm.password);
+        if (authUser) {
+          const profile = await getUserProfile(authUser.id);
+          setUser({
+            id: authUser.id,
+            name: profile?.name || authUser.email?.split('@')[0] || 'User',
+            email: authUser.email || '',
+            password: authForm.password,
+            role: profile?.role || 'user'
+          });
+          notify('Successfully signed in. You may now complete your purchase.');
+        }
+      } else {
+        const { user: authUser } = await signUp(authForm.email, authForm.password);
+        if (authUser) {
+          const profile = await getUserProfile(authUser.id);
+          setUser({
+            id: authUser.id,
+            name: authForm.name,
+            email: authUser.email || '',
+            password: authForm.password,
+            role: profile?.role || 'user'
+          });
+          notify('Account created successfully. You may now complete your purchase.');
+        }
+      }
+    } catch (error: any) {
+      notify(error.message || 'Authentication failed', 'error');
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
+
   const canProceed = () => {
-    switch(step) {
+    switch (step) {
       case 1: return formData.shippingAddress && formData.city && formData.postalCode && formData.phone;
       case 2: return formData.paymentMethod && (
-        formData.paymentMethod !== 'card' || 
+        formData.paymentMethod !== 'card' ||
         (formData.cardNumber && formData.cardName && formData.expiryDate && formData.cvv)
       );
       default: return true;
@@ -55,7 +99,7 @@ export const Checkout: React.FC = () => {
 
     try {
       setLoading(true);
-      
+
       // Create order in database
       const orderData = {
         user_id: user.id,
@@ -64,7 +108,7 @@ export const Checkout: React.FC = () => {
         total: total,
         status: 'Pending',
         payment_method: formData.paymentMethod,
-        shipping_address: `${formData.shippingAddress}, ${formData.city}, ${formData.postalCode}`,
+        shipping_address: shippingMethod === 'pickup' ? 'Pick up from store' : `${formData.shippingAddress}, ${formData.city}, ${formData.postalCode}`,
         shipping_method: shippingMethod,
         shipping_cost: shippingCost,
         payment_status: 'pending'
@@ -87,7 +131,7 @@ export const Checkout: React.FC = () => {
 
       // Clear cart
       setCart([]);
-      
+
       // Update local orders
       const newOrder: Order = {
         id: order.id,
@@ -104,12 +148,12 @@ export const Checkout: React.FC = () => {
         shipping_method: order.shipping_method,
         shipping_cost: order.shipping_cost
       };
-      
+
       setOrders([newOrder, ...orders]);
-      
+
       notify('Order placed successfully!');
       navigate({ to: '/profile' });
-      
+
     } catch (error) {
       console.error('Error placing order:', error);
       notify('Failed to place order. Please try again.', 'error');
@@ -124,7 +168,7 @@ export const Checkout: React.FC = () => {
         <div className="text-center">
           <ShoppingBag className="w-16 h-16 text-white/20 mx-auto mb-4" />
           <h2 className="text-2xl font-bold mb-2">Your cart is empty</h2>
-          <button 
+          <button
             onClick={() => navigate({ to: '/store' })}
             className="mt-4 px-6 py-3 bg-[#B38B21] text-black rounded-lg font-semibold hover:bg-[#D4AF37] transition-colors"
           >
@@ -140,7 +184,7 @@ export const Checkout: React.FC = () => {
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
-          <button 
+          <button
             onClick={() => navigate({ to: '/store' })}
             className="p-2 hover:bg-white/10 rounded-lg transition-colors"
           >
@@ -157,160 +201,241 @@ export const Checkout: React.FC = () => {
           <div className="lg:col-span-2 space-y-6">
             {/* Step 1: Shipping */}
             {step === 1 && (
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-6">
+              <form id="shippingForm" onSubmit={(e) => { e.preventDefault(); setStep(step + 1); }} className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-6">
                 <h2 className="text-xl font-bold flex items-center gap-2">
                   <Truck className="w-5 h-5 text-[#B38B21]" />
                   Shipping Information
                 </h2>
-                
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Street Address</label>
-                    <input
-                      type="text"
-                      value={formData.shippingAddress}
-                      onChange={(e) => setFormData({...formData, shippingAddress: e.target.value})}
-                      className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none"
-                      placeholder="123 Main St"
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2">City</label>
-                      <input
-                        type="text"
-                        value={formData.city}
-                        onChange={(e) => setFormData({...formData, city: e.target.value})}
-                        className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none"
-                        placeholder="Accra"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Postal Code</label>
-                      <input
-                        type="text"
-                        value={formData.postalCode}
-                        onChange={(e) => setFormData({...formData, postalCode: e.target.value})}
-                        className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none"
-                        placeholder="00233"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Phone Number</label>
-                    <input
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                      className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none"
-                      placeholder="+233 XX XXX XXXX"
-                    />
-                  </div>
-                </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-3">Shipping Method</label>
-                  <div className="space-y-2">
-                    {Object.entries(shippingCosts).map(([method, cost]) => (
-                      <label key={method} className="flex items-center justify-between p-3 border border-white/10 rounded-lg cursor-pointer hover:bg-white/5">
-                        <div className="flex items-center gap-3">
-                          <input
-                            type="radio"
-                            name="shipping"
-                            value={method}
-                            checked={shippingMethod === method}
-                            onChange={(e) => setShippingMethod(e.target.value)}
-                            className="text-[#B38B21]"
-                          />
-                          <span className="capitalize">{method}</span>
-                        </div>
-                        <span>{cost === 0 ? 'Free' : formatCurrency(cost)}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Step 2: Payment */}
-            {step === 2 && (
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-6">
-                <h2 className="text-xl font-bold flex items-center gap-2">
-                  <CreditCard className="w-5 h-5 text-[#B38B21]" />
-                  Payment Information
-                </h2>
-
-                <div className="space-y-4">
+                <div className="space-y-6">
                   <div>
-                    <label className="block text-sm font-medium mb-3">Payment Method</label>
-                    <div className="grid grid-cols-2 gap-4">
-                      {['card', 'mobile'].map((method) => (
-                        <label key={method} className="flex items-center gap-3 p-3 border border-white/10 rounded-lg cursor-pointer hover:bg-white/5">
-                          <input
-                            type="radio"
-                            name="payment"
-                            value={method}
-                            checked={formData.paymentMethod === method}
-                            onChange={(e) => setFormData({...formData, paymentMethod: e.target.value})}
-                            className="text-[#B38B21]"
-                          />
-                          <span className="capitalize">{method === 'card' ? 'Credit Card' : 'Mobile Money'}</span>
+                    <label className="block text-sm font-medium mb-3">Shipping Method</label>
+                    <div className="space-y-2">
+                      {Object.entries(shippingCosts).map(([method, cost]) => (
+                        <label key={method} className="flex items-center justify-between p-3 border border-white/10 rounded-lg cursor-pointer hover:bg-white/5">
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="radio"
+                              name="shipping"
+                              value={method}
+                              checked={shippingMethod === method}
+                              onChange={(e) => setShippingMethod(e.target.value)}
+                              className="text-[#B38B21]"
+                            />
+                            <span className="capitalize">{method === 'pickup' ? 'Pick up from store' : method}</span>
+                          </div>
+                          <span>{cost === 0 ? 'Free' : formatCurrency(cost)}</span>
                         </label>
                       ))}
                     </div>
                   </div>
 
-                  {formData.paymentMethod === 'card' && (
-                    <>
+                  {shippingMethod === 'deliver' && (
+                    <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium mb-2">Card Number</label>
+                        <label className="block text-sm font-medium mb-2">Street Address <span className="text-red-500">*</span></label>
                         <input
                           type="text"
-                          value={formData.cardNumber}
-                          onChange={(e) => setFormData({...formData, cardNumber: e.target.value})}
+                          required
+                          value={formData.shippingAddress}
+                          onChange={(e) => setFormData({ ...formData, shippingAddress: e.target.value })}
                           className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none"
-                          placeholder="1234 5678 9012 3456"
+                          placeholder="123 Main St"
                         />
                       </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Cardholder Name</label>
-                        <input
-                          type="text"
-                          value={formData.cardName}
-                          onChange={(e) => setFormData({...formData, cardName: e.target.value})}
-                          className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none"
-                          placeholder="John Doe"
-                        />
-                      </div>
-                      
+
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium mb-2">Expiry Date</label>
+                          <label className="block text-sm font-medium mb-2">City <span className="text-red-500">*</span></label>
                           <input
                             type="text"
-                            value={formData.expiryDate}
-                            onChange={(e) => setFormData({...formData, expiryDate: e.target.value})}
+                            required
+                            value={formData.city}
+                            onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                             className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none"
-                            placeholder="MM/YY"
+                            placeholder="Accra"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium mb-2">CVV</label>
+                          <label className="block text-sm font-medium mb-2">National Digital Address <span className="text-red-500">*</span></label>
                           <input
                             type="text"
-                            value={formData.cvv}
-                            onChange={(e) => setFormData({...formData, cvv: e.target.value})}
+                            required
+                            value={formData.postalCode}
+                            onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
                             className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none"
-                            placeholder="123"
+                            placeholder="GA-123-4567"
                           />
                         </div>
                       </div>
-                    </>
+                    </div>
                   )}
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Phone Number <span className="text-red-500">*</span></label>
+                    <input
+                      type="tel"
+                      required
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none"
+                      placeholder="+233 XX XXX XXXX"
+                    />
+                  </div>
                 </div>
+              </form>
+            )}
+
+            {/* Step 2: Authentication OR Payment */}
+            {step === 2 && (
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-6">
+                {!user ? (
+                  // Inline Auth Form
+                  <div className="space-y-6">
+                    <h2 className="text-xl font-bold flex items-center gap-2">
+                      <User className="w-5 h-5 text-[#B38B21]" />
+                      Account Required
+                    </h2>
+                    <p className="text-white/60 text-sm">Please sign in or create an account to complete your order.</p>
+
+                    <form onSubmit={handleAuthSubmit} className="space-y-4">
+                      {authMode === 'signup' && (
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Name</label>
+                          <input
+                            type="text"
+                            required
+                            value={authForm.name}
+                            onChange={(e) => setAuthForm({ ...authForm, name: e.target.value })}
+                            className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none"
+                            placeholder="John Doe"
+                          />
+                        </div>
+                      )}
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Email</label>
+                        <input
+                          type="email"
+                          required
+                          value={authForm.email}
+                          onChange={(e) => setAuthForm({ ...authForm, email: e.target.value })}
+                          className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none"
+                          placeholder="your@email.com"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Password</label>
+                        <input
+                          type="password"
+                          required
+                          value={authForm.password}
+                          onChange={(e) => setAuthForm({ ...authForm, password: e.target.value })}
+                          className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none"
+                          placeholder="••••••••"
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={isAuthenticating}
+                        className="w-full py-3 bg-[#B38B21] hover:bg-[#D4AF37] text-black font-bold flex items-center justify-center rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        {isAuthenticating ? 'Processing...' : (authMode === 'login' ? 'Sign In' : 'Create Account')}
+                      </button>
+                    </form>
+
+                    <div className="text-center pt-2">
+                      <button
+                        onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')}
+                        className="text-sm text-white/50 hover:text-[#B38B21] transition-colors"
+                      >
+                        {authMode === 'login' ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  // Payment Form
+                  <form id="paymentForm" onSubmit={(e) => { e.preventDefault(); submitOrder(); }} className="space-y-6">
+                    <h2 className="text-xl font-bold flex items-center gap-2">
+                      <CreditCard className="w-5 h-5 text-[#B38B21]" />
+                      Payment Information
+                    </h2>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-3">Payment Method</label>
+                        <div className="grid grid-cols-2 gap-4">
+                          {['card', 'mobile'].map((method) => (
+                            <label key={method} className="flex items-center gap-3 p-3 border border-white/10 rounded-lg cursor-pointer hover:bg-white/5">
+                              <input
+                                type="radio"
+                                name="payment"
+                                value={method}
+                                checked={formData.paymentMethod === method}
+                                onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
+                                className="text-[#B38B21]"
+                              />
+                              <span className="capitalize">{method === 'card' ? 'Credit Card' : 'Mobile Money'}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      {formData.paymentMethod === 'card' && (
+                        <>
+                          <div>
+                            <label className="block text-sm font-medium mb-2">Card Number</label>
+                            <input
+                              type="text"
+                              required
+                              value={formData.cardNumber}
+                              onChange={(e) => setFormData({ ...formData, cardNumber: e.target.value })}
+                              className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none"
+                              placeholder="1234 5678 9012 3456"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium mb-2">Cardholder Name</label>
+                            <input
+                              type="text"
+                              required
+                              value={formData.cardName}
+                              onChange={(e) => setFormData({ ...formData, cardName: e.target.value })}
+                              className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none"
+                              placeholder="John Doe"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium mb-2">Expiry Date</label>
+                              <input
+                                type="text"
+                                required
+                                value={formData.expiryDate}
+                                onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
+                                className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none"
+                                placeholder="MM/YY"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium mb-2">CVV</label>
+                              <input
+                                type="text"
+                                required
+                                value={formData.cvv}
+                                onChange={(e) => setFormData({ ...formData, cvv: e.target.value })}
+                                className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none"
+                                placeholder="123"
+                              />
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </form>
+                )}
               </div>
             )}
 
@@ -318,26 +443,26 @@ export const Checkout: React.FC = () => {
             <div className="flex justify-between">
               <button
                 onClick={() => setStep(Math.max(1, step - 1))}
-                className={`px-6 py-3 rounded-lg font-medium transition-colors ${
-                  step === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/10'
-                }`}
+                className={`px-6 py-3 rounded-lg font-medium transition-colors ${step === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/10'
+                  }`}
                 disabled={step === 1}
               >
                 Back
               </button>
-              
+
               {step < 2 ? (
                 <button
-                  onClick={() => canProceed() && setStep(step + 1)}
-                  disabled={!canProceed()}
-                  className="px-6 py-3 bg-[#B38B21] text-black rounded-lg font-medium hover:bg-[#D4AF37] transition-colors disabled:opacity-50"
+                  type="submit"
+                  form="shippingForm"
+                  className="px-6 py-3 bg-[#B38B21] text-black rounded-lg font-medium hover:bg-[#D4AF37] transition-colors"
                 >
                   Continue
                 </button>
               ) : (
                 <button
-                  onClick={submitOrder}
-                  disabled={!canProceed() || loading}
+                  type="submit"
+                  form="paymentForm"
+                  disabled={loading || !user}
                   className="px-6 py-3 bg-[#B38B21] text-black rounded-lg font-medium hover:bg-[#D4AF37] transition-colors disabled:opacity-50"
                 >
                   {loading ? 'Processing...' : 'Place Order'}
@@ -350,7 +475,7 @@ export const Checkout: React.FC = () => {
           <div className="space-y-6">
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6 sticky top-6">
               <h3 className="text-lg font-bold mb-4">Order Summary</h3>
-              
+
               <div className="space-y-3 mb-4">
                 {cart.map((item) => (
                   <div key={item.id} className="flex justify-between text-sm">
@@ -359,7 +484,7 @@ export const Checkout: React.FC = () => {
                   </div>
                 ))}
               </div>
-              
+
               <div className="border-t border-white/10 pt-4 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>Subtotal</span>

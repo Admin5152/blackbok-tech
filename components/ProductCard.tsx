@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { ShoppingCart, Heart, Eye, Star, Scale } from 'lucide-react';
+import { ShoppingCart, Heart, Eye, Star, Scale, FileText } from 'lucide-react';
 import { Product } from '../types';
 import { formatCurrency } from '../lib/utils';
 import { useAppContext } from '../App';
@@ -27,9 +27,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const { theme } = useAppContext();
   const [selectedColor, setSelectedColor] = useState('');
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [selectedStorage, setSelectedStorage] = useState('');
+  const [showStoragePicker, setShowStoragePicker] = useState(false);
 
-  const handleAddToCartWithColor = () => {
-    const options = selectedColor ? { Color: selectedColor } : {};
+  const handleAddToCartWithOptions = () => {
+    const options: Record<string, string> = {};
+    if (selectedColor) options['Color'] = selectedColor;
+    if (selectedStorage) options['Storage'] = selectedStorage;
     onAddToCart(product, options, 1);
   };
 
@@ -106,61 +110,92 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </div>
           </div>
 
-          {/* Color Selection */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[8px] text-white/50 font-medium italic">Color Options</span>
-              <button
-                onClick={() => setShowColorPicker(!showColorPicker)}
-                className="text-[8px] text-[#CDA032] hover:text-[#CDA032]/80 transition-colors"
-              >
-                {showColorPicker ? 'Hide' : 'Choose'}
-              </button>
-            </div>
-            {showColorPicker && (
-              <div className="flex flex-wrap gap-1.5">
-                {['Black', 'White', 'Red', 'Blue', 'Green', 'Purple', 'Pink', 'Gold', 'Silver'].map(color => (
-                  <button
-                    key={color}
-                    onClick={() => setSelectedColor(color)}
-                    className={`w-5 h-5 rounded-full border-2 transition-all ${selectedColor === color ? 'border-white scale-110' : 'border-gray-400 hover:border-gray-300'
-                      }`}
-                    style={{
-                      backgroundColor: color.toLowerCase() === 'black' ? '#000' :
-                        color.toLowerCase() === 'white' ? '#fff' :
-                          color.toLowerCase() === 'red' ? '#ef4444' :
-                            color.toLowerCase() === 'blue' ? '#3b82f6' :
-                              color.toLowerCase() === 'green' ? '#10b981' :
-                                color.toLowerCase() === 'purple' ? '#a855f7' :
-                                  color.toLowerCase() === 'pink' ? '#ec4899' :
-                                    color.toLowerCase() === 'gold' ? '#f59e0b' :
-                                      color.toLowerCase() === 'silver' ? '#9ca3af' :
-                                        '#6b7280'
-                    }}
-                  />
-                ))}
-              </div>
-            )}
-            {selectedColor && (
-              <div className="flex items-center gap-1.5">
-                <div
-                  className="w-3 h-3 rounded-full border border-white/30"
-                  style={{
-                    backgroundColor: selectedColor.toLowerCase() === 'black' ? '#000' :
-                      selectedColor.toLowerCase() === 'white' ? '#fff' :
-                        selectedColor.toLowerCase() === 'red' ? '#ef4444' :
-                          selectedColor.toLowerCase() === 'blue' ? '#3b82f6' :
-                            selectedColor.toLowerCase() === 'green' ? '#10b981' :
-                              selectedColor.toLowerCase() === 'purple' ? '#a855f7' :
-                                selectedColor.toLowerCase() === 'pink' ? '#ec4899' :
-                                  selectedColor.toLowerCase() === 'gold' ? '#f59e0b' :
-                                    selectedColor.toLowerCase() === 'silver' ? '#9ca3af' :
-                                      '#6b7280'
-                  }}
-                />
-                <span className="text-[8px] text-white/60">{selectedColor}</span>
-              </div>
-            )}
+          {/* Variant Selection */}
+          <div className="space-y-3">
+            {product.variants?.map(variant => {
+              const isColor = variant.name.toLowerCase() === 'color';
+              const selectedValue = isColor ? selectedColor : selectedStorage;
+              const isVisible = isColor ? showColorPicker : showStoragePicker;
+
+              return (
+                <div key={variant.name} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[8px] text-white/50 font-medium italic">{variant.name}</span>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (isColor) setShowColorPicker(!showColorPicker);
+                        else setShowStoragePicker(!showStoragePicker);
+                      }}
+                      className="text-[8px] text-[#CDA032] hover:text-[#CDA032]/80 transition-colors"
+                    >
+                      {isVisible ? 'Hide' : 'Choose'}
+                    </button>
+                  </div>
+
+                  {isVisible && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {variant.options.map(opt => (
+                        <button
+                          key={opt}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (isColor) setSelectedColor(opt);
+                            else setSelectedStorage(opt);
+                          }}
+                          className={isColor
+                            ? `w-5 h-5 rounded-full border-2 transition-all ${selectedValue === opt ? 'border-white scale-110' : 'border-gray-400 hover:border-gray-300'}`
+                            : `px-2 py-0.5 rounded text-[8px] font-black tracking-widest transition-all border ${selectedValue === opt ? 'border-[#CDA032] bg-[#CDA032]/20 text-[#CDA032]' : 'border-white/20 hover:border-white/40 text-white/60 hover:text-white'}`
+                          }
+                          style={isColor ? {
+                            backgroundColor: opt.toLowerCase() === 'black' ? '#000' :
+                              opt.toLowerCase() === 'white' ? '#fff' :
+                                opt.toLowerCase() === 'red' ? '#ef4444' :
+                                  opt.toLowerCase() === 'blue' ? '#3b82f6' :
+                                    opt.toLowerCase() === 'green' ? '#10b981' :
+                                      opt.toLowerCase() === 'purple' ? '#a855f7' :
+                                        opt.toLowerCase() === 'pink' ? '#ec4899' :
+                                          opt.toLowerCase() === 'gold' ? '#f59e0b' :
+                                            opt.toLowerCase() === 'silver' ? '#9ca3af' :
+                                              opt.toLowerCase().includes('space gray') ? '#4B4B4D' :
+                                                opt.toLowerCase().includes('midnight') ? '#1C2938' :
+                                                  '#6b7280'
+                          } : {}}
+                        >
+                          {!isColor && opt}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {selectedValue && (
+                    <div className="flex items-center gap-1.5 pt-1">
+                      {isColor && (
+                        <div
+                          className="w-3 h-3 rounded-full border border-white/30"
+                          style={{
+                            backgroundColor: selectedValue.toLowerCase() === 'black' ? '#000' :
+                              selectedValue.toLowerCase() === 'white' ? '#fff' :
+                                selectedValue.toLowerCase() === 'red' ? '#ef4444' :
+                                  selectedValue.toLowerCase() === 'blue' ? '#3b82f6' :
+                                    selectedValue.toLowerCase() === 'green' ? '#10b981' :
+                                      selectedValue.toLowerCase() === 'purple' ? '#a855f7' :
+                                        selectedValue.toLowerCase() === 'pink' ? '#ec4899' :
+                                          selectedValue.toLowerCase() === 'gold' ? '#f59e0b' :
+                                            selectedValue.toLowerCase() === 'silver' ? '#9ca3af' :
+                                              selectedValue.toLowerCase().includes('space gray') ? '#4B4B4D' :
+                                                selectedValue.toLowerCase().includes('midnight') ? '#1C2938' :
+                                                  '#6b7280'
+                          }}
+                        />
+                      )}
+                      <span className="text-[8px] text-white/60 font-bold tracking-wider">{selectedValue}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           <div className="space-y-3">
@@ -172,12 +207,24 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 </span>
               )}
             </div>
-            <button
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleAddToCartWithColor(); }}
-              className="w-full py-3 bg-[#CDA032] hover:bg-[#B38B21] text-black rounded-xl text-[9px] font-black uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-[#CDA032]/20"
-            >
-              <ShoppingCart size={13} strokeWidth={3} /> ADD TO CART
-            </button>
+
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleAddToCartWithOptions(); }}
+                className="w-full py-4 bg-[#CDA032] hover:bg-[#B38B21] text-black rounded-xl text-[9px] font-black uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-[#CDA032]/20 active:scale-95"
+              >
+                <ShoppingCart size={13} strokeWidth={3} /> ADD TO CART
+              </button>
+
+              <Link
+                to="/product/$productId"
+                params={{ productId: product.id } as any}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[8px] font-black uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-2 border border-white/10 hover:border-white/20 active:scale-95"
+              >
+                <FileText size={11} className="text-[#CDA032]" /> VIEW DETAILS
+              </Link>
+            </div>
           </div>
         </div>
       </Link>
