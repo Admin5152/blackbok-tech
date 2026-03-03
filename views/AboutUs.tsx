@@ -39,10 +39,14 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
 
                 <div className="relative z-10 max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
                     <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight">
-                        We Are <span className="text-[#D4AF37]">BlackBox</span>
+            
+                    <div className="flex justify-center">
+                        <img src="/BlackBox.jpeg" alt="BlackBox Logo" className="mb-4 object-contain max-w-[1300px] md:max-w-[450px]" />
+                    </div>
+
                     </h1>
                     <p className={`text-xl md:text-2xl ${isLight ? 'text-black/60' : 'text-white/60'} font-medium max-w-2xl mx-auto leading-relaxed`}>
-                        Premium tech repository. Your reliable home for innovation and digital excellence.
+                     Your reliable home for innovation and digital excellence.
                     </p>
                 </div>
             </section>

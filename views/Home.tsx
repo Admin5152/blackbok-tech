@@ -193,7 +193,7 @@ export const Home: React.FC<HomeProps> = ({
             </h2>
             <div className="w-32 h-0.5 bg-[#D4AF37] mx-auto mb-6"></div>
             <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-              Discover our curated selection of premium tech products hmdrgdbfcdhexewetrhyt
+              Discover our curated selection of tech finds
             </p>
             <div className="flex justify-center items-center gap-2 mt-4">
               <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
@@ -282,7 +282,7 @@ export const Home: React.FC<HomeProps> = ({
             {/* Promo Card */}
             <div className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#111]' : 'bg-white'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between snap-start flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5`}>
               <div>
-                <h2 className="text-3xl md:text-5xl font-bold mb-4 tracking-tight">Here and wow.</h2>
+                <h2 className="text-3xl md:text-5xl font-bold mb-4 tracking-tight">Take a peek</h2>
                 <p className={`text-lg md:text-xl ${theme === 'dark' ? 'text-white/70' : 'text-black/70'}`}>The accessories you love.<br />In a fresh mix of colors.</p>
               </div>
               <div className="flex justify-center mt-8">
@@ -441,11 +441,13 @@ export const Home: React.FC<HomeProps> = ({
         {/* Right Image */}
         <div className="w-full lg:w-1/2 min-h-[400px] lg:min-h-full relative overflow-hidden">
           <div className="absolute inset-0 bg-black/10 z-10 pointer-events-none"></div>
-          <img
-            src="https://images.unsplash.com/photo-1588508065123-287b28e013da?auto=format&fit=crop&q=80&w=2000"
-            alt="Device Repair & Diagnostics"
-            className="absolute inset-0 w-full h-full object-cover object-center"
-          />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <img
+              src="/blackfix.png"
+              alt="Device Repair & Diagnostics"
+              className="h-full w-full object-cover object-center rounded-[2rem] md:rounded-[3rem] md:rounded-b-none"
+            />
+          </div>
         </div>
       </section>
 
@@ -453,7 +455,7 @@ export const Home: React.FC<HomeProps> = ({
       <section className={`py-20 px-8 ${theme === 'dark' ? 'bg-[#111]' : 'bg-white'} border-t border-b ${theme === 'dark' ? 'border-white/5' : 'border-black/5'} overflow-hidden`}>
         <div className="max-w-4xl mx-auto text-center space-y-8">
           <h2 className={`text-4xl md:text-5xl font-bold ${theme === 'dark' ? 'text-white' : 'text-black'} tracking-tight`}>
-            Premium Tech Repository
+            WHO WE ARE?
           </h2>
           <p className={`text-xl ${theme === 'dark' ? 'text-white/60' : 'text-black/60'} max-w-2xl mx-auto`}>
             Discover who we are, our mission for precision, and why thousands trust BlackBox for their digital excellence.
