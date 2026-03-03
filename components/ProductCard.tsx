@@ -52,7 +52,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         )}
       </div>
 
-      <div className="absolute top-2 right-2 z-20 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-all duration-500 translate-x-4 group-hover:translate-x-0">
+      <div className="absolute top-2 right-2 z-30 flex flex-col gap-1 opacity-100 translate-x-0">
         <button
           className={`transition-all p-2 backdrop-blur-xl rounded-full border border-white/5 hover:bg-[#CDA032] hover:text-black ${isWishlisted ? 'text-[#CDA032]' : 'text-white/40'}`}
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleWishlist(product.id); }}
@@ -69,7 +69,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </button>
       </div>
 
-      <Link to="/product/$productId" params={{ productId: product.id } as any} className="flex-1 flex flex-col relative z-20">
+      <Link to="/product/$productId" params={{ productId: product.id } as any} className="flex-1 flex flex-col relative z-10">
         <div className="relative h-32 bg-black rounded-t-2xl overflow-hidden group-hover:scale-[1.02] transition-transform duration-500">
           <img
             src={product.image}

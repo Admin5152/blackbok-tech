@@ -86,7 +86,7 @@ export const Home: React.FC<HomeProps> = ({
     <div className="view-transition bg-black overflow-hidden no-print">      
       {/* Main Content */}
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center py-20 px-8 overflow-hidden">
+      <section className="relative h-[100svh] flex items-start justify-center pt-24 sm:pt-28 lg:pt-32 pb-6 px-4 sm:px-6 lg:px-8 overflow-hidden">
         {/* Background with tech accessories */}
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-black to-black subtle-texture"></div>
@@ -99,7 +99,7 @@ export const Home: React.FC<HomeProps> = ({
                   key={img.filename}
                   src={`/${img.filename}`}
                   alt={img.description}
-                  className={`absolute inset-0 w-full h-full object-cover transition-all duration-2000 ease-in-out ${
+                  className={`absolute inset-0 w-full h-full object-cover object-center transition-all duration-2000 ease-in-out ${
                     index === currentImageIndex 
                       ? 'opacity-100 scale-100' 
                       : 'opacity-0 scale-105'
@@ -208,42 +208,47 @@ export const Home: React.FC<HomeProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {categories.map((category, index) => (
-              <div 
+              <Link
                 key={category.name}
-                className="group relative bg-gray-900 rounded-2xl overflow-hidden border border-gray-800 hover:border-[#D4AF37]/50 transition-all duration-300 hover:transform hover:scale-105"
+                to="/store"
+                onClick={() => setSelectedCategory(category.name)}
+                className="group relative rounded-2xl overflow-hidden border border-gray-800 hover:border-[#D4AF37]/50 transition-all duration-300 hover:transform hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]/50"
                 style={{ animationDelay: `${index * 100}ms` }}
+                aria-label={`Explore ${category.name}`}
               >
-                <div className="aspect-video bg-gradient-to-br from-gray-800 to-gray-900 relative overflow-hidden">
-                  <img 
-                    src={category.img} 
+                {/* Full-bleed image */}
+                <div className="relative h-[320px] sm:h-[360px] lg:h-[420px]">
+                  <img
+                    src={category.img}
                     alt={category.name}
-                    className="w-full h-full object-cover opacity-70 group-hover:opacity-90 transition-opacity duration-300"
+                    className="absolute inset-0 w-full h-full object-cover object-center"
+                    loading="lazy"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
-                  <div className="absolute top-4 right-4 w-12 h-12 bg-[#D4AF37]/20 backdrop-blur-sm rounded-full flex items-center justify-center group-hover:bg-[#D4AF37] transition-colors">
-                    <category.icon size={20} className="text-white group-hover:text-black" />
+
+                  {/* Overlays for readability */}
+                  <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors duration-300" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
+
+                  {/* Icon */}
+                  <div className="absolute top-4 right-4 w-11 h-11 bg-[#D4AF37]/20 backdrop-blur-sm rounded-full flex items-center justify-center group-hover:bg-[#D4AF37] transition-colors">
+                    <category.icon size={18} className="bb-force-white group-hover:text-black" />
                   </div>
-                </div>
-                
-                <div className="p-6 space-y-3">
-                  <h3 className="text-xl font-heading font-semibold text-white tracking-wide">
-                    {category.name}
-                  </h3>
-                  <p className="text-gray-400 text-sm leading-relaxed">
-                    {category.desc}
-                  </p>
-                  <div className="pt-4">
-                    <Link 
-                      to="/store"
-                      onClick={() => setSelectedCategory(category.name)}
-                      className="inline-flex items-center gap-2 text-[#D4AF37] hover:text-[#F4E4C1] transition-colors text-sm font-heading font-medium"
-                    >
+
+                  {/* Text overlay */}
+                  <div className="absolute inset-x-0 bottom-0 p-6">
+                    <h3 className="text-3xl font-heading font-bold bb-force-white tracking-wide">
+                      {category.name}
+                    </h3>
+                    <p className="mt-2 bb-force-white-70 text-sm leading-relaxed max-w-[26ch]">
+                      {category.desc}
+                    </p>
+                    <div className="mt-6 inline-flex items-center gap-2 text-[#D4AF37] group-hover:text-[#F4E4C1] transition-colors text-sm font-heading font-semibold">
                       Explore {category.name}
-                      <ChevronRight size={16} />
-                    </Link>
+                      <ChevronRight size={16} className="translate-x-0 group-hover:translate-x-0.5 transition-transform" />
+                    </div>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
 
@@ -290,10 +295,6 @@ export const Home: React.FC<HomeProps> = ({
               to="/trades"
               className="relative inline-flex px-12 py-5 bg-[#D4AF37] text-black rounded-full text-sm font-heading font-semibold tracking-wider items-center gap-3 transition-all duration-300 hover:scale-105 hover:shadow-[0_20px_60px_rgba(212,175,55,0.4)] active:scale-95 group"
             >
-              <div className="absolute -right-8 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                <div className="w-2 h-2 bg-red-600 rounded-full"></div>
-                <span className="text-xs text-red-600 font-heading font-bold">HOT</span>
-              </div>
               Let's Trade
               <ArrowRight className="transition-transform group-hover:translate-x-2" size={18} />
             </Link>
@@ -443,12 +444,12 @@ export const Home: React.FC<HomeProps> = ({
           </div>
 
           {/* Customer Reviews Carousel */}
-          <div className="carousel-container relative overflow-hidden">
-            <div className="flex space-x-6 transition-transform duration-700 ease-out" style={{ transform: `translateX(-${currentReviewIndex * 336}px)` }}>
+          <div className="carousel-container relative md:overflow-hidden overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory">
+            <div className="home-reviews-track flex space-x-6 md:transition-transform md:duration-700 md:ease-out" style={{ transform: `translateX(-${currentReviewIndex * 336}px)` }}>
               {[...customerReviews, ...customerReviews].map((review, index) => (
                 <div 
                   key={index}
-                  className="flex-shrink-0 w-80 review-card rounded-2xl p-6"
+                  className="flex-shrink-0 w-80 review-card rounded-2xl p-6 snap-start"
                 >
                   <div className="flex items-center gap-1 mb-4">
                     {[...Array(review.rating)].map((_, i) => (
@@ -468,7 +469,7 @@ export const Home: React.FC<HomeProps> = ({
             
             {/* Manual Navigation Controls */}
             <button 
-              className="carousel-btn prev"
+              className="carousel-btn prev hidden md:flex"
               onClick={() => setCurrentReviewIndex((prev) => (prev === 0 ? customerReviews.length - 1 : prev - 1))}
               aria-label="Previous review"
             >
@@ -476,7 +477,7 @@ export const Home: React.FC<HomeProps> = ({
             </button>
             
             <button 
-              className="carousel-btn next"
+              className="carousel-btn next hidden md:flex"
               onClick={() => setCurrentReviewIndex((prev) => (prev === customerReviews.length - 1 ? 0 : prev + 1))}
               aria-label="Next review"
             >

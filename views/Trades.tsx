@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { RefreshCcw, Smartphone, ArrowRight, Zap, ShieldCheck, Check, Sparkles, Scale, Info, Search, TrendingUp, Award, Clock, CheckCircle2 } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import { Product } from '../types';
@@ -26,7 +26,11 @@ export const Trades: React.FC<TradesProps> = ({
   const [currentSearch, setCurrentSearch] = useState('');
   const [selectedColor, setSelectedColor] = useState('');
   const [targetColor, setTargetColor] = useState('');
-  const [showConfirmPopup, setShowConfirmPopup] = useState(false);
+  const [showReviewDialog, setShowReviewDialog] = useState(false);
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+
+  const yourDeviceRef = useRef<HTMLElement | null>(null);
+  const newDeviceRef = useRef<HTMLElement | null>(null);
 
   const targetPhones = useMemo(() =>
     products.filter(p =>
@@ -72,7 +76,7 @@ export const Trades: React.FC<TradesProps> = ({
         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #B38B21 0%, transparent 70%)', filter: 'blur(100px)', transform: 'translate(-40%, 40%)' }} />
       </div>
 
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 md:px-10 py-8 sm:py-10 relative z-10 space-y-10 sm:space-y-12">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 md:px-10 pt-8 sm:pt-10 pb-32 sm:pb-36 xl:pb-10 relative z-10 space-y-10 sm:space-y-12">
 
         {/* ── Header ── */}
         <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-8 border-b border-white/10">
@@ -109,10 +113,19 @@ export const Trades: React.FC<TradesProps> = ({
           <div className="xl:col-span-8 space-y-8">
 
             {/* Step 1 */}
-            <section className="rounded-2xl p-6 md:p-8 space-y-6" style={{ backgroundColor: 'var(--bb-surface)' }}>
-              <div className="flex items-center gap-3">
-                <span className="w-6 h-6 rounded-lg text-[10px] font-black text-black flex items-center justify-center" style={{ backgroundColor: '#B38B21' }}>01</span>
-                <h2 className="text-sm font-black uppercase tracking-widest text-white/80">Your Device</h2>
+            <section
+              ref={yourDeviceRef as any}
+              className="rounded-2xl p-6 md:p-8 space-y-6"
+              style={{ backgroundColor: 'var(--bb-surface)' }}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="w-6 h-6 rounded-lg text-[10px] font-black text-black flex items-center justify-center" style={{ backgroundColor: '#B38B21' }}>01</span>
+                  <h2 className="text-sm font-black uppercase tracking-widest text-white/80">Your Device</h2>
+                </div>
+                <span className="hidden md:inline text-[10px] text-white/40 uppercase tracking-[0.25em]">
+                  Start here · Choose what you&apos;re trading in
+                </span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -134,34 +147,36 @@ export const Trades: React.FC<TradesProps> = ({
                       style={{ backgroundColor: 'var(--bb-bg)' }}
                     />
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/60" />
-                  </div>
-                  {currentSearch && (
-                    <div className="absolute z-20 w-full mt-1 border border-white/10 rounded-xl shadow-lg max-h-40 overflow-y-auto" style={{ backgroundColor: 'var(--bb-surface)' }}>
-                      {Object.keys(valuations).filter(v =>
-                        v.toLowerCase().includes(currentSearch.toLowerCase())
-                      ).map(v => (
+
+                    {currentSearch && (
+                      <div className="absolute z-20 w-full mt-1 border border-white/10 rounded-xl shadow-lg max-h-40 overflow-y-auto" style={{ backgroundColor: 'var(--bb-surface)' }}>
+                        {Object.keys(valuations)
+                          .filter(v => v.toLowerCase().includes(currentSearch.toLowerCase()))
+                          .slice(0, 6)
+                          .map(v => (
+                            <button
+                              key={v}
+                              onClick={() => {
+                                setCurrentPhone(v);
+                                setCurrentSearch('');
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm text-white/80 hover:bg-white/5 transition-colors"
+                            >
+                              {v}
+                            </button>
+                          ))}
                         <button
-                          key={v}
                           onClick={() => {
-                            setCurrentPhone(v);
-                            setCurrentSearch(v);
+                            setCurrentPhone('Other Apple Device');
+                            setCurrentSearch('');
                           }}
-                          className="w-full text-left px-4 py-2 text-sm text-white/80 hover:bg-white/5 transition-colors"
+                          className="w-full text-left px-4 py-2 text-sm text-white/60 hover:bg-white/5 transition-colors border-t border-white/5"
                         >
-                          {v}
+                          Other Apple Device
                         </button>
-                      ))}
-                      <button
-                        onClick={() => {
-                          setCurrentPhone('Other');
-                          setCurrentSearch('Other');
-                        }}
-                        className="w-full text-left px-4 py-2 text-sm text-white/60 hover:bg-white/5 transition-colors border-t border-white/5"
-                      >
-                        Other Apple Device
-                      </button>
-                    </div>
-                  )}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Color Selection */}
@@ -250,7 +265,7 @@ export const Trades: React.FC<TradesProps> = ({
             </section>
 
             {/* Step 2 */}
-            <section className="space-y-5">
+            <section ref={newDeviceRef as any} className="space-y-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <span className="w-6 h-6 rounded-lg text-[10px] font-black text-black flex items-center justify-center" style={{ backgroundColor: '#B38B21' }}>02</span>
@@ -356,8 +371,9 @@ export const Trades: React.FC<TradesProps> = ({
           </div>
 
           {/* ── Sidebar ── */}
-          <aside className="xl:col-span-4 sticky top-24 space-y-4">
-            <div className="rounded-2xl p-6 space-y-6" style={{ backgroundColor: 'var(--bb-surface)' }}>
+          <aside className="hidden xl:block xl:col-span-4">
+            <div className="sticky top-24 space-y-4 max-h-[calc(100vh-7rem)] overflow-auto pr-1">
+              <div className="rounded-2xl p-6 space-y-6" style={{ backgroundColor: 'var(--bb-surface)' }}>
               <h3 className="text-xs font-black uppercase tracking-widest text-white/50 flex items-center gap-2">
                 <Scale size={13} style={{ color: '#B38B21' }} /> Trade Summary
               </h3>
@@ -412,7 +428,7 @@ export const Trades: React.FC<TradesProps> = ({
               </div>
 
               {/* Final amount */}
-              <div className="text-center py-4 border-t border-b" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
+              <div className="text-center py-4 border-t border-b mt-2" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-white/60 mb-2">Final Payment</p>
                 <p className="text-4xl font-black tracking-tight" style={{ color: '#B38B21' }}>{formatCurrency(difference)}</p>
                 <p className="text-[10px] text-white/20 mt-1">Inc. VAT (12.5%)</p>
@@ -420,7 +436,7 @@ export const Trades: React.FC<TradesProps> = ({
                 {/* CTA */}
                 <button
                   disabled={!targetPhoneId || !currentPhone}
-                  onClick={() => setShowConfirmPopup(true)}
+                  onClick={() => setShowReviewDialog(true)}
                   className="w-full py-4 rounded-xl text-xs font-black uppercase tracking-widest text-black flex items-center justify-center gap-3 transition-all duration-200 disabled:opacity-20 disabled:cursor-not-allowed group"
                   style={{ backgroundColor: '#B38B21' }}
                   onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.filter = 'brightness(1.1)'; }}
@@ -437,15 +453,16 @@ export const Trades: React.FC<TradesProps> = ({
               </div>
             </div>
 
-            {/* Guarantee card */}
-            <div className="rounded-2xl p-5 space-y-2" style={{ backgroundColor: 'rgba(179,139,33,0.04)', borderLeft: '2px solid rgba(179,139,33,0.15)' }}>
-              <div className="flex items-center gap-2">
-                <Award size={15} style={{ color: '#B38B21' }} />
-                <h4 className="text-xs font-black uppercase tracking-wider text-white/70">Best Value Guarantee</h4>
+              {/* Guarantee card */}
+              <div className="rounded-2xl p-5 space-y-2" style={{ backgroundColor: 'rgba(179,139,33,0.04)', borderLeft: '2px solid rgba(179,139,33,0.15)' }}>
+                <div className="flex items-center gap-2">
+                  <Award size={15} style={{ color: '#B38B21' }} />
+                  <h4 className="text-xs font-black uppercase tracking-wider text-white/70">Best Value Guarantee</h4>
+                </div>
+                <p className="text-[10px] text-white/60 leading-relaxed">
+                  Find a better offer within 48 hours and we'll match it plus 10%.
+                </p>
               </div>
-              <p className="text-[10px] text-white/60 leading-relaxed">
-                Find a better offer within 48 hours and we'll match it plus 10%.
-              </p>
             </div>
           </aside>
         </div>
@@ -478,8 +495,158 @@ export const Trades: React.FC<TradesProps> = ({
         </section>
       </div>
 
-      {/* Confirmation Popup */}
-      {showConfirmPopup && (
+      {/* Mobile bottom confirm bar (replaces summary at page bottom) */}
+      <div
+        className="xl:hidden fixed bottom-0 left-0 right-0 z-[120] border-t border-white/10 backdrop-blur-xl"
+        style={{ backgroundColor: 'var(--bb-surface)' }}
+      >
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-4 flex items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">Final payment</p>
+            <p className="text-xl font-black truncate" style={{ color: '#B38B21' }}>{formatCurrency(difference)}</p>
+          </div>
+          <button
+            disabled={!targetPhoneId || !currentPhone}
+            onClick={() => setShowReviewDialog(true)}
+            className="px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-black flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-20 disabled:cursor-not-allowed"
+            style={{ backgroundColor: '#B38B21' }}
+          >
+            Review & Confirm
+            <ArrowRight size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* Review & Confirm dialog (with edit actions) */}
+      {showReviewDialog && (
+        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="border border-white/10 rounded-3xl p-6 sm:p-8 max-w-lg w-full mx-auto shadow-2xl" style={{ backgroundColor: 'var(--bb-surface)' }}>
+            <div className="mb-6">
+              <h3 className="text-2xl font-black text-white mb-1">Review your trade</h3>
+              <p className="text-sm text-white/60">Confirm the details below, or edit them before finalizing.</p>
+            </div>
+
+            <div className="space-y-3 mb-6">
+              {/* Visual snapshot of both devices */}
+              <div className="rounded-2xl border border-white/10 p-4 mb-2" style={{ backgroundColor: 'var(--bb-bg)' }}>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex-1 text-center">
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-white/40 mb-2">
+                      Trading In
+                    </p>
+                    <div className="mx-auto mb-2 w-14 h-14 rounded-xl border border-white/10 flex items-center justify-center text-xs text-white/60">
+                      {currentPhone || 'Your device'}
+                    </div>
+                  </div>
+                  <ArrowRight size={18} className="text-white/30" />
+                  <div className="flex-1 text-center">
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-white/40 mb-2">
+                      Getting
+                    </p>
+                    <div className="mx-auto mb-2 w-14 h-14 rounded-xl border border-white/10 flex items-center justify-center overflow-hidden bg-black/40">
+                      {targetPhone ? (
+                        <img
+                          src={targetPhone.image}
+                          alt={targetPhone.name}
+                          className="w-full h-full object-contain"
+                        />
+                      ) : (
+                        <span className="text-xs text-white/40">—</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 p-4" style={{ backgroundColor: 'var(--bb-bg)' }}>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-white/50">Your device</p>
+                  <button
+                    onClick={() => {
+                      setShowReviewDialog(false);
+                      yourDeviceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }}
+                    className="text-[10px] font-black uppercase tracking-widest text-[#B38B21] hover:opacity-80"
+                  >
+                    Edit
+                  </button>
+                </div>
+                <div className="mt-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-white/60">Model</span>
+                    <span className="text-xs font-semibold text-white">{currentPhone || '—'}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-white/60">Color</span>
+                    <span className="text-xs font-semibold text-white">{selectedColor || '—'}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-white/60">Condition</span>
+                    <span className="text-xs font-semibold text-white">{conditionLabels[condition]?.label || condition}</span>
+                  </div>
+                  <div className="h-px bg-white/10 my-2" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-white/50">Trade-in credit</span>
+                    <span className="text-xs font-black" style={{ color: '#B38B21' }}>{formatCurrency(tradeInValue)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 p-4" style={{ backgroundColor: 'var(--bb-bg)' }}>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-white/50">New device</p>
+                  <button
+                    onClick={() => {
+                      setShowReviewDialog(false);
+                      newDeviceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }}
+                    className="text-[10px] font-black uppercase tracking-widest text-[#B38B21] hover:opacity-80"
+                  >
+                    Edit
+                  </button>
+                </div>
+                <div className="mt-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-white/60">Model</span>
+                    <span className="text-xs font-semibold text-white">{targetPhone?.name || '—'}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-white/60">Color</span>
+                    <span className="text-xs font-semibold text-white">{targetColor || '—'}</span>
+                  </div>
+                  <div className="h-px bg-white/10 my-2" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-white/50">Final payment</span>
+                    <span className="text-base font-black text-white">{formatCurrency(difference)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowReviewDialog(false)}
+                className="flex-1 py-3 bg-white/10 text-white rounded-xl text-sm font-semibold transition-all hover:bg-white/20"
+              >
+                Back
+              </button>
+              <button
+                disabled={!targetPhoneId || !currentPhone}
+                onClick={() => {
+                  setShowReviewDialog(false);
+                  setShowSuccessPopup(true);
+                }}
+                className="flex-1 py-3 bg-[#B38B21] text-black rounded-xl text-sm font-black uppercase tracking-wider transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+              >
+                Confirm trade
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Popup */}
+      {showSuccessPopup && (
         <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="border border-white/10 rounded-3xl p-8 max-w-md w-full mx-auto shadow-2xl" style={{ backgroundColor: 'var(--bb-surface)' }}>
             {/* Header */}
@@ -499,7 +666,7 @@ export const Trades: React.FC<TradesProps> = ({
               </div>
               <div className="flex justify-between items-center py-3 border-b border-white/5">
                 <span className="text-sm text-white/40">Device Getting</span>
-                <span className="text-sm font-semibold text-white">{targetPhones.find(p => p.id === targetPhoneId)?.name || 'Selected Device'}</span>
+                <span className="text-sm font-semibold text-white">{targetPhone?.name || 'Selected Device'}</span>
               </div>
               <div className="flex justify-between items-center py-3 border-b border-white/5">
                 <span className="text-sm text-white/40">Trade-In Value</span>
@@ -525,7 +692,7 @@ export const Trades: React.FC<TradesProps> = ({
             <div className="flex gap-3">
               <button
                 onClick={() => {
-                  setShowConfirmPopup(false);
+                  setShowSuccessPopup(false);
                   notify('Trade-in reservation initiated. Diagnostic appointment scheduled.');
                 }}
                 className="flex-1 py-3 bg-[#B38B21] text-black rounded-xl text-sm font-black uppercase tracking-wider transition-all hover:scale-105"
@@ -533,7 +700,7 @@ export const Trades: React.FC<TradesProps> = ({
                 Got it
               </button>
               <button
-                onClick={() => setShowConfirmPopup(false)}
+                onClick={() => setShowSuccessPopup(false)}
                 className="flex-1 py-3 bg-white/10 text-white rounded-xl text-sm font-semibold transition-all hover:bg-white/20"
               >
                 View Details
