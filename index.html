@@ -134,6 +134,29 @@
         .carousel-btn.next {
             right: 0;
         }
+
+        /* Mobile-friendly carousel spacing + swipe behavior */
+        @media (max-width: 768px) {
+            .carousel-container {
+                padding: 0 1.25rem;
+            }
+
+            .carousel-btn {
+                width: 40px;
+                height: 40px;
+            }
+
+            /* On mobile we allow swipe scrolling; prevent forced translate */
+            .home-reviews-track {
+                transform: none !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .carousel-container {
+                padding: 0 1rem;
+            }
+        }
         
         .carousel-dots {
             display: flex;

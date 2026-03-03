@@ -417,7 +417,7 @@ function RootComponent() {
             onClick={() => setIsCompareOpen(true)}
             className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[100] px-10 py-5 bg-[#B38B21] text-black font-black rounded-full text-[10px] uppercase tracking-[0.4em] flex items-center gap-4 shadow-[0_10px_40px_rgba(179,139,33,0.4)] transition-transform hover:scale-105"
           >
-            <Scale size={18} /> Matrix ({compareIds.length})
+            <Scale size={18} /> Compare ({compareIds.length})
           </button>
         )}
 
@@ -439,9 +439,16 @@ function RootComponent() {
         />
 
         {notification && (
-          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[130] px-8 py-5 rounded-full shadow-2xl animate-in slide-in-from-top-10 flex items-center gap-5 bg-[#B38B21] text-black border-none">
+          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[130] px-6 sm:px-8 py-4 rounded-full shadow-2xl animate-in slide-in-from-top-10 flex items-center gap-3 sm:gap-5 bg-[#B38B21] text-black border-none">
             {notification.type === 'success' ? <CheckCircle2 size={18} /> : <Activity size={18} />}
-            <p className="font-bold text-[10px] uppercase tracking-[0.3em]">{notification.msg}</p>
+            <p className="font-bold text-[9px] sm:text-[10px] uppercase tracking-[0.3em]">{notification.msg}</p>
+            <button
+              onClick={() => setNotification(null)}
+              className="ml-1 p-1 rounded-full hover:bg-black/10 transition-colors"
+              aria-label="Dismiss notification"
+            >
+              <X size={14} />
+            </button>
           </div>
         )}
 

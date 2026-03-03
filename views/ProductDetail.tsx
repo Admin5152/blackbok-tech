@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Product } from '../types';
 import { X, Plus, Minus, Heart, Share2, Star, Check, Truck, Shield, RefreshCw, ArrowLeft } from 'lucide-react';
 
@@ -21,6 +21,44 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
 }) => {
   const [quantity, setQuantity] = useState(1);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
+  const overviewRef = useRef<HTMLDivElement | null>(null);
+  const specsRef = useRef<HTMLDivElement | null>(null);
+  const reviewsRef = useRef<HTMLDivElement | null>(null);
+
+  const mockReviews = [
+    {
+      id: 1,
+      name: 'Kwame Asante',
+      rating: 5,
+      title: 'Exactly as described',
+      body: 'Fantastic build quality and battery life. Feels brand new even though it is pre-owned. Would definitely buy from BlackBox again.',
+      date: '2 days ago',
+    },
+    {
+      id: 2,
+      name: 'Ama Mensah',
+      rating: 4,
+      title: 'Great value for money',
+      body: 'The device had a tiny cosmetic scratch but overall performance is smooth. Customer service walked me through setup.',
+      date: '1 week ago',
+    },
+    {
+      id: 3,
+      name: 'Kojo Osei',
+      rating: 5,
+      title: 'Perfect for my workflow',
+      body: 'Display is crisp, speakers are loud and the battery easily lasts a full day. Trade-in credit also helped a lot.',
+      date: '3 weeks ago',
+    },
+  ];
+
+  const averageRating =
+    mockReviews.reduce((sum, r) => sum + r.rating, 0) / mockReviews.length;
+  const totalReviews = mockReviews.length;
+
+  const scrollTo = (ref: React.RefObject<HTMLElement | null>) => {
+    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   const handleOptionChange = (variantName: string, option: string) => {
     setSelectedOptions(prev => ({
@@ -58,6 +96,32 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             <li className="text-white">{product.name}</li>
           </ol>
         </nav>
+
+        {/* Sticky in-page nav (mobile-first) */}
+        <div className="sticky top-20 z-30 -mx-4 lg:mx-0 mb-10">
+          <div className="px-4 lg:px-0 py-2 border-b border-white/10 bg-[#060605]/85 backdrop-blur-xl">
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+              <button
+                onClick={() => scrollTo(overviewRef)}
+                className="shrink-0 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-[0.35em] hover:bg-white/10 transition"
+              >
+                Overview
+              </button>
+              <button
+                onClick={() => scrollTo(specsRef)}
+                className="shrink-0 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-[0.35em] hover:bg-white/10 transition"
+              >
+                Specs
+              </button>
+              <button
+                onClick={() => scrollTo(reviewsRef)}
+                className="shrink-0 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-[0.35em] hover:bg-white/10 transition"
+              >
+                Reviews
+              </button>
+            </div>
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-14">
 
@@ -106,16 +170,23 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                 <div className="flex items-center gap-1 text-yellow-400">
                   <Star className="w-5 h-5 fill-yellow-400" />
                   <span className="text-white">{product.rating}</span>
-                  <span className="text-white/40 text-sm">
+                  <button
+                    onClick={() => scrollTo(reviewsRef)}
+                    className="text-white/40 text-sm hover:text-white/70 transition-colors"
+                    aria-label="Jump to reviews"
+                    type="button"
+                  >
                     ({product.reviewCount})
-                  </span>
+                  </button>
                 </div>
               )}
             </div>
 
-            <p className="text-white/80 leading-relaxed max-w-xl">
-              {product.description}
-            </p>
+            <div ref={overviewRef as any}>
+              <p className="text-white/80 leading-relaxed max-w-xl">
+                {product.description}
+              </p>
+            </div>
 
             {product.variants?.length > 0 && (
               <div className="space-y-6">
@@ -250,6 +321,119 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               </div>
             </div>
 
+            {/* Specs (anchor for navigation) */}
+            <div ref={specsRef as any} className="pt-8 border-t border-white/10">
+              <h2 className="text-sm font-black uppercase tracking-[0.35em] text-white/60 mb-4">Specifications</h2>
+              {product.specs && product.specs.length > 0 ? (
+                <ul className="space-y-2">
+                  {product.specs.map((s, i) => (
+                    <li key={i} className="flex items-start gap-3">
+                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-[#B38B21] shrink-0" />
+                      <span className="text-sm text-white/70 leading-relaxed">{s}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-white/50">No specifications listed for this product yet.</p>
+              )}
+            </div>
+
+          </div>
+        </div>
+
+        {/* Reviews */}
+        <div ref={reviewsRef as any} className="mt-16 border-t border-white/10 pt-12">
+          <div className="flex items-end justify-between gap-6 flex-wrap">
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-bold">Reviews</h2>
+              <p className="text-sm text-white/50 mt-2">See what customers are saying about this product.</p>
+            </div>
+            <button
+              className="px-6 py-3 rounded-full bg-white/10 border border-white/10 text-[10px] font-black uppercase tracking-[0.3em] hover:bg-white/20 transition"
+              type="button"
+            >
+              Write a review
+            </button>
+          </div>
+
+          <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-1 rounded-2xl border border-white/10 p-6 bg-black/30">
+              <p className="text-[10px] font-black uppercase tracking-[0.35em] text-white/40">Overall rating</p>
+              <div className="mt-3 flex items-center gap-3">
+                <div className="text-4xl font-extrabold text-[#B38B21]">
+                  {averageRating.toFixed(1)}
+                </div>
+                <div>
+                  <div className="flex gap-1">
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`w-4 h-4 ${
+                          i < Math.round(averageRating)
+                            ? 'fill-yellow-400 text-yellow-400'
+                            : 'text-white/20'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-sm text-white/50 mt-1">
+                    {totalReviews} reviews
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="lg:col-span-2 rounded-2xl border border-white/10 p-6 bg-black/30">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <p className="text-[10px] font-black uppercase tracking-[0.35em] text-white/40">Review feed</p>
+                <div className="flex gap-2">
+                  <button className="px-3 py-2 rounded-full bg-white/10 border border-white/10 text-[9px] font-black uppercase tracking-widest">Top</button>
+                  <button className="px-3 py-2 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/60 hover:text-white transition">Recent</button>
+                </div>
+              </div>
+              <div className="mt-6">
+                <div className="space-y-4">
+                  {mockReviews.map((review) => (
+                    <div
+                      key={review.id}
+                      className="rounded-2xl border border-white/10 bg-black/40 p-4 sm:p-5"
+                    >
+                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <div>
+                          <p className="text-sm font-semibold text-white">
+                            {review.name}
+                          </p>
+                          <p className="text-[11px] text-white/40">
+                            {review.date}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              className={`w-3.5 h-3.5 ${
+                                i < review.rating
+                                  ? 'fill-yellow-400 text-yellow-400'
+                                  : 'text-white/15'
+                              }`}
+                            />
+                          ))}
+                          <span className="text-xs text-white/60 ml-1">
+                            {review.rating}.0
+                          </span>
+                        </div>
+                      </div>
+                      <h3 className="mt-3 text-sm font-semibold text-white">
+                        {review.title}
+                      </h3>
+                      <p className="mt-2 text-sm text-white/70 leading-relaxed">
+                        {review.body}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 

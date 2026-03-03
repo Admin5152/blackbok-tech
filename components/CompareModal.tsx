@@ -52,7 +52,7 @@ export const CompareModal: React.FC<CompareModalProps> = ({
               onClick={() => setShowAddDevices(!showAddDevices)}
               className="px-4 py-2 bg-[#B38B21] text-black text-[10px] font-black uppercase tracking-[0.3em] rounded-xl flex items-center gap-2 hover:bg-[#B38B21]/90 transition-colors"
             >
-              <Plus size={14} /> Compare
+              <Plus size={14} /> {showAddDevices ? 'Done' : 'Add products'}
             </button>
             <button onClick={onClose} className="p-4 bg-white/5 hover:bg-white hover:text-black rounded-full transition-all border border-white/10">
               <X size={24} />
@@ -97,18 +97,18 @@ export const CompareModal: React.FC<CompareModalProps> = ({
           {products.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center opacity-10 py-40">
               <Info size={64} className="mb-8" />
-              <p className="text-xs font-black uppercase tracking-[0.5em] italic">No active units selected.</p>
+              <p className="text-xs font-black uppercase tracking-[0.5em] italic">Select products to compare.</p>
             </div>
           ) : (
             <>
               {/* Desktop side-by-side comparison */}
               <div className="hidden lg:block">
-                <div className="flex gap-3 overflow-x-auto pb-4">
+                <div className="flex gap-4 overflow-x-auto pb-4">
                   {products.map((p) => (
-                    <div key={p.id} className="flex-1 min-w-[200px] max-w-[280px]">
-                      <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl overflow-hidden">
+                    <div key={p.id} className="flex-1 min-w-[220px] max-w-[260px]">
+                      <div className="bg-[#050505] border border-white/10 rounded-2xl overflow-hidden">
                         {/* Product Header */}
-                        <div className="relative p-4 border-b border-white/5 bg-black">
+                        <div className="relative p-3 border-b border-white/5 bg-black">
                           <button
                             onClick={() => onRemove(p.id)}
                             className="absolute top-4 right-4 p-1.5 rounded-full bg-white/10 hover:bg-red-500/20 text-white/60 hover:text-red-400 transition-colors"
@@ -116,22 +116,22 @@ export const CompareModal: React.FC<CompareModalProps> = ({
                           >
                             <X size={14} />
                           </button>
-                          <div className="text-center">
-                            <div className="w-16 h-16 rounded-lg bg-black/40 border border-white/5 flex items-center justify-center overflow-hidden mx-auto mb-3">
+                          <div className="text-center space-y-1.5">
+                            <div className="w-14 h-14 rounded-lg bg-black/40 border border-white/5 flex items-center justify-center overflow-hidden mx-auto mb-2">
                               <img src={p.image} alt={p.name} className="w-full h-full object-contain" />
                             </div>
-                            <h3 className="text-base font-black text-white uppercase tracking-wider">{p.name}</h3>
-                            <p className="text-xs font-black uppercase tracking-widest text-white/40 italic">{p.category}</p>
-                            <p className="text-lg font-black text-white">{formatCurrency(p.price)}</p>
+                            <h3 className="text-sm font-black text-white uppercase tracking-wide line-clamp-2">{p.name}</h3>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-white/40 italic">{p.category}</p>
+                            <p className="text-base font-black text-white">{formatCurrency(p.price)}</p>
                           </div>
                         </div>
 
                         {/* Product Details */}
-                        <div className="p-4 space-y-3">
+                        <div className="p-3 space-y-2.5">
                           <div className="space-y-2">
-                            <h4 className="text-sm font-black uppercase tracking-widest text-white/30">Price</h4>
+                            <h4 className="text-[11px] font-black uppercase tracking-widest text-white/30">Price</h4>
                             <div className="flex gap-2 items-center">
-                              <span className="text-lg font-black text-white">{formatCurrency(p.price)}</span>
+                              <span className="text-base font-black text-white">{formatCurrency(p.price)}</span>
                               {products.length > 1 && (
                                 <div className="flex gap-1">
                                   {products.map(other => {
@@ -152,7 +152,7 @@ export const CompareModal: React.FC<CompareModalProps> = ({
                           </div>
 
                           <div className="space-y-2">
-                            <h4 className="text-sm font-black uppercase tracking-widest text-white/30">Winner</h4>
+                            <h4 className="text-[11px] font-black uppercase tracking-widest text-white/30">Highlights</h4>
                             <div className="flex items-center gap-2">
                               {(() => {
                                 const bestPrice = Math.min(...products.map(p => p.price));
@@ -182,7 +182,7 @@ export const CompareModal: React.FC<CompareModalProps> = ({
                           </div>
 
                           <div className="space-y-2">
-                            <h4 className="text-sm font-black uppercase tracking-widest text-white/30">Status</h4>
+                            <h4 className="text-[11px] font-black uppercase tracking-widest text-white/30">Status</h4>
                             <div className="flex items-center gap-2">
                               <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
                                 p.stock > 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
@@ -193,7 +193,7 @@ export const CompareModal: React.FC<CompareModalProps> = ({
                           </div>
 
                           <div className="space-y-2">
-                            <h4 className="text-sm font-black uppercase tracking-widest text-white/30">Rating</h4>
+                            <h4 className="text-[11px] font-black uppercase tracking-widest text-white/30">Rating</h4>
                             <div className="flex items-center gap-2">
                               <div className="flex gap-0.5">
                                 {[...Array(5)].map((_, i) => (
@@ -207,10 +207,10 @@ export const CompareModal: React.FC<CompareModalProps> = ({
                           </div>
 
                           <div className="space-y-2">
-                            <h4 className="text-sm font-black uppercase tracking-widest text-white/30">Specifications</h4>
-                            <div className="space-y-2">
+                            <h4 className="text-[11px] font-black uppercase tracking-widest text-white/30">Key specs</h4>
+                            <div className="space-y-1.5">
                               {p.specs?.slice(0, 4).map((spec, i) => (
-                                <div key={i} className="text-[10px] text-white/60 bg-white/5 rounded-lg px-3 py-2">
+                                <div key={i} className="text-[10px] text-white/70 bg-white/5 rounded-lg px-2.5 py-1.5">
                                   {spec}
                                 </div>
                               ))}
@@ -218,7 +218,7 @@ export const CompareModal: React.FC<CompareModalProps> = ({
                           </div>
 
                           <div className="space-y-2">
-                            <h4 className="text-sm font-black uppercase tracking-widest text-white/30">Features</h4>
+                            <h4 className="text-[11px] font-black uppercase tracking-widest text-white/30">Included</h4>
                             <div className="space-y-1">
                               <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 rounded-full bg-white/10" />
@@ -236,7 +236,7 @@ export const CompareModal: React.FC<CompareModalProps> = ({
                           </div>
 
                           <div className="space-y-2">
-                            <h4 className="text-sm font-black uppercase tracking-widest text-white/30">Performance</h4>
+                            <h4 className="text-[11px] font-black uppercase tracking-widest text-white/30">Performance</h4>
                             <div className="grid grid-cols-2 gap-2">
                               <div className="text-center">
                                 <div className="text-[10px] text-white/30">Speed</div>
@@ -249,7 +249,7 @@ export const CompareModal: React.FC<CompareModalProps> = ({
                             </div>
                           </div>
 
-                          <div className="pt-4">
+                          <div className="pt-2">
                             <button
                               onClick={() => onAddToCart(p)}
                               className="w-full py-3 bg-white text-black text-[10px] font-black uppercase tracking-[0.35em] rounded-2xl active:scale-[0.98] transition-transform"
@@ -301,7 +301,7 @@ export const CompareModal: React.FC<CompareModalProps> = ({
                         <div className="rounded-xl bg-white/5 border border-white/10 p-3">
                           <p className="text-[8px] font-black uppercase tracking-[0.35em] text-white/30">Status</p>
                           <p className="text-[9px] font-black uppercase tracking-widest text-white/60 italic mt-1">
-                            {p.stock > 0 ? 'READY' : 'LOGGING'}
+                            {p.stock > 0 ? 'IN STOCK' : 'OUT OF STOCK'}
                           </p>
                         </div>
                       </div>
@@ -334,9 +334,9 @@ export const CompareModal: React.FC<CompareModalProps> = ({
                 ))}
               </div>
 
-              {/* Detailed Comparison Matrix */}
+              {/* Detailed comparison table */}
               <div className="mt-6 p-4 bg-[#0a0a0a] border border-white/10 rounded-2xl">
-                <h3 className="text-base font-black uppercase tracking-wider text-white mb-4">Detailed Comparison Matrix</h3>
+                <h3 className="text-base font-black uppercase tracking-wider text-white mb-4">Detailed Comparison</h3>
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse">
                     <thead>

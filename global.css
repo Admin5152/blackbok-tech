@@ -84,6 +84,15 @@ html[data-theme="light"] .bg-\[\#080808\] { background-color: var(--bb-surface) 
 html[data-theme="light"] .bg-\[\#050505\] { background-color: var(--bb-surface) !important; }
 html[data-theme="light"] .bg-\[\#030303\] { background-color: var(--bb-surface) !important; }
 
+/* Force white text on media overlays (home/category cards, heroes, etc.).
+   Use when content sits on top of imagery/gradients and must stay white in light mode. */
+.bb-force-white { color: rgba(255, 255, 255, 0.95) !important; }
+.bb-force-white-80 { color: rgba(255, 255, 255, 0.80) !important; }
+.bb-force-white-70 { color: rgba(255, 255, 255, 0.70) !important; }
+.bb-force-white-60 { color: rgba(255, 255, 255, 0.60) !important; }
+.bb-force-white-50 { color: rgba(255, 255, 255, 0.50) !important; }
+.bb-force-white-40 { color: rgba(255, 255, 255, 0.40) !important; }
+
 /* Gradients used across dark-first screens */
 html[data-theme="light"] .from-black { --tw-gradient-from: var(--bb-surface-2) !important; --tw-gradient-to: rgba(247, 247, 247, 0) !important; }
 html[data-theme="light"] .via-black { --tw-gradient-stops: var(--tw-gradient-from), var(--bb-surface-2), var(--tw-gradient-to) !important; }
