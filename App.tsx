@@ -1,16 +1,16 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
-import { 
-  createRootRoute, 
-  createRoute, 
-  createRouter, 
-  RouterProvider, 
+import {
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
   Outlet,
   useNavigate,
   useParams,
   useLocation,
   createMemoryHistory
 } from '@tanstack/react-router';
-import { X, CheckCircle2, Activity, Scale, RefreshCcw } from 'lucide-react';
+import { X, CheckCircle2, Activity, Scale, RefreshCcw, Home as HomeIcon, ShoppingBag, Wrench, ShoppingCart, User as UserIcon, LogOut, ChevronRight, Settings } from 'lucide-react';
 import { Product, User, CartItem, Category, RepairRequest, Order } from './types';
 import { getProducts, createOrder } from './lib/api';
 import { INITIAL_PRODUCTS } from './constants';
@@ -115,7 +115,7 @@ const productDetailRoute = createRoute({
     const product = context.products.find((p: Product) => p.id === productId);
     if (!product) return <div className="p-20 text-center text-white/40 uppercase font-black tracking-widest">Unit Not Found.</div>;
     return (
-      <ProductDetail 
+      <ProductDetail
         product={product}
         relatedProducts={context.products.filter((p: Product) => p.category === product.category && p.id !== product.id).slice(0, 4)}
         addToCart={context.addToCart}
@@ -212,7 +212,7 @@ const memoryHistory = createMemoryHistory({
   initialEntries: ['/'],
 });
 
-const router = createRouter({ 
+const router = createRouter({
   routeTree,
   history: memoryHistory,
   defaultPreload: 'intent',
@@ -226,12 +226,12 @@ function RootComponent() {
   const [user, setUser] = useState<User | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [repairs, setRepairs] = useState<RepairRequest[]>([]);
-  
+
   const [isCompareOpen, setIsCompareOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<Category | 'All'>('All');
-  const [notification, setNotification] = useState<{msg: string, type: 'success' | 'error'} | null>(null);
+  const [notification, setNotification] = useState<{ msg: string, type: 'success' | 'error' } | null>(null);
 
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
@@ -351,11 +351,11 @@ function RootComponent() {
 
   const handleCheckout = async (total: number) => {
     if (!user) { notify('Auth required.', 'error'); return; }
-    
+
     try {
       // Create order in Supabase
       const order = await createOrder(cart, user.id);
-      
+
       // Create local order for UI compatibility
       const newOrder: Order = {
         id: order.id,
@@ -367,7 +367,7 @@ function RootComponent() {
         date: order.created_at,
         paymentMethod: 'Credit Card'
       };
-      
+
       setOrders([newOrder, ...orders]);
       setCart([]);
       notify('Transaction Authorized.');
@@ -396,13 +396,13 @@ function RootComponent() {
       {showWelcomeScreen && (
         <WelcomeScreen onComplete={() => setShowWelcomeScreen(false)} />
       )}
-      
+
       <div className={`flex flex-col min-h-screen selection:bg-[#B38B21] selection:text-black ${showWelcomeScreen ? 'opacity-0 pointer-events-none' : 'opacity-100'} ${isLight ? 'bg-[#F0F0F0] text-black' : 'bg-black text-white'}`}>
-        <Navbar 
-          user={user} 
-          cart={cart} 
-          searchQuery={searchQuery} 
-          setSearchQuery={setSearchQuery} 
+        <Navbar
+          user={user}
+          cart={cart}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
           setIsMobileMenuOpen={setIsMobileMenuOpen}
           theme={theme}
           setTheme={setTheme}
@@ -413,7 +413,7 @@ function RootComponent() {
         </main>
 
         {compareIds.length > 0 && (
-          <button 
+          <button
             onClick={() => setIsCompareOpen(true)}
             className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[100] px-10 py-5 bg-[#B38B21] text-black font-black rounded-full text-[10px] uppercase tracking-[0.4em] flex items-center gap-4 shadow-[0_10px_40px_rgba(179,139,33,0.4)] transition-transform hover:scale-105"
           >
@@ -421,41 +421,131 @@ function RootComponent() {
           </button>
         )}
 
-        <QuickViewModal 
-          isOpen={isQuickViewOpen} 
-          onClose={() => setIsQuickViewOpen(false)} 
-          product={quickViewProduct} 
-          onAddToCart={addToCart} 
+        <QuickViewModal
+          isOpen={isQuickViewOpen}
+          onClose={() => setIsQuickViewOpen(false)}
+          product={quickViewProduct}
+          onAddToCart={addToCart}
         />
 
-        <CompareModal 
-          isOpen={isCompareOpen} 
-          onClose={() => setIsCompareOpen(false)} 
-          products={products.filter(p => compareIds.includes(p.id))} 
+        <CompareModal
+          isOpen={isCompareOpen}
+          onClose={() => setIsCompareOpen(false)}
+          products={products.filter(p => compareIds.includes(p.id))}
           allProducts={products}
-          onRemove={toggleCompare} 
+          onRemove={toggleCompare}
           onAdd={toggleCompare}
-          onAddToCart={(p) => addToCart(p)} 
+          onAddToCart={(p) => addToCart(p)}
         />
 
         {notification && (
           <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[130] px-8 py-5 rounded-full shadow-2xl animate-in slide-in-from-top-10 flex items-center gap-5 bg-[#B38B21] text-black border-none">
-            {notification.type === 'success' ? <CheckCircle2 size={18}/> : <Activity size={18}/>}
+            {notification.type === 'success' ? <CheckCircle2 size={18} /> : <Activity size={18} />}
             <p className="font-bold text-[10px] uppercase tracking-[0.3em]">{notification.msg}</p>
           </div>
         )}
 
         {isMobileMenuOpen && (
-          <div className="fixed inset-0 z-[100] bg-black/98 backdrop-blur-3xl flex flex-col items-center justify-center p-6 sm:p-8 text-center animate-in fade-in duration-500 overflow-auto">
-            <button onClick={() => setIsMobileMenuOpen(false)} className="absolute top-8 right-8 p-4 bg-white/5 rounded-full">
-              <X size={32}/>
-            </button>
-            <div className="flex flex-col gap-6 sm:gap-8 text-2xl sm:text-3xl font-black italic uppercase tracking-widest w-full max-w-md">
-              {['home', 'store', 'cart', 'repair', 'trades', 'profile'].map((v) => (
-                <button key={v} onClick={() => navigateTo(v === 'profile' ? 'profile' : v)} className="hover:text-[#B38B21] transition-colors">
-                  {v}
+          <div className="fixed inset-0 z-[150] lg:hidden no-print">
+            {/* Backdrop */}
+            <div
+              className={`absolute inset-0 backdrop-blur-sm transition-opacity duration-500 ${isLight ? 'bg-black/20' : 'bg-black/60'}`}
+              onClick={() => setIsMobileMenuOpen(false)}
+            />
+
+            {/* Side Panel */}
+            <div
+              className={`absolute right-0 top-0 h-full w-[60%] max-w-[400px] shadow-2xl animate-in slide-in-from-right duration-500 flex flex-col ${isLight ? 'bg-[#FAFAFA]' : 'bg-[#0A0A0A] border-l border-white/5'}`}
+            >
+              {/* Header */}
+              <div className="p-6 flex items-center justify-between border-b border-black/5 dark:border-white/5">
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded flex items-center justify-center ${isLight ? 'bg-black text-white' : 'bg-white text-black'}`}>
+                    <Activity size={16} />
+                  </div>
+                  <span className="text-sm font-black tracking-tighter uppercase italic">Menu</span>
+                </div>
+                <button
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`p-2 rounded-full transition-all ${isLight ? 'hover:bg-black/5' : 'hover:bg-white/5'}`}
+                >
+                  <X size={20} />
                 </button>
-              ))}
+              </div>
+
+              {/* User Section */}
+              <div className="p-6 border-b border-black/5 dark:border-white/5">
+                {user ? (
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-[#CDA032] flex items-center justify-center text-black font-black text-xl">
+                      {user.name.charAt(0)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-black text-xs uppercase tracking-widest truncate">{user.name}</p>
+                      <p className="text-[10px] text-white/40 truncate">{user.email}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => navigateTo('auth')}
+                    className="w-full py-4 bg-[#CDA032] text-black font-black text-[10px] uppercase tracking-[0.2em] rounded-xl flex items-center justify-center gap-3"
+                  >
+                    <UserIcon size={16} /> Sign In
+                  </button>
+                )}
+              </div>
+
+              {/* Navigation */}
+              <div className="flex-1 overflow-auto py-4 px-3 space-y-1">
+                {[
+                  { id: 'home', label: 'Home', icon: HomeIcon, path: '/' },
+                  { id: 'store', label: 'Products', icon: ShoppingBag, path: '/store' },
+                  { id: 'trades', label: 'Trades', icon: RefreshCcw, path: '/trades' },
+                  { id: 'repair', label: 'Repairs', icon: Wrench, path: '/repair' },
+                  { id: 'cart', label: 'Cart', icon: ShoppingCart, path: '/cart', count: cart.length },
+                  { id: 'profile', label: 'Account', icon: UserIcon, path: '/profile' }
+                ].map((item) => {
+                  const isActive = location.pathname === item.path;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => navigateTo(item.id)}
+                      className={`w-full flex items-center justify-between p-4 rounded-xl transition-all group ${isActive
+                        ? isLight ? 'bg-black text-white shadow-lg' : 'bg-white/10 text-white shadow-[0_0_20px_rgba(205,160,50,0.15)]'
+                        : isLight ? 'text-black/60 hover:bg-black/5' : 'text-white/40 hover:bg-white/5 hover:text-white'
+                        }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <item.icon size={18} className={isActive ? 'text-[#CDA032]' : ''} />
+                        <span className="text-[11px] font-black uppercase tracking-[0.15em]">{item.label}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {item.count !== undefined && item.count > 0 && (
+                          <span className={`px-2 py-0.5 text-[9px] rounded-full ${isActive ? 'bg-[#CDA032] text-black' : isLight ? 'bg-black text-white' : 'bg-white text-black'}`}>
+                            {item.count}
+                          </span>
+                        )}
+                        <ChevronRight size={14} className={`opacity-0 group-hover:opacity-100 transition-opacity ${isActive ? 'text-[#CDA032]' : ''}`} />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Footer */}
+              <div className="p-6 border-t border-black/5 dark:border-white/5 mt-auto">
+                <p className="text-[8px] font-black text-white/20 uppercase tracking-[0.4em] italic mb-4">
+                  Blackbox Terminal v4.0
+                </p>
+                {user && (
+                  <button
+                    onClick={() => { setUser(null); navigateTo('home'); }}
+                    className="w-full py-3 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-red-500 hover:bg-red-500/5 rounded-xl transition-all"
+                  >
+                    <LogOut size={14} /> Sign Out
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}
