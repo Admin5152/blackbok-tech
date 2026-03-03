@@ -47,7 +47,7 @@ export const Home: React.FC<HomeProps> = ({
     { 
       name: "iPhone" as Category, 
       desc: "Latest iPhone models and premium hardware", 
-      img: "https://images.unsplash.com/photo-1722710682948-22b556b528ce", 
+      img: "/iPhone.jpeg", 
       icon: Smartphone,
       products: products.filter(p => p.category === 'iPhone').slice(0, 3)
     },
@@ -61,14 +61,14 @@ export const Home: React.FC<HomeProps> = ({
     { 
       name: "Gaming" as Category, 
       desc: "Next-gen consoles and immersive controllers", 
-      img: "https://images.unsplash.com/photo-1606813907291-d86ebb9474ad", 
+      img: "/ps5.jpeg", 
       icon: Gamepad2,
       products: products.filter(p => p.category === 'Gaming').slice(0, 3)
     },
     { 
       name: "Accessories" as Category, 
       desc: "Premium accessories and tech essentials", 
-      img: "https://images.unsplash.com/photo-1556656793-062ff987b50d", 
+      img: "/cases.jpeg", 
       icon: Package,
       products: products.filter(p => p.category === 'Accessories').slice(0, 3)
     }
@@ -202,7 +202,7 @@ export const Home: React.FC<HomeProps> = ({
             </p>
             <div className="flex justify-center items-center gap-2 mt-4">
               <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-              <span className="text-xs text-red-500 font-heading font-semibold tracking-wider">LIMITED STOCK</span>
+              <span className="text-xs text-red-500 font-heading font-semibold tracking-wider"></span>
             </div>
           </div>
 
@@ -333,14 +333,28 @@ export const Home: React.FC<HomeProps> = ({
                 <Wrench size={18} />
               </Link>
             </div>
+ 
+ <div className="relative w-[400px] max-w-full h-[auto]">
+  <div className="absolute inset-0 flex items-center justify-center">
+    <img
+      src="/blacklaptop.png"
+      alt="BlackFix Logo"
+      className="rounded-[15px] w-full max-w-full animate-slide-show"
+      style={{ padding: '15px', animationDelay: '0s' }}
+    />
+  </div>
+  <div className="absolute inset-0 flex items-center justify-center">
+    <img
+      src="/blackfix.png"
+      alt="BlackFix Logo"
+      className="rounded-[15px] w-full max-w-full animate-slide-show"
+      style={{ padding: '15px', animationDelay: '3s' }}
+    />
+  </div>
+</div>
 
-            <div className="relative">
-              <img 
-                src="https://images.unsplash.com/photo-1517336714467-d13a2323485d" 
-                className="rounded-2xl w-full object-cover aspect-video"
-                alt="Repair Service"
-              />
-            </div>
+
+
           </div>
         </div>
       </section>
@@ -389,9 +403,8 @@ export const Home: React.FC<HomeProps> = ({
             <div className="relative">
               <div className="aspect-square bg-gradient-to-br from-[#D4AF37]/10 to-transparent rounded-2xl flex items-center justify-center">
                 <div className="text-center space-y-4">
-                  <div className="w-24 h-24 bg-[#D4AF37] rounded-full flex items-center justify-center mx-auto">
-                    <Package size={48} className="text-black" />
-                  </div>
+                  <img src="/blacklogo.png" alt="BlackBox Logo" className="w-32 mx-auto rounded-full" />
+                  
                   <h3 className="text-2xl font-heading font-bold text-white">BlackBox</h3>
                   <p className="text-gray-400">Premium Tech Repository</p>
                 </div>
