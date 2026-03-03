@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { ShoppingCart, Heart, Eye, Star, Scale } from 'lucide-react';
 import { Product } from '../types';
 import { formatCurrency } from '../lib/utils';
+import { useAppContext } from '../App';
 
 interface ProductCardProps {
   product: Product;
@@ -23,6 +24,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   isCompared,
   onToggleCompare
 }) => {
+  const { theme } = useAppContext();
   const [selectedColor, setSelectedColor] = useState('');
   const [showColorPicker, setShowColorPicker] = useState(false);
 
@@ -32,9 +34,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   };
 
   return (
-    <div 
-      className={`group bg-[#080808] border rounded-xl overflow-hidden transition-all duration-700 flex flex-col h-full cursor-pointer relative ${isCompared ? 'border-[#CDA032]' : 'border-white/[0.03] hover:border-[#CDA032]/20 shadow-2xl'}`}
+    <div
+      className={`group border rounded-xl overflow-hidden transition-all duration-700 flex flex-col h-full cursor-pointer relative ${isCompared ? 'border-[#CDA032]' : 'border-white/[0.03] hover:border-[#CDA032]/20 shadow-2xl'}`}
+      style={{ backgroundColor: 'var(--bb-surface)' }}
     >
+      {/* Corner frame borders */}
+      <div className="pointer-events-none absolute inset-0 z-0">
+        <div className={`absolute bottom-2 left-2 w-12 h-12 border-b-2 border-l-2 rounded-bl-xl transition-colors ${theme === 'dark' ? 'border-white/20' : 'border-[#CDA032]/40'}`} />
+        <div className={`absolute bottom-2 right-2 w-12 h-12 border-b-2 border-r-2 rounded-br-xl transition-colors ${theme === 'dark' ? 'border-white/20' : 'border-[#CDA032]/40'}`} />
+      </div>
       <div className="absolute top-2 left-2 z-20 flex flex-col gap-1">
         {product.new && (
           <span className="bg-white text-black text-[7px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest shadow-lg">NEW</span>
@@ -45,14 +53,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       </div>
 
       <div className="absolute top-2 right-2 z-20 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-all duration-500 translate-x-4 group-hover:translate-x-0">
-        <button 
+        <button
           className={`transition-all p-2 backdrop-blur-xl rounded-full border border-white/5 hover:bg-[#CDA032] hover:text-black ${isWishlisted ? 'text-[#CDA032]' : 'text-white/40'}`}
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleWishlist(product.id); }}
           aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
         >
           <Heart size={12} className={isWishlisted ? 'fill-[#CDA032]' : ''} />
         </button>
-        <button 
+        <button
           className={`transition-all p-2 backdrop-blur-xl rounded-full border border-white/5 hover:bg-[#CDA032] hover:text-black ${isCompared ? 'text-[#CDA032]' : 'text-white/40'}`}
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleCompare(product.id); }}
           aria-label={isCompared ? 'Remove from compare' : 'Add to compare'}
@@ -61,10 +69,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </button>
       </div>
 
-      <Link to="/product/$productId" params={{ productId: product.id } as any} className="flex-1 flex flex-col">
+      <Link to="/product/$productId" params={{ productId: product.id } as any} className="flex-1 flex flex-col relative z-20">
         <div className="relative h-32 bg-black rounded-t-2xl overflow-hidden group-hover:scale-[1.02] transition-transform duration-500">
-          <img 
-            src={product.image} 
+          <img
+            src={product.image}
             alt={product.name}
             className="w-full h-full object-cover"
           />
@@ -75,7 +83,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           )}
 
           <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center p-4">
-            <button 
+            <button
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); onQuickView(product); }}
               className="w-full py-2 bg-white text-black text-[7px] font-black uppercase tracking-[0.4em] rounded-xl transform translate-y-8 group-hover:translate-y-0 transition-all duration-500 shadow-2xl flex items-center justify-center gap-2"
             >
@@ -101,7 +109,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           {/* Color Selection */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[8px] text-white/30 font-medium">Color</span>
+              <span className="text-[8px] text-white/50 font-medium italic">Color Options</span>
               <button
                 onClick={() => setShowColorPicker(!showColorPicker)}
                 className="text-[8px] text-[#CDA032] hover:text-[#CDA032]/80 transition-colors"
@@ -115,20 +123,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                   <button
                     key={color}
                     onClick={() => setSelectedColor(color)}
-                    className={`w-5 h-5 rounded-full border-2 transition-all ${
-                      selectedColor === color ? 'border-white scale-110' : 'border-gray-400 hover:border-gray-300'
-                    }`}
-                    style={{ 
+                    className={`w-5 h-5 rounded-full border-2 transition-all ${selectedColor === color ? 'border-white scale-110' : 'border-gray-400 hover:border-gray-300'
+                      }`}
+                    style={{
                       backgroundColor: color.toLowerCase() === 'black' ? '#000' :
-                                       color.toLowerCase() === 'white' ? '#fff' :
-                                       color.toLowerCase() === 'red' ? '#ef4444' :
-                                       color.toLowerCase() === 'blue' ? '#3b82f6' :
-                                       color.toLowerCase() === 'green' ? '#10b981' :
-                                       color.toLowerCase() === 'purple' ? '#a855f7' :
-                                       color.toLowerCase() === 'pink' ? '#ec4899' :
-                                       color.toLowerCase() === 'gold' ? '#f59e0b' :
-                                       color.toLowerCase() === 'silver' ? '#9ca3af' :
-                                       '#6b7280'
+                        color.toLowerCase() === 'white' ? '#fff' :
+                          color.toLowerCase() === 'red' ? '#ef4444' :
+                            color.toLowerCase() === 'blue' ? '#3b82f6' :
+                              color.toLowerCase() === 'green' ? '#10b981' :
+                                color.toLowerCase() === 'purple' ? '#a855f7' :
+                                  color.toLowerCase() === 'pink' ? '#ec4899' :
+                                    color.toLowerCase() === 'gold' ? '#f59e0b' :
+                                      color.toLowerCase() === 'silver' ? '#9ca3af' :
+                                        '#6b7280'
                     }}
                   />
                 ))}
@@ -136,19 +143,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             )}
             {selectedColor && (
               <div className="flex items-center gap-1.5">
-                <div 
+                <div
                   className="w-3 h-3 rounded-full border border-white/30"
-                  style={{ 
+                  style={{
                     backgroundColor: selectedColor.toLowerCase() === 'black' ? '#000' :
-                                     selectedColor.toLowerCase() === 'white' ? '#fff' :
-                                     selectedColor.toLowerCase() === 'red' ? '#ef4444' :
-                                     selectedColor.toLowerCase() === 'blue' ? '#3b82f6' :
-                                     selectedColor.toLowerCase() === 'green' ? '#10b981' :
-                                     selectedColor.toLowerCase() === 'purple' ? '#a855f7' :
-                                     selectedColor.toLowerCase() === 'pink' ? '#ec4899' :
-                                     selectedColor.toLowerCase() === 'gold' ? '#f59e0b' :
-                                     selectedColor.toLowerCase() === 'silver' ? '#9ca3af' :
-                                     '#6b7280'
+                      selectedColor.toLowerCase() === 'white' ? '#fff' :
+                        selectedColor.toLowerCase() === 'red' ? '#ef4444' :
+                          selectedColor.toLowerCase() === 'blue' ? '#3b82f6' :
+                            selectedColor.toLowerCase() === 'green' ? '#10b981' :
+                              selectedColor.toLowerCase() === 'purple' ? '#a855f7' :
+                                selectedColor.toLowerCase() === 'pink' ? '#ec4899' :
+                                  selectedColor.toLowerCase() === 'gold' ? '#f59e0b' :
+                                    selectedColor.toLowerCase() === 'silver' ? '#9ca3af' :
+                                      '#6b7280'
                   }}
                 />
                 <span className="text-[8px] text-white/60">{selectedColor}</span>
@@ -160,16 +167,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             <div className="flex items-baseline gap-2">
               <span className="text-base font-black text-white tracking-tighter">{formatCurrency(product.price)}</span>
               {product.discount && (
-                <span className="text-[8px] text-white/10 line-through font-bold">
-                  {formatCurrency(product.price * (1 + product.discount/100))}
+                <span className="text-[8px] text-white/30 line-through font-bold">
+                  {formatCurrency(product.price * (1 + product.discount / 100))}
                 </span>
               )}
             </div>
-            <button 
+            <button
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleAddToCartWithColor(); }}
-              className="w-full py-3 border border-white/[0.02] hover:border-[#CDA032] group-hover:bg-[#CDA032]/5 rounded-xl text-[9px] font-black uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-2"
+              className="w-full py-3 bg-[#CDA032] hover:bg-[#B38B21] text-black rounded-xl text-[9px] font-black uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-[#CDA032]/20"
             >
-              <ShoppingCart size={13} /> ADD TO CART
+              <ShoppingCart size={13} strokeWidth={3} /> ADD TO CART
             </button>
           </div>
         </div>
