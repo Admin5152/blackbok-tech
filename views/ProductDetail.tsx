@@ -9,6 +9,7 @@ interface ProductDetailProps {
   isWishlisted: boolean;
   onToggleWishlist: (productId: string) => void;
   navigateTo: (view: string, id?: string) => void;
+  theme?: 'light' | 'dark';
 }
 
 export const ProductDetail: React.FC<ProductDetailProps> = ({
@@ -17,8 +18,10 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
   addToCart,
   isWishlisted,
   onToggleWishlist,
-  navigateTo
+  navigateTo,
+  theme
 }) => {
+  const isLight = theme === 'light';
   const [quantity, setQuantity] = useState(1);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -91,7 +94,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
   ];
 
   return (
-    <div className="min-h-screen bg-[#060605] text-white pb-24">
+    <div className={`min-h-screen ${isLight ? 'bg-[#F5F5F7] text-[#1d1d1f]' : 'bg-[#060605] text-white'} pb-24`}>
       <div className="container mx-auto px-4 lg:px-8 py-10">
 
         {/* Breadcrumb */}
@@ -115,23 +118,23 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
 
         {/* Sticky in-page nav (mobile-first) */}
         <div className="sticky top-20 z-30 -mx-4 lg:mx-0 mb-10">
-          <div className="px-4 lg:px-0 py-2 border-b border-white/10 bg-[#060605]/85 backdrop-blur-xl">
+          <div className={`px-4 lg:px-0 py-2 border-b backdrop-blur-xl ${isLight ? 'border-black/5 bg-[#F5F5F7]/90' : 'border-white/10 bg-[#060605]/85'}`}>
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
               <button
                 onClick={() => scrollTo(overviewRef)}
-                className="shrink-0 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-[0.35em] hover:bg-white/10 transition"
+                className={`shrink-0 px-4 py-2 rounded-full border text-[10px] font-black uppercase tracking-[0.35em] transition ${isLight ? 'bg-black/5 border-black/10 hover:bg-black/10 text-black' : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'}`}
               >
                 Overview
               </button>
               <button
                 onClick={() => scrollTo(specsRef)}
-                className="shrink-0 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-[0.35em] hover:bg-white/10 transition"
+                className={`shrink-0 px-4 py-2 rounded-full border text-[10px] font-black uppercase tracking-[0.35em] transition ${isLight ? 'bg-black/5 border-black/10 hover:bg-black/10 text-black' : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'}`}
               >
                 Specs
               </button>
               <button
                 onClick={() => scrollTo(reviewsRef)}
-                className="shrink-0 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-[0.35em] hover:bg-white/10 transition"
+                className={`shrink-0 px-4 py-2 rounded-full border text-[10px] font-black uppercase tracking-[0.35em] transition ${isLight ? 'bg-black/5 border-black/10 hover:bg-black/10 text-black' : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'}`}
               >
                 Reviews
               </button>

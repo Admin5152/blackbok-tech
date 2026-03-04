@@ -11,18 +11,14 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onComplete }) => {
   const [isFadingOut, setIsFadingOut] = useState(false);
 
   useEffect(() => {
-    // Completely remove hour check for testing - always show welcome screen
-    // Store current visit time
-    localStorage.setItem('bb_welcome_last_visit', Date.now().toString());
-
-    // Show welcome screen for 6 seconds (increased for better viewing)
+    // Show welcome screen for 3 seconds
     const timer = setTimeout(() => {
       setIsFadingOut(true);
       setTimeout(() => {
         setIsVisible(false);
         onComplete();
-      }, 3000); // Much slower fade out transition
-    }, 6000); // Increased to 6 seconds
+      }, 1000); // 1 second fade out
+    }, 3000); // 3 second display delay
 
     return () => clearTimeout(timer);
   }, [onComplete]);
@@ -30,25 +26,24 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onComplete }) => {
   if (!isVisible) return null;
 
   return (
-    <div 
-      className={`fixed inset-0 z-[9999] bg-black flex items-center justify-center transition-all ease-in-out ${
-        isFadingOut ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
-      }`}
+    <div
+      className={`fixed inset-0 z-[9999] bg-black flex items-center justify-center transition-all ease-in-out ${isFadingOut ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+        }`}
       style={{
-        transitionDuration: isFadingOut ? '3000ms' : '0ms'
+        transitionDuration: isFadingOut ? '1000ms' : '0ms'
       }}
       onClick={() => {
         setIsFadingOut(true);
         setTimeout(() => {
           setIsVisible(false);
           onComplete();
-        }, 3000);
+        }, 1000);
       }}
     >
       {/* Background with animated elements */}
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900"></div>
-        
+
         {/* Animated floating elements */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute top-20 left-20 w-32 h-32 bg-gradient-to-br from-[#D4AF37]/10 to-transparent rounded-full animate-pulse-slow"></div>
@@ -57,7 +52,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onComplete }) => {
         </div>
 
         {/* Subtle grid pattern */}
-        <div 
+        <div
           className="absolute inset-0 opacity-5"
           style={{
             backgroundImage: `
@@ -77,23 +72,23 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onComplete }) => {
             <WelcomeLoadingAnimation size="medium" />
           </div>
 
-          
+
           {/* Sparkles around logo */}
-          <div className="absolute -top-4 -right-4 opacity-0 animate-fade-in transition-all duration-2000" style={{animationDelay: '0.5s'}}>
+          <div className="absolute -top-4 -right-4 opacity-0 animate-fade-in transition-all duration-2000" style={{ animationDelay: '0.5s' }}>
             {/* <Sparkles size={24} className="text-[#D4AF37]" /> */}
           </div>
-          <div className="absolute -bottom-4 -left-4 opacity-0 animate-fade-in transition-all duration-2000" style={{animationDelay: '0.8s'}}>
+          <div className="absolute -bottom-4 -left-4 opacity-0 animate-fade-in transition-all duration-2000" style={{ animationDelay: '0.8s' }}>
             {/* <Sparkles size={20} className="text-[#D4AF37]" /> */}
           </div>
         </div>
 
         {/* Title */}
-        <h1 className="text-4xl sm:text-5xl md:text-7xl font-heading font-bold text-off-white tracking-wider mb-4 opacity-0 animate-fade-in transition-all duration-2000" style={{animationDelay: '0.3s'}}>
+        <h1 className="text-4xl sm:text-5xl md:text-7xl font-heading font-bold text-off-white tracking-wider mb-4 opacity-0 animate-fade-in transition-all duration-2000" style={{ animationDelay: '0.3s' }}>
           Welcome to BlackBox
         </h1>
 
         {/* Subtitle */}
-        <div className="space-y-2 opacity-0 animate-fade-in transition-all duration-2000" style={{animationDelay: '0.6s'}}>
+        <div className="space-y-2 opacity-0 animate-fade-in transition-all duration-2000" style={{ animationDelay: '0.6s' }}>
           <p className="text-lg sm:text-2xl md:text-3xl text-[#D4AF37] font-heading font-semibold tracking-wide">
             Premium Tech Repository
           </p>
@@ -101,7 +96,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onComplete }) => {
         </div>
 
         {/* Description */}
-        <div className="space-y-4 max-w-2xl mx-auto opacity-0 animate-fade-in transition-all duration-2000" style={{animationDelay: '0.9s'}}>
+        <div className="space-y-4 max-w-2xl mx-auto opacity-0 animate-fade-in transition-all duration-2000" style={{ animationDelay: '0.9s' }}>
           <p className="text-base sm:text-xl text-gray-300 leading-relaxed">
             Discover cutting-edge technology, expert repairs, and seamless trade-ins
           </p>

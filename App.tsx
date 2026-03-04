@@ -85,6 +85,15 @@ export const useAppContext = () => {
   return context;
 };
 
+// --- SCROLL TO TOP ---
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+};
+
 // --- ROUTES SETUP ---
 const rootRoute = createRootRoute({
   component: RootComponent,
@@ -124,6 +133,7 @@ const productDetailRoute = createRoute({
         isWishlisted={context.wishlist.includes(product.id)}
         onToggleWishlist={context.toggleWishlist}
         navigateTo={context.navigateTo}
+        theme={context.theme}
       />
     );
   },
@@ -414,6 +424,7 @@ function RootComponent() {
 
   return (
     <AppContext.Provider value={contextValues}>
+      <ScrollToTop />
       {/* Welcome Screen */}
       {showWelcomeScreen && (
         <WelcomeScreen onComplete={() => setShowWelcomeScreen(false)} />
