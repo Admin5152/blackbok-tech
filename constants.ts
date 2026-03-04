@@ -71,11 +71,43 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 4.7,
     reviewCount: 421,
     description: 'The worlds best 15-inch laptop.',
-    image: 'https://images.unsplash.com/photo-1517336714467-d13a2323485d?auto=format&fit=crop&q=80&w=800',
+    image: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&q=80&w=1200',
     stock: 8,
     variants: [
       { name: 'Color', options: ['Space Gray', 'Silver', 'Midnight'] },
       { name: 'Storage', options: ['256GB', '512GB', '1TB'] }
+    ],
+  },
+  {
+    id: 'BB-107',
+    name: 'MacBook Pro 14" M3 Chip 16GB RAM 512GB...',
+    category: 'Laptop',
+    price: 18499,
+    new: true,
+    rating: 4.8,
+    reviewCount: 312,
+    description: 'The most advanced chips ever built for a personal computer.',
+    image: 'https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?auto=format&fit=crop&q=80&w=1200',
+    stock: 5,
+    variants: [
+      { name: 'Color', options: ['Space Black', 'Silver'] },
+      { name: 'Storage', options: ['512GB', '1TB', '2TB'] }
+    ],
+  },
+  {
+    id: 'BB-108',
+    name: 'MacBook Pro 16" M3 Max 36GB RAM 1TB...',
+    category: 'Laptop',
+    price: 34999,
+    new: true,
+    rating: 4.9,
+    reviewCount: 156,
+    description: 'Extreme performance for pro workflows.',
+    image: 'https://images.unsplash.com/photo-1541807084-5c52b6b3adef?auto=format&fit=crop&q=80&w=1200',
+    stock: 3,
+    variants: [
+      { name: 'Color', options: ['Space Black', 'Silver'] },
+      { name: 'Storage', options: ['1TB', '2TB', '4TB'] }
     ],
   },
   {

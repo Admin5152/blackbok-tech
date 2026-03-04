@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, Plus, Minus, MessageCircle, Phone, ArrowRight } from 'lucide-react';
+import { ChevronDown, Plus, Minus, MessageCircle, Phone, ArrowRight, Mail } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import type { Theme } from '../App';
 
@@ -140,6 +140,12 @@ export const FAQ: React.FC<FAQProps> = ({ theme }) => {
                             className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full bg-[#CDA032] text-black font-black uppercase tracking-widest text-xs hover:scale-105 transition-transform"
                         >
                             <MessageCircle size={16} /> WhatsApp Us
+                        </a>
+                        <a
+                            href="mailto:support@blackbox.tech"
+                            className={`inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-widest text-xs border transition-transform hover:scale-105 ${isLight ? 'border-black/20 text-black hover:bg-black/5' : 'border-white/20 text-white hover:bg-white/5'}`}
+                        >
+                            <Mail size={16} /> Email Us
                         </a>
                         <a
                             href="tel:+233501234567"

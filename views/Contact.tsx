@@ -69,6 +69,7 @@ export const Contact: React.FC = () => {
                                         type="tel"
                                         className={`w-full rounded-2xl px-5 py-4 text-sm font-semibold focus:outline-none transition-all border ${isLight ? 'bg-[#F0F0F0] text-black border-transparent focus:border-[#CDA032]/50 focus:bg-white' : 'bg-white/5 border-white/20 text-white placeholder-white/30 focus:border-white/40 focus:bg-white/10'}`}
                                         placeholder="+233 55 123 4567"
+                                        required
                                     />
                                 </div>
 
@@ -77,7 +78,7 @@ export const Contact: React.FC = () => {
                                     <input
                                         type="text"
                                         className={`w-full rounded-2xl px-5 py-4 text-sm font-semibold focus:outline-none transition-all border ${isLight ? 'bg-[#F0F0F0] text-black border-transparent focus:border-[#CDA032]/50 focus:bg-white' : 'bg-white/5 border-white/20 text-white placeholder-white/30 focus:border-white/40 focus:bg-white/10'}`}
-                                        placeholder="How can we help?"
+                                        placeholder="Order delivery..."
                                         required
                                     />
                                 </div>

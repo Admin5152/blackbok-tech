@@ -31,6 +31,7 @@ export interface User {
   role: 'user' | 'admin';
   address?: string;
   wishlist?: string[]; // Array of product IDs
+  avatarLetter?: string;
 }
 
 export interface CartItem extends Product {

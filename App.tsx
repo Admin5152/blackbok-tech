@@ -10,7 +10,7 @@ import {
   useLocation,
   createMemoryHistory
 } from '@tanstack/react-router';
-import { X, CheckCircle2, Activity, Scale, RefreshCcw, Home as HomeIcon, ShoppingBag, Wrench, ShoppingCart, User as UserIcon, LogOut, ChevronRight, ChevronDown, Settings, MessageCircle } from 'lucide-react';
+import { X, CheckCircle2, Activity, Scale, RefreshCcw, Home as HomeIcon, ShoppingBag, Wrench, ShoppingCart, User as UserIcon, LogOut, ChevronRight, ChevronDown, Settings, MessageCircle, AlertTriangle, Sparkles } from 'lucide-react';
 import { Product, User, CartItem, Category, RepairRequest, Order } from './types';
 import { getProducts, createOrder } from './lib/api';
 import { INITIAL_PRODUCTS } from './constants';
@@ -29,6 +29,8 @@ import { Admin } from './views/Admin';
 import { AboutUs } from './views/AboutUs';
 import { Contact } from './views/Contact';
 import { FAQ } from './views/FAQ';
+import { NotFound } from './views/NotFound';
+import { ErrorPage } from './views/ErrorPage';
 // import { orders } from './data/orders'; 
 import { QuickViewModal } from './components/QuickViewModal';
 import { CompareModal } from './components/CompareModal';
@@ -95,9 +97,24 @@ const ScrollToTop = () => {
   return null;
 };
 
+// --- ERROR & NOT FOUND WRAPPERS ---
+const NotFoundPage = () => {
+  const context = useContext(AppContext);
+  const theme = context?.theme || 'dark';
+  return <NotFound theme={theme as any} />;
+};
+
+const ErrorBoundary = ({ error, reset }: { error: any; reset: () => void }) => {
+  const context = useContext(AppContext);
+  const theme = context?.theme || 'dark';
+  return <ErrorPage error={error} reset={reset} theme={theme as any} />;
+};
+
 // --- ROUTES SETUP ---
 const rootRoute = createRootRoute({
   component: RootComponent,
+  notFoundComponent: NotFoundPage,
+  errorComponent: ErrorBoundary,
 });
 
 const indexRoute = createRoute({
@@ -123,13 +140,13 @@ const productDetailRoute = createRoute({
   path: '/product/$productId',
   component: () => {
     const { productId } = useParams({ from: productDetailRoute.id } as any);
-    const context = useAppContext();
-    const product = context.products.find((p: Product) => p.id === productId);
-    if (!product) return <div className="p-20 text-center text-white/40 uppercase font-black tracking-widest">Unit Not Found.</div>;
+    const { products, theme, ...context } = useAppContext();
+    const product = products.find((p: Product) => p.id === productId);
+    if (!product) return <NotFound theme={theme} />;
     return (
       <ProductDetail
         product={product}
-        relatedProducts={context.products.filter((p: Product) => p.category === product.category && p.id !== product.id).slice(0, 4)}
+        relatedProducts={products.filter((p: Product) => p.category === product.category && p.id !== product.id).slice(0, 4)}
         addToCart={context.addToCart}
         isWishlisted={context.wishlist.includes(product.id)}
         onToggleWishlist={context.toggleWishlist}
@@ -493,26 +510,33 @@ function RootComponent() {
         {notification && (
           <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-sm pointer-events-none">
             <div className={`
-              pointer-events-auto flex items-center gap-4 px-5 py-3 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] 
-              backdrop-blur-2xl border transition-all duration-500 animate-in slide-in-from-top-4 zoom-in-95
-              ${isLight
-                ? 'bg-white/90 border-black/5 text-black'
-                : 'bg-[#121212]/90 border-white/10 text-white'}
-            `}>
-              <div className={`
-                w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-inner
-                ${notification.type === 'success'
-                  ? 'bg-emerald-500/10 text-emerald-500'
-                  : 'bg-red-500/10 text-red-500'}
+                pointer-events-auto relative overflow-hidden flex items-center gap-5 px-6 py-4 rounded-[2rem] shadow-[0_30px_60px_rgba(234,88,12,0.15)] 
+                backdrop-blur-3xl border transition-all duration-500 animate-in slide-in-from-top-6 zoom-in-95
+                ${isLight
+                ? 'bg-white/95 border-[#EA580C]/10 text-black'
+                : 'bg-[#0A0A0A]/95 border-[#EA580C]/20 text-white'}
               `}>
-                {notification.type === 'success' ? <Sparkles size={18} /> : <AlertTriangle size={18} />}
+              {/* Modern Orange/Gold Glow */}
+              <div className="absolute inset-0 bg-gradient-to-r from-[#EA580C]/5 to-transparent pointer-events-none" />
+              <div className="absolute -left-6 -top-6 w-24 h-24 bg-[#EA580C]/20 blur-3xl rounded-full pointer-events-none" />
+
+              <div className={`
+                  relative z-10 w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-lg border border-[#EA580C]/30
+                  ${notification.type === 'success'
+                  ? 'bg-gradient-to-br from-[#EA580C] to-[#C2410C] text-white'
+                  : 'bg-gradient-to-br from-red-600 to-red-800 text-white'}
+                `}>
+                {notification.type === 'success' ? <Sparkles size={20} className="drop-shadow-md" /> : <AlertTriangle size={20} className="drop-shadow-md" />}
               </div>
 
-              <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40 mb-0.5">
-                  {notification.type === 'success' ? 'System Notice' : 'System Alert'}
-                </p>
-                <p className="text-xs font-bold truncate tracking-tight">{notification.msg}</p>
+              <div className="flex-1 min-w-0 relative z-10">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#EA580C] animate-pulse"></span>
+                  <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#EA580C]">
+                    {notification.type === 'success' ? 'System Update' : 'System Alert'}
+                  </p>
+                </div>
+                <p className="text-[13px] font-bold truncate tracking-normal opacity-90">{notification.msg}</p>
               </div>
 
               <button
@@ -558,8 +582,8 @@ function RootComponent() {
               <div className="p-6 border-b border-black/5 dark:border-white/5">
                 {user ? (
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-[#CDA032] flex items-center justify-center text-black font-black text-xl">
-                      {user.name.charAt(0)}
+                    <div className="w-12 h-12 rounded-full bg-[#CDA032] flex items-center justify-center text-black font-black text-xl italic shadow-lg">
+                      {user.avatarLetter || user.name.charAt(0)}
                     </div>
                     <div className="min-w-0">
                       <p className="font-black text-xs uppercase tracking-widest truncate">{user.name}</p>
@@ -583,9 +607,10 @@ function RootComponent() {
                   { id: 'store', label: 'Products', icon: ShoppingBag, path: '/store', subItems: ['iPhone', 'Laptop', 'Accessories', 'Gaming', 'Audio'] },
                   { id: 'trades', label: 'Trades', icon: RefreshCcw, path: '/trades' },
                   { id: 'repair', label: 'Repairs', icon: Wrench, path: '/repair' },
-                  { id: 'contact', label: 'Contact', icon: MessageCircle, path: '/contact' },
                   { id: 'cart', label: 'Cart', icon: ShoppingCart, path: '/cart', count: cart.length },
-                  { id: 'profile', label: 'Account', icon: UserIcon, path: '/profile' }
+                  { id: 'profile', label: 'Account', icon: UserIcon, path: '/profile' },
+                  { id: 'about', label: 'About Us', icon: Sparkles, path: '/about' },
+                  { id: 'contact', label: 'Contact', icon: MessageCircle, path: '/contact' }
                 ].map((item: any) => {
                   const isActive = location.pathname === item.path;
 

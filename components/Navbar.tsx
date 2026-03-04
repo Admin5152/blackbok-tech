@@ -87,7 +87,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <Link to="/trades" className={navItemClass('/trades')}><RefreshCcw size={16} /> Trades</Link>
           <Link to="/repair" className={navItemClass('/repair')}><Wrench size={16} /> Repairs</Link>
-          <Link to="/contact" className={navItemClass('/contact')}><MessageCircle size={16} /> Contact</Link>
           <Link to="/cart" className={navItemClass('/cart')}>
             <ShoppingCart size={16} /> Cart
             {cartCount > 0 && (
@@ -106,7 +105,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                 : isLight ? 'bg-black text-white shadow-lg hover:bg-black/90' : 'bg-white text-black shadow-lg hover:brightness-90 hover:shadow-[0_0_20px_rgba(205,160,50,0.6)]'}
             `}
           >
-            <UserIcon size={16} /> {user ? 'Account' : 'Sign In'}
+            {user?.avatarLetter ? (
+              <span className="w-4 h-4 flex items-center justify-center font-black animate-in zoom-in duration-300 italic">{user.avatarLetter}</span>
+            ) : (
+              <UserIcon size={16} />
+            )} {user ? 'Account' : 'Sign In'}
           </Link>
         </div>
 
