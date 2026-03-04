@@ -10,7 +10,7 @@ import {
   useLocation,
   createMemoryHistory
 } from '@tanstack/react-router';
-import { X, CheckCircle2, Activity, Scale, RefreshCcw, Home as HomeIcon, ShoppingBag, Wrench, ShoppingCart, User as UserIcon, LogOut, ChevronRight, ChevronDown, Settings } from 'lucide-react';
+import { X, CheckCircle2, Activity, Scale, RefreshCcw, Home as HomeIcon, ShoppingBag, Wrench, ShoppingCart, User as UserIcon, LogOut, ChevronRight, ChevronDown, Settings, MessageCircle } from 'lucide-react';
 import { Product, User, CartItem, Category, RepairRequest, Order } from './types';
 import { getProducts, createOrder } from './lib/api';
 import { INITIAL_PRODUCTS } from './constants';
@@ -27,6 +27,7 @@ import { Checkout } from './views/Checkout';
 import { Trades } from './views/Trades';
 import { Admin } from './views/Admin';
 import { AboutUs } from './views/AboutUs';
+import { Contact } from './views/Contact';
 import { FAQ } from './views/FAQ';
 // import { orders } from './data/orders'; 
 import { QuickViewModal } from './components/QuickViewModal';
@@ -215,6 +216,14 @@ const faqRoute = createRoute({
   },
 });
 
+const contactRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/contact',
+  component: () => {
+    return <Contact />;
+  },
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   storeRoute,
@@ -228,6 +237,7 @@ const routeTree = rootRoute.addChildren([
   adminRoute,
   aboutRoute,
   faqRoute,
+  contactRoute,
 ]);
 
 const memoryHistory = createMemoryHistory({
@@ -540,6 +550,7 @@ function RootComponent() {
                   { id: 'store', label: 'Products', icon: ShoppingBag, path: '/store', subItems: ['iPhone', 'Laptop', 'Accessories', 'Gaming', 'Audio'] },
                   { id: 'trades', label: 'Trades', icon: RefreshCcw, path: '/trades' },
                   { id: 'repair', label: 'Repairs', icon: Wrench, path: '/repair' },
+                  { id: 'contact', label: 'Contact', icon: MessageCircle, path: '/contact' },
                   { id: 'cart', label: 'Cart', icon: ShoppingCart, path: '/cart', count: cart.length },
                   { id: 'profile', label: 'Account', icon: UserIcon, path: '/profile' }
                 ].map((item: any) => {

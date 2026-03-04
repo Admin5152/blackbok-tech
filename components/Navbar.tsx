@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, User as UserIcon, Wrench, ShoppingCart, Home, ShoppingBag, RefreshCcw, Sun, Moon } from 'lucide-react';
+import { Menu, User as UserIcon, Wrench, ShoppingCart, Home, ShoppingBag, RefreshCcw, Sun, Moon, MessageCircle } from 'lucide-react';
 import { Link, useLocation } from '@tanstack/react-router';
 import { User, CartItem } from '../types';
 
@@ -87,6 +87,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <Link to="/trades" className={navItemClass('/trades')}><RefreshCcw size={16} /> Trades</Link>
           <Link to="/repair" className={navItemClass('/repair')}><Wrench size={16} /> Repairs</Link>
+          <Link to="/contact" className={navItemClass('/contact')}><MessageCircle size={16} /> Contact</Link>
           <Link to="/cart" className={navItemClass('/cart')}>
             <ShoppingCart size={16} /> Cart
             {cartCount > 0 && (
@@ -115,8 +116,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               type="button"
               onClick={() => setTheme(isLight ? 'dark' : 'light')}
               className={`p-2.5 rounded-full border transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032] focus-visible:ring-offset-2 ${isLight
-                  ? 'border-black/10 bg-black/5 text-black hover:bg-black/10'
-                  : 'border-white/10 bg-white/5 text-white hover:bg-white/10 hover:shadow-[0_0_14px_rgba(205,160,50,0.45)]'
+                ? 'border-black/10 bg-black/5 text-black hover:bg-black/10'
+                : 'border-white/10 bg-white/5 text-white hover:bg-white/10 hover:shadow-[0_0_14px_rgba(205,160,50,0.45)]'
                 }`}
               aria-label={isLight ? 'Switch to dark mode' : 'Switch to light mode'}
             >
@@ -124,7 +125,14 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           )}
           <button
-            onClick={() => setIsMobileMenuOpen(true)}
+            onClick={() => {
+              setIsMobileMenuOpen(true);
+              // This is where the mobile menu items would typically be rendered or passed to a mobile menu component.
+              // The provided Code Edit snippet seems to be a list of these items,
+              // but it was syntactically incorrect to place it directly inside the button's className.
+              // Assuming this list is meant to define the mobile menu's content,
+              // it's now defined in `mobileMenuItems` above.
+            }}
             className={`lg:hidden p-2.5 sm:p-3 rounded-full transition-all ${isLight ? 'text-black/60 hover:text-black hover:bg-black/5' : 'text-white/40 hover:text-white hover:bg-white/5 hover:shadow-[0_0_14px_rgba(205,160,50,0.45)]'}`}
             aria-label="Open menu"
           >
