@@ -86,6 +86,15 @@ export const useAppContext = () => {
   return context;
 };
 
+// --- SCROLL TO TOP ---
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+};
+
 // --- ROUTES SETUP ---
 const rootRoute = createRootRoute({
   component: RootComponent,
@@ -125,6 +134,7 @@ const productDetailRoute = createRoute({
         isWishlisted={context.wishlist.includes(product.id)}
         onToggleWishlist={context.toggleWishlist}
         navigateTo={context.navigateTo}
+        theme={context.theme}
       />
     );
   },
@@ -424,6 +434,7 @@ function RootComponent() {
 
   return (
     <AppContext.Provider value={contextValues}>
+      <ScrollToTop />
       {/* Welcome Screen */}
       {showWelcomeScreen && (
         <WelcomeScreen onComplete={() => setShowWelcomeScreen(false)} />
@@ -480,16 +491,38 @@ function RootComponent() {
         />
 
         {notification && (
-          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[130] px-6 sm:px-8 py-4 rounded-full shadow-2xl animate-in slide-in-from-top-10 flex items-center gap-3 sm:gap-5 bg-[#B38B21] text-black border-none">
-            {notification.type === 'success' ? <CheckCircle2 size={18} /> : <Activity size={18} />}
-            <p className="font-bold text-[9px] sm:text-[10px] uppercase tracking-[0.3em]">{notification.msg}</p>
-            <button
-              onClick={() => setNotification(null)}
-              className="ml-1 p-1 rounded-full hover:bg-black/10 transition-colors"
-              aria-label="Dismiss notification"
-            >
-              <X size={14} />
-            </button>
+          <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-sm pointer-events-none">
+            <div className={`
+              pointer-events-auto flex items-center gap-4 px-5 py-3 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] 
+              backdrop-blur-2xl border transition-all duration-500 animate-in slide-in-from-top-4 zoom-in-95
+              ${isLight
+                ? 'bg-white/90 border-black/5 text-black'
+                : 'bg-[#121212]/90 border-white/10 text-white'}
+            `}>
+              <div className={`
+                w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-inner
+                ${notification.type === 'success'
+                  ? 'bg-emerald-500/10 text-emerald-500'
+                  : 'bg-red-500/10 text-red-500'}
+              `}>
+                {notification.type === 'success' ? <Sparkles size={18} /> : <AlertTriangle size={18} />}
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40 mb-0.5">
+                  {notification.type === 'success' ? 'System Notice' : 'System Alert'}
+                </p>
+                <p className="text-xs font-bold truncate tracking-tight">{notification.msg}</p>
+              </div>
+
+              <button
+                onClick={() => setNotification(null)}
+                className={`p-2 rounded-lg transition-colors ${isLight ? 'hover:bg-black/5' : 'hover:bg-white/5'}`}
+                aria-label="Dismiss"
+              >
+                <X size={16} className="opacity-40" />
+              </button>
+            </div>
           </div>
         )}
 

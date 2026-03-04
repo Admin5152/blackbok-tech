@@ -11,7 +11,8 @@ import {
   MapPin,
   Building2,
   ArrowLeft,
-  FileText
+  FileText,
+  Eye
 } from "lucide-react";
 import { CartItem, Product } from "../types";
 import { formatCurrency } from "../lib/utils";
@@ -171,14 +172,29 @@ export const Cart: React.FC<CartProps> = ({
                             </div>
                           )}
 
-                          {/* View Details Button */}
-                          <button
-                            onClick={() => navigateTo('product', item.id)}
-                            className="mt-3 text-[10px] font-black uppercase tracking-widest text-[#CDA032] hover:text-[#B38B21] flex items-center gap-1.5 transition-colors group/link"
-                          >
-                            <FileText size={12} className="group-hover/link:scale-110 transition-transform" />
-                            <span>View Product Details</span>
-                          </button>
+                          {/* Action Buttons */}
+                          <div className="flex flex-wrap gap-3 mt-5">
+                            {/* View Details Button */}
+                            <button
+                              onClick={() => navigateTo('product', item.id)}
+                              className="px-4 py-2 bg-[#CDA032]/10 border border-[#CDA032]/30 rounded-lg text-[9px] font-black uppercase tracking-widest text-[#CDA032] hover:bg-[#CDA032] hover:text-black transition-all flex items-center gap-2 group/link"
+                            >
+                              <FileText size={12} className="group-hover/link:scale-110 transition-transform" />
+                              <span>Details</span>
+                            </button>
+
+                            {/* Quick View Button */}
+                            <button
+                              onClick={() => {
+                                const product = products.find(p => p.id === item.id);
+                                if (product) onQuickView(product);
+                              }}
+                              className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-[9px] font-black uppercase tracking-widest text-white/70 hover:bg-white/10 hover:text-white transition-all flex items-center gap-2 group/quick"
+                            >
+                              <Eye size={12} className="group-hover/quick:scale-110 transition-transform" />
+                              <span>Quick View</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
 
