@@ -379,14 +379,33 @@ export const Store: React.FC<StoreProps> = ({
             )}
 
             {filteredProducts.length === 0 && (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-white/10 flex items-center justify-center">
-                  <Search size={24} style={{ color: textMuted }} />
+              <div className="text-center py-32 rounded-[3rem] border border-dashed relative overflow-hidden group" style={{ borderColor: borderSubtle, backgroundColor: panelBg }}>
+                <div className="absolute inset-0 bg-gradient-to-b from-[#CDA032]/5 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+
+                <div className="relative z-10 space-y-8">
+                  <div className="relative inline-block">
+                    <div className="absolute inset-0 bg-[#CDA032]/10 blur-3xl rounded-full scale-110"></div>
+                    <div className="relative w-20 h-20 mx-auto rounded-2xl flex items-center justify-center border border-white/5 bg-black/40 backdrop-blur-md">
+                      <Search size={32} className="text-[#CDA032] opacity-30 group-hover:scale-110 group-hover:opacity-100 transition-all duration-500" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="text-3xl font-black uppercase tracking-tighter italic">Search <span className="text-[#CDA032]">Ambiguity</span></h3>
+                    <p className="text-xs font-black uppercase tracking-[0.3em] max-w-sm mx-auto opacity-40 leading-relaxed px-4">
+                      The current parameters yield no unit matches. Adjust filters or refine your coordinate search.
+                    </p>
+                  </div>
+
+                  <div className="pt-4">
+                    <button
+                      onClick={clearAllFilters}
+                      className="px-10 py-4 border border-[#CDA032]/30 rounded-xl text-[10px] font-black uppercase tracking-[0.4em] hover:bg-[#CDA032]/10 transition-all active:scale-95"
+                    >
+                      Reset Protocol
+                    </button>
+                  </div>
                 </div>
-                <h3 className="text-lg font-medium mb-2">No products found</h3>
-                <p className="text-sm" style={{ color: textMuted }}>
-                  Try adjusting your filters or search terms
-                </p>
               </div>
             )}
           </div>

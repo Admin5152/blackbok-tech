@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   LogOut, Package, Wrench, Clock, CheckCircle2,
-  MapPin, Mail, ChevronRight, Activity, Shield, CreditCard,
+  MapPin, Mail, ChevronRight, Activity, Shield, CreditCard as CardIcon,
   Truck, XCircle, User as UserIcon, Settings, Heart, Sliders, HelpCircle,
-  Eye, RefreshCw, Smartphone, Trash2, Download, FileText, AlertCircle, Menu, X
+  Eye, RefreshCw, Smartphone, Trash2, Download, FileText, AlertCircle, Menu, X, Zap,
+  Calendar, ShoppingBag
 } from 'lucide-react';
 import { User, RepairRequest, Order, Product } from '../types';
 import { formatDate, formatCurrency } from '../lib/utils';
@@ -20,24 +21,26 @@ interface ProfileProps {
   navigateTo: (v: string, id?: string) => void;
   toggleWishlist: (id: string) => void;
   onAddToCart: (p: Product) => void;
+  theme: 'light' | 'dark';
 }
 
 export const Profile: React.FC<ProfileProps> = ({
-  user, repairs, orders, wishlist, products, setUser, navigateTo, toggleWishlist, onAddToCart
+  user, repairs, orders, wishlist, products, setUser, navigateTo, toggleWishlist, onAddToCart, theme
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'settings' | 'orders' | 'repairs' | 'address' | 'payment' | 'wishlist' | 'preferences'>('overview');
+  const isLight = theme === 'light';
+  const [activeTab, setActiveTab] = useState<'overview' | 'settings' | 'orders' | 'repairs' | 'address' | 'payment' | 'wishlist' | 'purchases' | 'trades'>('overview');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
   if (!user) return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-6">
+    <div className={`min-h-screen flex items-center justify-center p-6 ${isLight ? 'bg-white' : 'bg-black'}`}>
       <div className="text-center space-y-6">
-        <div className="w-20 h-20 mx-auto bg-white/5 rounded-full flex items-center justify-center border border-white/10">
-          <UserIcon size={32} className="text-white/20" />
+        <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center border ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-white/5 border-white/10'}`}>
+          <UserIcon size={32} className={isLight ? 'text-gray-300' : 'text-white/20'} />
         </div>
         <div className="space-y-2">
-          <h2 className="text-xl font-black uppercase tracking-tight italic text-white">Access Required</h2>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">Sign in to view your repository</p>
+          <h2 className={`text-xl font-black uppercase tracking-tight italic ${isLight ? 'text-black' : 'text-white'}`}>Access Required</h2>
+          <p className={`text-[10px] font-bold uppercase tracking-widest ${isLight ? 'text-gray-400' : 'text-white/30'}`}>Sign in to view your repository</p>
         </div>
         <button
           onClick={() => navigateTo('auth')}
@@ -52,82 +55,139 @@ export const Profile: React.FC<ProfileProps> = ({
   const activeRepairsCount = repairs.filter(r => r.status !== 'Completed').length;
   const wishlistedProducts = products.filter(p => wishlist.includes(p.id));
 
+  const totalSpent = useMemo(() => {
+    const orderTotal = orders.reduce((sum, order) => sum + order.total, 0);
+    const repairTotal = repairs.reduce((sum, repair) => {
+      const cost = parseFloat(repair.estimatedCost?.replace(/[^0-9.]/g, '') || '0');
+      return sum + (repair.status === 'Completed' ? cost : 0);
+    }, 0);
+    return orderTotal + repairTotal;
+  }, [orders, repairs]);
+
   const menuItems = [
     { id: 'overview', icon: Sliders, label: 'Overview' },
-    { id: 'orders', icon: Package, label: 'Orders', badge: orders.length > 0 ? orders.length : null },
-    { id: 'repairs', icon: Wrench, label: 'Repairs', badge: activeRepairsCount > 0 ? activeRepairsCount : null },
+    { id: 'orders', icon: Package, label: 'Order History', badge: orders.length > 0 ? orders.length : null },
+    { id: 'repairs', icon: Wrench, label: 'Repairs & Fixes', badge: activeRepairsCount > 0 ? activeRepairsCount : null },
+    { id: 'trades', icon: RefreshCw, label: 'Trade-ins' },
+    { id: 'purchases', icon: CardIcon, label: 'All Purchases' },
     { id: 'wishlist', icon: Heart, label: 'Wishlist', badge: wishlist.length > 0 ? wishlist.length : null },
     { id: 'settings', icon: UserIcon, label: 'Settings' },
     { id: 'address', icon: MapPin, label: 'Addresses' },
-    { id: 'payment', icon: CreditCard, label: 'Payment' },
-    { id: 'preferences', icon: Settings, label: 'Preferences' },
+    { id: 'payment', icon: CardIcon, label: 'Payment' },
   ];
 
   const renderContent = () => {
     switch (activeTab) {
       case 'overview':
         return (
-          <div className="space-y-6 animate-in fade-in duration-500">
-            {/* Greeting Banner */}
-            <div className="bg-gradient-to-br from-[#0a0a0a] to-[#050505] border border-white/5 rounded-3xl p-8 md:p-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative overflow-hidden shadow-xl">
-              <div className="z-10 space-y-2">
-                <h2 className="text-2xl md:text-3xl font-black italic tracking-tight uppercase leading-tight">
-                  Welcome back, {user.name}
-                </h2>
-                <p className="text-[9px] font-bold uppercase tracking-[0.4em] text-white/30 italic flex items-center gap-2">
-                  <CheckCircle2 size={10} className="text-green-400" />
-                  Member since {formatDate(new Date().toISOString())}
-                </p>
+          <div className="space-y-8 animate-in fade-in duration-700">
+            {/* 1. Profile Identity Header (Portfolio Style) */}
+            <div className={`relative rounded-[2.5rem] overflow-hidden border shadow-2xl ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-[#050505] border-white/5'}`}>
+              {/* Dynamic Banner */}
+              <div className="h-32 md:h-48 relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-indigo-900/40 via-purple-900/40 to-pink-900/40 opacity-30 blur-3xl scale-150"></div>
+                <div className="absolute inset-0 bg-black/40"></div>
+                {/* Decorative Elements */}
+                <div className="absolute -top-12 -right-12 w-48 h-48 bg-[#B38B21]/10 rounded-full blur-[100px]"></div>
+                <div className="absolute bottom-0 left-1/4 w-32 h-32 bg-indigo-500/10 rounded-full blur-[80px]"></div>
               </div>
-              <div className="z-10 bg-white/5 border border-white/10 px-5 py-2 rounded-full flex items-center gap-2">
-                <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
-                <span className="text-[9px] font-black uppercase tracking-wider text-white/60">Verified</span>
+
+              {/* Identity Row */}
+              <div className="px-6 md:px-10 pb-10 -mt-16 md:-mt-24 flex flex-col md:flex-row items-center md:items-end justify-between gap-8">
+                <div className="flex flex-col md:flex-row items-center md:items-end gap-6 text-center md:text-left">
+                  {/* Huge Avatar Frame */}
+                  <div className={`w-32 h-32 md:w-48 md:h-48 rounded-[2rem] border-4 flex items-center justify-center shadow-2xl relative group overflow-hidden ${isLight ? 'bg-white border-white' : 'bg-gradient-to-br from-neutral-800 to-neutral-900 border-[#050505]'}`}>
+                    <span className={`text-4xl md:text-7xl font-black italic drop-shadow-2xl translate-y-2 uppercase ${isLight ? 'text-black' : 'text-white/90'}`}>
+                      {user.avatarLetter || user.name.charAt(0)}
+                    </span>
+                    <button
+                      onClick={() => setActiveTab('settings')}
+                      className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-all duration-300"
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        <Settings size={24} className="text-[#B38B21] animate-spin-slow" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[#B38B21]">Change Icon</span>
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* Name & Subtitle */}
+                  <div className="space-y-3 pb-2">
+                    <div className="flex items-center justify-center md:justify-start gap-4">
+                      <h2 className={`text-3xl md:text-5xl font-black italic tracking-tighter uppercase leading-none ${isLight ? 'text-black' : 'text-white'}`}>{user.name}</h2>
+                    </div>
+                    <p className={`text-[10px] font-bold uppercase tracking-[0.4em] italic ${isLight ? 'text-gray-400' : 'text-white/30'}`}>BlackBox Member • Account Verified</p>
+                    <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 pt-4">
+                      <button
+                        onClick={() => setActiveTab('settings')}
+                        className={`px-8 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${isLight ? 'bg-black text-white border-black' : 'bg-white text-black border-white shadow-xl hover:scale-105'}`}
+                      >
+                        Edit Profile
+                      </button>
+                      <button
+                        onClick={() => navigateTo('support' as any)}
+                        className={`px-8 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${isLight ? 'bg-white text-black border-gray-200 hover:bg-gray-50' : 'bg-white/5 text-white border-white/10 hover:bg-white/10'}`}
+                      >
+                        Support Terminal
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Identity Stats */}
+                <div className={`flex flex-wrap items-center gap-6 md:gap-10 lg:gap-14 pb-2 border-t md:border-t-0 md:border-l pt-6 md:pt-0 md:pl-10 ${isLight ? 'border-gray-200' : 'border-white/5'}`}>
+                  <div
+                    onClick={() => setActiveTab('purchases')}
+                    className="flex flex-col items-center gap-1.5 group cursor-pointer transition-transform hover:scale-105"
+                  >
+                    <span className={`text-2xl md:text-3xl lg:text-4xl font-black italic tracking-tighter group-hover:text-[#B38B21] transition-colors ${isLight ? 'text-black' : 'text-white'}`}>{formatCurrency(totalSpent)}</span>
+                    <span className={`text-[9px] font-black uppercase tracking-[0.25em] group-hover:opacity-60 group-hover:text-[#B38B21] ${isLight ? 'text-gray-400' : 'opacity-30'}`}>Total Spent</span>
+                  </div>
+                  <div
+                    onClick={() => setActiveTab('orders')}
+                    className="flex flex-col items-center gap-1.5 group cursor-pointer transition-transform hover:scale-105"
+                  >
+                    <span className={`text-2xl md:text-3xl lg:text-4xl font-black italic tracking-tighter group-hover:text-[#B38B21] transition-colors ${isLight ? 'text-black' : 'text-white'}`}>{orders.length}</span>
+                    <span className={`text-[9px] font-black uppercase tracking-[0.25em] group-hover:opacity-60 group-hover:text-[#B38B21] ${isLight ? 'text-gray-400' : 'opacity-30'}`}>Orders</span>
+                  </div>
+                  <div
+                    onClick={() => setActiveTab('wishlist')}
+                    className="flex flex-col items-center gap-1.5 group cursor-pointer transition-transform hover:scale-105"
+                  >
+                    <span className={`text-2xl md:text-3xl lg:text-4xl font-black italic tracking-tighter group-hover:text-[#B38B21] transition-colors ${isLight ? 'text-black' : 'text-white'}`}>{wishlist.length}</span>
+                    <span className={`text-[9px] font-black uppercase tracking-[0.25em] group-hover:opacity-60 group-hover:text-[#B38B21] ${isLight ? 'text-gray-400' : 'opacity-30'}`}>Wishlist</span>
+                  </div>
+                </div>
               </div>
-              <div className="absolute top-0 right-0 w-64 h-64 bg-[#B38B21]/[0.05] blur-[120px] rounded-full -mr-20 -mt-20"></div>
             </div>
 
-            {/* Overview Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {/* Sub-Actions Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
               {[
-                { id: 'orders', label: 'Orders', value: orders.length, sub: 'Total acquisitions', icon: Package, color: 'from-blue-500/20 to-blue-600/10' },
-                { id: 'repairs', label: 'Active Repairs', value: activeRepairsCount, sub: 'In diagnostics', icon: Wrench, color: 'from-orange-500/20 to-orange-600/10' },
-                { id: 'wishlist', label: 'Wishlist', value: wishlist.length, sub: 'Saved items', icon: Heart, color: 'from-red-500/20 to-red-600/10' },
-              ].map((stat, i) => (
+                { id: 'orders', label: 'Recent Orders', count: orders.length, icon: Package, glow: 'blue' },
+                { id: 'repairs', label: 'Pending Repairs', count: activeRepairsCount, icon: Wrench, glow: 'orange' },
+                { id: 'wishlist', label: 'Wishlist Items', count: wishlist.length, icon: Heart, glow: 'red' },
+                { id: 'trades', label: 'Trade-in status', count: 0, icon: RefreshCw, glow: 'gold' },
+              ].map((card, i) => (
                 <button
                   key={i}
-                  onClick={() => setActiveTab(stat.id as any)}
-                  className="p-6 rounded-2xl space-y-5 relative group bg-gradient-to-br from-[#0a0a0a] to-[#050505] border border-white/5 hover:border-white/20 transition-all shadow-lg hover:shadow-2xl text-left"
+                  onClick={() => setActiveTab(card.id as any)}
+                  className={`p-6 rounded-3xl transition-all text-left relative group overflow-hidden border ${isLight ? 'bg-gray-50 border-gray-100 hover:border-gray-200 hover:bg-white' : 'bg-[#0a0a0a] border-white/5 hover:border-white/10'}`}
                 >
-                  <div className="flex justify-between items-start">
-                    <div className={`w-10 h-10 bg-gradient-to-br ${stat.color} rounded-xl flex items-center justify-center text-white border border-white/10 group-hover:scale-110 transition-transform`}>
-                      <stat.icon size={18} />
+                  <div className="flex justify-between items-start mb-4">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${isLight ? 'bg-black/5 text-black/40 group-hover:bg-black group-hover:text-white' : 'bg-white/5 text-white/40 group-hover:text-white'}`}>
+                      <card.icon size={18} />
                     </div>
-                    <ChevronRight size={16} className="text-white/10 group-hover:translate-x-1 group-hover:text-white/30 transition-all" />
+                    {card.count !== null && (
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[#B38B21]">{card.count} Items</span>
+                    )}
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[9px] text-white/40 uppercase font-black tracking-wider">{stat.label}</p>
-                    <p className="text-3xl font-black italic tracking-tight">{stat.value}</p>
-                    <p className="text-[8px] text-white/20 uppercase tracking-wider italic">{stat.sub}</p>
+                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/30">{card.label}</p>
+                    <p className="text-xs font-black uppercase tracking-widest italic group-hover:translate-x-1 transition-transform">View Details ›</p>
                   </div>
-                </button>
-              ))}
-            </div>
-
-            {/* Quick Actions */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[
-                { icon: Package, label: 'Track Order', action: () => setActiveTab('orders') },
-                { icon: Wrench, label: 'Book Repair', action: () => navigateTo('repair') },
-                { icon: Heart, label: 'View Wishlist', action: () => setActiveTab('wishlist') },
-                { icon: FileText, label: 'Invoices', action: () => { } },
-              ].map((action, i) => (
-                <button
-                  key={i}
-                  onClick={action.action}
-                  className="p-4 bg-white/[0.02] border border-white/5 rounded-xl hover:border-[#B38B21]/30 hover:bg-white/[0.05] transition-all group"
-                >
-                  <action.icon size={16} className="text-white/30 group-hover:text-[#B38B21] transition-colors mb-2" />
-                  <p className="text-[9px] font-black uppercase tracking-wider text-white/50 group-hover:text-white transition-colors">{action.label}</p>
+                  {/* Hover Glow */}
+                  <div className={`absolute -bottom-10 -right-10 w-24 h-24 rounded-full blur-[40px] opacity-0 group-hover:opacity-10 transition-opacity bg-${card.glow}-500`}></div>
                 </button>
               ))}
             </div>
@@ -136,81 +196,63 @@ export const Profile: React.FC<ProfileProps> = ({
 
       case 'orders':
         return (
-          <div className="bg-gradient-to-br from-[#0a0a0a] to-[#050505] border border-white/5 rounded-3xl overflow-hidden shadow-xl animate-in slide-in-from-bottom-4 duration-500">
-            <div className="p-8 border-b border-white/10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-xl font-black italic uppercase tracking-tight flex items-center gap-3">
-                    <Package size={20} className="text-[#B38B21]" />
-                    Order History
-                  </h3>
-                  <p className="text-[9px] font-bold uppercase tracking-wider text-white/30 pt-1 italic">All your acquisitions</p>
-                </div>
-                <button className="text-[9px] font-black uppercase tracking-wider text-white/40 hover:text-[#B38B21] transition-colors flex items-center gap-2">
-                  <Download size={12} />
-                  Export
-                </button>
+          <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+            <div className={`flex items-center justify-between px-2 ${isLight ? 'text-black' : 'text-white'}`}>
+              <div>
+                <h3 className="text-xl font-black italic uppercase tracking-tight flex items-center gap-3">
+                  <Package size={20} className="text-[#B38B21]" />
+                  Order History
+                </h3>
+                <p className={`text-[9px] font-bold uppercase tracking-wider pt-1 italic ${isLight ? 'text-gray-400' : 'text-white/30'}`}>Historical logs of all your purchases</p>
               </div>
+              <button className="text-[9px] font-black uppercase tracking-wider text-[#B38B21] hover:underline flex items-center gap-2">
+                <Download size={12} />
+                Export Ledger
+              </button>
             </div>
 
             {orders.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead className="text-[9px] font-black uppercase tracking-wider text-white/30 border-b border-white/5 bg-black/20">
-                    <tr>
-                      <th className="px-8 py-4">Order</th>
-                      <th className="px-4 py-4">Date</th>
-                      <th className="px-4 py-4">Status</th>
-                      <th className="px-4 py-4">Items</th>
-                      <th className="px-4 py-4">Total</th>
-                      <th className="px-8 py-4 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-[10px] font-bold">
-                    {orders.map((order, i) => (
-                      <tr
-                        key={order.id}
-                        className="border-b border-white/5 hover:bg-white/[0.02] transition-colors"
-                        style={{ animationDelay: `${i * 50}ms` }}
-                      >
-                        <td className="px-8 py-5 font-black text-white">#{order.id}</td>
-                        <td className="px-4 py-5 text-white/40 text-[9px]">{formatDate(order.date)}</td>
-                        <td className="px-4 py-5">
-                          <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-wider ${order.status === 'Delivered' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
-                              order.status === 'Shipped' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
-                                'bg-white/5 text-white/40 border border-white/10'
-                            }`}>
-                            {order.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-5 text-white/40">{order.items.length}</td>
-                        <td className="px-4 py-5 text-white font-black">{formatCurrency(order.total)}</td>
-                        <td className="px-8 py-5 text-right">
-                          <button
-                            onClick={() => setSelectedOrder(order)}
-                            className="text-white/30 hover:text-[#B38B21] transition-colors p-2 hover:bg-white/5 rounded-lg"
-                            title="Track Order"
-                          >
-                            <Truck size={16} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 lg:gap-10">
+                {orders.map((order, i) => (
+                  <div key={order.id} className="group cursor-pointer space-y-6">
+                    <div className={`aspect-[4/3] rounded-[2.5rem] sm:rounded-[3rem] relative overflow-hidden transition-all duration-700 hover:scale-[1.02] border shadow-2xl ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-[#0a0a0a] border-white/10'}`}>
+                      <div className="absolute inset-0 flex items-center justify-center p-6 sm:p-8">
+                        <img
+                          src={order.items[0]?.image || "/iPhone.jpeg"}
+                          alt="Unit"
+                          className="w-full h-full object-contain drop-shadow-2xl group-hover:scale-105 transition-transform duration-700"
+                        />
+                      </div>
+
+                      <div className="absolute top-8 right-8 flex flex-col items-end gap-3">
+                        <div className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-2xl ${order.status === 'Delivered' ? 'bg-green-500 text-white' : 'bg-[#B38B21] text-black'}`}>
+                          {order.status === 'Delivered' ? 'Delivered' : 'In Transit'}
+                        </div>
+                        <div className={`px-4 py-2 border rounded-xl text-[10px] font-black uppercase tracking-widest ${isLight ? 'bg-black text-white border-black' : 'bg-black text-white border-white/10'}`}>
+                          {formatCurrency(order.total)}
+                        </div>
+                      </div>
+
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-4">
+                        <button onClick={() => setSelectedOrder(order)} className="px-8 py-4 bg-[#B38B21] text-black rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl flex items-center gap-3">
+                          <Truck size={20} />
+                          Tap to Track Order
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="px-4">
+                      <h4 className="text-lg font-black uppercase italic tracking-tight mb-1">{order.items[0]?.name || "Purchased Item"}</h4>
+                      <p className="text-xs font-bold uppercase tracking-widest text-[#B38B21]">{formatDate(order.date)}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : (
-              <div className="py-20 text-center">
-                <div className="w-16 h-16 mx-auto bg-white/5 rounded-2xl flex items-center justify-center mb-4 border border-white/10">
-                  <Package size={24} className="text-white/20" />
-                </div>
-                <p className="text-[10px] font-black uppercase tracking-wider text-white/20">No orders yet</p>
-                <button
-                  onClick={() => navigateTo('store')}
-                  className="mt-4 px-6 py-3 bg-white/5 hover:bg-white/10 rounded-full text-[9px] font-black uppercase tracking-wider transition-all"
-                >
-                  Start Shopping
-                </button>
+              <div className={`py-24 rounded-[3rem] border border-dashed flex flex-col items-center justify-center gap-6 ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-white/5 border-white/10'}`}>
+                <Package size={48} className={`opacity-10 ${isLight ? 'text-black' : 'text-white'}`} />
+                <p className={`text-[10px] font-black uppercase tracking-widest italic ${isLight ? 'text-black/40' : 'text-white/40'}`}>No orders found</p>
+                <button onClick={() => navigateTo('store')} className="px-10 py-3 bg-[#B38B21] text-black font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-lg hover:scale-105 transition-all">Start Shopping</button>
               </div>
             )}
           </div>
@@ -250,74 +292,99 @@ export const Profile: React.FC<ProfileProps> = ({
           );
         }
 
+      case 'trades':
+        return (
+          <div className="space-y-10 animate-in fade-in duration-700">
+            <div className="flex items-center justify-between px-2">
+              <div className="space-y-2">
+                <h3 className="text-3xl font-black italic uppercase tracking-tighter flex items-center gap-4">
+                  <RefreshCw size={32} className="text-[#B38B21]" />
+                  Trade-In Console
+                </h3>
+                <p className="text-xs font-bold uppercase tracking-widest text-[#B38B21] italic opacity-60">Manage your recycled units and pending exchange credits</p>
+              </div>
+              <button onClick={() => navigateTo('trades')} className="px-8 py-3 bg-[#B38B21] text-black font-black rounded-xl text-[10px] uppercase tracking-widest shadow-xl hover:scale-105 transition-all">
+                New Trade-In
+              </button>
+            </div>
+
+            <div className={`p-10 border border-dashed rounded-[3rem] text-center space-y-6 shadow-xl ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-gradient-to-b from-white/[0.02] to-transparent border-white/10'}`}>
+              <div className={`w-20 h-20 mx-auto rounded-3xl flex items-center justify-center border ${isLight ? 'bg-black/5 border-black/10' : 'bg-white/5 border-white/10'}`}>
+                <RefreshCw size={32} className={isLight ? 'text-black/20' : 'text-white/20'} />
+              </div>
+              <div className="space-y-2">
+                <h4 className={`text-lg font-black uppercase tracking-tighter italic ${isLight ? 'text-black' : 'text-white'}`}>No Active Trade-ins</h4>
+                <p className={`text-sm font-medium max-w-xs mx-auto ${isLight ? 'text-gray-400' : 'text-white/30'}`}>Give your old tech a second life and receive instant credits toward your next purchase.</p>
+              </div>
+              <button onClick={() => navigateTo('trades')} className="text-xs font-black uppercase tracking-[0.2em] text-[#B38B21] hover:underline">
+                Explore Exchange Program ›
+              </button>
+            </div>
+          </div>
+        );
+
       case 'repairs':
         return (
-          <div className="bg-gradient-to-br from-[#0a0a0a] to-[#050505] border border-white/5 rounded-3xl overflow-hidden shadow-xl animate-in slide-in-from-bottom-4 duration-500">
-            <div className="p-8 border-b border-white/10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-xl font-black italic uppercase tracking-tight flex items-center gap-3">
-                    <Wrench size={20} className="text-[#B38B21]" />
-                    Repair Requests
-                  </h3>
-                  <p className="text-[9px] font-bold uppercase tracking-wider text-white/30 pt-1 italic">Diagnostic sessions</p>
-                </div>
-                <button
-                  onClick={() => navigateTo('repair')}
-                  className="px-5 py-2 bg-[#B38B21]/20 hover:bg-[#B38B21]/30 border border-[#B38B21]/30 rounded-full text-[9px] font-black uppercase tracking-wider text-[#B38B21] transition-all"
-                >
-                  New Request
-                </button>
+          <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+            <div className={`flex items-center justify-between px-2 ${isLight ? 'text-black' : 'text-white'}`}>
+              <div>
+                <h3 className="text-xl font-black italic uppercase tracking-tight flex items-center gap-3">
+                  <Wrench size={20} className="text-[#B38B21]" />
+                  Diagnostic Sessions
+                </h3>
+                <p className={`text-[9px] font-bold uppercase tracking-wider pt-1 italic ${isLight ? 'text-gray-400' : 'text-white/30'}`}>Technical restoration status</p>
               </div>
+              <button
+                onClick={() => navigateTo('repair')}
+                className="px-6 py-2.5 bg-[#B38B21] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-all"
+              >
+                Request Restoration
+              </button>
             </div>
 
             {repairs.length > 0 ? (
-              <div className="p-6 space-y-3">
+              <div className="grid grid-cols-1 gap-6 pt-2">
                 {repairs.map((repair, i) => (
                   <div
                     key={repair.id}
-                    className="bg-black/40 border border-white/5 rounded-2xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 group hover:border-white/20 transition-all"
-                    style={{ animationDelay: `${i * 50}ms` }}
+                    className={`group border rounded-[2.5rem] p-10 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden transition-all hover:border-[#B38B21]/40 shadow-2xl ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-[#0a0a0a] border-white/10'}`}
                   >
-                    <div className="flex items-center gap-4 w-full md:w-auto">
-                      <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center text-white border border-white/10 shrink-0">
-                        <Smartphone size={20} />
+                    <div className="relative z-10 flex flex-col md:flex-row items-center gap-10">
+                      <div className={`w-24 h-24 rounded-3xl flex items-center justify-center text-[#B38B21] border group-hover:scale-110 transition-transform ${isLight ? 'bg-white border-gray-100' : 'bg-white/5 border-white/10'}`}>
+                        <Smartphone size={40} />
                       </div>
-                      <div className="space-y-1 min-w-0">
-                        <p className="text-[11px] font-black uppercase tracking-wide truncate">{repair.device}</p>
-                        <p className="text-[9px] text-white/40 font-bold truncate">{repair.issue}</p>
-                        <p className="text-[8px] text-white/20 font-black uppercase tracking-wider">{formatDate(repair.date)}</p>
+                      <div className="space-y-3 text-center md:text-left">
+                        <div className="flex items-center justify-center md:justify-start gap-4">
+                          <h4 className={`text-2xl font-black italic uppercase tracking-tighter ${isLight ? 'text-black' : 'text-white'}`}>{repair.device}</h4>
+                          <span className={`px-4 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest ${repair.status === 'Completed' ? 'bg-green-500 text-white' : 'bg-orange-500 text-white shadow-lg shadow-orange-500/20'}`}>
+                            {repair.status}
+                          </span>
+                        </div>
+                        <p className={`text-xs font-bold uppercase tracking-[0.2em] ${isLight ? 'text-gray-400' : 'text-white/50'}`}>{repair.issue}</p>
+                        <div className="flex items-center justify-center md:justify-start gap-4 pt-2">
+                          <div className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-gray-300' : 'text-white/30'}`}>
+                            <Calendar size={12} />
+                            {formatDate(repair.date)}
+                          </div>
+                          {repair.estimatedCost && (
+                            <div className="text-sm font-black text-[#B38B21]">{repair.estimatedCost}</div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
-                      <div className="text-right">
-                        <p className="text-[8px] font-black text-white/30 uppercase tracking-wider mb-1">Status</p>
-                        <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-wider inline-block ${repair.status === 'Completed' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
-                            repair.status === 'In Progress' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
-                              'bg-orange-500/20 text-orange-400 border border-orange-500/30'
-                          }`}>
-                          {repair.status}
-                        </span>
-                      </div>
-                      <button className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-white/30 hover:text-white transition-all">
-                        <ChevronRight size={16} />
-                      </button>
-                    </div>
+                    <button className={`relative z-10 px-8 py-4 rounded-2xl font-black uppercase tracking-widest flex items-center gap-3 transition-all group-hover:scale-105 active:scale-95 shadow-xl ${isLight ? 'bg-black text-white hover:bg-[#B38B21] hover:text-black' : 'bg-white/5 text-white/60 hover:bg-[#B38B21] hover:text-black'}`}>
+                      View Status Details
+                      <ChevronRight size={18} />
+                    </button>
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-[#B38B21]/5 rounded-full blur-[100px] opacity-0 group-hover:opacity-100 transition-opacity"></div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="py-20 text-center">
-                <div className="w-16 h-16 mx-auto bg-white/5 rounded-2xl flex items-center justify-center mb-4 border border-white/10">
-                  <Wrench size={24} className="text-white/20" />
-                </div>
-                <p className="text-[10px] font-black uppercase tracking-wider text-white/20">No repair requests</p>
-                <button
-                  onClick={() => navigateTo('repair')}
-                  className="mt-4 px-6 py-3 bg-white/5 hover:bg-white/10 rounded-full text-[9px] font-black uppercase tracking-wider transition-all"
-                >
-                  Book Repair
-                </button>
+              <div className="py-24 rounded-[3rem] border border-dashed border-white/10 bg-white/5 flex flex-col items-center justify-center gap-6">
+                <Wrench size={48} className="opacity-10" />
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-40 italic">No active repair requests</p>
+                <button onClick={() => navigateTo('repair')} className="px-10 py-3 bg-[#B38B21] text-black font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-lg">New Request</button>
               </div>
             )}
           </div>
@@ -326,13 +393,13 @@ export const Profile: React.FC<ProfileProps> = ({
       case 'wishlist':
         return (
           <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-            <div className="bg-gradient-to-br from-[#0a0a0a] to-[#050505] p-8 border border-white/5 rounded-3xl flex items-center justify-between">
+            <div className={`p-8 border rounded-3xl flex items-center justify-between shadow-xl ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-gradient-to-br from-[#0a0a0a] to-[#050505] border-white/5'}`}>
               <div>
-                <h3 className="text-xl font-black italic uppercase tracking-tight flex items-center gap-3">
+                <h3 className={`text-xl font-black italic uppercase tracking-tight flex items-center gap-3 ${isLight ? 'text-black' : 'text-white'}`}>
                   <Heart size={20} className="text-[#B38B21]" />
                   Wishlist
                 </h3>
-                <p className="text-[9px] font-bold uppercase tracking-wider text-white/30 pt-1 italic">{wishlist.length} saved items</p>
+                <p className={`text-[9px] font-bold uppercase tracking-wider pt-1 italic ${isLight ? 'text-gray-400' : 'text-white/30'}`}>{wishlist.length} saved items</p>
               </div>
               {wishlist.length > 0 && (
                 <button className="text-[9px] font-black uppercase tracking-wider text-white/40 hover:text-red-400 transition-colors flex items-center gap-2">
@@ -362,15 +429,15 @@ export const Profile: React.FC<ProfileProps> = ({
                 ))}
               </div>
             ) : (
-              <div className="py-20 text-center bg-gradient-to-br from-[#0a0a0a] to-[#050505] border border-white/5 rounded-3xl">
-                <div className="w-16 h-16 mx-auto bg-white/5 rounded-2xl flex items-center justify-center mb-4 border border-white/10">
-                  <Heart size={24} className="text-white/20" />
+              <div className={`py-20 text-center border rounded-3xl shadow-xl ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-gradient-to-br from-[#0a0a0a] to-[#050505] border-white/5'}`}>
+                <div className={`w-16 h-16 mx-auto rounded-2xl flex items-center justify-center mb-4 border ${isLight ? 'bg-black/5 border-black/10' : 'bg-white/5 border-white/10'}`}>
+                  <Heart size={24} className={isLight ? 'text-black/20' : 'text-white/20'} />
                 </div>
-                <p className="text-[10px] font-black uppercase tracking-wider text-white/20 mb-2">Your wishlist is empty</p>
-                <p className="text-[9px] text-white/10 mb-4">Start adding items you love</p>
+                <p className={`text-[10px] font-black uppercase tracking-wider mb-2 ${isLight ? 'text-black/40' : 'text-white/20'}`}>Your wishlist is empty</p>
+                <p className={`text-[9px] mb-4 ${isLight ? 'text-black/20' : 'text-white/10'}`}>Start adding items you love</p>
                 <button
                   onClick={() => navigateTo('store')}
-                  className="px-6 py-3 bg-white/5 hover:bg-white/10 rounded-full text-[9px] font-black uppercase tracking-wider transition-all"
+                  className={`px-6 py-3 rounded-full text-[9px] font-black uppercase tracking-wider transition-all ${isLight ? 'bg-black text-white hover:bg-black/90' : 'bg-white/5 hover:bg-white/10 text-white'}`}
                 >
                   Browse Store
                 </button>
@@ -379,24 +446,153 @@ export const Profile: React.FC<ProfileProps> = ({
           </div>
         );
 
+      case 'purchases':
+        return (
+          <div className="space-y-10 animate-in fade-in duration-700">
+            <div className="flex items-center justify-between px-2">
+              <div className="space-y-2">
+                <h3 className="text-3xl font-black italic uppercase tracking-tighter flex items-center gap-4">
+                  <CardIcon size={32} className="text-[#B38B21]" />
+                  Purchase Ledger
+                </h3>
+                <p className="text-xs font-bold uppercase tracking-widest text-[#B38B21] italic opacity-60">Complete history of your investments in BlackBox technology</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-30 mb-1">Total Lifetime Spend</p>
+                <p className="text-4xl font-black italic text-[#B38B21] tracking-tighter">{formatCurrency(totalSpent)}</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {[...orders.map(o => ({ ...o, type: 'Purchase' })), ...repairs.filter(r => r.status === 'Completed').map(r => ({ ...r, type: 'Service', total: parseFloat(r.estimatedCost?.replace(/[^0-9.]/g, '') || '0') }))]
+                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                .map((entry, i) => (
+                  <div key={i} className="p-6 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] bg-[#0a0a0a] border border-white/5 flex flex-col sm:flex-row items-center justify-between gap-6 group hover:border-[#B38B21]/20 transition-all shadow-xl">
+                    <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 text-center sm:text-left">
+                      <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center ${entry.type === 'Purchase' ? 'bg-indigo-500/10 text-indigo-400' : 'bg-[#B38B21]/10 text-[#B38B21]'}`}>
+                        {entry.type === 'Purchase' ? <ShoppingBag size={24} /> : <Wrench size={24} />}
+                      </div>
+                      <div>
+                        <h4 className="text-base sm:text-lg font-black uppercase tracking-widest italic flex flex-wrap items-center justify-center sm:justify-start gap-3 text-center sm:text-left">
+                          {entry.type === 'Purchase' ? (entry as any).items[0]?.name : (entry as any).device}
+                          <span className="text-[10px] px-3 py-1 bg-white/5 rounded-lg border border-white/5 font-black uppercase tracking-widest text-white/30">{entry.type}</span>
+                        </h4>
+                        <p className="text-xs opacity-40 font-bold mt-1 uppercase tracking-widest">{formatDate(entry.date)}</p>
+                      </div>
+                    </div>
+                    <div className="text-center sm:text-right space-y-2">
+                      <p className="text-xl sm:text-2xl font-black italic tracking-tighter text-white">{formatCurrency(entry.total)}</p>
+                      <button className="text-[9px] font-black uppercase tracking-widest text-[#B38B21] border-b border-[#B38B21]/20 hover:border-[#B38B21] transition-all">Download Receipt</button>
+                    </div>
+                  </div>
+                ))}
+
+              {orders.length === 0 && repairs.filter(r => r.status === 'Completed').length === 0 && (
+                <div className="py-20 text-center space-y-4 border border-dashed border-white/10 rounded-[3rem]">
+                  <CardIcon size={48} className="mx-auto text-white/10 mb-4" />
+                  <p className="text-sm font-black uppercase tracking-widest text-white/20 italic">No significant investments recorded yet</p>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'settings':
+        return (
+          <div className="max-w-3xl space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+            <div className={`p-8 md:p-12 rounded-[2.5rem] border ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-[#050505] border-white/5 shadow-2xl'}`}>
+              <div className="flex items-center justify-between mb-10">
+                <h3 className="text-2xl font-black italic uppercase tracking-tighter flex items-center gap-3">
+                  <UserIcon size={28} className="text-[#B38B21]" />
+                  Repository Access
+                </h3>
+              </div>
+              <div className="space-y-8">
+                {[
+                  { label: 'Identity Label', value: user.name, action: 'RENAME' },
+                  { label: 'Comms Stream', value: user.email, action: 'VERIFY' },
+                  { label: 'Security Key', value: '••••••••••••', action: 'RESET' },
+                ].map((field, i) => (
+                  <div key={i} className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-4 border-b border-white/5 group">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-30">{field.label}</p>
+                      <p className={`text-lg font-bold group-hover:text-[#B38B21] transition-colors ${isLight ? 'text-black' : 'text-white'}`}>{field.value}</p>
+                    </div>
+                    <button className="px-6 py-2 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-[#B38B21] hover:text-black transition-all">
+                      {field.action}
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Alphabet Icon Picker */}
+              <div className="mt-12 space-y-6">
+                <div className="flex items-center gap-4 border-b border-white/10 pb-4">
+                  <div className="w-12 h-12 rounded-xl bg-[#B38B21] flex items-center justify-center text-black font-black text-xl italic">
+                    {user.avatarLetter || user.name.charAt(0)}
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black uppercase tracking-widest italic">Personal Identifier</h4>
+                    <p className="text-[10px] opacity-40 font-bold uppercase tracking-widest">Select your custom alphabet identity tag</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-5 sm:grid-cols-7 md:grid-cols-9 lg:grid-cols-13 gap-2">
+                  {"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(char => (
+                    <button
+                      key={char}
+                      onClick={() => setUser({ ...user, avatarLetter: char })}
+                      className={`aspect-square flex items-center justify-center rounded-lg text-xs font-black transition-all border ${(user.avatarLetter || user.name.charAt(0)) === char
+                        ? 'bg-[#B38B21] text-black border-transparent shadow-lg shadow-[#B38B21]/20'
+                        : 'bg-white/5 text-white/40 border-white/5 hover:border-white/20 hover:text-white'
+                        }`}
+                    >
+                      {char}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-12 flex items-center justify-center p-8 bg-red-500/5 border border-dashed border-red-500/20 rounded-3xl">
+                <button
+                  onClick={() => { setUser(null); navigateTo('home'); }}
+                  className="px-10 py-4 bg-red-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] hover:scale-105 active:scale-95 transition-all shadow-xl shadow-red-500/20"
+                >
+                  DEACTIVATE CONNECTION
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+
       default:
         return (
-          <div className="bg-gradient-to-br from-[#0a0a0a] to-[#050505] border border-white/5 rounded-3xl p-16 text-center animate-in fade-in duration-500">
-            <div className="w-16 h-16 mx-auto bg-white/5 rounded-2xl flex items-center justify-center mb-6 border border-white/10">
-              <Settings size={24} className="text-white/20" />
+          <div className="h-[400px] flex items-center justify-center animate-in fade-in duration-500">
+            <div className={`p-16 rounded-[3rem] border border-dashed text-center space-y-6 ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-[#050505] border-white/5'}`}>
+              <div className="w-16 h-16 mx-auto bg-white/5 rounded-2xl flex items-center justify-center border border-white/10">
+                <Settings size={24} className="text-[#B38B21]" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black uppercase italic tracking-tight text-white/40 mb-2">Module Down</h3>
+                <p className="text-[9px] font-bold uppercase tracking-wider text-white/20 italic">This sector is currently recalibrating</p>
+              </div>
+              <button
+                onClick={() => setActiveTab('overview')}
+                className="px-8 py-3 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
+              >
+                Back to Core
+              </button>
             </div>
-            <h3 className="text-lg font-black uppercase italic tracking-tight text-white/40 mb-2">Coming Soon</h3>
-            <p className="text-[9px] font-bold uppercase tracking-wider text-white/20 italic">This section is under development</p>
           </div>
         );
     }
   };
 
   return (
-    <div className="view-transition max-w-[1600px] mx-auto px-4 sm:px-6 md:px-8 py-4 sm:py-8 flex flex-col lg:flex-row gap-6 sm:gap-8 min-h-[85vh] bg-black relative overflow-x-hidden">
+    <div className={`view-transition max-w-[1600px] mx-auto px-4 sm:px-6 md:px-8 py-4 sm:py-8 flex flex-col lg:flex-row gap-6 sm:gap-8 min-h-[85vh] relative overflow-x-hidden ${isLight ? 'bg-white' : 'bg-black'}`}>
       {/* Background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-[#B38B21]/[0.02] blur-[120px] rounded-full -ml-[250px] -mt-[250px]"></div>
+        <div className={`absolute top-0 left-0 w-[500px] h-[500px] blur-[120px] rounded-full -ml-[250px] -mt-[250px] ${isLight ? 'bg-[#CDA032]/10' : 'bg-[#B38B21]/[0.02]'}`}></div>
       </div>
 
       {/* Mobile Toggle Button */}
@@ -431,8 +627,9 @@ export const Profile: React.FC<ProfileProps> = ({
         />
 
         <div className={`
-          absolute right-0 top-0 h-full w-[80%] max-w-[320px] bg-gradient-to-br from-[#0a0a0a] to-[#050505] border-l border-white/10 p-5 flex flex-col shadow-2xl transition-transform duration-500
-          lg:static lg:h-auto lg:w-full lg:max-w-none lg:border lg:border-white/5 lg:rounded-3xl lg:shadow-xl lg:sticky lg:top-24 lg:translate-x-0
+          absolute right-0 top-0 h-full w-[80%] max-w-[320px] border-l p-5 flex flex-col shadow-2xl transition-transform duration-500
+          lg:static lg:h-auto lg:w-full lg:max-w-none lg:border lg:rounded-3xl lg:shadow-xl lg:sticky lg:top-24 lg:translate-x-0
+          ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-gradient-to-br from-[#0a0a0a] to-[#050505] border-white/5'}
           ${isMobileNavOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
         `}>
           {/* Mobile Close Button */}
@@ -446,34 +643,34 @@ export const Profile: React.FC<ProfileProps> = ({
           </div>
 
           {/* User Profile Summary */}
-          <div className="p-5 pb-6 border-b border-white/10 space-y-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-[#B38B21] to-[#D4AF37] rounded-2xl flex items-center justify-center font-black text-black italic text-2xl shadow-lg">
-              {user.name.charAt(0)}
+          <div className={`p-5 pb-6 border-b space-y-4 ${isLight ? 'border-gray-200' : 'border-white/10'}`}>
+            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center font-black italic text-2xl shadow-lg ${isLight ? 'bg-black text-white' : 'bg-gradient-to-br from-[#B38B21] to-[#D4AF37] text-black'}`}>
+              {user.avatarLetter || user.name.charAt(0)}
             </div>
             <div>
-              <h4 className="text-base font-black italic tracking-tight uppercase leading-tight">{user.name}</h4>
-              <p className="text-[9px] font-bold text-white/30 uppercase tracking-wider italic mt-1 truncate">{user.email}</p>
+              <h4 className={`text-base font-black italic tracking-tight uppercase leading-tight ${isLight ? 'text-black' : 'text-white'}`}>{user.name}</h4>
+              <p className={`text-[9px] font-bold uppercase tracking-wider italic mt-1 truncate ${isLight ? 'text-gray-400' : 'text-white/30'}`}>{user.email}</p>
             </div>
           </div>
 
-          <div className="flex flex-col gap-1 mt-3 overflow-y-auto no-scrollbar">
+          <div className="flex flex-col gap-2 mt-3 overflow-y-auto no-scrollbar pb-10">
             {menuItems.map((item) => (
               <button
                 key={item.id}
-                onClick={() => { setActiveTab(item.id as any); setIsMobileNavOpen(false); }}
-                className={`flex items-center justify-between px-5 py-3 rounded-xl transition-all group ${activeTab === item.id
-                    ? 'bg-gradient-to-r from-[#B38B21] to-[#D4AF37] text-black font-black shadow-lg'
-                    : 'text-white/50 hover:bg-white/5 hover:text-white'
+                onClick={() => { setActiveTab(item.id as any); setIsMobileNavOpen(false); if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                className={`flex items-center justify-between px-6 py-4 rounded-2xl transition-all group ${activeTab === item.id
+                  ? (isLight ? 'bg-black text-white shadow-xl scale-[1.02]' : 'bg-gradient-to-r from-[#B38B21] to-[#D4AF37] text-black font-black shadow-[0_15px_40px_rgba(179,139,33,0.3)] scale-[1.02]')
+                  : (isLight ? 'text-gray-500 hover:bg-black/5 hover:text-black' : 'text-white/50 hover:bg-white/5 hover:text-white')
                   }`}
               >
-                <div className="flex items-center gap-3">
-                  <item.icon size={16} className={activeTab === item.id ? 'text-black' : 'text-white/30 group-hover:text-white/60'} />
-                  <span className="text-[10px] font-bold uppercase tracking-wider">{item.label}</span>
+                <div className="flex items-center gap-4">
+                  <item.icon size={20} className={activeTab === item.id ? (isLight ? 'text-white' : 'text-black') : (isLight ? 'text-gray-300' : 'text-white/30 group-hover:text-white/60')} />
+                  <span className="text-xs font-black uppercase tracking-wider">{item.label}</span>
                 </div>
                 {item.badge && (
-                  <span className={`px-2 py-0.5 rounded-full text-[8px] font-black ${activeTab === item.id
-                      ? 'bg-black/20 text-black'
-                      : 'bg-white/10 text-white/50'
+                  <span className={`px-2.5 py-1 rounded-full text-[9px] font-black ${activeTab === item.id
+                    ? (isLight ? 'bg-white/20 text-white' : 'bg-black/20 text-black')
+                    : (isLight ? 'bg-gray-100 text-gray-500' : 'bg-white/10 text-white/50')
                     }`}>
                     {item.badge}
                   </span>
@@ -491,7 +688,7 @@ export const Profile: React.FC<ProfileProps> = ({
             </button>
             <button
               onClick={() => { setUser(null); navigateTo('home'); }}
-              className="flex items-center gap-3 px-5 py-3 text-white/50 hover:text-white hover:bg-white/5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all"
+              className={`flex items-center gap-3 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border border-transparent ${isLight ? 'text-red-600 hover:bg-red-50' : 'text-red-400 hover:bg-red-500/10 hover:border-red-500/20'}`}
             >
               <LogOut size={16} />
               Sign Out
@@ -501,9 +698,26 @@ export const Profile: React.FC<ProfileProps> = ({
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 min-h-[600px] relative z-10">
+      <main className="flex-1 min-h-[600px] relative z-10 p-2 md:p-0">
         {renderContent()}
       </main>
+
+      <style jsx>{`
+        @keyframes spin-slow {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .animate-spin-slow {
+          animation: spin-slow 8s linear infinite;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
     </div>
   );
 };
