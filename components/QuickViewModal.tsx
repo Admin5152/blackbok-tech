@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { X, Minus, Plus, ShoppingCart, Star, ShieldCheck, ArrowLeft } from 'lucide-react';
+import { X, Minus, Plus, ShoppingCart, Star, ShieldCheck, ArrowLeft, Package } from 'lucide-react';
 import { Product } from '../types';
 import { formatCurrency } from '../lib/utils';
 
@@ -23,118 +23,123 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
   };
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-2 sm:p-4">
       <div
         className="absolute inset-0 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300"
         onClick={onClose}
       />
 
       <div
-        className="relative w-full max-w-5xl border border-white/10 rounded-3xl sm:rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-500 max-h-[90vh] md:max-h-[80vh]"
+        className="relative w-full max-w-5xl border border-white/10 rounded-[2rem] sm:rounded-[3rem] shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-500 max-h-[95vh] md:max-h-[85vh]"
         style={{ backgroundColor: 'var(--bb-surface)', color: 'var(--bb-text)' }}
       >
-        {/* Header spans full width */}
-        <div className="flex items-start justify-between gap-3 p-4 border-b border-white/5 bg-black/5">
+        {/* Header - Full Width */}
+        <div className="flex items-center justify-between gap-4 p-4 sm:p-6 border-b border-white/5 bg-black/5 shrink-0">
           <div className="min-w-0">
-            <h2 className="text-[10px] sm:text-xs font-black uppercase tracking-[0.35em] text-white/60">
-              Quick View
+            <h2 className="text-[10px] sm:text-xs font-black uppercase tracking-[0.4em] text-[#CDA032]">
+              Terminal Quick-View
             </h2>
-            <p className="mt-1 text-sm sm:text-base font-semibold truncate">
+            <p className="mt-1 text-sm sm:text-lg font-black tracking-tight truncate uppercase italic">
               {product.name}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onClose}
-              className="p-2 bg-white/5 hover:bg-white hover:text-black rounded-full transition-all border border-white/5"
-            >
-              <ArrowLeft size={16} />
-            </button>
-            <button
-              onClick={onClose}
-              className="p-2 bg-white/5 hover:bg-white hover:text-black rounded-full transition-all border border-white/5"
-            >
-              <X size={18} />
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="p-3 bg-white/5 hover:bg-white hover:text-black rounded-2xl transition-all border border-white/5 shadow-lg group"
+          >
+            <X size={20} className="transition-transform group-hover:rotate-90" />
+          </button>
         </div>
 
-        {/* Two-column content: image left, details right */}
-        <div className="flex-1 flex flex-col md:flex-row">
-          {/* Image Column */}
-          <div className="w-full md:w-1/2 bg-black flex items-center justify-center p-6 sm:p-8 md:p-10">
+        {/* Content Body */}
+        <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
+          {/* Visual Data Module (Image) */}
+          <div className="w-full md:w-1/2 bg-gradient-to-br from-black/20 to-transparent flex items-center justify-center p-6 sm:p-12 shrink-0 h-[30vh] md:h-auto overflow-hidden relative">
+            <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] pointer-events-none"></div>
             <img
               src={product.image}
               alt={product.name}
-              className="w-full h-full object-cover rounded-2xl"
+              className="max-w-full max-h-full object-contain drop-shadow-[0_20px_50px_rgba(0,0,0,0.5)] transform hover:scale-105 transition-transform duration-700"
             />
           </div>
 
-          {/* Info Column */}
-          <div className="w-full md:w-1/2 p-4 sm:p-6 md:p-8 overflow-y-auto no-scrollbar space-y-4 sm:space-y-5">
-            <div className="space-y-2 sm:space-y-3">
-              <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-[0.3em] text-white/30 italic">
-                {product.category}
-              </p>
-              <h2 className="text-lg sm:text-xl md:text-2xl font-black tracking-tighter uppercase italic leading-tight">
-                {product.name}
-              </h2>
-              <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
-                <span className="text-lg sm:text-xl md:text-2xl font-black">
-                  {formatCurrency(product.price)}
+          {/* Technical Specifications (Info) */}
+          <div className="w-full md:w-1/2 p-6 sm:p-10 overflow-y-auto custom-scrollbar space-y-8">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <span className="px-3 py-1 bg-[#CDA032]/10 text-[#CDA032] text-[8px] font-black uppercase tracking-widest rounded-full border border-[#CDA032]/20">
+                  {product.category}
                 </span>
-                <div className="flex items-center gap-1">
-                  <Star size={14} className="fill-yellow-400 text-yellow-400" />
-                  <span className="text-xs sm:text-sm font-bold text-white/60">
-                    {product.rating || '4.5'} ({product.reviewCount || '0'})
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded-full border border-white/5">
+                  <Star size={10} className="fill-[#CDA032] text-[#CDA032]" />
+                  <span className="text-[9px] font-black text-white/60">
+                    {product.rating || '4.5'}
                   </span>
                 </div>
               </div>
+
+              <h2 className="text-2xl sm:text-4xl font-black tracking-tighter uppercase italic leading-[0.9] select-none">
+                {product.name}
+              </h2>
+
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl sm:text-3xl font-black text-[#CDA032]">
+                  {formatCurrency(product.price)}
+                </span>
+                <span className="text-[10px] font-bold opacity-30 uppercase tracking-widest line-through">
+                  {formatCurrency(product.price * 1.2)}
+                </span>
+              </div>
             </div>
 
-            <p className="text-xs sm:text-sm text-white/40 leading-relaxed font-light italic">
+            <p className="text-sm sm:text-base font-medium text-white/40 leading-relaxed italic border-l-2 border-[#CDA032]/30 pl-6">
               {product.description}
             </p>
 
-            <div className="space-y-4 sm:space-y-5">
+            {/* Variants Section */}
+            <div className="space-y-6">
               {product.variants && product.variants.map(variant => (
-                <div key={variant.name} className="space-y-2 sm:space-y-3">
-                  <label className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-white/30">
-                    {variant.name}
-                  </label>
-                  <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                <div key={variant.name} className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30">
+                      Select {variant.name}
+                    </label>
+                    {selectedOptions[variant.name] && (
+                      <span className="text-[9px] font-black uppercase text-[#CDA032] tracking-widest">
+                            // {selectedOptions[variant.name]}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
                     {variant.options.map(option => (
                       <button
                         key={option}
                         onClick={() => setSelectedOptions(prev => ({ ...prev, [variant.name]: option }))}
-                        className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl border text-[8px] sm:text-[10px] font-black transition-all ${
-                          selectedOptions[variant.name] === option
-                            ? 'border-[#CDA032] bg-[#CDA032]/20 text-[#CDA032] shadow-lg shadow-[#CDA032]/20'
-                            : 'border-white/10 hover:border-white/30 hover:bg-white/5'
-                        }`}
+                        className={`group relative px-4 sm:px-6 py-3 rounded-2xl border text-[9px] sm:text-[11px] font-black transition-all duration-300 ${selectedOptions[variant.name] === option
+                          ? 'border-[#CDA032] bg-[#CDA032] text-black shadow-2xl shadow-[#CDA032]/20'
+                          : 'border-white/5 bg-white/5 text-white/40 hover:border-white/20 hover:text-white'
+                          }`}
                       >
                         {variant.name === 'Color' ? (
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-2.5">
                             <div
-                              className={`w-3 h-3 rounded-full border-2 ${
-                                selectedOptions[variant.name] === option ? 'border-white' : 'border-gray-400'
-                              }`}
+                              className={`w-3 h-3 rounded-full border shadow-sm ${selectedOptions[variant.name] === option ? 'border-black/20' : 'border-white/10'}`}
                               style={{
                                 backgroundColor: option.toLowerCase() === 'black' ? '#000' :
-                                                option.toLowerCase() === 'white' ? '#fff' :
-                                                option.toLowerCase() === 'red' ? '#ef4444' :
-                                                option.toLowerCase() === 'blue' ? '#3b82f6' :
-                                                option.toLowerCase() === 'green' ? '#10b981' :
-                                                option.toLowerCase() === 'yellow' ? '#eab308' :
-                                                option.toLowerCase() === 'purple' ? '#a855f7' :
-                                                option.toLowerCase() === 'pink' ? '#ec4899' :
+                                  option.toLowerCase() === 'white' ? '#fff' :
+                                    option.toLowerCase() === 'red' ? '#ef4444' :
+                                      option.toLowerCase() === 'blue' ? '#3b82f6' :
+                                        option.toLowerCase() === 'green' ? '#10b981' :
+                                          option.toLowerCase() === 'yellow' ? '#eab308' :
+                                            option.toLowerCase() === 'purple' ? '#a855f7' :
+                                              option.toLowerCase() === 'pink' ? '#ec4899' :
                                                 option.toLowerCase() === 'gray' || option.toLowerCase() === 'grey' ? '#6b7280' :
-                                                option.toLowerCase() === 'silver' ? '#9ca3af' :
-                                                option.toLowerCase() === 'gold' || option.toLowerCase() === 'golden' ? '#f59e0b' :
-                                                '#6b7280'
+                                                  option.toLowerCase() === 'silver' ? '#9ca3af' :
+                                                    option.toLowerCase() === 'gold' || option.toLowerCase() === 'golden' ? '#f59e0b' :
+                                                      '#6b7280'
                               }}
                             />
-                            <span className="text-[9px] sm:text-xs">{option}</span>
+                            {option}
                           </div>
                         ) : (
                           option
@@ -145,30 +150,45 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
                 </div>
               ))}
 
-              <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 pt-2">
-                <div className="flex items-center gap-4 sm:gap-5 bg-white/5 border border-white/10 rounded-2xl px-4 sm:px-5 py-3 w-full sm:w-auto justify-between sm:justify-center">
-                  <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="text-white/40 hover:text-white">
-                    <Minus size={16} />
+              {/* Action Bar */}
+              <div className="flex flex-col sm:flex-row items-stretch gap-4 pt-6">
+                <div className="flex items-center justify-between sm:justify-center gap-8 bg-white/5 border border-white/5 rounded-2xl px-6 py-4">
+                  <button
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    className="p-1 text-white/20 hover:text-[#CDA032] transition-colors"
+                  >
+                    <Minus size={20} />
                   </button>
-                  <span className="text-base sm:text-lg font-black w-6 text-center">{quantity}</span>
-                  <button onClick={() => setQuantity(quantity + 1)} className="text-white/40 hover:text-white">
-                    <Plus size={16} />
+                  <span className="text-xl font-black w-8 text-center tabular-nums">{quantity}</span>
+                  <button
+                    onClick={() => setQuantity(quantity + 1)}
+                    className="p-1 text-white/20 hover:text-[#CDA032] transition-colors"
+                  >
+                    <Plus size={20} />
                   </button>
                 </div>
 
                 <button
                   onClick={handleAddToCart}
-                  className="flex-1 w-full py-3 sm:py-4 bg-white text-black font-black text-[8px] sm:text-[10px] rounded-2xl shadow-xl hover:bg-white/90 active:scale-[0.98] transition-all uppercase tracking-[0.3em] flex items-center justify-center gap-2 sm:gap-3"
+                  className="flex-1 py-5 bg-white text-black font-black text-[11px] rounded-2xl shadow-2xl hover:bg-[#CDA032] hover:text-black transition-all uppercase tracking-[0.4em] flex items-center justify-center gap-4 active:scale-95 group"
                 >
-                  <ShoppingCart size={14} /> Add to Bag
+                  <div className="transition-transform group-hover:scale-125">
+                    <ShoppingCart size={18} />
+                  </div>
+                  Authorize Purchase
                 </button>
               </div>
 
-              <div className="pt-2 flex items-center gap-3 border-t border-white/5">
-                <ShieldCheck size={18} className="text-white/40" />
-                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/25">
-                  BlackBox Elite Warranty // Verified Hardware
-                </p>
+              {/* Quality Flags */}
+              <div className="pt-8 border-t border-white/5 flex flex-wrap gap-6 opacity-30">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck size={14} className="text-[#CDA032]" />
+                  <span className="text-[8px] font-black uppercase tracking-widest">Global Warranty</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Package size={14} className="text-[#CDA032]" />
+                  <span className="text-[8px] font-black uppercase tracking-widest">Express Deploy</span>
+                </div>
               </div>
             </div>
           </div>

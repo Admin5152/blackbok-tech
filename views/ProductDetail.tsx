@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Product } from '../types';
-import { X, Plus, Minus, Heart, Share2, Star, Check, Truck, Shield, RefreshCw, ArrowLeft, Copy, Facebook, Twitter, MessageCircle } from 'lucide-react';
+import { X, Plus, Minus, Heart, Share2, Star, Check, Truck, Shield, RefreshCw, ArrowLeft, Copy, Facebook, Twitter, MessageCircle, ChevronRight } from 'lucide-react';
+import { formatCurrency } from '../lib/utils';
 
 interface ProductDetailProps {
   product: Product;
@@ -459,29 +460,60 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
 
         {/* Related Products */}
         {relatedProducts.length > 0 && (
-          <div className="mt-20 border-t border-white/10 pt-14">
-            <h2 className="text-3xl font-bold mb-10">You May Also Like</h2>
+          <div className="mt-20 border-t border-white/10 pt-16">
+            <div className="flex items-end justify-between mb-10 px-2">
+              <div className="space-y-2">
+                <h2 className="text-sm font-black uppercase tracking-[0.4em] text-[#B38B21]">Curated and Premium</h2>
+                <h3 className="text-3xl md:text-4xl font-black italic tracking-tighter uppercase">Products You <span className="text-[#B38B21]">May Like</span></h3>
+              </div>
+              <button
+                onClick={() => navigateTo('store')}
+                className="hidden md:flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-[#B38B21] transition-colors"
+                type="button"
+              >
+                View Collection <ChevronRight size={14} />
+              </button>
+            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-              {relatedProducts.map((item) => (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8 pb-10">
+              {relatedProducts.slice(0, 4).map((item) => (
                 <div
                   key={item.id}
                   onClick={() => navigateTo('product', item.id)}
-                  className="cursor-pointer group"
+                  className={`group cursor-pointer rounded-[2rem] border transition-all duration-500 overflow-hidden ${isLight ? 'bg-white border-black/5 hover:border-black' : 'bg-white/5 border-white/5 hover:border-[#B38B21]/40 hover:bg-white/[0.08] shadow-2xl'}`}
                 >
-                  <div className="rounded-2xl overflow-hidden bg-black/30 border border-white/10 group-hover:border-[#B38B21]/50 transition shadow-lg">
+                  <div className="aspect-square overflow-hidden relative">
                     <img
                       src={item.image}
                       alt={item.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                      className="w-full h-full object-cover group-hover:scale-110 transition duration-700"
                     />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-6">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white">View Details ›</p>
+                    </div>
                   </div>
-                  <h3 className="mt-4 font-medium">{item.name}</h3>
-                  <p className="text-[#B38B21] font-bold">
-                    ${item.price}
-                  </p>
+                  <div className="p-6 space-y-2">
+                    <p className={`text-[9px] font-black uppercase tracking-widest opacity-40 ${isLight ? 'text-black' : 'text-white'}`}>{item.category}</p>
+                    <h3 className="font-bold text-sm tracking-tight truncate">{item.name}</h3>
+                    <div className="flex items-center justify-between pt-2">
+                      <p className="text-[#B38B21] font-black italic text-lg">{formatCurrency(item.price)}</p>
+                      <button className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all ${isLight ? 'border-black/5 text-black hover:bg-black hover:text-white' : 'border-white/10 text-white/40 hover:border-[#B38B21] hover:text-[#B38B21]'}`}>
+                        <Plus size={14} />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ))}
+            </div>
+
+            <div className="md:hidden flex justify-center pb-8">
+              <button
+                onClick={() => navigateTo('store')}
+                className="px-8 py-3 rounded-full border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/60"
+                type="button"
+              >
+                Explore Full Catalog
+              </button>
             </div>
           </div>
         )}

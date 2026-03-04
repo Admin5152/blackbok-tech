@@ -1,5 +1,6 @@
 import React from 'react';
-import { Instagram, Linkedin, MapPin, MessageCircle, Phone } from 'lucide-react';
+import { Instagram, Linkedin, MapPin, Phone } from 'lucide-react';
+import { WhatsAppIcon } from './Icons';
 import { Link } from '@tanstack/react-router';
 
 type Theme = 'light' | 'dark';
@@ -20,13 +21,12 @@ export const Footer: React.FC<FooterProps> = ({ theme }) => {
           </p>
           <div className="flex items-center gap-3">
             <a
-              href="https://wa.me/"
+              href="https://wa.me/233000000000"
               target="_blank"
-              rel="noreferrer"
-              aria-label="WhatsApp"
-              className={`glow-border w-11 h-11 inline-flex items-center justify-center ${isLight ? 'bg-white text-black' : 'bg-black/30 text-white'}`}
+              rel="noopener noreferrer"
+              className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/40 hover:bg-[#25D366] hover:text-white transition-all hover:scale-110 active:scale-90"
             >
-              <MessageCircle size={18} />
+              <WhatsAppIcon size={18} />
             </a>
             <a
               href="https://instagram.com/"
@@ -55,7 +55,12 @@ export const Footer: React.FC<FooterProps> = ({ theme }) => {
             <h4 className={`text-[10px] font-black uppercase tracking-[0.4em] ${isLight ? 'text-black/30' : 'text-white/10'}`}>Directory</h4>
             <ul className={`space-y-4 text-[10px] font-black uppercase tracking-[0.3em] ${isLight ? 'text-black/50' : 'text-white/40'}`}>
               <li><Link to="/repair" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Lab Diagnostics</Link></li>
+              <li><Link to="/history" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Track Order</Link></li>
+              <li><Link to="/history" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Repair Status</Link></li>
+              <li><Link to="/history" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Trade-In Status</Link></li>
               <li><Link to="/store" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Hardware Bench</Link></li>
+              <li><Link to="/compare" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Compare Repository</Link></li>
+              <li><Link to="/promotions" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Special Offers</Link></li>
               <li><Link to="/contact" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Contact Node</Link></li>
               <li><Link to="/profile" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Identity Log</Link></li>
               <li><Link to="/about" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>About BlackBox</Link></li>
@@ -77,8 +82,8 @@ export const Footer: React.FC<FooterProps> = ({ theme }) => {
             <h4 className={`text-[10px] font-black uppercase tracking-[0.4em] ${isLight ? 'text-black/30' : 'text-white/10'}`}>Policies</h4>
             <ul className={`space-y-4 text-[10px] font-black uppercase tracking-[0.3em] ${isLight ? 'text-black/50' : 'text-white/40'}`}>
               <li><Link to="/trades" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Trade-In Program</Link></li>
-              <li><a href="#" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Returns & Exchanges</a></li>
-              <li><a href="#" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Privacy Policy</a></li>
+              <li><Link to="/policies" search={{ tab: 'returns' } as any} className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Returns & Exchanges</Link></li>
+              <li><Link to="/policies" search={{ tab: 'privacy' } as any} className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Privacy Policy</Link></li>
               <li><a href="#" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Terms of Service</a></li>
             </ul>
           </div>

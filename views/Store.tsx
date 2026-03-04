@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Search, Filter, Grid3x3, List, Smartphone, Laptop as LaptopIcon, Watch, Gamepad2, LayoutGrid, X, ChevronDown, ArrowLeft, Plus, Minus } from 'lucide-react';
+import { Search, Filter, Grid3x3, List, Smartphone, Laptop as LaptopIcon, Watch, Gamepad2, LayoutGrid, X, ChevronDown, ArrowLeft, Plus, Minus, Tag } from 'lucide-react';
 import { Product, Category } from '../types';
 import { ProductCard } from '../components/ProductCard';
 import { formatCurrency } from '../lib/utils';
@@ -8,8 +8,8 @@ import type { Theme } from '../App';
 interface StoreProps {
   products: Product[];
   searchQuery: string;
-  selectedCategory: Category | 'All';
-  setSelectedCategory: (cat: Category | 'All') => void;
+  selectedCategories: Category[];
+  setSelectedCategories: (cats: Category[]) => void;
   navigateTo: (view: string, id?: string) => void;
   onQuickView: (product: Product) => void;
   wishlist: string[];
@@ -18,13 +18,14 @@ interface StoreProps {
   onToggleCompare: (productId: string) => void;
   onAddToCart: (p: Product) => void;
   theme?: Theme;
+  categoriesFromUrl?: string[];
 }
 
 export const Store: React.FC<StoreProps> = ({
   products,
   searchQuery,
-  selectedCategory,
-  setSelectedCategory,
+  selectedCategories,
+  setSelectedCategories,
   navigateTo,
   onQuickView,
   wishlist,
@@ -33,25 +34,53 @@ export const Store: React.FC<StoreProps> = ({
   onToggleCompare,
   onAddToCart,
   theme,
+  categoriesFromUrl,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [priceRange, setPriceRange] = useState({ min: 0, max: 15000 });
+  const [showPromotionsOnly, setShowPromotionsOnly] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const isLight = theme === 'light';
+
+  React.useEffect(() => {
+    if (categoriesFromUrl && categoriesFromUrl.length > 0) {
+      setSelectedCategories(categoriesFromUrl as Category[]);
+    }
+  }, [categoriesFromUrl, setSelectedCategories]);
+
+  // Sync with global search query
+  React.useEffect(() => {
+    if (searchQuery !== undefined) {
+      setSearchTerm(searchQuery);
+    }
+  }, [searchQuery]);
+
+  const toggleCategory = (cat: Category | 'All') => {
+    if (cat === 'All') {
+      setSelectedCategories([]);
+      return;
+    }
+    if (selectedCategories.includes(cat)) {
+      setSelectedCategories(selectedCategories.filter(c => c !== cat));
+    } else {
+      setSelectedCategories([...selectedCategories, cat]);
+    }
+  };
 
   const filteredProducts = useMemo(() => {
     const q = searchTerm.toLowerCase().trim();
     let results = products.filter(p => {
       const matchesSearch = p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q);
-      const matchesCategory = selectedCategory === 'All' || p.category === selectedCategory;
+      const matchesCategory = selectedCategories.length === 0 || selectedCategories.includes(p.category);
       const matchesPrice = p.price >= priceRange.min && p.price <= priceRange.max;
+      const matchesPromotions = !showPromotionsOnly || (p.discount && p.discount > 0);
 
-      return matchesSearch && matchesCategory && matchesPrice;
+      return matchesSearch && matchesCategory && matchesPrice && matchesPromotions;
     });
 
     return results.sort((a, b) => b.stock - a.stock);
-  }, [products, searchTerm, selectedCategory, priceRange]);
+  }, [products, searchTerm, selectedCategories, priceRange]);
 
 
   const categoryOptions: { label: string; value: Category | 'All'; icon: React.ReactNode; count?: number }[] = [
@@ -60,16 +89,17 @@ export const Store: React.FC<StoreProps> = ({
     { label: 'LAPTOP', value: 'Laptop', icon: <LaptopIcon size={14} />, count: products.filter(p => p.category === 'Laptop').length },
     { label: 'ACCESSORIES', value: 'Accessories', icon: <Watch size={14} />, count: products.filter(p => p.category === 'Accessories').length },
     { label: 'GAMING', value: 'Gaming', icon: <Gamepad2 size={14} />, count: products.filter(p => p.category === 'Gaming').length },
+    { label: 'PROMOTIONS', value: 'All', icon: <Tag size={14} className="text-[#CDA032]" />, count: products.filter(p => p.discount && p.discount > 0).length },
   ];
 
   const activeFiltersCount = [
-    selectedCategory !== 'All',
+    selectedCategories.length > 0,
     priceRange.min > 0,
     priceRange.max < 15000
   ].filter(Boolean).length;
 
   const clearAllFilters = () => {
-    setSelectedCategory('All');
+    setSelectedCategories([]);
     setPriceRange({ min: 0, max: 15000 });
     setSearchTerm('');
   };
@@ -181,21 +211,44 @@ export const Store: React.FC<StoreProps> = ({
               <div>
                 <h3 className="text-xs font-black mb-4 uppercase tracking-[0.2em] opacity-60">Categories</h3>
                 <div className="space-y-2">
-                  {categoryOptions.map(cat => (
+                  {categoryOptions.map((cat) => (
                     <button
                       key={cat.value}
-                      onClick={() => setSelectedCategory(cat.value)}
-                      className={`w-full flex items-center justify-between p-4 rounded-xl text-sm font-medium transition-all ${selectedCategory === cat.value ? 'bg-[#CDA032] text-black shadow-lg shadow-[#CDA032]/20 scale-[1.02]' : 'hover:bg-black/5 dark:hover:bg-white/5'
+                      onClick={() => toggleCategory(cat.value)}
+                      className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 group
+                    ${(cat.value === 'All' && selectedCategories.length === 0) || (cat.value !== 'All' && selectedCategories.includes(cat.value))
+                          ? 'bg-[#CDA032] border-[#CDA032] text-black shadow-lg shadow-[#CDA032]/20'
+                          : 'bg-white/5 border-white/5 hover:border-white/10'
                         }`}
                     >
                       <div className="flex items-center gap-3">
                         {cat.icon}
                         <span>{cat.label}</span>
                       </div>
-                      <span className={`text-xs ${selectedCategory === cat.value ? 'opacity-80' : 'opacity-40'}`}>{cat.count}</span>
+                      <span className={`text-xs ${(cat.value === 'All' && selectedCategories.length === 0) || (cat.value !== 'All' && selectedCategories.includes(cat.value)) ? 'opacity-80' : 'opacity-40'}`}>{cat.count}</span>
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Promotions Toggle */}
+              <div>
+                <button
+                  onClick={() => setShowPromotionsOnly(!showPromotionsOnly)}
+                  className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 group
+                    ${showPromotionsOnly
+                      ? 'bg-[#CDA032] border-[#CDA032] text-black shadow-lg shadow-[#CDA032]/20'
+                      : 'bg-white/5 border-white/5 hover:border-white/10'
+                    }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Tag size={16} />
+                    <span className="font-bold uppercase tracking-wider text-xs">Active Promotions</span>
+                  </div>
+                  <div className={`w-10 h-5 rounded-full relative transition-colors ${showPromotionsOnly ? 'bg-black/20' : 'bg-black/10'}`}>
+                    <div className={`absolute top-1 w-3 h-3 rounded-full bg-current transition-all ${showPromotionsOnly ? 'left-6' : 'left-1'}`} />
+                  </div>
+                </button>
               </div>
 
               {/* Price Range */}
@@ -283,6 +336,26 @@ export const Store: React.FC<StoreProps> = ({
           </div>
 
           {/* Products Grid */}
+          {/* Mobile Category Switcher (Horizontal Scroll) */}
+          <div className="lg:hidden w-full overflow-x-auto no-scrollbar py-4 -mt-2 mb-4">
+            <div className="flex gap-2 px-1">
+              {categoryOptions.map(cat => (
+                <button
+                  key={cat.value}
+                  onClick={() => toggleCategory(cat.value)}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border 
+                  ${(cat.value === 'All' && selectedCategories.length === 0) || (cat.value !== 'All' && selectedCategories.includes(cat.value))
+                      ? 'bg-[#CDA032] border-[#CDA032] text-black shadow-lg shadow-[#CDA032]/20'
+                      : 'bg-white/5 border-white/5 text-white/40'
+                    }`}
+                >
+                  {cat.icon}
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="flex-1">
             <div className="mb-4 flex items-center justify-between">
               <span className="text-sm" style={{ color: textMuted }}>
@@ -391,9 +464,9 @@ export const Store: React.FC<StoreProps> = ({
                   </div>
 
                   <div className="space-y-4">
-                    <h3 className="text-3xl font-black uppercase tracking-tighter italic">Search <span className="text-[#CDA032]">Ambiguity</span></h3>
+                    <h3 className="text-3xl font-black uppercase tracking-tighter italic">Product <span className="text-[#CDA032]">Not Found</span></h3>
                     <p className="text-xs font-black uppercase tracking-[0.3em] max-w-sm mx-auto opacity-40 leading-relaxed px-4">
-                      The current parameters yield no unit matches. Adjust filters or refine your coordinate search.
+                      The specified unit is not present in our current repository. Adjust your filters or explore other hardware categories.
                     </p>
                   </div>
 

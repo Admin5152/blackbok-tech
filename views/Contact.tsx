@@ -23,152 +23,136 @@ export const Contact: React.FC = () => {
                 </div>
 
                 {/* Responsive Grid Layout */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-start">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-start">
 
-                    {/* Form Card */}
-                    <div className={`lg:col-span-7 p-6 sm:p-8 lg:p-10 rounded-[2.5rem] relative overflow-hidden glow-surface shadow-xl border ${isLight ? 'bg-white shadow-black/5 border-gray-200' : 'bg-[var(--bb-surface)] shadow-black/40 border-[var(--bb-border)]'}`}>
-                        {/* Corner Marks (Trade-in aesthetic) */}
-                        <div className="pointer-events-none absolute inset-0 z-0">
-                            <div className="absolute top-4 left-4 w-12 h-12 border-t-2 border-l-2 rounded-tl-[1.5rem] transition-colors border-[#B38B21]/50" />
-                            <div className="absolute top-4 right-4 w-12 h-12 border-t-2 border-r-2 rounded-tr-[1.5rem] transition-colors border-[#B38B21]/50" />
-                            <div className="absolute bottom-4 left-4 w-12 h-12 border-b-2 border-l-2 rounded-bl-[1.5rem] transition-colors border-[#B38B21]/50" />
-                            <div className="absolute bottom-4 right-4 w-12 h-12 border-b-2 border-r-2 rounded-br-[1.5rem] transition-colors border-[#B38B21]/50" />
-                        </div>
-
+                    {/* Left Form Card */}
+                    <div className={`lg:col-span-7 p-8 sm:p-10 rounded-[2rem] border relative ${isLight ? 'bg-gradient-to-br from-[#CDA032]/10 to-white border-black/5 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)]' : 'bg-gradient-to-br from-[#CDA032]/10 to-[var(--bb-surface)] border-white/5 shadow-2xl'}`}>
                         <div className="relative z-10">
-                            <div className="flex items-center gap-3 mb-8">
-                                <span className="w-8 h-8 rounded-xl text-xs font-black text-black flex items-center justify-center shadow-md leading-none" style={{ backgroundColor: '#B38B21' }}>01</span>
-                                <h2 className="text-sm md:text-base font-black uppercase tracking-widest opacity-80">Send a Message</h2>
-                            </div>
+                            <h2 className={`text-3xl font-bold mb-2 tracking-tight ${isLight ? 'text-black' : 'text-white'}`}>Send a Message</h2>
+                            <p className={`text-[13px] mb-8 ${isLight ? 'text-black/60' : 'text-white/60'}`}>Fill out the form and we'll respond within 24 hours.</p>
 
-                            <form className="space-y-5 lg:space-y-6" onSubmit={(e) => { e.preventDefault(); alert("Message Dispatched!"); }}>
+                            <form className="space-y-5" onSubmit={(e) => { e.preventDefault(); alert("Message Dispatched!"); }}>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    <div className="space-y-2">
+                                        <label className={`text-[11px] ml-1 font-semibold ${isLight ? 'text-black/80' : 'text-white/80'}`}>Full Name</label>
+                                        <input
+                                            type="text"
+                                            className={`w-full rounded-xl px-4 py-3 text-[13px] focus:outline-none transition-all border ${isLight ? 'bg-white text-black border-black/5 focus:border-[#CDA032]' : 'bg-black/30 border-white/5 text-white placeholder-white/30 focus:border-[#CDA032]'}`}
+                                            placeholder="Your name"
+                                            required
+                                        />
+                                    </div>
 
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest ml-1 lg:text-[11px] opacity-60">Full Name</label>
-                                    <input
-                                        type="text"
-                                        className={`w-full rounded-2xl px-5 py-4 text-sm font-semibold focus:outline-none transition-all border ${isLight ? 'bg-[#F0F0F0] text-black border-transparent focus:border-[#CDA032]/50 focus:bg-white' : 'bg-white/5 border-white/20 text-white placeholder-white/30 focus:border-white/40 focus:bg-white/10'}`}
-                                        placeholder="John Doe"
-                                        required
-                                    />
+                                    <div className="space-y-2">
+                                        <label className={`text-[11px] ml-1 font-semibold ${isLight ? 'text-black/80' : 'text-white/80'}`}>Email</label>
+                                        <input
+                                            type="email"
+                                            className={`w-full rounded-xl px-4 py-3 text-[13px] focus:outline-none transition-all border ${isLight ? 'bg-white text-black border-black/5 focus:border-[#CDA032]' : 'bg-black/30 border-white/5 text-white placeholder-white/30 focus:border-[#CDA032]'}`}
+                                            placeholder="you@example.com"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className={`text-[11px] ml-1 font-semibold ${isLight ? 'text-black/80' : 'text-white/80'}`}>Phone <span className="opacity-50 font-normal">(optional)</span></label>
+                                        <input
+                                            type="tel"
+                                            className={`w-full rounded-xl px-4 py-3 text-[13px] focus:outline-none transition-all border ${isLight ? 'bg-white text-black border-black/5 focus:border-[#CDA032]' : 'bg-black/30 border-white/5 text-white placeholder-white/30 focus:border-[#CDA032]'}`}
+                                            placeholder="+233..."
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className={`text-[11px] ml-1 font-semibold ${isLight ? 'text-black/80' : 'text-white/80'}`}>Subject</label>
+                                        <input
+                                            type="text"
+                                            className={`w-full rounded-xl px-4 py-3 text-[13px] focus:outline-none transition-all border ${isLight ? 'bg-white text-black border-black/5 focus:border-[#CDA032]' : 'bg-black/30 border-white/5 text-white placeholder-white/30 focus:border-[#CDA032]'}`}
+                                            placeholder="How can we help?"
+                                            required
+                                        />
+                                    </div>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest ml-1 lg:text-[11px] opacity-60">Email Address</label>
-                                    <input
-                                        type="email"
-                                        className={`w-full rounded-2xl px-5 py-4 text-sm font-semibold focus:outline-none transition-all border ${isLight ? 'bg-[#F0F0F0] text-black border-transparent focus:border-[#CDA032]/50 focus:bg-white' : 'bg-white/5 border-white/20 text-white placeholder-white/30 focus:border-white/40 focus:bg-white/10'}`}
-                                        placeholder="john@example.com"
-                                        required
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest ml-1 lg:text-[11px] opacity-60">Phone Number</label>
-                                    <input
-                                        type="tel"
-                                        className={`w-full rounded-2xl px-5 py-4 text-sm font-semibold focus:outline-none transition-all border ${isLight ? 'bg-[#F0F0F0] text-black border-transparent focus:border-[#CDA032]/50 focus:bg-white' : 'bg-white/5 border-white/20 text-white placeholder-white/30 focus:border-white/40 focus:bg-white/10'}`}
-                                        placeholder="+233 55 123 4567"
-                                        required
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest ml-1 lg:text-[11px] opacity-60">Subject</label>
-                                    <input
-                                        type="text"
-                                        className={`w-full rounded-2xl px-5 py-4 text-sm font-semibold focus:outline-none transition-all border ${isLight ? 'bg-[#F0F0F0] text-black border-transparent focus:border-[#CDA032]/50 focus:bg-white' : 'bg-white/5 border-white/20 text-white placeholder-white/30 focus:border-white/40 focus:bg-white/10'}`}
-                                        placeholder="Order delivery..."
-                                        required
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest ml-1 lg:text-[11px] opacity-60">Message</label>
+                                <div className="space-y-2 mt-5">
+                                    <label className={`text-[11px] ml-1 font-semibold ${isLight ? 'text-black/80' : 'text-white/80'}`}>Message</label>
                                     <textarea
                                         rows={4}
-                                        className={`w-full rounded-2xl px-5 py-4 text-sm font-semibold focus:outline-none transition-all border resize-none ${isLight ? 'bg-[#F0F0F0] text-black border-transparent focus:border-[#CDA032]/50 focus:bg-white' : 'bg-white/5 border-white/20 text-white placeholder-white/30 focus:border-white/40 focus:bg-white/10'}`}
-                                        placeholder="Include all necessary details..."
+                                        className={`w-full rounded-xl px-4 py-3 text-[13px] focus:outline-none transition-all border resize-none ${isLight ? 'bg-white text-black border-black/5 focus:border-[#CDA032]' : 'bg-black/30 border-white/5 text-white placeholder-white/30 focus:border-[#CDA032]'}`}
+                                        placeholder="Tell us about your project or question..."
                                         required
                                     ></textarea>
                                 </div>
 
                                 <button
                                     type="submit"
-                                    className="w-full mt-4 lg:mt-6 flex items-center justify-center gap-3 py-4 lg:py-5 rounded-2xl bg-gradient-to-r from-[#D9AB36] to-[#B38B21] text-black font-black text-[12px] lg:text-[13px] uppercase tracking-[0.2em] shadow-[0_10px_30px_rgba(205,160,50,0.3)] hover:scale-[1.02] transition-transform"
+                                    className={`w-full mt-6 flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm shadow-md transition-colors bg-[#CDA032] text-black hover:bg-[#B38B21]`}
                                 >
-                                    Confirm Dispatch <Send size={16} className="-mt-0.5" />
+                                    <Send size={16} /> Send Message
                                 </button>
+                                <p className={`text-center text-[11px] mt-4 ${isLight ? 'text-black/50' : 'text-white/40'}`}>We typically respond within 24 hours</p>
                             </form>
                         </div>
                     </div>
 
-                    {/* Info Cards Column */}
-                    <div className="lg:col-span-5 space-y-6 lg:space-y-8 lg:sticky lg:top-32 h-fit">
-
-                        <div className={`p-8 rounded-[2.5rem] flex items-center gap-6 transition-all hover:scale-[1.02] cursor-pointer border glow-surface shadow-xl relative overflow-hidden ${isLight ? 'bg-white shadow-black/5 border-gray-200' : 'bg-[var(--bb-surface)] border-[var(--bb-border)]'}`}>
-                            <div className="pointer-events-none absolute inset-0 z-0 opacity-50">
-                                <div className="absolute top-3 left-3 w-8 h-8 border-t-2 border-l-2 rounded-tl-[2rem] transition-colors border-[#B38B21]/30" />
-                                <div className="absolute top-3 right-3 w-8 h-8 border-t-2 border-r-2 rounded-tr-[2rem] transition-colors border-[#B38B21]/30" />
-                                <div className="absolute bottom-3 left-3 w-8 h-8 border-b-2 border-l-2 rounded-bl-[2rem] transition-colors border-[#B38B21]/30" />
-                                <div className="absolute bottom-3 right-3 w-8 h-8 border-b-2 border-r-2 rounded-br-[2rem] transition-colors border-[#B38B21]/30" />
+                    {/* Right Column */}
+                    <div className="lg:col-span-5 space-y-4">
+                        {/* Info List */}
+                        <div className={`p-4 rounded-2xl flex items-center gap-4 ${isLight ? 'bg-white shadow-[0_2px_10px_rgba(0,0,0,0.02)] border border-black/5' : 'bg-[#111] border border-white/5'}`}>
+                            <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'bg-[#CDA032]/10 text-[#CDA032]' : 'bg-[#CDA032]/10 text-[#CDA032]'}`}>
+                                <Mail size={18} />
                             </div>
-
-                            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 shadow-inner z-10 ${isLight ? 'bg-[#F0F0F0]' : 'bg-[var(--bb-bg)]'}`}>
-                                <Mail size={24} className="text-[#CDA032]" />
-                            </div>
-                            <div className="z-10">
-                                <h3 className="font-black text-[15px] lg:text-[16px] uppercase tracking-widest mb-1 opacity-80">Email Us</h3>
-                                <p className={`text-[12px] lg:text-[13px] font-medium leading-tight mb-1.5 ${isLight ? 'text-black/60' : 'text-white/50'}`}>Friendly support team.</p>
-                                <p className="text-[13px] lg:text-[14px] font-black" style={{ color: '#B38B21' }}>support@blackbox.tech</p>
+                            <div>
+                                <h4 className={`font-bold text-[13px] mb-0.5 ${isLight ? 'text-black' : 'text-white'}`}>Email Support</h4>
+                                <p className={`text-[12px] ${isLight ? 'text-black/60' : 'text-white/60'}`}>support@blackbox.tech</p>
                             </div>
                         </div>
 
-                        <div className={`p-8 rounded-[2.5rem] flex items-center gap-6 transition-all hover:scale-[1.02] cursor-pointer border glow-surface shadow-xl relative overflow-hidden ${isLight ? 'bg-white shadow-black/5 border-gray-200' : 'bg-[var(--bb-surface)] border-[var(--bb-border)]'}`}>
-                            <div className="pointer-events-none absolute inset-0 z-0 opacity-50">
-                                <div className="absolute top-3 left-3 w-8 h-8 border-t-2 border-l-2 rounded-tl-[2rem] transition-colors border-[#B38B21]/30" />
-                                <div className="absolute top-3 right-3 w-8 h-8 border-t-2 border-r-2 rounded-tr-[2rem] transition-colors border-[#B38B21]/30" />
-                                <div className="absolute bottom-3 left-3 w-8 h-8 border-b-2 border-l-2 rounded-bl-[2rem] transition-colors border-[#B38B21]/30" />
-                                <div className="absolute bottom-3 right-3 w-8 h-8 border-b-2 border-r-2 rounded-br-[2rem] transition-colors border-[#B38B21]/30" />
+                        <div className={`p-4 rounded-2xl flex items-center gap-4 ${isLight ? 'bg-white shadow-[0_2px_10px_rgba(0,0,0,0.02)] border border-black/5' : 'bg-[#111] border border-white/5'}`}>
+                            <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'bg-[#CDA032]/10 text-[#CDA032]' : 'bg-[#CDA032]/10 text-[#CDA032]'}`}>
+                                <Phone size={18} />
                             </div>
-
-                            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 shadow-inner z-10 ${isLight ? 'bg-[#F0F0F0]' : 'bg-[var(--bb-bg)]'}`}>
-                                <Phone size={24} className="text-[#CDA032]" />
-                            </div>
-                            <div className="z-10">
-                                <h3 className="font-black text-[15px] lg:text-[16px] uppercase tracking-widest mb-1 opacity-80">Call Us</h3>
-                                <p className={`text-[12px] lg:text-[13px] font-medium leading-tight mb-1.5 ${isLight ? 'text-black/60' : 'text-white/50'}`}>Mon-Sat 8am to 6pm.</p>
-                                <p className="text-[13px] lg:text-[14px] font-black" style={{ color: '#B38B21' }}>+233 50 123 4567</p>
+                            <div>
+                                <h4 className={`font-bold text-[13px] mb-0.5 ${isLight ? 'text-black' : 'text-white'}`}>Phone Support</h4>
+                                <p className={`text-[12px] ${isLight ? 'text-black/60' : 'text-white/60'}`}>+233 50 123 4567</p>
                             </div>
                         </div>
 
-                        <div className={`p-8 rounded-[2.5rem] flex items-center gap-6 transition-all hover:scale-[1.02] cursor-pointer border glow-surface shadow-xl relative overflow-hidden ${isLight ? 'bg-white shadow-black/5 border-gray-200' : 'bg-[var(--bb-surface)] border-[var(--bb-border)]'}`}>
-                            <div className="pointer-events-none absolute inset-0 z-0 opacity-50">
-                                <div className="absolute top-3 left-3 w-8 h-8 border-t-2 border-l-2 rounded-tl-[2rem] transition-colors border-[#B38B21]/30" />
-                                <div className="absolute top-3 right-3 w-8 h-8 border-t-2 border-r-2 rounded-tr-[2rem] transition-colors border-[#B38B21]/30" />
-                                <div className="absolute bottom-3 left-3 w-8 h-8 border-b-2 border-l-2 rounded-bl-[2rem] transition-colors border-[#B38B21]/30" />
-                                <div className="absolute bottom-3 right-3 w-8 h-8 border-b-2 border-r-2 rounded-br-[2rem] transition-colors border-[#B38B21]/30" />
+                        <div className={`p-4 rounded-2xl flex items-center gap-4 ${isLight ? 'bg-white shadow-[0_2px_10px_rgba(0,0,0,0.02)] border border-black/5' : 'bg-[#111] border border-white/5'}`}>
+                            <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'bg-[#CDA032]/10 text-[#CDA032]' : 'bg-[#CDA032]/10 text-[#CDA032]'}`}>
+                                <MapPin size={18} />
                             </div>
-
-                            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 shadow-inner z-10 ${isLight ? 'bg-[#F0F0F0]' : 'bg-[var(--bb-bg)]'}`}>
-                                <MapPin size={24} className="text-[#CDA032]" />
-                            </div>
-                            <div className="z-10">
-                                <h3 className="font-black text-[15px] lg:text-[16px] uppercase tracking-widest mb-1 opacity-80">Visit Us</h3>
-                                <p className={`text-[12px] lg:text-[13px] font-medium leading-tight mb-1.5 ${isLight ? 'text-black/60' : 'text-white/50'}`}>Our retail store location.</p>
-                                <p className="text-[13px] lg:text-[14px] font-black" style={{ color: '#B38B21' }}>Tech Hub, KNUST, Kumasi</p>
+                            <div>
+                                <h4 className={`font-bold text-[13px] mb-0.5 ${isLight ? 'text-black' : 'text-white'}`}>Store Location</h4>
+                                <p className={`text-[12px] ${isLight ? 'text-black/60' : 'text-white/60'}`}>Tech Hub, KNUST, Kumasi</p>
                             </div>
                         </div>
 
-                        {/* Guarantee card (matching Trade-in best value card aesthetic) */}
-                        <div className="rounded-[2rem] p-6 space-y-3" style={{ backgroundColor: 'rgba(179,139,33,0.04)', borderLeft: '2px solid rgba(179,139,33,0.3)' }}>
-                            <div className="flex items-center gap-3">
-                                <MessageSquare size={18} style={{ color: '#B38B21' }} />
-                                <h4 className="text-[13px] font-black uppercase tracking-wider text-white/80">Fast Response Guarantee</h4>
+                        {/* Office Hours */}
+                        <div className={`p-6 mt-6 rounded-[1.5rem] border ${isLight ? 'bg-[#FCFBF8] border-[#CDA032]/20' : 'bg-[#CDA032]/5 border-[#CDA032]/20'}`}>
+                            <h3 className={`font-bold text-[15px] mb-4 ${isLight ? 'text-black' : 'text-white'}`}>Office Hours</h3>
+                            <div className={`space-y-3 text-[13px] ${isLight ? 'text-[#555]' : 'text-white/80'}`}>
+                                <div className="flex justify-between"><span className="opacity-70">Monday - Friday</span><span className={`font-semibold ${isLight ? 'text-black' : 'text-white'}`}>9:00 AM - 6:00 PM</span></div>
+                                <div className="flex justify-between"><span className="opacity-70">Saturday</span><span className={`font-semibold ${isLight ? 'text-black' : 'text-white'}`}>10:00 AM - 4:00 PM</span></div>
+                                <div className="flex justify-between"><span className="opacity-70">Sunday</span><span className={`font-semibold ${isLight ? 'text-black' : 'text-white'}`}>Closed</span></div>
                             </div>
-                            <p className="text-[12px] text-white/50 leading-relaxed font-semibold">
-                                We prioritize your inquiries and aim to reply within 2 hours during active business hours.
-                            </p>
+                            <div className={`mt-5 pt-4 border-t text-[11px] flex gap-2 ${isLight ? 'border-[#CDA032]/20' : 'border-[#CDA032]/20'}`}>
+                                <span className="font-bold text-[#CDA032]">Timezone:</span> <span className={isLight ? 'text-black/50' : 'text-white/50'}>GMT (Accra, Ghana)</span>
+                            </div>
+                        </div>
+
+                        {/* Response Guarantee + Socials */}
+                        <div className={`p-6 mt-4 rounded-[1.5rem] shadow-lg relative overflow-hidden bg-gradient-to-r from-[#D9AB36] to-[#B38B21] text-black`}>
+                            <h3 className="font-bold text-base mb-1.5 text-black">Response Guarantee</h3>
+                            <p className="text-[12.5px] mb-5 opacity-90 leading-relaxed max-w-[95%] text-black">We respond to every message within 24 hours. For urgent matters, reach us on WhatsApp or Instagram.</p>
+
+                            <div className="flex gap-3">
+                                <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-xl bg-black/10 flex items-center justify-center shadow-sm transition-colors hover:bg-black hover:text-[#CDA032] text-black">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+                                </a>
+                                <a href="https://wa.me/233501234567" target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-xl bg-black/10 flex items-center justify-center shadow-sm transition-colors hover:bg-black hover:text-[#CDA032] text-black">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+                                </a>
+                            </div>
                         </div>
 
                     </div>

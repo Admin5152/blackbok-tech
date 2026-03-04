@@ -1,5 +1,5 @@
 
-export type Category = 'iPhone' | 'Laptop' | 'Accessories' | 'Gaming' | 'Audio' | 'Trades';
+export type Category = 'iPhone' | 'Laptop' | 'Accessories' | 'Gaming' | 'Audio' | 'Trades' | 'Tablet';
 
 export interface ProductVariant {
   name: string; // e.g., "Color", "Storage"
@@ -67,6 +67,19 @@ export interface RepairRequest {
   date: string;
   aiDiagnosis?: string;
   estimatedCost?: string;
+  imageUrl?: string;
+}
+
+export interface TradeRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  device: string;
+  condition: 'Mint' | 'Good' | 'Fair' | 'Broken';
+  status: 'Pending' | 'Inspecting' | 'Offer Made' | 'Accepted' | 'Completed' | 'Rejected';
+  date: string;
+  estimatedValue: number;
+  finalValue?: number;
   imageUrl?: string;
 }
 

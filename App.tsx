@@ -10,11 +10,13 @@ import {
   useLocation,
   createMemoryHistory
 } from '@tanstack/react-router';
-import { X, CheckCircle2, Activity, Scale, RefreshCcw, Home as HomeIcon, ShoppingBag, Wrench, ShoppingCart, User as UserIcon, LogOut, ChevronRight, ChevronDown, Settings, MessageCircle, AlertTriangle, Sparkles } from 'lucide-react';
-import { Product, User, CartItem, Category, RepairRequest, Order } from './types';
+import { X, CheckCircle2, Activity, Scale, RefreshCcw, Home as HomeIcon, ShoppingBag, Wrench, ShoppingCart, User as UserIcon, LogOut, ChevronRight, ChevronDown, Settings, AlertTriangle, Sparkles, Eye, Clock } from 'lucide-react';
+import { WhatsAppIcon } from './components/Icons';
+import { Product, User, CartItem, Category, RepairRequest, Order, TradeRequest } from './types';
 import { getProducts, createOrder } from './lib/api';
 import { INITIAL_PRODUCTS } from './constants';
 import { Navbar } from './components/Navbar';
+import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { Footer } from './components/Footer';
 import { Home } from './views/Home';
 import { ProductDetail } from './views/ProductDetail';
@@ -25,12 +27,17 @@ import { Profile } from './views/Profile';
 import { Cart } from './views/Cart';
 import { Checkout } from './views/Checkout';
 import { Trades } from './views/Trades';
+import { Promotions } from './views/Promotions';
 import { Admin } from './views/Admin';
 import { AboutUs } from './views/AboutUs';
 import { Contact } from './views/Contact';
 import { FAQ } from './views/FAQ';
+import { Compare } from './views/Compare';
+import { Policies } from './views/Policies';
 import { NotFound } from './views/NotFound';
 import { ErrorPage } from './views/ErrorPage';
+import { History } from './views/History';
+import { Tracking } from './views/Tracking';
 // import { orders } from './data/orders'; 
 import { QuickViewModal } from './components/QuickViewModal';
 import { CompareModal } from './components/CompareModal';
@@ -59,12 +66,14 @@ export interface AppContextType {
   user: User | null;
   orders: Order[];
   repairs: RepairRequest[];
+  trades: TradeRequest[];
   searchQuery: string;
   setSearchQuery: (q: string) => void;
-  selectedCategory: Category | 'All';
-  setSelectedCategory: (c: Category | 'All') => void;
+  selectedCategories: Category[];
+  setSelectedCategories: (c: Category[]) => void;
   setUser: (u: User | null) => void;
   setRepairs: (r: RepairRequest[]) => void;
+  setTrades: (t: TradeRequest[]) => void;
   addToCart: (p: Product, o?: any, q?: number) => void;
   toggleWishlist: (id: string) => void;
   toggleCompare: (id: string) => void;
@@ -129,9 +138,15 @@ const indexRoute = createRoute({
 const storeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/store',
+  validateSearch: (search: Record<string, unknown>): { categories?: string[] } => {
+    return {
+      categories: Array.isArray(search.categories) ? (search.categories as string[]) : (search.category ? [search.category as string] : undefined),
+    };
+  },
   component: () => {
     const context = useAppContext();
-    return <Store {...context} />;
+    const { categories } = storeRoute.useSearch();
+    return <Store {...context} categoriesFromUrl={categories} />;
   },
 });
 
@@ -188,7 +203,13 @@ const tradesRoute = createRoute({
   path: '/trades',
   component: () => {
     const context = useAppContext();
-    return <Trades {...context} />;
+    return <Trades
+      {...context}
+      trades={context.trades}
+      setTrades={context.setTrades}
+      user={context.user}
+      navigateTo={context.navigateTo}
+    />;
   },
 });
 
@@ -196,8 +217,8 @@ const profileRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/profile',
   component: () => {
-    const context = useAppContext();
-    return <Profile {...context} />;
+    const { trades, ...context } = useAppContext();
+    return <Profile {...context} trades={trades} />;
   },
 });
 
@@ -251,6 +272,50 @@ const contactRoute = createRoute({
   },
 });
 
+const historyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/history',
+  validateSearch: (search: Record<string, unknown>) => {
+    return {
+      tab: (search.tab as string) || 'orders'
+    }
+  },
+  component: () => {
+    return <History />;
+  },
+});
+
+const trackingRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/tracking/$type/$id',
+  component: () => {
+    return <Tracking />;
+  },
+});
+
+const promotionsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/promotions",
+  component: () => <Promotions />,
+});
+
+const compareRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/compare",
+  component: () => <Compare />,
+});
+
+const policiesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/policies",
+  validateSearch: (search: Record<string, unknown>) => {
+    return {
+      tab: (search.tab as string) || 'privacy'
+    }
+  },
+  component: () => <Policies />,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   storeRoute,
@@ -265,6 +330,11 @@ const routeTree = rootRoute.addChildren([
   aboutRoute,
   faqRoute,
   contactRoute,
+  historyRoute,
+  trackingRoute,
+  promotionsRoute,
+  compareRoute,
+  policiesRoute,
 ]);
 
 const memoryHistory = createMemoryHistory({
@@ -285,11 +355,12 @@ function RootComponent() {
   const [user, setUser] = useState<User | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [repairs, setRepairs] = useState<RepairRequest[]>([]);
+  const [trades, setTrades] = useState<TradeRequest[]>([]);
 
   const [isCompareOpen, setIsCompareOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<Category | 'All'>('All');
+  const [selectedCategories, setSelectedCategories] = useState<Category[]>([]);
   const [notification, setNotification] = useState<{ msg: string, type: 'success' | 'error' } | null>(null);
 
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
@@ -306,6 +377,7 @@ function RootComponent() {
       const localCart = localStorage.getItem(STORAGE_KEYS.CART);
       const localOrders = localStorage.getItem(STORAGE_KEYS.ORDERS);
       const localRepairs = localStorage.getItem(STORAGE_KEYS.REPAIRS);
+      const localTrades = localStorage.getItem('bb_v4_trades');
       const localWishlist = localStorage.getItem(STORAGE_KEYS.WISHLIST);
       const localCompare = localStorage.getItem(STORAGE_KEYS.COMPARE);
       const localTheme = localStorage.getItem(STORAGE_KEYS.THEME);
@@ -314,6 +386,7 @@ function RootComponent() {
       if (localCart) setCart(JSON.parse(localCart));
       if (localOrders) setOrders(JSON.parse(localOrders));
       if (localRepairs) setRepairs(JSON.parse(localRepairs));
+      if (localTrades) setTrades(JSON.parse(localTrades));
       if (localWishlist) setWishlist(JSON.parse(localWishlist));
       if (localCompare) setCompareIds(JSON.parse(localCompare));
       if (localTheme === 'light' || localTheme === 'dark') setTheme(localTheme);
@@ -341,10 +414,11 @@ function RootComponent() {
     localStorage.setItem(STORAGE_KEYS.CART, JSON.stringify(cart));
     localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
     localStorage.setItem(STORAGE_KEYS.REPAIRS, JSON.stringify(repairs));
+    localStorage.setItem('bb_v4_trades', JSON.stringify(trades));
     localStorage.setItem(STORAGE_KEYS.WISHLIST, JSON.stringify(wishlist));
     localStorage.setItem(STORAGE_KEYS.COMPARE, JSON.stringify(compareIds));
     localStorage.setItem(STORAGE_KEYS.THEME, theme);
-  }, [user, cart, orders, repairs, wishlist, compareIds, theme]);
+  }, [user, cart, orders, repairs, trades, wishlist, compareIds, theme]);
 
   // Apply theme globally (CSS reads html[data-theme]).
   useEffect(() => {
@@ -359,8 +433,11 @@ function RootComponent() {
   const navigateTo = (to: string, id?: string) => {
     if (id) {
       navigate({ to: `/product/${id}` as any });
+    } else if (to.startsWith('http')) {
+      window.open(to, '_blank', 'noopener,noreferrer');
     } else {
-      navigate({ to: (to === 'home' ? '/' : `/${to}`) as any });
+      const path = to === 'home' ? '/' : (to.startsWith('/') ? to : `/${to}`);
+      navigate({ to: path as any });
     }
     setIsMobileMenuOpen(false);
   };
@@ -436,9 +513,11 @@ function RootComponent() {
   };
 
   const contextValues: AppContextType = {
-    products, cart, wishlist, compareIds, user, orders, repairs,
-    searchQuery, setSearchQuery, selectedCategory, setSelectedCategory,
-    setUser, setRepairs, addToCart, toggleWishlist, toggleCompare,
+    products, cart, wishlist, compareIds, user, orders, repairs, trades,
+    searchQuery, setSearchQuery,
+    selectedCategories, setSelectedCategories,
+    setUser,
+    setRepairs, setTrades, addToCart, toggleWishlist, toggleCompare,
     onToggleCompare: toggleCompare,
     updateQuantity, removeFromCart, handleCheckout, notify, navigateTo,
     onQuickView: (p: Product) => { setQuickViewProduct(p); setIsQuickViewOpen(true); },
@@ -459,14 +538,16 @@ function RootComponent() {
 
       <div className={`flex flex-col min-h-screen selection:bg-[#B38B21] selection:text-black ${showWelcomeScreen ? 'opacity-0 pointer-events-none' : 'opacity-100'} ${isLight ? 'bg-[#F0F0F0] text-black' : 'bg-black text-white'}`}>
         <Navbar
-          user={user}
           cart={cart}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          setIsMobileMenuOpen={setIsMobileMenuOpen}
+          navigateTo={navigateTo}
+          user={user}
+          products={products}
           theme={theme}
           setTheme={setTheme}
+          setSearchQuery={setSearchQuery}
         />
+
+        <FloatingWhatsApp phoneNumber="233000000000" theme={theme} />
 
         <main className="flex-1">
           <Outlet />
@@ -508,43 +589,34 @@ function RootComponent() {
         />
 
         {notification && (
-          <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-sm pointer-events-none">
+          <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[200] w-auto min-w-[320px] max-w-md pointer-events-none">
             <div className={`
-                pointer-events-auto relative overflow-hidden flex items-center gap-5 px-6 py-4 rounded-[2rem] shadow-[0_30px_60px_rgba(234,88,12,0.15)] 
-                backdrop-blur-3xl border transition-all duration-500 animate-in slide-in-from-top-6 zoom-in-95
+                pointer-events-auto flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl 
+                backdrop-blur-xl border transition-all duration-500 animate-in slide-in-from-top-6 zoom-in-95
                 ${isLight
-                ? 'bg-white/95 border-[#EA580C]/10 text-black'
-                : 'bg-[#0A0A0A]/95 border-[#EA580C]/20 text-white'}
+                ? 'bg-white/95 border-black/5 text-black'
+                : 'bg-[#1a1a1a]/95 border-white/5 text-white'}
               `}>
-              {/* Modern Orange/Gold Glow */}
-              <div className="absolute inset-0 bg-gradient-to-r from-[#EA580C]/5 to-transparent pointer-events-none" />
-              <div className="absolute -left-6 -top-6 w-24 h-24 bg-[#EA580C]/20 blur-3xl rounded-full pointer-events-none" />
 
               <div className={`
-                  relative z-10 w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-lg border border-[#EA580C]/30
-                  ${notification.type === 'success'
-                  ? 'bg-gradient-to-br from-[#EA580C] to-[#C2410C] text-white'
-                  : 'bg-gradient-to-br from-red-600 to-red-800 text-white'}
+                  flex items-center justify-center shrink-0
+                  ${notification.type === 'success' ? 'text-green-500' : 'text-red-500'}
                 `}>
-                {notification.type === 'success' ? <Sparkles size={20} className="drop-shadow-md" /> : <AlertTriangle size={20} className="drop-shadow-md" />}
+                {notification.type === 'success' ? <CheckCircle2 size={20} /> : <AlertTriangle size={20} />}
               </div>
 
-              <div className="flex-1 min-w-0 relative z-10">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#EA580C] animate-pulse"></span>
-                  <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#EA580C]">
-                    {notification.type === 'success' ? 'System Update' : 'System Alert'}
-                  </p>
-                </div>
-                <p className="text-[13px] font-bold truncate tracking-normal opacity-90">{notification.msg}</p>
+              <div className="flex-1 min-w-0 pr-2">
+                <p className={`text-sm font-semibold truncate tracking-tight ${isLight ? 'text-black/90' : 'text-white/90'}`}>
+                  {notification.msg}
+                </p>
               </div>
 
               <button
                 onClick={() => setNotification(null)}
-                className={`p-2 rounded-lg transition-colors ${isLight ? 'hover:bg-black/5' : 'hover:bg-white/5'}`}
+                className={`p-1.5 rounded-full transition-colors ${isLight ? 'hover:bg-black/5 text-black/40 hover:text-black' : 'hover:bg-white/10 text-white/40 hover:text-white'}`}
                 aria-label="Dismiss"
               >
-                <X size={16} className="opacity-40" />
+                <X size={16} />
               </button>
             </div>
           </div>
@@ -604,13 +676,13 @@ function RootComponent() {
               <div className="flex-1 overflow-auto py-4 px-3 space-y-1">
                 {[
                   { id: 'home', label: 'Home', icon: HomeIcon, path: '/' },
-                  { id: 'store', label: 'Products', icon: ShoppingBag, path: '/store', subItems: ['iPhone', 'Laptop', 'Accessories', 'Gaming', 'Audio'] },
-                  { id: 'trades', label: 'Trades', icon: RefreshCcw, path: '/trades' },
-                  { id: 'repair', label: 'Repairs', icon: Wrench, path: '/repair' },
+                  { id: 'store', label: 'Products', icon: ShoppingBag, path: '/store', subItems: ['iPhone', 'Laptop', 'Accessories', 'Gaming', 'Audio', 'Track Orders'] },
+                  { id: 'trades', label: 'Trades', icon: RefreshCcw, path: '/trades', subItems: ['Initiate Trade', 'Track Trade-In'] },
+                  { id: 'repair', label: 'Repairs', icon: Wrench, path: '/repair', subItems: ['Schedule Repair', 'Repair Status'] },
                   { id: 'cart', label: 'Cart', icon: ShoppingCart, path: '/cart', count: cart.length },
                   { id: 'profile', label: 'Account', icon: UserIcon, path: '/profile' },
                   { id: 'about', label: 'About Us', icon: Sparkles, path: '/about' },
-                  { id: 'contact', label: 'Contact', icon: MessageCircle, path: '/contact' }
+                  { id: 'contact', label: 'Contact', icon: WhatsAppIcon, path: 'https://wa.me/233000000000' }
                 ].map((item: any) => {
                   const isActive = location.pathname === item.path;
 
@@ -644,8 +716,20 @@ function RootComponent() {
                             <button
                               key={sub}
                               onClick={() => {
-                                setSelectedCategory(sub as any);
-                                navigateTo('store');
+                                if (sub === 'Track Orders') {
+                                  navigateTo('/history', { search: { tab: 'orders' } } as any);
+                                } else if (sub === 'Track Trade-In') {
+                                  navigateTo('/history', { search: { tab: 'trades' } } as any);
+                                } else if (sub === 'Repair Status') {
+                                  navigateTo('/history', { search: { tab: 'repairs' } } as any);
+                                } else if (sub === 'Initiate Trade') {
+                                  navigateTo('trades');
+                                } else if (sub === 'Schedule Repair') {
+                                  navigateTo('repair');
+                                } else {
+                                  setSelectedCategories([sub as any]);
+                                  navigateTo('store');
+                                }
                                 setIsMobileMenuOpen(false);
                               }}
                               className={`text-left py-3 text-[10px] font-black uppercase tracking-[0.2em] transition-colors rounded-lg px-3 ${isLight ? 'text-black/50 hover:text-black hover:bg-black/5' : 'text-white/40 hover:text-white hover:bg-white/5'}`}

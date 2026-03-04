@@ -61,6 +61,19 @@ export const FAQ: React.FC<FAQProps> = ({ theme }) => {
                     answer: "100% Guaranteed. BlackBox is an elite digital hardware repository, and we strictly source original, certified devices and parts."
                 }
             ]
+        },
+        {
+            category: "Policies & Security",
+            items: [
+                {
+                    question: "How do you protect my data?",
+                    answer: "We employ military-grade encryption cycles for all transactional data. You can read our full protocol in the Privacy Manifesto."
+                },
+                {
+                    question: "Where can I read the full terms?",
+                    answer: "Detailed protocols for Privacy, Returns, and Exchanges are available under our 'Policies' section in the Home menu."
+                }
+            ]
         }
     ];
 

@@ -25,16 +25,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onToggleCompare
 }) => {
   const { theme } = useAppContext();
-  const [selectedColor, setSelectedColor] = useState('');
-  const [showColorPicker, setShowColorPicker] = useState(false);
-  const [selectedStorage, setSelectedStorage] = useState('');
-  const [showStoragePicker, setShowStoragePicker] = useState(false);
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
+  const [visiblePickers, setVisiblePickers] = useState<Record<string, boolean>>({});
 
   const handleAddToCartWithOptions = () => {
-    const options: Record<string, string> = {};
-    if (selectedColor) options['Color'] = selectedColor;
-    if (selectedStorage) options['Storage'] = selectedStorage;
-    onAddToCart(product, options, 1);
+    onAddToCart(product, selectedOptions, 1);
   };
 
   return (
@@ -113,9 +108,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           {/* Variant Selection */}
           <div className="space-y-3">
             {product.variants?.map(variant => {
+              const selectedValue = selectedOptions[variant.name] || '';
+              const isVisible = visiblePickers[variant.name];
               const isColor = variant.name.toLowerCase() === 'color';
-              const selectedValue = isColor ? selectedColor : selectedStorage;
-              const isVisible = isColor ? showColorPicker : showStoragePicker;
 
               return (
                 <div key={variant.name} className="space-y-2">
@@ -125,8 +120,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        if (isColor) setShowColorPicker(!showColorPicker);
-                        else setShowStoragePicker(!showStoragePicker);
+                        setVisiblePickers(prev => ({ ...prev, [variant.name]: !prev[variant.name] }));
                       }}
                       className="text-[8px] text-[#CDA032] hover:text-[#CDA032]/80 transition-colors"
                     >
@@ -142,8 +136,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            if (isColor) setSelectedColor(opt);
-                            else setSelectedStorage(opt);
+                            setSelectedOptions(prev => ({ ...prev, [variant.name]: opt }));
                           }}
                           className={isColor
                             ? `w-5 h-5 rounded-full border-2 transition-all ${selectedValue === opt ? 'border-white scale-110' : 'border-gray-400 hover:border-gray-300'}`

@@ -6,7 +6,7 @@ import {
   Eye, RefreshCw, Smartphone, Trash2, Download, FileText, AlertCircle, Menu, X, Zap,
   Calendar, ShoppingBag
 } from 'lucide-react';
-import { User, RepairRequest, Order, Product } from '../types';
+import { User, RepairRequest, Order, Product, TradeRequest } from '../types';
 import { formatDate, formatCurrency } from '../lib/utils';
 import { ProductCard } from '../components/ProductCard';
 import { OrderTracking } from '../components/OrderTracking';
@@ -15,6 +15,7 @@ interface ProfileProps {
   user: User | null;
   repairs: RepairRequest[];
   orders: Order[];
+  trades: TradeRequest[];
   wishlist: string[];
   products: Product[];
   setUser: (u: User | null) => void;
@@ -25,7 +26,7 @@ interface ProfileProps {
 }
 
 export const Profile: React.FC<ProfileProps> = ({
-  user, repairs, orders, wishlist, products, setUser, navigateTo, toggleWishlist, onAddToCart, theme
+  user, repairs, orders, trades = [], wishlist, products, setUser, navigateTo, toggleWishlist, onAddToCart, theme
 }) => {
   const isLight = theme === 'light';
   const [activeTab, setActiveTab] = useState<'overview' | 'settings' | 'orders' | 'repairs' | 'address' | 'payment' | 'wishlist' | 'purchases' | 'trades'>('overview');
@@ -68,7 +69,7 @@ export const Profile: React.FC<ProfileProps> = ({
     { id: 'overview', icon: Sliders, label: 'Overview' },
     { id: 'orders', icon: Package, label: 'Order History', badge: orders.length > 0 ? orders.length : null },
     { id: 'repairs', icon: Wrench, label: 'Repairs & Fixes', badge: activeRepairsCount > 0 ? activeRepairsCount : null },
-    { id: 'trades', icon: RefreshCw, label: 'Trade-ins' },
+    { id: 'trades', icon: RefreshCw, label: 'Trade-ins', badge: trades.length > 0 ? trades.length : null },
     { id: 'purchases', icon: CardIcon, label: 'All Purchases' },
     { id: 'wishlist', icon: Heart, label: 'Wishlist', badge: wishlist.length > 0 ? wishlist.length : null },
     { id: 'settings', icon: UserIcon, label: 'Settings' },
@@ -167,7 +168,7 @@ export const Profile: React.FC<ProfileProps> = ({
                 { id: 'orders', label: 'Recent Orders', count: orders.length, icon: Package, glow: 'blue' },
                 { id: 'repairs', label: 'Pending Repairs', count: activeRepairsCount, icon: Wrench, glow: 'orange' },
                 { id: 'wishlist', label: 'Wishlist Items', count: wishlist.length, icon: Heart, glow: 'red' },
-                { id: 'trades', label: 'Trade-in status', count: 0, icon: RefreshCw, glow: 'gold' },
+                { id: 'trades', label: 'Trade-in status', count: trades.length, icon: RefreshCw, glow: 'gold' },
               ].map((card, i) => (
                 <button
                   key={i}
@@ -308,18 +309,59 @@ export const Profile: React.FC<ProfileProps> = ({
               </button>
             </div>
 
-            <div className={`p-10 border border-dashed rounded-[3rem] text-center space-y-6 shadow-xl ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-gradient-to-b from-white/[0.02] to-transparent border-white/10'}`}>
-              <div className={`w-20 h-20 mx-auto rounded-3xl flex items-center justify-center border ${isLight ? 'bg-black/5 border-black/10' : 'bg-white/5 border-white/10'}`}>
-                <RefreshCw size={32} className={isLight ? 'text-black/20' : 'text-white/20'} />
+            {trades.length > 0 ? (
+              <div className="grid grid-cols-1 gap-6 pt-2">
+                {trades.map((trade, i) => (
+                  <div
+                    key={trade.id}
+                    className={`group border rounded-[2.5rem] p-10 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden transition-all hover:border-[#B38B21]/40 shadow-2xl ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-[#0a0a0a] border-white/10'}`}
+                  >
+                    <div className="relative z-10 flex flex-col md:flex-row items-center gap-10">
+                      <div className={`w-24 h-24 rounded-3xl flex items-center justify-center text-[#B38B21] border group-hover:scale-110 transition-transform ${isLight ? 'bg-white border-gray-100' : 'bg-white/5 border-white/10'}`}>
+                        <RefreshCw size={40} />
+                      </div>
+                      <div className="space-y-3 text-center md:text-left">
+                        <div className="flex items-center justify-center md:justify-start gap-4">
+                          <h4 className={`text-2xl font-black italic uppercase tracking-tighter ${isLight ? 'text-black' : 'text-white'}`}>{trade.device}</h4>
+                          <span className={`px-4 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest ${trade.status === 'Completed' ? 'bg-green-500 text-white' : 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'}`}>
+                            {trade.status}
+                          </span>
+                        </div>
+                        <p className={`text-xs font-bold uppercase tracking-[0.2em] ${isLight ? 'text-gray-400' : 'text-white/50'}`}>Condition: {trade.condition}</p>
+                        <div className="flex items-center justify-center md:justify-start gap-4 pt-2">
+                          <div className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-gray-300' : 'text-white/30'}`}>
+                            <Calendar size={12} />
+                            {formatDate(trade.date)}
+                          </div>
+                          <div className="text-sm font-black text-[#B38B21]">Est. Value: {formatCurrency(trade.finalValue || trade.estimatedValue)}</div>
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => navigateTo(`/tracking/trade/${trade.id}` as any)}
+                      className={`relative z-10 px-8 py-4 rounded-2xl font-black uppercase tracking-widest flex items-center gap-3 transition-all group-hover:scale-105 active:scale-95 shadow-xl ${isLight ? 'bg-black text-white hover:bg-[#B38B21] hover:text-black' : 'bg-white/5 text-white/60 hover:bg-[#B38B21] hover:text-black'}`}
+                    >
+                      Track Valuation
+                      <ChevronRight size={18} />
+                    </button>
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-[#B38B21]/5 rounded-full blur-[100px] opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  </div>
+                ))}
               </div>
-              <div className="space-y-2">
-                <h4 className={`text-lg font-black uppercase tracking-tighter italic ${isLight ? 'text-black' : 'text-white'}`}>No Active Trade-ins</h4>
-                <p className={`text-sm font-medium max-w-xs mx-auto ${isLight ? 'text-gray-400' : 'text-white/30'}`}>Give your old tech a second life and receive instant credits toward your next purchase.</p>
+            ) : (
+              <div className={`p-10 border border-dashed rounded-[3rem] text-center space-y-6 shadow-xl ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-gradient-to-b from-white/[0.02] to-transparent border-white/10'}`}>
+                <div className={`w-20 h-20 mx-auto rounded-3xl flex items-center justify-center border ${isLight ? 'bg-black/5 border-black/10' : 'bg-white/5 border-white/10'}`}>
+                  <RefreshCw size={32} className={isLight ? 'text-black/20' : 'text-white/20'} />
+                </div>
+                <div className="space-y-2">
+                  <h4 className={`text-lg font-black uppercase tracking-tighter italic ${isLight ? 'text-black' : 'text-white'}`}>No Active Trade-ins</h4>
+                  <p className={`text-sm font-medium max-w-xs mx-auto ${isLight ? 'text-gray-400' : 'text-white/30'}`}>Give your old tech a second life and receive instant credits toward your next purchase.</p>
+                </div>
+                <button onClick={() => navigateTo('trades')} className="text-xs font-black uppercase tracking-[0.2em] text-[#B38B21] hover:underline">
+                  Explore Exchange Program ›
+                </button>
               </div>
-              <button onClick={() => navigateTo('trades')} className="text-xs font-black uppercase tracking-[0.2em] text-[#B38B21] hover:underline">
-                Explore Exchange Program ›
-              </button>
-            </div>
+            )}
           </div>
         );
 
@@ -372,8 +414,11 @@ export const Profile: React.FC<ProfileProps> = ({
                         </div>
                       </div>
                     </div>
-                    <button className={`relative z-10 px-8 py-4 rounded-2xl font-black uppercase tracking-widest flex items-center gap-3 transition-all group-hover:scale-105 active:scale-95 shadow-xl ${isLight ? 'bg-black text-white hover:bg-[#B38B21] hover:text-black' : 'bg-white/5 text-white/60 hover:bg-[#B38B21] hover:text-black'}`}>
-                      View Status Details
+                    <button
+                      onClick={() => navigateTo(`/tracking/repair/${repair.id}` as any)}
+                      className={`relative z-10 px-8 py-4 rounded-2xl font-black uppercase tracking-widest flex items-center gap-3 transition-all group-hover:scale-105 active:scale-95 shadow-xl ${isLight ? 'bg-black text-white hover:bg-[#B38B21] hover:text-black' : 'bg-white/5 text-white/60 hover:bg-[#B38B21] hover:text-black'}`}
+                    >
+                      Track Progress
                       <ChevronRight size={18} />
                     </button>
                     <div className="absolute top-0 right-0 w-64 h-64 bg-[#B38B21]/5 rounded-full blur-[100px] opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -449,50 +494,54 @@ export const Profile: React.FC<ProfileProps> = ({
       case 'purchases':
         return (
           <div className="space-y-10 animate-in fade-in duration-700">
-            <div className="flex items-center justify-between px-2">
-              <div className="space-y-2">
-                <h3 className="text-3xl font-black italic uppercase tracking-tighter flex items-center gap-4">
-                  <CardIcon size={32} className="text-[#B38B21]" />
-                  Purchase Ledger
-                </h3>
-                <p className="text-xs font-bold uppercase tracking-widest text-[#B38B21] italic opacity-60">Complete history of your investments in BlackBox technology</p>
-              </div>
-              <div className="text-right">
-                <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-30 mb-1">Total Lifetime Spend</p>
-                <p className="text-4xl font-black italic text-[#B38B21] tracking-tighter">{formatCurrency(totalSpent)}</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              {[...orders.map(o => ({ ...o, type: 'Purchase' })), ...repairs.filter(r => r.status === 'Completed').map(r => ({ ...r, type: 'Service', total: parseFloat(r.estimatedCost?.replace(/[^0-9.]/g, '') || '0') }))]
-                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                .map((entry, i) => (
-                  <div key={i} className="p-6 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] bg-[#0a0a0a] border border-white/5 flex flex-col sm:flex-row items-center justify-between gap-6 group hover:border-[#B38B21]/20 transition-all shadow-xl">
-                    <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 text-center sm:text-left">
-                      <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center ${entry.type === 'Purchase' ? 'bg-indigo-500/10 text-indigo-400' : 'bg-[#B38B21]/10 text-[#B38B21]'}`}>
-                        {entry.type === 'Purchase' ? <ShoppingBag size={24} /> : <Wrench size={24} />}
-                      </div>
-                      <div>
-                        <h4 className="text-base sm:text-lg font-black uppercase tracking-widest italic flex flex-wrap items-center justify-center sm:justify-start gap-3 text-center sm:text-left">
-                          {entry.type === 'Purchase' ? (entry as any).items[0]?.name : (entry as any).device}
-                          <span className="text-[10px] px-3 py-1 bg-white/5 rounded-lg border border-white/5 font-black uppercase tracking-widest text-white/30">{entry.type}</span>
-                        </h4>
-                        <p className="text-xs opacity-40 font-bold mt-1 uppercase tracking-widest">{formatDate(entry.date)}</p>
-                      </div>
-                    </div>
-                    <div className="text-center sm:text-right space-y-2">
-                      <p className="text-xl sm:text-2xl font-black italic tracking-tighter text-white">{formatCurrency(entry.total)}</p>
-                      <button className="text-[9px] font-black uppercase tracking-widest text-[#B38B21] border-b border-[#B38B21]/20 hover:border-[#B38B21] transition-all">Download Receipt</button>
-                    </div>
-                  </div>
-                ))}
-
-              {orders.length === 0 && repairs.filter(r => r.status === 'Completed').length === 0 && (
-                <div className="py-20 text-center space-y-4 border border-dashed border-white/10 rounded-[3rem]">
-                  <CardIcon size={48} className="mx-auto text-white/10 mb-4" />
-                  <p className="text-sm font-black uppercase tracking-widest text-white/20 italic">No significant investments recorded yet</p>
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+              <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
+                <div className="space-y-2">
+                  <h3 className={`text-4xl font-black italic tracking-tighter uppercase ${isLight ? 'text-black' : 'text-white'}`}>Financial <span className="text-[#B38B21]">Ledger</span></h3>
+                  <p className={`text-xs font-bold uppercase tracking-[0.2em] ${isLight ? 'text-gray-400' : 'text-white/40'}`}>Complete transaction history and accumulated credits</p>
                 </div>
-              )}
+              </div>
+
+              <div className="grid gap-6">
+                {[
+                  ...orders.map(o => ({ ...o, type: 'Purchase' as const })),
+                  ...repairs.filter(r => r.status === 'Completed').map(r => ({ ...r, type: 'Service' as const, total: parseFloat(r.estimatedCost?.replace(/[^0-9.]/g, '') || '0') })),
+                  ...trades.filter(t => t.status === 'Completed').map(t => ({ ...t, type: 'Credit' as const, total: -(t.finalValue || t.estimatedValue) }))
+                ]
+                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                  .map((entry, i) => (
+                    <div key={i} className={`p-6 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] border flex flex-col sm:flex-row items-center justify-between gap-6 group transition-all shadow-xl ${isLight ? 'bg-gray-50 border-gray-100' : 'bg-[#0a0a0a] border-white/5 hover:border-[#B38B21]/20'}`}>
+                      <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 text-center sm:text-left">
+                        <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center ${entry.type === 'Purchase' ? 'bg-indigo-500/10 text-indigo-400' : entry.type === 'Credit' ? 'bg-green-500/10 text-green-400' : 'bg-[#B38B21]/10 text-[#B38B21]'}`}>
+                          {entry.type === 'Purchase' ? <ShoppingBag size={24} /> : entry.type === 'Credit' ? <RefreshCw size={24} /> : <Wrench size={24} />}
+                        </div>
+                        <div>
+                          <h4 className={`text-base sm:text-lg font-black uppercase tracking-widest italic flex flex-wrap items-center justify-center sm:justify-start gap-3 text-center sm:text-left ${isLight ? 'text-black' : 'text-white'}`}>
+                            {entry.type === 'Purchase' ? (entry as any).items[0]?.name : (entry as any).device}
+                            <span className={`text-[10px] px-3 py-1 rounded-lg border font-black uppercase tracking-widest ${isLight ? 'bg-black/5 border-black/5 text-black/40' : 'bg-white/5 border-white/5 text-white/30'}`}>{entry.type}</span>
+                          </h4>
+                          <p className={`text-xs font-bold mt-1 uppercase tracking-widest ${isLight ? 'text-gray-400' : 'text-white/40'}`}>{formatDate(entry.date)}</p>
+                        </div>
+                      </div>
+                      <div className="text-center sm:text-right space-y-2">
+                        <p className={`text-xl sm:text-2xl font-black italic tracking-tighter ${entry.type === 'Credit' ? 'text-green-500' : (isLight ? 'text-black' : 'text-white')}`}>
+                          {entry.type === 'Credit' ? '+' : ''}{formatCurrency(Math.abs(entry.total))}
+                        </p>
+                        <button className="text-[9px] font-black uppercase tracking-widest text-[#B38B21] border-b border-[#B38B21]/20 hover:border-[#B38B21] transition-all">Download Receipt</button>
+                      </div>
+                    </div>
+                  ))}
+
+                {orders.length === 0 && repairs.filter(r => r.status === 'Completed').length === 0 && trades.filter(t => t.status === 'Completed').length === 0 && (
+                  <div className={`p-20 text-center rounded-[3rem] border border-dashed ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-white/[0.02] border-white/10'}`}>
+                    <div className="w-20 h-20 mx-auto bg-[#B38B21]/10 rounded-3xl flex items-center justify-center mb-6 text-[#B38B21]">
+                      <FileText size={40} />
+                    </div>
+                    <h4 className={`text-xl font-black italic uppercase tracking-widest ${isLight ? 'text-black/40' : 'text-white/20'}`}>Ledger is empty</h4>
+                    <p className={`text-[10px] font-black uppercase tracking-widest mt-2 ${isLight ? 'text-black/20' : 'text-white/10'}`}>Your transaction history will be documented here.</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         );

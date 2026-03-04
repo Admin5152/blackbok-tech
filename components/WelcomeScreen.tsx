@@ -95,15 +95,6 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onComplete }) => {
           <div className="w-40 h-1 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent mx-auto"></div>
         </div>
 
-        {/* Description */}
-        <div className="space-y-4 max-w-2xl mx-auto opacity-0 animate-fade-in transition-all duration-2000" style={{ animationDelay: '0.9s' }}>
-          <p className="text-base sm:text-xl text-gray-300 leading-relaxed">
-            Discover cutting-edge technology, expert repairs, and seamless trade-ins
-          </p>
-          <p className="text-sm sm:text-lg text-gray-400">
-            Your journey starts here
-          </p>
-        </div>
 
         {/* Loading dots */}
         {/* <div className="flex justify-center gap-2 mt-12 opacity-0 animate-fade-in transition-all duration-2000" style={{animationDelay: '1.2s'}}>

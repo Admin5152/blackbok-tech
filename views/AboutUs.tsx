@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from '@tanstack/react-router';
 import { Mail, Star, Quote, ChevronRight, ArrowRight } from 'lucide-react';
 import type { Theme } from '../App';
@@ -17,45 +17,54 @@ const ViewfinderLogo = ({ className = "w-full h-full" }: { className?: string })
     </svg>
 );
 
-const TypographyLogo = ({
-    prefix = "",
-    mainText = "BLACKBOX",
+const TypographyLogo: React.FC<{ prefix?: string, mainText?: string, isLight?: boolean, size?: 'small' | 'medium' | 'large' | 'hero', prefixClassName?: string }> = ({
+    prefix = "We Are",
+    mainText = "BlackBox",
     isLight = false,
-    size = "large"
-}: {
-    prefix?: string,
-    mainText?: string,
-    isLight?: boolean,
-    size?: 'small' | 'medium' | 'large' | 'hero'
+    size = 'medium',
+    prefixClassName = ""
 }) => {
     const sizeMap = {
-        small: "text-2xl md:text-3xl",
-        medium: "text-4xl md:text-5xl",
-        large: "text-6xl md:text-7xl shadow-glow",
-        hero: "text-7xl md:text-[10rem]"
+        small: 'text-2xl',
+        medium: 'text-3xl md:text-5xl',
+        large: 'text-4xl md:text-6xl',
+        hero: 'text-5xl md:text-9xl'
     };
 
     const iconSizeMap = {
         small: "w-6 h-6 md:w-8 md:h-8",
         medium: "w-10 h-10 md:w-12 md:h-12",
         large: "w-16 h-16 md:w-20 md:h-20",
-        hero: "w-20 h-20 md:w-32 md:h-32"
+        hero: "w-[10vw] h-[10vw] sm:w-20 sm:h-20 md:w-32 md:h-32"
     };
 
     return (
-        <div className="flex flex-col items-center select-none">
+        <div className="flex flex-col items-center select-none transition-all duration-500 w-full">
             {prefix && (
-                <span className={`text-xl md:text-3xl font-black uppercase tracking-[0.4em] mb-4 md:mb-8 transition-colors duration-500 ${isLight ? 'text-black/40' : 'text-white/40'}`}>
+                <span className={`text-7xl md:text-[10rem] font-black uppercase tracking-[0.4em] mb-6 md:mb-10 transition-colors duration-500 leading-none ${isLight ? 'text-black/40' : 'text-white/40'} ${prefixClassName}`}>
                     {prefix}
                 </span>
             )}
-            <div className={`flex items-center gap-1 md:gap-4 font-black tracking-tighter uppercase italic leading-none transition-all duration-500 ${sizeMap[size]} ${isLight ? 'text-black' : 'text-white'}`}>
-                <span>BLACKB</span>
-                <div className={`${iconSizeMap[size]} flex items-center justify-center text-[#D4AF37] transform hover:scale-110 transition-transform duration-500`}>
-                    <ViewfinderLogo />
+
+            {size === 'hero' ? (
+                <div className="w-[85%] max-w-4xl flex justify-center items-center">
+                    <img
+                        src="/BlackBox.jpeg"
+                        alt="BlackBox"
+                        className="w-full h-auto object-contain"
+                        style={{ filter: isLight ? 'invert(1) brightness(1.2)' : 'none' }}
+                    />
                 </div>
-                <span>X</span>
-            </div>
+            ) : (
+                <div className={`flex items-center gap-1 md:gap-4 font-black tracking-tighter uppercase italic leading-none transition-all duration-500 ${sizeMap[size]} ${isLight ? 'text-black' : 'text-white'}`}>
+                    <span>BLACKB</span>
+                    <div className={`${iconSizeMap[size]} flex items-center justify-center text-[#D4AF37] transform hover:scale-110 transition-transform duration-500`}>
+                        <ViewfinderLogo />
+                    </div>
+                    <span>X</span>
+                </div>
+            )}
+
             <div className={`mt-4 h-1 w-1/4 rounded-full bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent opacity-50`}></div>
         </div>
     );
@@ -64,6 +73,27 @@ const TypographyLogo = ({
 export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
     const isLight = theme === 'light';
     const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
+
+    // Scroll Reveal Logic
+    useEffect(() => {
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('reveal-visible');
+                }
+            });
+        }, observerOptions);
+
+        const elements = document.querySelectorAll('.reveal-on-scroll');
+        elements.forEach(el => observer.observe(el));
+
+        return () => observer.disconnect();
+    }, []);
 
     const customerReviews = [
         {
@@ -84,19 +114,23 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
     ];
 
     return (
-        <div className={`min-h-screen transition-colors duration-500 ${isLight ? 'bg-[#f5f5f7] text-black' : 'bg-black text-white'}`}>
+        <div className={`min-h-screen transition-colors duration-500 ${isLight ? 'bg-[#ffffff] text-black' : 'bg-black text-white'}`}>
             {/* Hero Section */}
-            <section className="relative pt-32 pb-24 px-8 overflow-hidden flex flex-col items-center justify-center min-h-[85vh] text-center">
+            <section className={`relative pt-40 md:pt-48 pb-20 overflow-hidden flex flex-col items-center ${isLight ? 'bg-[#ffffff]' : ''}`}>
                 <div className="absolute inset-0 z-0">
-                    <div className={`absolute inset-0 bg-gradient-to-br from-[#D4AF37]/10 via-transparent to-transparent opacity-50 ${isLight ? 'mix-blend-multiply' : ''}`}></div>
-                    <div className={`absolute top-0 right-0 w-[500px] h-[500px] bg-[#D4AF37]/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2`}></div>
-                    <div className={`absolute bottom-0 left-0 w-[500px] h-[500px] bg-[#D4AF37]/5 rounded-full blur-[120px] translate-y-1/2 -translate-x-1/2`}></div>
+                    {!isLight && (
+                        <>
+                            <div className={`absolute inset-0 bg-gradient-to-br from-[#D4AF37]/10 via-transparent to-transparent opacity-50`}></div>
+                            <div className={`absolute top-0 right-0 w-[500px] h-[500px] bg-[#D4AF37]/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2`}></div>
+                            <div className={`absolute bottom-0 left-0 w-[500px] h-[500px] bg-[#D4AF37]/5 rounded-full blur-[120px] translate-y-1/2 -translate-x-1/2`}></div>
+                        </>
+                    )}
                 </div>
 
-                <div className="relative z-10 max-w-6xl mx-auto space-y-16 animate-in fade-in slide-in-from-bottom-12 duration-1000">
-                    <TypographyLogo prefix="We Are" size="hero" isLight={isLight} />
+                <div className="relative z-10 max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-12 duration-1000">
+                    <TypographyLogo prefix="We Are" size="hero" isLight={isLight} prefixClassName="text-6xl md:text-9xl" />
 
-                    <div className="space-y-6">
+                    <div className="space-y-6 -mt-4">
                         <p className={`text-xl md:text-3xl ${isLight ? 'text-black/60' : 'text-white/60'} font-medium max-w-3xl mx-auto leading-relaxed tracking-tight`}>
                             Your reliable home for <span className="text-[#D4AF37] font-bold">innovation</span> and digital <span className="text-[#D4AF37] font-bold">excellence</span>.
                         </p>
@@ -116,10 +150,10 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
             </section>
 
             {/* Mission & Vision grid */}
-            <section className={`py-32 px-8 relative z-10 ${isLight ? 'bg-white' : 'bg-[#0a0a0a]'}`}>
+            <section className={`py-32 px-8 relative z-10 ${isLight ? 'bg-[#ffffff]' : 'bg-[#0a0a0a]'}`}>
                 <div className="max-w-6xl mx-auto">
                     <div className="grid md:grid-cols-2 gap-16 md:gap-32 items-center">
-                        <div className="space-y-16">
+                        <div className="space-y-16 reveal-on-scroll">
                             <div className="space-y-6 group">
                                 <div className="flex items-center gap-4">
                                     <div className="w-12 h-[2px] bg-[#D4AF37]"></div>
@@ -148,7 +182,7 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
 
                             <div className="pt-8">
                                 <Link
-                                    to="/profile"
+                                    to="/contact"
                                     className="group relative inline-flex items-center gap-4 px-10 py-5 bg-[#D4AF37] text-black rounded-full text-xs font-black uppercase tracking-[0.2em] transition-all duration-300 hover:scale-105 shadow-[0_20px_40px_rgba(212,175,55,0.2)] overflow-hidden"
                                 >
                                     <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
@@ -159,11 +193,11 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
                             </div>
                         </div>
 
-                        <div className={`relative group`}>
+                        <div className="relative group reveal-on-scroll reveal-delay-2">
                             <div className={`absolute -inset-4 bg-[#D4AF37]/5 blur-2xl rounded-[4rem] opacity-0 group-hover:opacity-100 transition-opacity duration-700`}></div>
                             <div className={`relative aspect-square rounded-[3rem] p-12 flex flex-col items-center justify-center text-center transition-all duration-700 shadow-2xl border ${isLight ? 'bg-[#f5f5f7] border-black/5 hover:border-black/10' : 'bg-black border-white/5 hover:border-white/10'}`}>
                                 <div className="transform group-hover:scale-110 transition-transform duration-1000">
-                                    <TypographyLogo size="medium" isLight={isLight} />
+                                    <TypographyLogo size="medium" isLight={isLight} prefix="" />
                                 </div>
                                 <h3 className="text-3xl font-bold mt-12 mb-2 tracking-tight">BlackBox</h3>
                                 <p className={`text-lg ${isLight ? 'text-black/50' : 'text-white/50'} font-medium tracking-wide`}>Your Tech Partner</p>
@@ -182,7 +216,7 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
             {/* Trust Us Section */}
             <section className={`py-32 px-8 ${isLight ? 'bg-[#f5f5f7]' : 'bg-[#060605]'}`}>
                 <div className="max-w-6xl mx-auto">
-                    <div className="text-center mb-24 space-y-8">
+                    <div className="text-center mb-24 space-y-8 reveal-on-scroll">
                         <div className="flex items-center justify-center gap-4">
                             <div className="h-[1px] w-8 bg-[#D4AF37]"></div>
                             <span className="text-[10px] font-black uppercase tracking-[0.5em] text-[#D4AF37]">The Numbers</span>
@@ -197,7 +231,7 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
                     </div>
 
                     {/* Statistics */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-16 mb-32">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-16 mb-32 reveal-on-scroll reveal-delay-1">
                         <div className="text-center space-y-6 group">
                             <div className="text-6xl md:text-8xl font-black text-[#D4AF37] tracking-tighter group-hover:scale-110 transition-transform duration-500">
                                 10k+
@@ -236,7 +270,7 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
                         {customerReviews.map((review, index) => (
                             <div
                                 key={index}
-                                className={`rounded-[2.5rem] p-10 flex flex-col justify-between transition-all duration-500 hover:-translate-y-4 hover:shadow-2xl border ${isLight ? 'bg-white shadow-xl border-black/5' : 'bg-[#111] border-white/5'}`}
+                                className={`reveal-on-scroll rounded-[2.5rem] p-10 flex flex-col justify-between transition-all duration-500 hover:-translate-y-4 hover:shadow-2xl border ${isLight ? 'bg-white shadow-xl border-black/5' : 'bg-[#111] border-white/5'} reveal-delay-${(index % 3) + 1}`}
                             >
                                 <div className="space-y-8">
                                     <div className="flex items-center justify-between">
@@ -264,6 +298,49 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
                     </div>
                 </div>
             </section>
+            <style jsx>{`
+                .reveal-on-scroll {
+                    opacity: 0;
+                    transform: translateY(30px) scale(0.95);
+                    transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+                }
+                
+                .reveal-visible {
+                    opacity: 1;
+                    transform: translateY(0) scale(1);
+                }
+
+                .reveal-entrance {
+                    animation: revealEntrance 1.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                }
+
+                @keyframes revealEntrance {
+                    0% {
+                        opacity: 0;
+                        transform: translateY(60px) scale(0.9);
+                        filter: blur(20px);
+                    }
+                    100% {
+                        opacity: 1;
+                        transform: translateY(0) scale(1);
+                        filter: blur(0);
+                    }
+                }
+
+                .reveal-delay-1 { transition-delay: 0.1s; }
+                .reveal-delay-2 { transition-delay: 0.2s; }
+                .reveal-delay-3 { transition-delay: 0.3s; }
+
+                @keyframes float {
+                    0% { transform: translateY(0px); }
+                    50% { transform: translateY(-10px); }
+                    100% { transform: translateY(0px); }
+                }
+
+                .animate-float {
+                    animation: float 6s ease-in-out infinite;
+                }
+            `}</style>
         </div>
     );
 };

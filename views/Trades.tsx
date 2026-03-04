@@ -2,22 +2,27 @@ import React, { useState, useMemo, useRef } from 'react';
 import { RefreshCcw, Smartphone, ArrowRight, Zap, ShieldCheck, Check, Sparkles, Scale, Info, Search, TrendingUp, Award, Clock, CheckCircle2 } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import { Product } from '../types';
-import { formatCurrency } from '../lib/utils';
+import { generateId, formatCurrency } from '../lib/utils';
 import { ProductCard } from '../components/ProductCard';
 
 interface TradesProps {
   products: Product[];
   onAddToCart: (p: Product) => void;
-  notify: (msg: string) => void;
+  notify: (msg: string, type?: 'success' | 'error') => void;
   onQuickView: (product: Product) => void;
   wishlist: string[];
   toggleWishlist: (productId: string) => void;
   compareIds: string[];
   onToggleCompare: (productId: string) => void;
+  user: any;
+  trades: any[];
+  setTrades: (t: any[]) => void;
+  navigateTo: (view: any) => void;
 }
 
 export const Trades: React.FC<TradesProps> = ({
-  products, onAddToCart, notify, onQuickView, wishlist, toggleWishlist, compareIds, onToggleCompare
+  products, onAddToCart, notify, onQuickView, wishlist, toggleWishlist, compareIds, onToggleCompare,
+  user, trades, setTrades, navigateTo
 }) => {
   const [currentPhone, setCurrentPhone] = useState('');
   const [condition, setCondition] = useState('excellent');
@@ -676,6 +681,25 @@ export const Trades: React.FC<TradesProps> = ({
               <button
                 disabled={!targetPhoneId || !currentPhone}
                 onClick={() => {
+                  if (!user) {
+                    notify('Please sign in to confirm trade-in', 'error');
+                    navigateTo('/auth');
+                    return;
+                  }
+
+                  const newTrade: any = {
+                    id: generateId(),
+                    userId: user.id,
+                    userName: user.name,
+                    device: currentPhone,
+                    condition: condition.charAt(0).toUpperCase() + condition.slice(1),
+                    status: 'Pending',
+                    date: new Date().toISOString(),
+                    estimatedValue: tradeInValue,
+                    imageUrl: undefined // Add image if needed
+                  };
+
+                  setTrades([newTrade, ...trades]);
                   setShowReviewDialog(false);
                   setShowSuccessPopup(true);
                 }}
@@ -736,14 +760,17 @@ export const Trades: React.FC<TradesProps> = ({
               <button
                 onClick={() => {
                   setShowSuccessPopup(false);
-                  notify('Trade-in reservation initiated. Diagnostic appointment scheduled.');
+                  notify('Trade-in reservation initiated. Diagnostic appointment scheduled.', 'success');
                 }}
                 className="flex-1 py-3 bg-[#B38B21] text-black rounded-xl text-sm font-black uppercase tracking-wider transition-all hover:scale-105"
               >
                 Got it
               </button>
               <button
-                onClick={() => setShowSuccessPopup(false)}
+                onClick={() => {
+                  setShowSuccessPopup(false);
+                  navigateTo('/profile'); // Changed to go to profile to see the trade
+                }}
                 className="flex-1 py-3 bg-white/10 text-white rounded-xl text-sm font-semibold transition-all hover:bg-white/20"
               >
                 View Details

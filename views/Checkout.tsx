@@ -254,7 +254,7 @@ export const Checkout: React.FC = () => {
                           required
                           value={formData.shippingAddress}
                           onChange={(e) => setFormData({ ...formData, shippingAddress: e.target.value })}
-                          className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none"
+                          className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none text-white placeholder:text-white/40"
                           placeholder="123 Main St"
                         />
                       </div>
@@ -295,7 +295,7 @@ export const Checkout: React.FC = () => {
                             required
                             value={formData.city}
                             onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                            className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none"
+                            className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none text-white placeholder:text-white/40"
                             placeholder="Accra"
                           />
                         </div>
@@ -308,7 +308,7 @@ export const Checkout: React.FC = () => {
                           required
                           value={formData.postalCode}
                           onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
-                          className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none"
+                          className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none text-white placeholder:text-white/40"
                           placeholder="GA-123-4567"
                         />
                       </div>
@@ -516,7 +516,7 @@ export const Checkout: React.FC = () => {
           </div>
 
           {/* Order Summary */}
-          <div className="space-y-6">
+          <div className="lg:col-span-1 space-y-6">
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6 sticky top-6">
               <h3 className="text-lg font-bold mb-4">Order Summary</h3>
 
