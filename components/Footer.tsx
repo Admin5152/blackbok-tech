@@ -56,6 +56,7 @@ export const Footer: React.FC<FooterProps> = ({ theme }) => {
             <ul className={`space-y-4 text-[10px] font-black uppercase tracking-[0.3em] ${isLight ? 'text-black/50' : 'text-white/40'}`}>
               <li><Link to="/repair" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Lab Diagnostics</Link></li>
               <li><Link to="/store" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Hardware Bench</Link></li>
+              <li><Link to="/contact" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Contact Node</Link></li>
               <li><Link to="/profile" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Identity Log</Link></li>
               <li><Link to="/about" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>About BlackBox</Link></li>
               <li><Link to="/faq" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Help / FAQ</Link></li>
