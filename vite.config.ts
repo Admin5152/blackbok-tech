@@ -20,14 +20,19 @@ export default defineConfig(({ mode }) => {
         }
       },
       build: {
-        outDir: 'dist',
-        assetsDir: 'assets',
-        sourcemap: false,
         rollupOptions: {
-          input: {
-            main: path.resolve(__dirname, 'index.html')
+          output: {
+            manualChunks: {
+              vendor: ['react', 'react-dom'],
+              router: ['@tanstack/react-router'],
+              supabase: ['@supabase/supabase-js'],
+              ai: ['@google/genai'],
+              icons: ['lucide-react']
+            }
           }
-        }
-      }
+        },
+        chunkSizeWarningLimit: 1000
+      },
+      base: mode === 'production' ? './' : '/'
     };
 });

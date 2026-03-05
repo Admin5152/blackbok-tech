@@ -377,7 +377,8 @@ function RootComponent() {
     
     // Register service worker for better mobile experience
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js')
+      const swPath = import.meta.env.BASE_URL + 'sw.js';
+      navigator.serviceWorker.register(swPath)
         .then((registration) => {
           console.log('Service Worker registered:', registration);
         })
