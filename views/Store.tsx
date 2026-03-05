@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Search, Filter, Grid3x3, List, Smartphone, Laptop as LaptopIcon, Watch, Gamepad2, LayoutGrid, X, ChevronDown, ArrowLeft, Plus, Minus, Tag } from 'lucide-react';
+import { Search, Filter, Grid3x3, List, Smartphone, Laptop as LaptopIcon, Watch, Gamepad2, LayoutGrid, X, ChevronDown, ArrowLeft, Plus, Minus, Tag, Menu } from 'lucide-react';
 import { Product, Category } from '../types';
 import { ProductCard } from '../components/ProductCard';
 import { formatCurrency } from '../lib/utils';
@@ -41,6 +41,7 @@ export const Store: React.FC<StoreProps> = ({
   const [priceRange, setPriceRange] = useState({ min: 0, max: 15000 });
   const [showPromotionsOnly, setShowPromotionsOnly] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [showMobileNav, setShowMobileNav] = useState(false);
   const isLight = theme === 'light';
 
   React.useEffect(() => {
@@ -115,25 +116,40 @@ export const Store: React.FC<StoreProps> = ({
 
       {/* Search Bar */}
       <div className="sticky top-0 z-40 border-b" style={{ backgroundColor: pageBg, borderColor: borderFaint }}>
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex flex-col lg:flex-row gap-4 items-center">
-            <button
-              onClick={() => navigateTo('home')}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 hover:border-white/20 transition-colors"
-              style={{ backgroundColor: panelBg, color: isLight ? '#000' : '#fff' }}
-            >
-              <ArrowLeft size={18} />
-              <span className="text-sm font-medium">Back</span>
-            </button>
-            <div className="flex-1 max-w-2xl">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
+          <div className="flex flex-col gap-3 sm:gap-4">
+            {/* Top Row - Back Button and Mobile Nav Toggle */}
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => navigateTo('home')}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 hover:border-white/20 transition-colors"
+                style={{ backgroundColor: panelBg, color: isLight ? '#000' : '#fff' }}
+              >
+                <ArrowLeft size={16} className="sm:size-18" />
+                <span className="text-sm font-medium">Back</span>
+              </button>
+              
+              {/* Mobile Navigation Toggle Button */}
+              <button
+                onClick={() => setShowMobileNav(!showMobileNav)}
+                className="lg:hidden flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 hover:border-white/20 transition-colors"
+                style={{ backgroundColor: panelBg, color: isLight ? '#000' : '#fff' }}
+              >
+                <Menu size={16} />
+                <span className="text-sm font-medium">Categories</span>
+              </button>
+            </div>
+            
+            {/* Search Input Row */}
+            <div className="w-full">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2" size={18} style={{ color: textMuted }} />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2" size={16} style={{ color: textMuted }} />
                 <input
                   type="text"
                   placeholder="Search products..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 rounded-xl text-sm focus:outline-none transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 sm:py-3 rounded-xl text-sm focus:outline-none transition-all"
                   style={{
                     backgroundColor: panelBg,
                     border: `1px solid ${borderSubtle}`,
@@ -143,11 +159,43 @@ export const Store: React.FC<StoreProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            {/* Bottom Row - View Mode Toggle and Filter Count (Mobile) */}
+            <div className="flex items-center justify-between">
+              {/* Active Filters Count - Mobile Only */}
+              <div className="lg:hidden flex items-center gap-2">
+                {activeFiltersCount > 0 && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#CDA032]/20 border border-[#CDA032]/30">
+                    <span className="text-xs font-black text-[#CDA032]">{activeFiltersCount} Filters</span>
+                    <button
+                      onClick={clearAllFilters}
+                      className="text-[#CDA032] hover:text-black transition-colors"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* View Mode Toggle */}
+              <div className="flex items-center gap-1 border rounded-lg p-1" style={{ borderColor: borderSubtle }}>
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-1.5 sm:p-2 rounded ${viewMode === 'grid' ? 'bg-[#CDA032] text-black' : 'text-current'}`}
+                >
+                  <Grid3x3 size={14} className="sm:size-16" />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-1.5 sm:p-2 rounded ${viewMode === 'list' ? 'bg-[#CDA032] text-black' : 'text-current'}`}
+                >
+                  <List size={14} className="sm:size-16" />
+                </button>
+              </div>
+
+              {/* Filter Button - Desktop Only */}
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeFiltersCount > 0 ? 'bg-[#CDA032] text-black' : 'border'
-                  }`}
+                className={`hidden lg:flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeFiltersCount > 0 ? 'bg-[#CDA032] text-black' : 'border'}`}
                 style={{
                   backgroundColor: activeFiltersCount > 0 ? '#CDA032' : panelBg,
                   borderColor: borderSubtle,
@@ -162,38 +210,23 @@ export const Store: React.FC<StoreProps> = ({
                   </span>
                 )}
               </button>
-
-              <div className="flex items-center gap-1 border rounded-lg p-1" style={{ borderColor: borderSubtle }}>
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={`p-2 rounded ${viewMode === 'grid' ? 'bg-[#CDA032] text-black' : 'text-current'}`}
-                >
-                  <Grid3x3 size={16} />
-                </button>
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={`p-2 rounded ${viewMode === 'list' ? 'bg-[#CDA032] text-black' : 'text-current'}`}
-                >
-                  <List size={16} />
-                </button>
-              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex gap-6">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
 
-          {/* Filters Sidebar Drawer Overlay */}
+          {/* Filters Sidebar Drawer - Desktop Only */}
           <div
-            className={`fixed inset-0 bg-black/60 z-50 backdrop-blur-sm transition-opacity duration-300 ${showFilters ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+            className={`hidden lg:block fixed inset-0 bg-black/60 z-50 backdrop-blur-sm transition-opacity duration-300 ${showFilters ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
             onClick={() => setShowFilters(false)}
           />
 
-          {/* Filters Sidebar Drawer */}
+          {/* Filters Sidebar Drawer - Desktop Only */}
           <div
-            className={`fixed top-0 left-0 h-full w-[320px] sm:w-[400px] z-50 transform transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)] ${showFilters ? 'translate-x-0' : '-translate-x-full'}`}
+            className={`hidden lg:block fixed top-0 left-0 h-full w-[320px] sm:w-[400px] z-50 transform transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)] ${showFilters ? 'translate-x-0' : '-translate-x-full'}`}
             style={{ backgroundColor: panelBg, borderRight: `1px solid ${borderSubtle}` }}
           >
             <div className="h-full overflow-y-auto p-6 sm:p-8 space-y-8 no-scrollbar">
@@ -336,23 +369,91 @@ export const Store: React.FC<StoreProps> = ({
           </div>
 
           {/* Products Grid */}
-          {/* Mobile Category Switcher (Horizontal Scroll) */}
-          <div className="lg:hidden w-full overflow-x-auto no-scrollbar py-4 -mt-2 mb-4">
-            <div className="flex gap-2 px-1">
-              {categoryOptions.map(cat => (
-                <button
-                  key={cat.value}
-                  onClick={() => toggleCategory(cat.value)}
-                  className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border 
-                  ${(cat.value === 'All' && selectedCategories.length === 0) || (cat.value !== 'All' && selectedCategories.includes(cat.value))
-                      ? 'bg-[#CDA032] border-[#CDA032] text-black shadow-lg shadow-[#CDA032]/20'
-                      : 'bg-white/5 border-white/5 text-white/40'
+          {/* Mobile Category Navigation - Collapsible */}
+          <div className={`lg:hidden w-full transition-all duration-300 overflow-hidden ${showMobileNav ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+            <div className="py-3 sm:py-4 mb-4">
+              <div className="flex flex-col gap-2">
+                {categoryOptions.map(cat => (
+                  <button
+                    key={cat.value}
+                    onClick={() => {
+                      toggleCategory(cat.value);
+                      setShowMobileNav(false); // Close nav after selection
+                    }}
+                    className={`flex items-center gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all border ${
+                      (cat.value === 'All' && selectedCategories.length === 0) || (cat.value !== 'All' && selectedCategories.includes(cat.value))
+                        ? 'bg-[#CDA032] border-[#CDA032] text-black shadow-lg shadow-[#CDA032]/20'
+                        : 'bg-white/5 border-white/5 text-white/40'
                     }`}
-                >
-                  {cat.icon}
-                  {cat.label}
-                </button>
-              ))}
+                  >
+                    {cat.icon}
+                    <span className="flex-1 text-left text-xs sm:text-sm">{cat.label}</span>
+                    <span className={`text-[9px] sm:text-xs ${
+                      (cat.value === 'All' && selectedCategories.length === 0) || (cat.value !== 'All' && selectedCategories.includes(cat.value))
+                        ? 'opacity-80'
+                        : 'opacity-40'
+                    }`}>
+                      {cat.count}
+                    </span>
+                  </button>
+                ))}
+                
+                {/* Mobile Filter Options */}
+                <div className="pt-2 mt-2 border-t border-white/10">
+                  <div className="px-2 sm:px-3 py-2">
+                    <h4 className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] opacity-60 mb-3">Quick Filters</h4>
+                    
+                    {/* Promotions Toggle */}
+                    <button
+                      onClick={() => setShowPromotionsOnly(!showPromotionsOnly)}
+                      className={`w-full flex items-center justify-between p-2.5 sm:p-3 rounded-xl border transition-all duration-300 mb-2 ${
+                        showPromotionsOnly
+                          ? 'bg-[#CDA032] border-[#CDA032] text-black'
+                          : 'bg-white/5 border-white/5 text-white/40'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Tag size={12} className="sm:size-14" />
+                        <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider">Promotions</span>
+                      </div>
+                      <div className={`w-6 sm:w-8 h-3 sm:h-4 rounded-full relative transition-colors ${showPromotionsOnly ? 'bg-black/20' : 'bg-black/10'}`}>
+                        <div className={`absolute top-0.5 w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-full bg-current transition-all ${showPromotionsOnly ? 'left-3.5 sm:left-4.5' : 'left-0.5'}`} />
+                      </div>
+                    </button>
+
+                    <div className="space-y-2">
+                      {[
+                        { label: 'Under $5,000', range: { min: 0, max: 5000 } },
+                        { label: '$5,000 - $10,000', range: { min: 5000, max: 10000 } },
+                        { label: '$10,000+', range: { min: 10000, max: 15000 } }
+                      ].map(({ label, range }) => (
+                        <button
+                          key={label}
+                          onClick={() => {
+                            setPriceRange(range);
+                            setShowMobileNav(false);
+                          }}
+                          className="w-full flex items-center justify-between p-2.5 sm:p-3 rounded-xl bg-white/5 border border-white/5 text-white/40 hover:border-white/10 transition-all"
+                        >
+                          <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider">{label}</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    {activeFiltersCount > 0 && (
+                      <button
+                        onClick={() => {
+                          clearAllFilters();
+                          setShowMobileNav(false);
+                        }}
+                        className="w-full p-2.5 sm:p-3 mt-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-[9px] sm:text-[10px] font-black uppercase tracking-wider transition-all"
+                      >
+                        Clear All Filters
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -364,7 +465,7 @@ export const Store: React.FC<StoreProps> = ({
             </div>
 
             {viewMode === 'grid' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 {filteredProducts.map(product => (
                   <div
                     key={product.id}
@@ -391,15 +492,15 @@ export const Store: React.FC<StoreProps> = ({
                 ))}
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {filteredProducts.map(product => (
                   <div
                     key={product.id}
-                    className="flex flex-col sm:flex-row gap-6 p-5 rounded-xl border hover:border-[#CDA032]/50 transition-all shadow-sm"
+                    className="flex flex-col sm:flex-row gap-4 sm:gap-6 p-4 sm:p-5 rounded-xl border hover:border-[#CDA032]/50 transition-all shadow-sm"
                     style={{ backgroundColor: panelBg, borderColor: borderSubtle }}
                   >
                     <div
-                      className="w-full sm:w-32 h-32 shrink-0 cursor-pointer overflow-hidden rounded-lg bg-black/5 dark:bg-white/5 flex items-center justify-center p-2"
+                      className="w-full sm:w-32 h-24 sm:h-32 shrink-0 cursor-pointer overflow-hidden rounded-lg bg-black/5 dark:bg-white/5 flex items-center justify-center p-2"
                       onClick={() => navigateTo('product', product.id)}
                     >
                       <img
@@ -413,34 +514,34 @@ export const Store: React.FC<StoreProps> = ({
                       <div>
                         <div className="flex items-start justify-between gap-4">
                           <h3
-                            className="font-bold text-lg cursor-pointer hover:text-[#CDA032] transition-colors"
+                            className="font-bold text-base sm:text-lg cursor-pointer hover:text-[#CDA032] transition-colors"
                             onClick={() => navigateTo('product', product.id)}
                           >
                             {product.name}
                           </h3>
-                          <span className="font-black text-lg text-[#CDA032] shrink-0">{formatCurrency(product.price)}</span>
+                          <span className="font-black text-base sm:text-lg text-[#CDA032] shrink-0">{formatCurrency(product.price)}</span>
                         </div>
-                        <p className="text-sm opacity-60 mt-1.5 leading-relaxed line-clamp-2 max-w-2xl">{product.description}</p>
+                        <p className="text-xs sm:text-sm opacity-60 mt-1.5 leading-relaxed line-clamp-2 max-w-2xl">{product.description}</p>
                       </div>
 
-                      <div className="flex items-center gap-3 mt-6 justify-end flex-wrap">
+                      <div className="flex items-center gap-2 sm:gap-3 mt-4 sm:mt-6 justify-end flex-wrap">
                         <button
                           onClick={() => onQuickView(product)}
-                          className="px-5 py-2.5 rounded-lg text-xs font-black uppercase tracking-wider transition-colors border hover:bg-black/5 dark:hover:bg-white/5"
+                          className="px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg text-xs font-black uppercase tracking-wider transition-colors border hover:bg-black/5 dark:hover:bg-white/5"
                           style={{ borderColor: borderSubtle }}
                         >
                           Quick View
                         </button>
                         <button
                           onClick={() => navigateTo('product', product.id)}
-                          className="px-5 py-2.5 rounded-lg text-xs font-black uppercase tracking-wider transition-colors border hover:bg-black/5 dark:hover:bg-white/5"
+                          className="px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg text-xs font-black uppercase tracking-wider transition-colors border hover:bg-black/5 dark:hover:bg-white/5"
                           style={{ borderColor: borderSubtle }}
                         >
                           Details
                         </button>
                         <button
                           onClick={() => onAddToCart(product)}
-                          className="px-5 py-2.5 bg-[#CDA032] text-black rounded-lg text-xs font-black uppercase tracking-wider hover:scale-105 active:scale-95 transition-all shadow-md shadow-[#CDA032]/10"
+                          className="px-3 sm:px-5 py-2 sm:py-2.5 bg-[#CDA032] text-black rounded-lg text-xs font-black uppercase tracking-wider hover:scale-105 active:scale-95 transition-all shadow-md shadow-[#CDA032]/10"
                         >
                           Add to Cart
                         </button>
@@ -452,28 +553,28 @@ export const Store: React.FC<StoreProps> = ({
             )}
 
             {filteredProducts.length === 0 && (
-              <div className="text-center py-32 rounded-[3rem] border border-dashed relative overflow-hidden group" style={{ borderColor: borderSubtle, backgroundColor: panelBg }}>
+              <div className="text-center py-16 sm:py-24 lg:py-32 rounded-[2rem] sm:rounded-[3rem] border border-dashed relative overflow-hidden group" style={{ borderColor: borderSubtle, backgroundColor: panelBg }}>
                 <div className="absolute inset-0 bg-gradient-to-b from-[#CDA032]/5 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
 
-                <div className="relative z-10 space-y-8">
+                <div className="relative z-10 space-y-6 sm:space-y-8">
                   <div className="relative inline-block">
                     <div className="absolute inset-0 bg-[#CDA032]/10 blur-3xl rounded-full scale-110"></div>
-                    <div className="relative w-20 h-20 mx-auto rounded-2xl flex items-center justify-center border border-white/5 bg-black/40 backdrop-blur-md">
-                      <Search size={32} className="text-[#CDA032] opacity-30 group-hover:scale-110 group-hover:opacity-100 transition-all duration-500" />
+                    <div className="relative w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-2xl flex items-center justify-center border border-white/5 bg-black/40 backdrop-blur-md">
+                      <Search size={24} className="sm:size-32 text-[#CDA032] opacity-30 group-hover:scale-110 group-hover:opacity-100 transition-all duration-500" />
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <h3 className="text-3xl font-black uppercase tracking-tighter italic">Product <span className="text-[#CDA032]">Not Found</span></h3>
-                    <p className="text-xs font-black uppercase tracking-[0.3em] max-w-sm mx-auto opacity-40 leading-relaxed px-4">
+                  <div className="space-y-3 sm:space-y-4">
+                    <h3 className="text-2xl sm:text-3xl font-black uppercase tracking-tighter italic">Product <span className="text-[#CDA032]">Not Found</span></h3>
+                    <p className="text-xs font-black uppercase tracking-[0.3em] max-w-xs sm:max-w-sm mx-auto opacity-40 leading-relaxed px-4">
                       The specified unit is not present in our current repository. Adjust your filters or explore other hardware categories.
                     </p>
                   </div>
 
-                  <div className="pt-4">
+                  <div className="pt-3 sm:pt-4">
                     <button
                       onClick={clearAllFilters}
-                      className="px-10 py-4 border border-[#CDA032]/30 rounded-xl text-[10px] font-black uppercase tracking-[0.4em] hover:bg-[#CDA032]/10 transition-all active:scale-95"
+                      className="px-6 sm:px-10 py-3 sm:py-4 border border-[#CDA032]/30 rounded-xl text-[10px] font-black uppercase tracking-[0.4em] hover:bg-[#CDA032]/10 transition-all active:scale-95"
                     >
                       Reset Protocol
                     </button>

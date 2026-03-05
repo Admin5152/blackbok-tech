@@ -1,25 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getOrders, getUsers } from '../lib/api';
-import type { Order } from '../types';
-import type { User } from '../interface/interface';
+import { handleSignOut } from '../lib/signOut';
+import type { Order, User, Product } from '../types';
 import { 
-  BarChart3, 
-  Users, 
-  ShoppingCart, 
-  DollarSign, 
-  Package, 
-  TrendingUp,
-  Calendar,
-  Mail,
-  Phone,
-  Eye,
   Search,
   Filter,
   LogOut,
   Menu,
   X,
   Home,
+  Users,
+  Package,
+  ShoppingCart,
+  TrendingUp,
+  DollarSign,
+  Activity,
   Settings,
+  ChevronRight,
+  Calendar,
+  Eye,
+  Edit,
+  Trash2,
+  BarChart3,
   FileText
 } from 'lucide-react';
 
@@ -70,9 +72,10 @@ export const Admin: React.FC<AdminProps> = ({ setUser, navigateTo }) => {
     user.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleLogout = () => {
-    if (setUser) setUser(null as any);
-    if (navigateTo) navigateTo('auth');
+  const handleLogout = async () => {
+    if (setUser && navigateTo) {
+      await handleSignOut(setUser, navigateTo);
+    }
   };
 
   const renderOverview = () => (
