@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase, getSupabaseClient, isSupabaseConfigured } from './supabase';
 import type { User } from '../interface/interface';
 
 // Authentication Types
@@ -38,9 +38,18 @@ class AuthService {
         return { user: adminUser };
       }
 
+      // Check if Supabase is configured
+      if (!isSupabaseConfigured()) {
+        console.error('Supabase is not configured');
+        return { user: null, error: 'Database connection error. Please try again later.' };
+      }
+
+      // Get Supabase client with error handling
+      const client = getSupabaseClient();
+      
       // Authenticate with Supabase
       console.log('Attempting Supabase authentication...');
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await client.auth.signInWithPassword({
         email: credentials.email,
         password: credentials.password,
       });
@@ -82,7 +91,9 @@ class AuthService {
     try {
       console.log('Attempting sign up with:', credentials.email);
       
-      const { data, error } = await supabase.auth.signUp({
+      const client = getSupabaseClient();
+      
+      const { data, error } = await client.auth.signUp({
         email: credentials.email,
         password: credentials.password,
       });
@@ -123,7 +134,16 @@ class AuthService {
     try {
       console.log('Attempting sign out...');
       
-      const { error } = await supabase.auth.signOut();
+      // Check if Supabase is configured
+      if (!isSupabaseConfigured()) {
+        console.log('Supabase not configured, skipping sign out');
+        return { success: true };
+      }
+
+      // Get Supabase client with error handling
+      const client = getSupabaseClient();
+      
+      const { error } = await client.auth.signOut();
       
       if (error) {
         console.error('Supabase sign out error:', error);
@@ -143,7 +163,16 @@ class AuthService {
     try {
       console.log('Getting current user...');
       
-      const { data: { user } } = await supabase.auth.getUser();
+      // Check if Supabase is configured
+      if (!isSupabaseConfigured()) {
+        console.log('Supabase not configured, cannot get current user');
+        return null;
+      }
+
+      // Get Supabase client with error handling
+      const client = getSupabaseClient();
+      
+      const { data: { user } } = await client.auth.getUser();
       console.log('Current user from Supabase:', user);
       
       if (!user) {
@@ -171,7 +200,16 @@ class AuthService {
     try {
       console.log('Getting user profile for:', userId);
       
-      const { data, error } = await supabase
+      // Check if Supabase is configured
+      if (!isSupabaseConfigured()) {
+        console.log('Supabase not configured, cannot get user profile');
+        return null;
+      }
+
+      // Get Supabase client with error handling
+      const client = getSupabaseClient();
+      
+      const { data, error } = await client
         .from('profiles')
         .select('*')
         .eq('id', userId)
@@ -196,7 +234,16 @@ class AuthService {
     try {
       console.log('Creating user profile:', { userId, email, role });
       
-      const { data, error } = await supabase
+      // Check if Supabase is configured
+      if (!isSupabaseConfigured()) {
+        console.log('Supabase not configured, cannot create user profile');
+        return null;
+      }
+
+      // Get Supabase client with error handling
+      const client = getSupabaseClient();
+      
+      const { data, error } = await client
         .from('profiles')
         .insert({
           id: userId,
