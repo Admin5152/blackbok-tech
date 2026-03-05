@@ -3,11 +3,12 @@ import {
   X, CheckCircle2, Activity, Scale, RefreshCcw, Home as HomeIcon,
   ShoppingBag, Wrench, ShoppingCart, User as UserIcon, LogOut,
   ChevronRight, ChevronDown, Settings, AlertTriangle,
-  Sparkles, Eye, Clock, Menu, Sun, Moon, Search, TrendingUp, Box, Laptop, Smartphone, Gamepad2, History, Calendar, Info
+  Sparkles, Eye, Clock, Menu, Sun, Moon, Search, TrendingUp, Box, Laptop, Smartphone, Gamepad2, History, Calendar, Info, Heart
 } from 'lucide-react';
 import { Link, useLocation } from '@tanstack/react-router';
 import { User, CartItem, Product } from '../types';
 import { formatCurrency } from '../lib/utils';
+import { handleSignOut } from '../lib/signOut';
 
 const ViewfinderLogo = () => (
   <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-8 h-8">
@@ -27,6 +28,7 @@ export const Navbar: React.FC<{
   theme: 'light' | 'dark';
   setTheme?: (t: 'light' | 'dark') => void;
   setSearchQuery?: (q: string) => void;
+  setUser?: (user: any) => void;
 }> = ({
   cart,
   navigateTo,
@@ -34,7 +36,8 @@ export const Navbar: React.FC<{
   products = [],
   theme,
   setTheme,
-  setSearchQuery: setGlobalSearchQuery
+  setSearchQuery: setGlobalSearchQuery,
+  setUser
 }) => {
     const location = useLocation();
     const [isScrolled, setIsScrolled] = useState(false);
@@ -203,57 +206,6 @@ export const Navbar: React.FC<{
                 {user ? 'Account' : 'Sign In'}
               </Link>
 
-              {/* Search Bar - Integrated between Account and Theme toggle */}
-              <div className="relative group hidden md:block">
-                <Search size={14} className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${isLight ? 'text-black/30 group-focus-within:text-black' : 'text-white/20 group-focus-within:text-[#CDA032]'}`} />
-                <input
-                  type="text"
-                  placeholder="SEARCH..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`pl-10 pr-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest outline-none transition-all w-32 focus:w-56 border ${isLight
-                    ? 'bg-black/5 border-black/10 text-black focus:border-black/30'
-                    : 'bg-white/5 border-white/10 text-white focus:border-[#CDA032]/50'
-                    }`}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && searchQuery.trim()) {
-                      if (setGlobalSearchQuery) setGlobalSearchQuery(searchQuery);
-                      navigateTo('store');
-                      setSearchQuery("");
-                    }
-                  }}
-                />
-                {/* Search Suggestions Dropdown */}
-                {searchSuggestions.length > 0 && searchQuery && (
-                  <div className={`absolute top-full mt-2 right-0 w-80 border rounded-2xl shadow-2xl p-4 animate-in fade-in slide-in-from-top-2 duration-300 backdrop-blur-3xl z-[70] ${isLight ? 'bg-white border-black/10' : 'bg-[#0a0a0a] border-white/5'}`}>
-                    <div className="flex items-center justify-between mb-4 opacity-40">
-                      <span className="text-[9px] font-black uppercase tracking-widest flex items-center gap-2"><TrendingUp size={10} /> Suggestions</span>
-                    </div>
-                    <div className="space-y-1">
-                      {searchSuggestions.map(p => (
-                        <button
-                          key={p.id}
-                          onClick={() => {
-                            navigateTo('product', p.id);
-                            setSearchQuery("");
-                            if (setGlobalSearchQuery) setGlobalSearchQuery("");
-                          }}
-                          className={`w-full flex items-center gap-3 p-2 rounded-xl transition-all ${isLight ? 'hover:bg-black/5' : 'hover:bg-white/5 group'}`}
-                        >
-                          <div className="w-10 h-10 bg-black/95 rounded-lg p-1.5 flex items-center justify-center">
-                            <img src={p.image} alt={p.name} className="w-full h-full object-contain" />
-                          </div>
-                          <div className="text-left flex-1 overflow-hidden">
-                            <h4 className="text-[10px] font-black uppercase tracking-tight truncate">{p.name}</h4>
-                            <p className={`text-[8px] font-bold uppercase tracking-widest opacity-40 truncate ${isLight ? '' : 'italic'}`}>{p.category}</p>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
               {/* Theme Toggle */}
               {setTheme && (
                 <button
@@ -277,68 +229,120 @@ export const Navbar: React.FC<{
 
         {/* Mobile Menu Overlay */}
         <div
-          className={`fixed inset-0 z-[100] lg:hidden transition-all duration-500 overflow-y-auto no-scrollbar ${isMobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+          className={`fixed inset-0 z-[100] lg:hidden transition-all duration-500 ${isMobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
         >
           {/* Backdrop */}
           <div
-            className={`absolute inset-0 transition-opacity duration-500 ${isLight ? 'bg-white/95 backdrop-blur-3xl' : 'bg-black/95 backdrop-blur-3xl'}`}
+            className="absolute inset-0 bg-black/80 backdrop-blur-md"
             onClick={() => setIsMobileMenuOpen(false)}
           />
 
-          <div className="relative min-h-screen p-6 flex flex-col pt-24 pb-12">
-            {/* Close Button */}
-            <button
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`absolute top-6 right-6 p-4 rounded-full border transition-all ${isLight ? 'bg-black text-white' : 'bg-white text-black'}`}
-            >
-              <X size={24} />
-            </button>
+          {/* Mobile Navigation Drawer */}
+          <div className={`absolute right-0 top-0 h-full w-80 bg-black border-l border-white/10 shadow-2xl transform transition-transform duration-500 ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+            
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-white/10">
+              <span className="text-white text-sm font-black uppercase tracking-widest">Menu</span>
+              
+              {/* Close Button */}
+              <button
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+              >
+                <X size={20} className="text-white" />
+              </button>
+            </div>
 
-            {/* Mobile Links */}
-            <div className="flex flex-col gap-2 mt-8">
-              <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className={navItemClass('/')}> <HomeIcon size={18} /> Home</Link>
-
-              <div className="mt-4 mb-2 px-6">
-                <span className={`text-[9px] font-black uppercase tracking-[0.5em] opacity-30 ${isLight ? 'text-black' : 'text-white'}`}>Hardware Repository</span>
-              </div>
-              <Link to="/store" onClick={() => setIsMobileMenuOpen(false)} className={navItemClass('/store')}><ShoppingBag size={18} /> Products</Link>
-              <Link to="/trades" onClick={() => setIsMobileMenuOpen(false)} className={navItemClass('/trades')}><RefreshCcw size={18} /> Trade-In</Link>
-              <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-xl mt-2">
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-200">Your Trade-In Items</p>
-                {/* Placeholder for trade-in details */}
-              </div>
-              <Link to="/repair" onClick={() => setIsMobileMenuOpen(false)} className={navItemClass('/repair')}><Wrench size={18} /> Repairs</Link>
-
-              <div className="mt-6 mb-2 px-6">
-                <span className={`text-[9px] font-black uppercase tracking-[0.5em] opacity-30 ${isLight ? 'text-black' : 'text-white'}`}>Structural Support</span>
-              </div>
-              <Link to="/policies" onClick={() => setIsMobileMenuOpen(false)} className={navItemClass('/policies')}><Scale size={18} /> Policies</Link>
-              <Link to="/faq" onClick={() => setIsMobileMenuOpen(false)} className={navItemClass('/faq')}><Info size={18} /> Help Center</Link>
-
-              <div className="mt-12 flex flex-col gap-4">
-                <Link
-                  to={user ? '/profile' : '/auth'}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={`flex items-center justify-center gap-3 px-8 py-5 rounded-2xl text-[11px] font-black uppercase tracking-widest ${user ? (isLight ? 'bg-black/5 text-black' : 'bg-white/5 text-white') : (isLight ? 'bg-black text-white' : 'bg-white text-black')}`}
-                >
-                  <div className={`w-6 h-6 rounded-md flex items-center justify-center font-black italic text-[10px] ${isLight ? 'bg-black text-white' : 'bg-[#CDA032] text-black'}`}>
-                    {user ? (user.avatarLetter || user.name.charAt(0)) : <UserIcon size={14} />}
-                  </div>
-                  {user ? 'Access Account' : 'Sign In Protocol'}
-                </Link>
-
-                <Link
-                  to="/cart"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={`flex items-center justify-center gap-3 px-8 py-5 rounded-2xl text-[11px] font-black uppercase tracking-widest border ${isLight ? 'border-black/10' : 'border-white/10'}`}
-                >
-                  <ShoppingCart size={18} /> Checkout Repository ({cartCount})
-                </Link>
+            {/* User Profile Section */}
+            <div className="p-6 border-b border-white/10">
+              <div className="flex items-center gap-4">
+                {/* Avatar */}
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#CDA032] to-[#B38B21] flex items-center justify-center">
+                  <span className="text-black text-xl font-black italic">
+                    {user ? (user.avatarLetter || user.name.charAt(0)) : 'U'}
+                  </span>
+                </div>
+                
+                {/* User Info */}
+                <div className="flex-1">
+                  <h3 className="text-white text-lg font-bold">
+                    {user ? user.name : 'Guest User'}
+                  </h3>
+                  <p className="text-white/60 text-sm">
+                    {user ? user.email : 'Not logged in'}
+                  </p>
+                </div>
               </div>
             </div>
 
-            <div className="mt-auto pt-12 text-center">
-              <p className={`text-[10px] font-black uppercase tracking-[0.6em] italic opacity-20`}>BlackBox Systems • v4.0.1</p>
+            {/* Navigation Items */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="p-2">
+                {[
+                  { path: '/', label: 'Home', icon: HomeIcon },
+                  { path: '/store', label: 'Products', icon: ShoppingBag },
+                  { path: '/trades', label: 'Trades', icon: RefreshCcw },
+                  { path: '/repair', label: 'Repairs', icon: Wrench },
+                  { path: '/cart', label: 'Cart', icon: ShoppingCart, badge: cartCount },
+                  { path: user ? '/profile' : '/auth', label: 'Account', icon: UserIcon }
+                ].map((item) => {
+                  const active = location.pathname === item.path;
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`flex items-center gap-4 px-4 py-3 rounded-xl mx-2 mb-1 transition-all ${
+                        active 
+                          ? 'bg-[#CDA032]/20 text-[#CDA032]' 
+                          : 'text-white/70 hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                        active ? 'bg-[#CDA032] text-black' : 'bg-white/10 text-white/70'
+                      }`}>
+                        <item.icon size={18} />
+                      </div>
+                      <span className="flex-1 text-sm font-medium uppercase tracking-wider">
+                        {item.label}
+                      </span>
+                      {item.badge && item.badge > 0 && (
+                        <span className="px-2 py-1 bg-[#CDA032] text-black text-xs font-black rounded-full">
+                          {item.badge}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-white/10">
+              {/* Version Info */}
+              <div className="mb-4 text-center">
+                <p className="text-white/30 text-xs font-black uppercase tracking-widest">
+                  BLACKBOX TERMINAL V4.0
+                </p>
+              </div>
+
+              {/* Sign Out Button */}
+              {user && (
+                <button
+                  onClick={async () => {
+                    if (setUser) {
+                      await handleSignOut(setUser, navigateTo);
+                    }
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 hover:bg-red-500/20 transition-all"
+                >
+                  <LogOut size={18} />
+                  <span className="text-sm font-black uppercase tracking-wider">
+                    Sign Out
+                  </span>
+                </button>
+              )}
             </div>
           </div>
         </div>

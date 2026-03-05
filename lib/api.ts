@@ -27,9 +27,38 @@ export const signOut = async () => {
   if (error) throw error;
 };
 
+export const handleSignOut = async (setUser: (user: null) => void, navigateTo: (view: string) => void) => {
+  try {
+    await signOut();
+    setUser(null);
+    navigateTo('home');
+  } catch (error: any) {
+    console.error('Sign out error:', error);
+    // Still clear local session even if Supabase signOut fails
+    setUser(null);
+    navigateTo('home');
+  }
+};
+
 export const getCurrentUser = async () => {
   const { data: { user } } = await supabase.auth.getUser();
   return user;
+};
+
+export const createUserProfile = async (userId: string, name: string, email: string, role: 'user' | 'admin' = 'user') => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .insert({
+      id: userId,
+      name,
+      email,
+      role
+    })
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
 };
 
 export const getUserProfile = async (userId: string) => {
@@ -37,10 +66,10 @@ export const getUserProfile = async (userId: string) => {
     .from('profiles')
     .select('*')
     .eq('id', userId)
-    .single();
+    .maybeSingle(); // Use maybeSingle() instead of single() to handle no results
   
   if (error) throw error;
-  return data;
+  return data; // Will return null if no profile exists
 };
 
 // Products

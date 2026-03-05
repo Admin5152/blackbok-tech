@@ -7,17 +7,20 @@ import {
   Outlet,
   useNavigate,
   useParams,
-  useLocation,
-  createMemoryHistory
+  useLocation
 } from '@tanstack/react-router';
 import { X, CheckCircle2, Activity, Scale, RefreshCcw, Home as HomeIcon, ShoppingBag, Wrench, ShoppingCart, User as UserIcon, LogOut, ChevronRight, ChevronDown, Settings, AlertTriangle, Sparkles, Eye, Clock } from 'lucide-react';
 import { WhatsAppIcon } from './components/Icons';
 import { Product, User, CartItem, Category, RepairRequest, Order, TradeRequest } from './types';
 import { getProducts, createOrder } from './lib/api';
+import { handleSignOut } from './lib/signOut';
+import AuthService from './lib/auth';
+import { setupMobileBackButton, preventAppClose } from './lib/mobileNavigation';
 import { INITIAL_PRODUCTS } from './constants';
 import { Navbar } from './components/Navbar';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { Footer } from './components/Footer';
+import { NotificationContainer, type Notification } from './components/Notification';
 import { Home } from './views/Home';
 import { ProductDetail } from './views/ProductDetail';
 import { Repair } from './views/Repair';
@@ -227,7 +230,7 @@ const authRoute = createRoute({
   path: '/auth',
   component: () => {
     const context = useAppContext();
-    return <Auth setUser={context.setUser} navigateTo={context.navigateTo} />;
+    return <Auth setUser={context.setUser} navigateTo={context.navigateTo} notify={context.notify} />;
   },
 });
 
@@ -337,13 +340,8 @@ const routeTree = rootRoute.addChildren([
   policiesRoute,
 ]);
 
-const memoryHistory = createMemoryHistory({
-  initialEntries: ['/'],
-});
-
 const router = createRouter({
   routeTree,
-  history: memoryHistory,
   defaultPreload: 'intent',
 } as any);
 
@@ -362,6 +360,7 @@ function RootComponent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<Category[]>([]);
   const [notification, setNotification] = useState<{ msg: string, type: 'success' | 'error' } | null>(null);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
@@ -370,6 +369,25 @@ function RootComponent() {
 
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Setup mobile navigation
+  useEffect(() => {
+    const cleanup = setupMobileBackButton();
+    preventAppClose();
+    
+    // Register service worker for better mobile experience
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then((registration) => {
+          console.log('Service Worker registered:', registration);
+        })
+        .catch((error) => {
+          console.log('Service Worker registration failed:', error);
+        });
+    }
+    
+    return cleanup;
+  }, []);
 
   useEffect(() => {
     try {
@@ -382,7 +400,43 @@ function RootComponent() {
       const localCompare = localStorage.getItem(STORAGE_KEYS.COMPARE);
       const localTheme = localStorage.getItem(STORAGE_KEYS.THEME);
 
-      if (localUser) setUser(JSON.parse(localUser));
+      if (localUser) {
+        const parsedUser = JSON.parse(localUser);
+        console.log('Found local user:', parsedUser);
+        
+        // Check if it's admin user (doesn't need Supabase validation)
+        if (parsedUser.email === 'BlackBox@gmail.com' && parsedUser.role === 'admin') {
+          console.log('Admin user detected, restoring without validation');
+          setUser(parsedUser);
+        } else {
+          // Validate if regular user session is still valid
+          const validateUserSession = async () => {
+            try {
+              const currentUser = await AuthService.getCurrentUser();
+              console.log('Current Supabase user:', currentUser);
+              
+              if (currentUser && currentUser.id === parsedUser.id) {
+                // Session is valid, restore user
+                console.log('User session is valid, restoring user');
+                setUser(parsedUser);
+              } else {
+                // Session is invalid, clear user
+                console.log('User session is invalid, clearing user');
+                localStorage.removeItem(STORAGE_KEYS.USER);
+                setUser(null);
+              }
+            } catch (error) {
+              console.error('Error validating user session:', error);
+              // On error, clear user to be safe
+              localStorage.removeItem(STORAGE_KEYS.USER);
+              setUser(null);
+            }
+          };
+          
+          validateUserSession();
+        }
+      }
+      
       if (localCart) setCart(JSON.parse(localCart));
       if (localOrders) setOrders(JSON.parse(localOrders));
       if (localRepairs) setRepairs(JSON.parse(localRepairs));
@@ -390,7 +444,9 @@ function RootComponent() {
       if (localWishlist) setWishlist(JSON.parse(localWishlist));
       if (localCompare) setCompareIds(JSON.parse(localCompare));
       if (localTheme === 'light' || localTheme === 'dark') setTheme(localTheme);
-    } catch (e) { console.error(e); }
+    } catch (e) { 
+      console.error('Error loading from localStorage:', e); 
+    }
 
     // Fetch products from Supabase
     const fetchProducts = async () => {
@@ -425,9 +481,18 @@ function RootComponent() {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
-  const notify = (msg: string, type: 'success' | 'error' = 'success') => {
-    setNotification({ msg, type });
-    setTimeout(() => setNotification(null), 3000);
+  const notify = (msg: string, type: 'success' | 'error' | 'info' | 'warning' = 'success') => {
+    const newNotification: Notification = {
+      id: generateId(),
+      message: msg,
+      type,
+      duration: 4000
+    };
+    setNotifications(prev => [...prev, newNotification]);
+  };
+
+  const removeNotification = (id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
   const navigateTo = (to: string, id?: string) => {
@@ -545,6 +610,7 @@ function RootComponent() {
           theme={theme}
           setTheme={setTheme}
           setSearchQuery={setSearchQuery}
+          setUser={setUser}
         />
 
         <FloatingWhatsApp phoneNumber="233000000000" theme={theme} />
@@ -778,7 +844,7 @@ function RootComponent() {
                 </p>
                 {user && (
                   <button
-                    onClick={() => { setUser(null); navigateTo('home'); }}
+                    onClick={() => handleSignOut(setUser, navigateTo)}
                     className="w-full py-3 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-red-500 hover:bg-red-500/5 rounded-xl transition-all"
                   >
                     <LogOut size={14} /> Sign Out
@@ -791,6 +857,12 @@ function RootComponent() {
 
         <Footer theme={theme} />
       </div>
+      
+      {/* Notification Container */}
+      <NotificationContainer 
+        notifications={notifications} 
+        onClose={removeNotification} 
+      />
     </AppContext.Provider>
   );
 }

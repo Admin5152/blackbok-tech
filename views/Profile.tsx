@@ -10,6 +10,7 @@ import { User, RepairRequest, Order, Product, TradeRequest } from '../types';
 import { formatDate, formatCurrency } from '../lib/utils';
 import { ProductCard } from '../components/ProductCard';
 import { OrderTracking } from '../components/OrderTracking';
+import { handleSignOut } from '../lib/signOut';
 
 interface ProfileProps {
   user: User | null;
@@ -604,7 +605,7 @@ export const Profile: React.FC<ProfileProps> = ({
 
               <div className="mt-12 flex items-center justify-center p-8 bg-red-500/5 border border-dashed border-red-500/20 rounded-3xl">
                 <button
-                  onClick={() => { setUser(null); navigateTo('home'); }}
+                  onClick={() => handleSignOut(setUser, navigateTo)}
                   className="px-10 py-4 bg-red-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] hover:scale-105 active:scale-95 transition-all shadow-xl shadow-red-500/20"
                 >
                   DEACTIVATE CONNECTION
@@ -736,7 +737,7 @@ export const Profile: React.FC<ProfileProps> = ({
               Help Center
             </button>
             <button
-              onClick={() => { setUser(null); navigateTo('home'); }}
+              onClick={() => handleSignOut(setUser, navigateTo)}
               className={`flex items-center gap-3 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border border-transparent ${isLight ? 'text-red-600 hover:bg-red-50' : 'text-red-400 hover:bg-red-500/10 hover:border-red-500/20'}`}
             >
               <LogOut size={16} />
