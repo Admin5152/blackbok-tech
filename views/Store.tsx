@@ -140,7 +140,7 @@ export const Store: React.FC<StoreProps> = ({
               </button>
             </div>
             
-            {/* Search Input Row */}
+            {/* Search Input Row  s */}
             <div className="w-full">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2" size={16} style={{ color: textMuted }} />
