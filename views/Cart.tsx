@@ -14,7 +14,7 @@ import {
   FileText,
   Eye
 } from "lucide-react";
-import { CartItem, Product } from "../types";
+import { CartItem, Product, User } from "../types";
 import { formatCurrency } from "../lib/utils";
 import { ProductCard } from "../components/ProductCard";
 

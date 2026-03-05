@@ -1,5 +1,5 @@
 import { supabase, getSupabaseClient, isSupabaseConfigured } from './supabase';
-import type { User } from '../interface/interface';
+import type { User } from '../types';
 
 // Authentication Types
 export interface AuthUser {
