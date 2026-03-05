@@ -18,6 +18,21 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
-      }
+      },
+      build: {
+        rollupOptions: {
+          output: {
+            manualChunks: {
+              vendor: ['react', 'react-dom'],
+              router: ['@tanstack/react-router'],
+              supabase: ['@supabase/supabase-js'],
+              ai: ['@google/genai'],
+              icons: ['lucide-react']
+            }
+          }
+        },
+        chunkSizeWarningLimit: 1000
+      },
+      base: mode === 'production' ? './' : '/'
     };
 });
