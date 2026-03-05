@@ -239,16 +239,16 @@
             background: var(--accent-gold);
         }
 
-        .hero-gradient {
-            background: radial-gradient(circle at 50% 50%, rgba(212, 175, 55, 0.05) 0%, rgba(0,0,0,0) 80%);
-        }
-
         .no-scrollbar::-webkit-scrollbar {
           display: none;
         }
         .no-scrollbar {
           -ms-overflow-style: none;
           scrollbar-width: none;
+        }
+
+        .hero-gradient {
+            background: radial-gradient(circle at 50% 50%, rgba(212, 175, 55, 0.05) 0%, rgba(0,0,0,0) 80%);
         }
 
         .video-overlay {
@@ -258,87 +258,87 @@
           z-index: 1;
         }
 
-        .pulse-ring {
-          position: relative;
-        }
-        .pulse-ring::after {
-          content: "";
-          position: absolute;
-          inset: -4px;
-          border: 1px solid rgba(212, 175, 55, 0.3);
-          border-radius: 50%;
-          animation: pulse 2.5s infinite;
-        }
+            .pulse-ring {
+              position: relative;
+            }
+            .pulse-ring::after {
+              content: "";
+              position: absolute;
+              inset: -4px;
+              border: 1px solid rgba(212, 175, 55, 0.3);
+              border-radius: 50%;
+              animation: pulse 2.5s infinite;
+            }
 
-        @keyframes pulse {
-          0% { transform: scale(1); opacity: 0.6; }
-          100% { transform: scale(1.4); opacity: 0; }
-        }
-        
-        input[type="number"]::-webkit-inner-spin-button,
-        input[type="number"]::-webkit-outer-spin-button {
-          -webkit-appearance: none;
-          margin: 0;
-        }
+            @keyframes pulse {
+              0% { transform: scale(1); opacity: 0.6; }
+              100% { transform: scale(1.4); opacity: 0; }
+            }
+            
+            input[type="number"]::-webkit-inner-spin-button,
+            input[type="number"]::-webkit-outer-spin-button {
+              -webkit-appearance: none;
+              margin: 0;
+            }
 
-        @media print {
-            .no-print { display: none !important; }
-            body { background: white !important; color: black !important; padding: 0 !important; margin: 0 !important; }
-            .print-only { display: block !important; padding: 50px !important; }
-            .print-header { border-bottom: 3px solid #D4AF37; padding-bottom: 25px; margin-bottom: 50px; }
-            .print-logo { font-size: 28px; font-weight: 900; letter-spacing: -1.5px; text-transform: uppercase; }
-            .print-section { margin-bottom: 40px; }
-            .print-label { font-size: 9px; text-transform: uppercase; color: #888; font-weight: 900; letter-spacing: 0.2em; }
-            .print-value { font-size: 15px; margin-top: 8px; font-weight: 600; }
-            .print-specs { font-size: 13px; line-height: 1.8; color: #444; }
-        }
-        .print-only { display: none; }
-        
-        /* Welcome screen animations */
-        @keyframes fade-in-scale {
-          from {
-            opacity: 0;
-            transform: scale(0.8);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-        
-        @keyframes fade-in {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-        
-        .animate-fade-in-scale {
-          animation: fade-in-scale 2s ease-out forwards;
-        }
-        
-        .animate-fade-in {
-          animation: fade-in 2s ease-out forwards;
-        }
+            @media print {
+                .no-print { display: none !important; }
+                body { background: white !important; color: black !important; padding: 0 !important; margin: 0 !important; }
+                .print-only { display: block !important; padding: 50px !important; }
+                .print-header { border-bottom: 3px solid #D4AF37; padding-bottom: 25px; margin-bottom: 50px; }
+                .print-logo { font-size: 28px; font-weight: 900; letter-spacing: -1.5px; text-transform: uppercase; }
+                .print-section { margin-bottom: 40px; }
+                .print-label { font-size: 9px; text-transform: uppercase; color: #888; font-weight: 900; letter-spacing: 0.2em; }
+                .print-value { font-size: 15px; margin-top: 8px; font-weight: 600; }
+                .print-specs { font-size: 13px; line-height: 1.8; color: #444; }
+            }
+            .print-only { display: none; }
+            
+            /* Welcome screen animations */
+            @keyframes fade-in-scale {
+              from {
+                opacity: 0;
+                transform: scale(0.8);
+              }
+              to {
+                opacity: 1;
+                transform: scale(1);
+              }
+            }
+            
+            @keyframes fade-in {
+              from {
+                opacity: 0;
+              }
+              to {
+                opacity: 1;
+              }
+            }
+            
+            .animate-fade-in-scale {
+              animation: fade-in-scale 2s ease-out forwards;
+            }
+            
+            .animate-fade-in {
+              animation: fade-in 2s ease-out forwards;
+            }
     </style>
-<script type="importmap">
-{
-  "imports": {
-    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
-    "@google/genai": "https://esm.sh/@google/genai@^1.38.0",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react": "https://esm.sh/react@^19.2.3",
-    "react-dom": "https://esm.sh/react-dom@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "@tanstack/react-router": "https://esm.sh/@tanstack/react-router@^1.100.0"
-  }
-}
-</script>
-</head>
-<body>
-    <div id="root"></div>
-    <script type="module" src="index.tsx"></script>
-</body>
-</html>
+    <script type="importmap">
+    {
+      "imports": {
+        "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+        "@google/genai": "https://esm.sh/@google/genai@^1.38.0",
+        "react/": "https://esm.sh/react@^19.2.3/",
+        "react": "https://esm.sh/react@^19.2.3",
+        "react-dom": "https://esm.sh/react-dom@^19.2.3",
+        "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+        "@tanstack/react-router": "https://esm.sh/@tanstack/react-router@^1.100.0"
+      }
+    }
+    </script>
+    </head>
+    <body>
+        <div id="root"></div>
+        <script type="module" src="/index.tsx"></script>
+    </body>
+    </html>
