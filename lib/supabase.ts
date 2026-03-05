@@ -4,17 +4,26 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Validate environment variables
+// Validate environment variables and provide helpful feedback
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables:');
-  console.error('VITE_SUPABASE_URL:', supabaseUrl ? 'SET' : 'NOT SET');
-  console.error('VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? 'SET' : 'NOT SET');
+  console.warn('⚠️ Supabase environment variables not found:');
+  console.warn('   VITE_SUPABASE_URL:', supabaseUrl ? 'SET' : 'NOT SET');
+  console.warn('   VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? 'SET' : 'NOT SET');
+  console.warn('');
+  console.warn('📝 To fix this issue:');
+  console.warn('   1. Create a .env file in the project root');
+  console.warn('   2. Add your Supabase credentials:');
+  console.warn('      VITE_SUPABASE_URL=https://your-project.supabase.co');
+  console.warn('      VITE_SUPABASE_ANON_KEY=your-anon-key');
+  console.warn('   3. Restart the development server');
+  console.warn('');
+  console.warn('🔑 Admin login will still work: BlackBox@gmail.com / BlackBox');
   
-  // In development, show a helpful error
-  if (import.meta.env.DEV) {
+  // Only throw error in production if variables are missing
+  if (import.meta.env.PROD) {
     throw new Error(
-      'Supabase environment variables are missing. Please check your .env file.\n' +
-      'Required: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY'
+      'Supabase environment variables are required in production.\n' +
+      'Missing: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY'
     );
   }
 }
