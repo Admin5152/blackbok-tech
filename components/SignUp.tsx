@@ -38,21 +38,13 @@ export const SignUp: React.FC<SignUpProps> = ({ setUser, navigateTo, theme, noti
         // Create user profile in Supabase database
         await createUserProfile(user.id, formData.name, formData.email);
 
-        const userObj: User = {
-          id: user.id,
-          name: formData.name,
-          email: user.email || '',
-          password: formData.password,
-          role: 'user'
-        };
-        notify(`Sign up successful! Welcome, ${formData.name}!`, 'success');
-        setUser(userObj);
-        navigateTo("home");
+        notify(`Registration successful! Please check your email to confirm your account.`, 'success');
+        setFormData({ name: '', email: '', password: '' });
       } else {
-        notify("Sign up failed. Please try again.", "error");
+        notify("Account could not be created.", "error");
       }
     } catch (error: any) {
-      notify(`Sign up failed: ${error.message || 'Please try again'}`, "error");
+      notify(`Account could not be created: ${error.message || 'Please try again'}`, "error");
     }
   };
 

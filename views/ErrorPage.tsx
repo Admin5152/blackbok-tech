@@ -12,7 +12,7 @@ export const ErrorPage: React.FC<ErrorPageProps> = ({ error, reset, theme = 'dar
     const isLight = theme === 'light';
 
     return (
-        <div className={`min-h-screen flex flex-col items-center justify-center p-6 text-center transition-all duration-700 relative overflow-hidden ${isLight ? 'bg-[#FAFAFA] text-black' : 'bg-[#050505] text-white'}`}>
+        <div className={`h-[100dvh] w-full flex flex-col items-center justify-center p-6 text-center transition-all duration-700 relative overflow-hidden ${isLight ? 'bg-[#FAFAFA] text-black' : 'bg-[#050505] text-white'}`}>
 
             {/* Background Tech Motif - Enhanced */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -23,21 +23,19 @@ export const ErrorPage: React.FC<ErrorPageProps> = ({ error, reset, theme = 'dar
                 <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.02),rgba(0,255,0,0.01),rgba(0,0,255,0.02))] z-0 pointer-events-none bg-[length:100%_4px,3px_100%]"></div>
             </div>
 
-            <div className="max-w-3xl w-full space-y-12 relative z-10">
+            <div className="max-w-3xl w-full space-y-4 relative z-10">
                 {/* Error Icon Plate - Glitchy Feel */}
                 <div className="relative inline-block group">
                     <div className="absolute inset-0 bg-red-500/30 blur-3xl rounded-full scale-150 animate-pulse transition-transform group-hover:scale-[1.8]"></div>
-                    <div className={`relative w-28 h-28 md:w-32 md:h-32 rounded-[2rem] border-2 flex items-center justify-center shadow-2xl transition-all duration-500 transform group-hover:-rotate-3 ${isLight ? 'bg-white border-red-200 text-red-600' : 'bg-black border-red-500/30 text-red-500'}`}>
-                        <ShieldAlert size={56} className="animate-in zoom-in duration-700" />
-
-                        {/* Technical Corners */}
-                        <div className="absolute top-4 left-4 w-4 h-4 border-t-2 border-l-2 border-current opacity-40"></div>
-                        <div className="absolute bottom-4 right-4 w-4 h-4 border-b-2 border-r-2 border-current opacity-40"></div>
+                    <div className={`relative w-16 h-16 rounded-[1.5rem] border-2 flex items-center justify-center shadow-2xl transition-all duration-500 transform group-hover:-rotate-3 ${isLight ? 'bg-white border-red-200 text-red-600' : 'bg-black border-red-500/30 text-red-500'}`}>
+                        <ShieldAlert size={32} className="animate-in zoom-in duration-700" />
+                        <div className="absolute top-2 left-2 w-3 h-3 border-t-2 border-l-2 border-current opacity-40"></div>
+                        <div className="absolute bottom-2 right-2 w-3 h-3 border-b-2 border-r-2 border-current opacity-40"></div>
                     </div>
                 </div>
 
-                <div className="space-y-6">
-                    <h1 className="text-6xl md:text-8xl font-black tracking-tighter uppercase leading-none select-none">
+                <div className="space-y-2">
+                    <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none select-none">
                         <span className="relative inline-block overflow-hidden">
                             SYSTEM
                             <span className="absolute top-0 left-0 -translate-x-full h-full w-full bg-red-500 mix-blend-overlay opacity-20 animate-in slide-in-from-left duration-1000 delay-300"></span>
@@ -55,8 +53,8 @@ export const ErrorPage: React.FC<ErrorPageProps> = ({ error, reset, theme = 'dar
                 </div>
 
                 {/* Technical Error Window */}
-                <div className={`group p-1 rounded-[2.5rem] transition-all duration-700 hover:shadow-[0_0_50px_rgba(239,68,68,0.1)] ${isLight ? 'bg-gray-100' : 'bg-white/5'}`}>
-                    <div className={`p-8 md:p-12 rounded-[2.3rem] border backdrop-blur-3xl transition-all relative overflow-hidden ${isLight ? 'bg-white/80 border-white text-black' : 'bg-black/60 border-white/5 text-white'}`}>
+                <div className={`group p-1 rounded-[1.5rem] transition-all duration-700 hover:shadow-[0_0_50px_rgba(239,68,68,0.1)] ${isLight ? 'bg-gray-100' : 'bg-white/5'}`}>
+                    <div className={`p-4 md:p-6 rounded-[1.3rem] border backdrop-blur-3xl transition-all relative overflow-hidden ${isLight ? 'bg-white/80 border-white text-black' : 'bg-black/60 border-white/5 text-white'}`}>
                         {/* Design Details */}
                         <div className="absolute top-0 right-0 p-4 opacity-10">
                             <RefreshCw size={80} className="animate-spin-slow" />
@@ -80,7 +78,7 @@ export const ErrorPage: React.FC<ErrorPageProps> = ({ error, reset, theme = 'dar
                     </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-6">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
                     <button
                         onClick={() => reset ? reset() : window.location.reload()}
                         className="w-full sm:w-auto px-12 py-6 bg-red-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-4 hover:bg-red-500 hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-red-600/20 group"
@@ -99,7 +97,7 @@ export const ErrorPage: React.FC<ErrorPageProps> = ({ error, reset, theme = 'dar
                 </div>
 
                 {/* Footer Metrics */}
-                <div className="pt-12 flex flex-col items-center gap-4 opacity-30 group-hover:opacity-60 transition-opacity">
+                <div className="pt-4 flex flex-col items-center gap-2 opacity-30">
                     <div className="flex items-center gap-8">
                         <div className="flex flex-col items-center">
                             <span className="text-[10px] font-black">404.0.1</span>

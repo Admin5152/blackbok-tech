@@ -7,7 +7,8 @@ import {
   Outlet,
   useNavigate,
   useParams,
-  useLocation
+  useLocation,
+  createHashHistory
 } from '@tanstack/react-router';
 import { X, CheckCircle2, Activity, Scale, RefreshCcw, Home as HomeIcon, ShoppingBag, Wrench, ShoppingCart, User as UserIcon, LogOut, ChevronRight, ChevronDown, Settings, AlertTriangle, Sparkles, Eye, Clock } from 'lucide-react';
 import { WhatsAppIcon } from './components/Icons';
@@ -347,9 +348,12 @@ const routeTree = rootRoute.addChildren([
   splatRoute,
 ]);
 
+const hashHistory = createHashHistory();
+
 const router = createRouter({
   routeTree,
   defaultPreload: 'intent',
+  history: hashHistory,
 } as any);
 
 function RootComponent() {
@@ -371,7 +375,9 @@ function RootComponent() {
 
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
-  const [showWelcomeScreen, setShowWelcomeScreen] = useState(true);
+  const [showWelcomeScreen, setShowWelcomeScreen] = useState(() => {
+    return !sessionStorage.getItem('bb_v4_welcomed');
+  });
   const [theme, setTheme] = useState<Theme>('dark');
 
   const navigate = useNavigate();
@@ -606,7 +612,10 @@ function RootComponent() {
       <ScrollToTop />
       {/* Welcome Screen */}
       {showWelcomeScreen && (
-        <WelcomeScreen onComplete={() => setShowWelcomeScreen(false)} />
+        <WelcomeScreen onComplete={() => {
+          sessionStorage.setItem('bb_v4_welcomed', 'true');
+          setShowWelcomeScreen(false);
+        }} />
       )}
 
       <div className={`flex flex-col min-h-screen selection:bg-[#B38B21] selection:text-black ${showWelcomeScreen ? 'opacity-0 pointer-events-none' : 'opacity-100'} ${isLight ? 'bg-[#F0F0F0] text-black' : 'bg-black text-white'}`}>
@@ -621,7 +630,7 @@ function RootComponent() {
           setUser={setUser}
         />
 
-        <FloatingWhatsApp phoneNumber="233000000000" theme={theme} />
+        <FloatingWhatsApp phoneNumber="233000000000" theme={theme} hasNotification={notifications.length > 0 || !!notification} />
 
         <main className="flex-1">
           <Outlet />

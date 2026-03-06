@@ -1,24 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
-  Send, Activity, Camera, Cpu, Smartphone, Laptop, Tablet, Gamepad2, Watch, Check,
+  Send, Activity, Smartphone, Laptop, Tablet, Gamepad2, Watch, Check,
   ArrowLeft, ArrowRight, Calendar, AlertCircle, Clock, MapPin, Phone, Mail, User,
-  Wrench, Package, FileText, CheckCircle2, Image as ImageIcon, ShieldCheck, Zap, Sparkles
+  Wrench, Package, Info, MonitorSmartphone
 } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import { RepairRequest } from '../types';
-import { generateId, formatCurrency } from '../lib/utils';
+import { generateId } from '../lib/utils';
 import { useAppContext } from '../App';
 import { ImageUpload } from '../components/ImageUpload';
+import { repairPricing, repairServicesMap } from '../data/repairPrices';
 
 export const Repair: React.FC = () => {
   const { user, repairs, setRepairs, notify, theme } = useAppContext();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
+  const [subStep, setSubStep] = useState(1); // 1=deviceType, 2=brand, 3=model
+  const [transitionKey, setTransitionKey] = useState(0);
+  const [selectedIssueKeys, setSelectedIssueKeys] = useState<Set<keyof typeof repairServicesMap>>(new Set());
+  const [selectedSeries, setSelectedSeries] = useState<string>('');
   const [formData, setFormData] = useState({
     deviceType: '',
     brand: '',
     model: '',
-    condition: '',
     description: '',
     date: '',
     timeSlot: '',
@@ -30,57 +34,88 @@ export const Repair: React.FC = () => {
     urgency: 'standard'
   });
 
+  const formRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Scroll to the active form section whenever step or substep changes
+    if (formRef.current) {
+      const activeSection = formRef.current.querySelector('.active-form-section');
+      if (activeSection) {
+        // We use a small delay to ensure the DOM layout has settled after the conditional render
+        setTimeout(() => {
+          const offset = 140; // Account for the folded headers above
+          const top = activeSection.getBoundingClientRect().top + window.pageYOffset - offset;
+          window.scrollTo({ top, behavior: 'smooth' });
+        }, 80);
+      }
+    }
+  }, [step, subStep]);
+
+  const getServiceCost = (key: keyof typeof repairServicesMap): number => {
+    if (formData.brand !== 'Apple' || !formData.model || key === 'UNKNOWN') return 0;
+    const mp = repairPricing[formData.model as keyof typeof repairPricing];
+    if (!mp) return 0;
+    const str = mp[key as keyof typeof mp];
+    if (!str || str === 'N/A' || str === 'Consult' || str.includes('xxxxx')) return 0;
+    return parseInt(str.split('-')[0].replace(/\D/g, ''));
+  };
+
+  const getTotalRepairCost = (): number => {
+    let total = 0;
+    selectedIssueKeys.forEach(key => { total += getServiceCost(key); });
+    return total;
+  };
+
+  const getEstimatedCost = () => {
+    const add = urgencyLevels.find(u => u.id === formData.urgency)?.price || 0;
+    const base = getTotalRepairCost();
+    if (base > 0) return `₵${base + add}`;
+    if (add > 0) return `Diagnostic + ₵${add}`;
+    return 'Subject to Diagnostic';
+  };
+
+  const toggleIssue = (key: keyof typeof repairServicesMap) => {
+    setSelectedIssueKeys(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
   const submitRepairRequest = () => {
     if (!user) { navigate({ to: '/auth' }); return; }
-
-    // Validation
-    if (!formData.deviceType || !formData.brand || !formData.model || !formData.condition) {
-      notify('Please complete device details.', 'error');
-      return;
-    }
-    if (formData.description.length < 10) {
-      notify('Please provide a detailed issue description (min 10 chars).', 'error');
-      return;
-    }
-    if (!formData.date || !formData.timeSlot) {
-      notify('Please select a schedule.', 'error');
-      return;
-    }
-    if (!formData.name || !formData.email || !formData.phone) {
-      notify('Please complete all contact details', 'error');
-      return;
-    }
-
+    const selectedLabels = Array.from(selectedIssueKeys).map(k => repairServicesMap[k as keyof typeof repairServicesMap].label);
+    const issueText = selectedLabels.length > 0
+      ? `${selectedLabels.join(', ')}${formData.description ? ' – ' + formData.description : ''}`
+      : formData.description;
     const newRepair: RepairRequest = {
-      id: generateId(),
-      userId: user.id,
-      userName: user.name,
+      id: generateId(), userId: user.id, userName: user.name,
       device: `${formData.brand} ${formData.model}`,
-      issue: formData.description,
-      status: 'Received',
-      date: new Date().toISOString(),
-      imageUrl: formData.photos.length > 0 ? formData.photos[0] : undefined
+      issue: issueText,
+      status: 'Received', date: new Date().toISOString(),
+      imageUrl: formData.photos[0],
     };
     setRepairs([newRepair, ...repairs]);
-    notify('Repair request submitted successfully!');
+    notify('Repair request submitted!');
     navigate({ to: '/profile' });
   };
 
+  const go = (n: number) => {
+    setTransitionKey(k => k + 1);
+    setStep(n);
+    setSubStep(1);
+  };
+
   const deviceTypes = [
-    { id: 'smartphone', label: 'Smartphone', desc: 'iPhone, Android', icon: Smartphone },
-    { id: 'laptop', label: 'Laptop', desc: 'MacBook, Windows', icon: Laptop },
-    { id: 'tablet', label: 'Tablet', desc: 'iPad, Android', icon: Tablet },
-    { id: 'gaming', label: 'Console', desc: 'PS, Xbox, Switch', icon: Gamepad2 },
-    { id: 'smartwatch', label: 'Watch', desc: 'Apple, Galaxy', icon: Watch },
-    { id: 'other', label: 'Other', desc: 'Electronics', icon: Cpu }
+    { id: 'smartphone', label: 'Smartphone', icon: Smartphone },
+    { id: 'tablet', label: 'Tablet', icon: Tablet },
+    { id: 'laptop', label: 'Laptop', icon: Laptop },
+    { id: 'gaming', label: 'Console', icon: Gamepad2 },
+    { id: 'smartwatch', label: 'Watch', icon: Watch },
+    { id: 'other', label: 'Other', icon: MonitorSmartphone },
   ];
 
-  const conditions = [
-    { id: 'excellent', label: 'Excellent', desc: 'Minor cosmetic wear only', dot: 'bg-emerald-400' },
-    { id: 'good', label: 'Good', desc: 'Slight signs of use', dot: 'bg-blue-400' },
-    { id: 'fair', label: 'Fair', desc: 'Noticeable wear and tear', dot: 'bg-amber-400' },
-    { id: 'poor', label: 'Poor', desc: 'Significant damage', dot: 'bg-red-400' }
-  ];
+  const brands = ['Apple', 'Samsung', 'Sony', 'Microsoft', 'Nintendo', 'HP', 'Dell', 'Lenovo', 'Other'];
 
   const timeSlots = [
     { id: 'morning-1', time: '9:00 AM', label: 'Early Morning', available: true },
@@ -94,525 +129,786 @@ export const Repair: React.FC = () => {
   const urgencyLevels = [
     { id: 'standard', label: 'Standard', desc: '2–3 days', price: 0, icon: Package },
     { id: 'express', label: 'Express', desc: '24 hours', price: 50, icon: Wrench },
-    { id: 'emergency', label: 'Emergency', desc: 'Same day', price: 150, icon: Activity }
+    { id: 'emergency', label: 'Emergency', desc: 'Same day', price: 150, icon: Activity },
   ];
 
-  const brands = ['Apple', 'Samsung', 'Sony', 'Microsoft', 'Nintendo', 'HP', 'Dell', 'Lenovo', 'Asus', 'Other'];
+  const isApple = formData.brand === 'Apple';
+  const modelOptions = isApple ? Object.keys(repairPricing) : [];
 
-  const inputClass = "w-full border border-white/20 rounded-xl px-4 py-3 text-sm text-white outline-none transition-all focus:border-[#CDA032]/50 placeholder:text-white/40";
-  const inputBg = { backgroundColor: 'var(--bb-surface)' };
+  const appleSeriesGroups = React.useMemo(() => {
+    if (!isApple || formData.deviceType !== 'smartphone') return {};
+    const groups: Record<string, string[]> = {};
+    modelOptions.forEach(m => {
+      const match = m.match(/iPhone (\d+|X[sr]?|SE)/i);
+      let series = match ? match[0] : 'Other iPhones';
+      if (series.startsWith('iPhone X')) series = 'iPhone X Series';
+      if (series.startsWith('iPhone 6')) series = 'iPhone 6 Series';
+      if (!groups[series]) groups[series] = [];
+      groups[series].push(m);
+    });
+    return groups;
+  }, [modelOptions, isApple, formData.deviceType]);
+
+  const mappedServices = Object.entries(repairServicesMap).map(([key, service]) => ({
+    serviceKey: key as keyof typeof repairServicesMap, ...service,
+  }));
 
   return (
     <div className="min-h-screen pb-32 relative" style={{ backgroundColor: 'var(--bb-bg)', color: 'var(--bb-text)' }}>
-      {/* Subtle bg glow */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #CDA032 0%, transparent 70%)', filter: 'blur(120px)', transform: 'translate(40%, -40%)' }} />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #CDA032 0%, transparent 70%)', filter: 'blur(100px)', transform: 'translate(-40%, 40%)' }} />
+      {/* Background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full opacity-10"
+          style={{ background: 'radial-gradient(circle, #CDA032 0%, transparent 60%)', filter: 'blur(100px)', transform: 'translate(30%, -30%)' }} />
+        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] rounded-full opacity-[0.05]"
+          style={{ background: 'radial-gradient(circle, #CDA032 0%, transparent 70%)', filter: 'blur(100px)', transform: 'translate(-30%, 30%)' }} />
       </div>
 
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 md:px-10 pt-8 sm:pt-10 z-10 relative space-y-10 sm:space-y-12">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 md:px-10 pt-8 sm:pt-14 z-10 relative">
 
-        {/* ── Header ── */}
-        <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-lg" style={{ backgroundColor: '#CDA032' }}>
-                <Activity size={20} className="text-black" />
-              </div>
-              <span className="text-[10px] font-bold uppercase tracking-[0.35em] opacity-60">Diagnostics Lab</span>
+        {/* Header */}
+        <header className="mb-10 sm:mb-16">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-[#CDA032]/10 border border-[#CDA032]/30">
+              <Wrench size={20} className="text-[#CDA032]" />
             </div>
-            <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tight leading-none">Repair Service</h1>
-            <p className="text-sm opacity-60 font-medium mt-2 max-w-md">Schedule a professional diagnostic and repair service for your premium devices.</p>
+            <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.3em] text-[#CDA032]">BlackBox Repair Center</span>
           </div>
-
-          <div className="flex flex-wrap gap-3">
-            {[
-              { icon: <ShieldCheck size={14} className="text-emerald-500" />, label: 'Certified Techs' },
-              { icon: <Package size={14} style={{ color: '#CDA032' }} />, label: 'Genuine Parts' },
-              { icon: <Zap size={14} className="text-amber-500" />, label: 'Fast Turnaround' },
-            ].map((b, i) => (
-              <div key={i} className="flex items-center gap-2 px-4 py-2 rounded-full border border-[var(--bb-border)] bg-[var(--bb-surface-2)] shadow-sm">
-                {b.icon}
-                <span className="text-[11px] font-bold tracking-wide opacity-70 uppercase">{b.label}</span>
-              </div>
-            ))}
-          </div>
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-black uppercase tracking-tighter leading-[1.1]">
+            Get your device<br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#CDA032] to-[#FCE69B]">working beautifully.</span>
+          </h1>
         </header>
 
-        {/* ── Stepper ── */}
-        <div className="flex items-center justify-between relative px-2 mb-8">
-          <div className="absolute top-[18px] left-0 w-full h-px border-t border-[var(--bb-border)]" />
-          <div
-            className="absolute top-[18px] left-0 h-px transition-all duration-500 bg-[#CDA032]"
-            style={{ width: `${((step - 1) / 4) * 100}%` }}
-          />
-          {[
-            { id: 1, label: 'Device', icon: Smartphone },
-            { id: 2, label: 'Issue', icon: AlertCircle },
-            { id: 3, label: 'Schedule', icon: Calendar },
-            { id: 4, label: 'Contact', icon: User },
-            { id: 5, label: 'Review', icon: CheckCircle2 }
-          ].map(s => (
-            <div key={s.id} className="relative z-10 flex flex-col items-center gap-1.5 px-1 bg-[var(--bb-bg)]">
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all border text-xs font-black ${step > s.id
-                ? 'text-black border-transparent bg-[#CDA032]'
-                : step === s.id
-                  ? 'text-[#CDA032] border-[#CDA032] bg-[#CDA032]/10'
-                  : 'text-[var(--bb-text)] opacity-40 border-[var(--bb-border)] bg-[var(--bb-surface)]'
-                }`}>
-                {step > s.id ? <Check size={15} strokeWidth={3} /> : <s.icon size={15} />}
-              </div>
-              <span className={`text-[9px] font-bold uppercase tracking-wider hidden sm:block ${step >= s.id ? 'opacity-80' : 'opacity-40'}`}>
-                {s.label}
-              </span>
-            </div>
-          ))}
-        </div>
+        <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-start">
 
-        {/* ── Form Container ── */}
-        <div className="max-w-4xl mx-auto items-start">
+          {/* ── Main Form ── */}
+          <div className="flex-1 w-full space-y-6" ref={formRef}>
 
-          <div className="space-y-8">
-            {/* Section 1: Device Details */}
-            {step === 1 && (
-              <section className="relative rounded-[2.5rem] p-6 md:p-10 space-y-8 border border-[var(--bb-border)] glow-surface shadow-xl overflow-hidden animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="pointer-events-none absolute inset-0 z-0">
-                  <div className="absolute top-4 left-4 w-12 h-12 border-t-2 border-l-2 rounded-tl-[1.5rem] transition-colors border-[#CDA032]/50" />
-                  <div className="absolute top-4 right-4 w-12 h-12 border-t-2 border-r-2 rounded-tr-[1.5rem] transition-colors border-[#CDA032]/50" />
-                  <div className="absolute bottom-4 left-4 w-12 h-12 border-b-2 border-l-2 rounded-bl-[1.5rem] transition-colors border-[#CDA032]/50" />
-                  <div className="absolute bottom-4 right-4 w-12 h-12 border-b-2 border-r-2 rounded-br-[1.5rem] transition-colors border-[#CDA032]/50" />
+            {/* STEP 1 — Device (sub-stepped) */}
+            {step > 1 ? (
+              <div className="flex justify-between items-center py-6 border-b border-[var(--bb-border)] animate-in fade-in transition-all">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032]">Device Details</p>
+                  <h3 className="text-xl font-black text-white">{formData.brand} {formData.model}</h3>
                 </div>
+                <button onClick={() => setStep(1)} className="text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors">
+                  Change
+                </button>
+              </div>
+            ) : step === 1 && (
+              <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 active-form-section">
 
-                <div className="relative z-10 space-y-8">
-                  <div className="flex items-center gap-3">
-                    <span className="w-8 h-8 rounded-xl text-xs font-black text-black flex items-center justify-center shadow-md bg-[#CDA032]">01</span>
-                    <h2 className="text-sm md:text-base font-black uppercase tracking-widest opacity-80">Device Information</h2>
+                {/* 1a: Device Type */}
+                {subStep > 1 ? (
+                  <div className="flex justify-between items-center py-5 border-b border-[var(--bb-border)] animate-in fade-in">
+                    <h3 className="text-lg font-bold">
+                      {deviceTypes.find(d => d.id === formData.deviceType)?.label}
+                    </h3>
+                    <button onClick={() => setSubStep(1)} className="text-sm font-bold text-blue-500 hover:text-blue-400">
+                      Change
+                    </button>
                   </div>
-
+                ) : subStep === 1 && (
                   <div className="space-y-4">
-                    <FieldLabel icon={<Smartphone size={11} />} label="Device Category" required />
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <h2 className="text-2xl font-bold tracking-tight">What can we help you with?</h2>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                       {deviceTypes.map(type => (
-                        <button
-                          key={type.id}
-                          onClick={() => setFormData({ ...formData, deviceType: type.id })}
-                          className={`relative p-3 rounded-2xl border text-center transition-all duration-300 group ${formData.deviceType === type.id ? 'bg-[#CDA032]/10 border-[#CDA032] shadow-[0_0_20px_rgba(205,160,50,0.15)]' : 'border-[var(--bb-border)] hover:border-[#CDA032]/40 bg-[var(--bb-surface-2)]'}`}
+                        <button key={type.id}
+                          onClick={() => {
+                            setFormData({ ...formData, deviceType: type.id, brand: '', model: '' });
+                            setSubStep(2);
+                          }}
+                          className={`flex flex-col items-center justify-center p-6 sm:p-8 rounded-3xl border transition-all duration-300 ${formData.deviceType === type.id
+                            ? 'bg-[#CDA032]/10 border-[#CDA032] shadow-[0_0_30px_rgba(205,160,50,0.15)] ring-1 ring-[#CDA032]'
+                            : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:bg-[var(--bb-surface-2)] hover:border-[#CDA032]/40'}`}
                         >
-                          <type.icon size={20} className={`mx-auto mb-2 transition-colors ${formData.deviceType === type.id ? 'text-[#CDA032]' : 'opacity-50 group-hover:opacity-100'}`} />
-                          <p className={`text-[10px] font-bold uppercase tracking-wide transition-colors ${formData.deviceType === type.id ? 'text-[#CDA032]' : 'opacity-80'}`}>{type.label}</p>
-                          <p className="text-[8px] opacity-40 mt-1 hidden sm:block">{type.desc}</p>
-                          {formData.deviceType === type.id && (
-                            <div className="absolute -top-2 -right-2 w-5 h-5 rounded-full flex items-center justify-center bg-[#CDA032]">
-                              <Check size={10} className="text-black" strokeWidth={3} />
-                            </div>
-                          )}
+                          <type.icon size={36} strokeWidth={1.5} className={`mb-4 transition-colors ${formData.deviceType === type.id ? 'text-[#CDA032]' : 'opacity-60'}`} />
+                          <span className={`text-sm sm:text-base font-bold transition-colors ${formData.deviceType === type.id ? 'text-[#CDA032]' : 'opacity-90'}`}>{type.label}</span>
                         </button>
                       ))}
                     </div>
                   </div>
+                )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
+                {/* 1b: Brand */}
+                {subStep > 2 ? (
+                  <div className="flex justify-between items-center py-5 border-b border-[var(--bb-border)] animate-in fade-in">
+                    <h3 className="text-lg font-bold">{formData.brand}</h3>
+                    <button onClick={() => setSubStep(2)} className="text-sm font-bold text-blue-500 hover:text-blue-400">
+                      Change
+                    </button>
+                  </div>
+                ) : subStep === 2 && (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300 pt-4">
                     <div className="space-y-2">
-                      <FieldLabel icon={<Package size={11} />} label="Brand" required />
-                      <div className="relative">
-                        <select
-                          value={formData.brand}
-                          onChange={e => setFormData({ ...formData, brand: e.target.value })}
-                          className={`${inputClass} appearance-none cursor-pointer bg-[var(--bb-surface-2)] border-[var(--bb-border)] text-[var(--bb-text)]`}
+                      <p className="text-xs font-black uppercase tracking-widest text-[#CDA032] opacity-70">
+                        {deviceTypes.find(d => d.id === formData.deviceType)?.label}
+                      </p>
+                      <h2 className="text-2xl font-bold tracking-tight">Which brand?</h2>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {brands.map(brand => (
+                        <button key={brand}
+                          onClick={() => {
+                            setFormData({ ...formData, brand, model: '' });
+                            setSelectedSeries('');
+                            setSubStep(3);
+                          }}
+                          className={`py-5 px-4 rounded-2xl border text-sm font-bold text-center transition-all duration-200 ${formData.brand === brand
+                            ? 'bg-[#CDA032] text-black border-[#CDA032] shadow-lg shadow-[#CDA032]/20'
+                            : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:bg-[var(--bb-surface-2)] hover:border-[#CDA032]/40 opacity-80'}`}
                         >
-                          <option value="">Select brand...</option>
-                          {brands.map(b => <option key={b} value={b}>{b}</option>)}
-                        </select>
-                        <ArrowRight size={13} className="absolute right-4 top-1/2 -translate-y-1/2 opacity-50 pointer-events-none rotate-90" />
+                          {brand}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 1c: Series (Apple Smartphones Only) */}
+                {isApple && formData.deviceType === 'smartphone' && (
+                  subStep > 3 ? (
+                    <div className="flex justify-between items-center py-5 border-b border-[var(--bb-border)] animate-in fade-in">
+                      <h3 className="text-lg font-bold">{selectedSeries}</h3>
+                      <button onClick={() => { setSubStep(3); setFormData(f => ({ ...f, model: '' })); setSelectedSeries(''); }} className="text-sm font-bold text-blue-500 hover:text-blue-400">
+                        Change
+                      </button>
+                    </div>
+                  ) : subStep === 3 && (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300 pt-4">
+                      <div className="flex items-end justify-between gap-4 flex-wrap">
+                        <div className="space-y-1">
+                          <p className="text-xs font-black uppercase tracking-widest text-[#CDA032] opacity-70">
+                            {deviceTypes.find(d => d.id === formData.deviceType)?.label} · {formData.brand}
+                          </p>
+                          <h2 className="text-2xl font-bold tracking-tight">Select your iPhone series</h2>
+                        </div>
+                        <a
+                          href="https://support.apple.com/en-us/108044"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs sm:text-sm font-black text-blue-500 hover:text-blue-400 hover:underline flex items-center gap-1 transition-colors shrink-0 px-3 py-1.5 rounded-full bg-blue-500/10"
+                        >
+                          Help identify your model →
+                        </a>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 content-start pr-1">
+                        {Object.keys(appleSeriesGroups).reverse().map(series => {
+                          const num = parseInt(series.replace(/\D/g, '')) || 0;
+                          const hasHome = num <= 8 || series.includes('SE');
+                          const hasDI = num >= 14;
+                          const img = hasHome ? '/iphone_classic.png' : hasDI ? '/iphone_modern.png' : '/iphone_notch.png';
+
+                          return (
+                            <button key={series}
+                              onClick={() => {
+                                setSelectedSeries(series);
+                                setSubStep(4);
+                              }}
+                              className={`relative flex flex-col items-center justify-center gap-3 p-4 pt-5 rounded-2xl border transition-all duration-200 group border-[var(--bb-border)] bg-[var(--bb-surface)] hover:bg-[var(--bb-surface-2)] hover:border-[#CDA032]/40 hover:shadow-[0_0_16px_rgba(205,160,50,0.1)]`}
+                            >
+                              <img src={img} alt={series}
+                                className="h-16 w-auto object-contain transition-all duration-200 opacity-60 group-hover:opacity-90 group-hover:scale-105" />
+                              <div className="text-center">
+                                <p className="text-[13px] font-black">{series}</p>
+                                <p className="text-[9px] opacity-40 uppercase tracking-widest mt-1 group-hover:text-[#CDA032] group-hover:opacity-100 transition-colors">Select Models</p>
+                              </div>
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <FieldLabel icon={<FileText size={11} />} label="Model" required />
-                      <input
-                        placeholder="e.g. iPhone 15 Pro Max"
-                        value={formData.model}
-                        onChange={e => setFormData({ ...formData, model: e.target.value })}
-                        className={`${inputClass} bg-[var(--bb-surface-2)] border-[var(--bb-border)] text-[var(--bb-text)]`}
-                      />
+                  )
+                )}
+                {/* 1d: Model Selection */}
+                {subStep === (isApple && formData.deviceType === 'smartphone' ? 4 : 3) && (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300 pt-4">
+                    <div className="flex items-end justify-between gap-4 flex-wrap">
+                      <div className="space-y-1">
+                        <p className="text-xs font-black uppercase tracking-widest text-[#CDA032] opacity-70">
+                          {deviceTypes.find(d => d.id === formData.deviceType)?.label} · {formData.brand} {selectedSeries ? `· ${selectedSeries}` : ''}
+                        </p>
+                        <h2 className="text-2xl font-bold tracking-tight">Select your {formData.brand === 'Apple' ? 'iPhone' : 'specific'} model</h2>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="space-y-3 pt-2">
-                    <FieldLabel icon={<Activity size={11} />} label="Current Condition" required />
-                    <div className="grid grid-cols-2 gap-3">
-                      {conditions.map(cond => (
-                        <button
-                          key={cond.id}
-                          onClick={() => setFormData({ ...formData, condition: cond.id })}
-                          className={`flex items-center gap-3 p-4 rounded-xl border text-left transition-all duration-200 ${formData.condition === cond.id ? 'border-[#CDA032] bg-[#CDA032]/10' : 'border-[var(--bb-border)] bg-[var(--bb-surface-2)] hover:border-[#CDA032]/40'}`}
-                        >
-                          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${cond.dot}`} />
-                          <div>
-                            <p className={`text-xs font-bold transition-colors ${formData.condition === cond.id ? 'opacity-100' : 'opacity-80'}`}>{cond.label}</p>
-                            <p className="text-[9px] opacity-50 mt-0.5">{cond.desc}</p>
+                    {isApple && formData.deviceType === 'smartphone' ? (
+                      <div className="flex flex-col lg:flex-row gap-6">
+                        {/* Left: Large phone image preview */}
+                        <div className="lg:w-52 shrink-0">
+                          <div className={`sticky top-28 rounded-3xl border p-5 flex flex-col items-center gap-3 transition-all duration-500 ${formData.model
+                            ? 'border-[#CDA032]/50 bg-[#CDA032]/5 shadow-[0_0_50px_rgba(205,160,50,0.15)]'
+                            : 'border-[var(--bb-border)] bg-[var(--bb-surface)]'
+                            }`}>
+                            {(() => {
+                              const m = formData.model;
+                              const num = m ? parseInt(m.replace(/\D/g, '')) || 0 : 0;
+                              const hasHome = num <= 8 || (m || '').includes('SE');
+                              const hasDI = num >= 14;
+                              const img = hasHome ? '/iphone_classic.png' : hasDI ? '/iphone_modern.png' : '/iphone_notch.png';
+                              return (
+                                <div className={`relative transition-all duration-500 ${m ? 'opacity-100 scale-100' : 'opacity-20 scale-90'}`}
+                                  style={{ height: 160 }}>
+                                  <img
+                                    key={img}
+                                    src={img}
+                                    alt={m || 'iPhone'}
+                                    className="h-full w-auto object-contain drop-shadow-2xl transition-all duration-500 animate-in fade-in zoom-in-95"
+                                  />
+                                </div>
+                              );
+                            })()}
+                            <div className="text-center">
+                              {formData.model ? (
+                                <>
+                                  <p className="text-[9px] font-black uppercase tracking-widest text-[#CDA032]/60 mb-0.5">Selected</p>
+                                  <p className="text-sm font-black text-[#CDA032] leading-tight">{formData.model}</p>
+                                </>
+                              ) : (
+                                <p className="text-[10px] font-bold opacity-30 uppercase tracking-widest">Select a model →</p>
+                              )}
+                            </div>
                           </div>
-                          {formData.condition === cond.id && (
-                            <div className="ml-auto w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 bg-[#CDA032]">
-                              <Check size={9} className="text-black" strokeWidth={3} />
-                            </div>
-                          )}
+                        </div>
+
+                        {/* Right: Scrollable model list */}
+                        <div className="flex-1 flex flex-col gap-4">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 content-start max-h-[520px] overflow-y-auto pr-1"
+                            style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(205,160,50,0.3) transparent' }}>
+                            {[...appleSeriesGroups[selectedSeries]].reverse().map(model => {
+                              const selected = formData.model === model;
+                              const num = parseInt(model.replace(/\D/g, '')) || 0;
+                              const hasHome = num <= 8 || model.includes('SE');
+                              const hasDI = num >= 14;
+                              const img = hasHome ? '/iphone_classic.png' : hasDI ? '/iphone_modern.png' : '/iphone_notch.png';
+
+                              return (
+                                <button key={model}
+                                  onClick={() => setFormData(f => ({ ...f, model }))}
+                                  className={`relative flex flex-col items-center gap-2 p-3 pt-4 rounded-2xl border transition-all duration-200 group ${selected
+                                    ? 'border-[#CDA032] bg-[#CDA032]/10 shadow-[0_0_16px_rgba(205,160,50,0.2)] ring-1 ring-[#CDA032]'
+                                    : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:bg-[var(--bb-surface-2)] hover:border-[#CDA032]/40'
+                                    }`}
+                                >
+                                  <img src={img} alt={model}
+                                    className={`h-12 w-auto object-contain transition-all duration-200 ${selected ? 'scale-110 drop-shadow-lg' : 'opacity-60 group-hover:opacity-90 group-hover:scale-105'}`} />
+                                  <div className="text-center">
+                                    <p className={`text-[11px] font-black leading-tight ${selected ? 'text-[#CDA032]' : ''}`}>
+                                      {model.replace('iPhone ', '')}
+                                    </p>
+                                  </div>
+                                  {selected && (
+                                    <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-[#CDA032] flex items-center justify-center">
+                                      <Check size={9} className="text-black" strokeWidth={4} />
+                                    </div>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <div className="pt-2">
+                            <button
+                              onClick={() => {
+                                if (!formData.model) { notify('Please select your model to continue.', 'error'); return; }
+                                go(2);
+                              }}
+                              className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] active:scale-[0.98] transition-all w-full"
+                            >
+                              Continue <ArrowRight size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4 max-w-md">
+                        <input
+                          placeholder={`Enter your ${formData.brand} model...`}
+                          value={formData.model}
+                          onChange={e => setFormData({ ...formData, model: e.target.value })}
+                          className="w-full border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface)] outline-none transition-all focus:border-[#CDA032]/50"
+                        />
+                        <button
+                          onClick={() => {
+                            if (!formData.model) { notify('Please enter your model to continue.', 'error'); return; }
+                            go(2);
+                          }}
+                          className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] active:scale-[0.98] transition-all w-full"
+                        >
+                          Continue <ArrowRight size={16} />
                         </button>
-                      ))}
-                    </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-                <div className="flex justify-end pt-6 border-t border-[var(--bb-border)]">
-                  <button
-                    onClick={() => {
-                      if (!formData.deviceType || !formData.brand || !formData.model || !formData.condition) {
-                        notify('Please complete device details.', 'error');
-                        return;
-                      }
-                      setStep(2);
-                    }}
-                    className="flex items-center gap-2 px-7 py-3 rounded-xl text-xs font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] transition-all"
-                  >
-                    Next Step <ArrowRight size={14} />
-                  </button>
-                </div>
-              </section>
+                )}
+              </div>
             )}
 
-            {/* Section 2: Issue Description */}
-            {step === 2 && (
-              <section className="relative rounded-[2.5rem] p-6 md:p-10 space-y-8 border border-[var(--bb-border)] glow-surface shadow-xl overflow-hidden animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="pointer-events-none absolute inset-0 z-0">
-                  <div className="absolute top-4 left-4 w-12 h-12 border-t-2 border-l-2 rounded-tl-[1.5rem] transition-colors border-[#CDA032]/50" />
-                  <div className="absolute top-4 right-4 w-12 h-12 border-t-2 border-r-2 rounded-tr-[1.5rem] transition-colors border-[#CDA032]/50" />
-                  <div className="absolute bottom-4 left-4 w-12 h-12 border-b-2 border-l-2 rounded-bl-[1.5rem] transition-colors border-[#CDA032]/50" />
-                  <div className="absolute bottom-4 right-4 w-12 h-12 border-b-2 border-r-2 rounded-br-[1.5rem] transition-colors border-[#CDA032]/50" />
+            {/* STEP 2 — Issues & Condition */}
+            {step > 2 ? (
+              <div className="flex justify-between items-center py-6 border-b border-[var(--bb-border)] animate-in fade-in transition-all">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032]">Device Issues</p>
+                  <h3 className="text-xl font-black text-white">
+                    {Array.from(selectedIssueKeys).map(k => repairServicesMap[k as keyof typeof repairServicesMap].label).join(' + ')}
+                  </h3>
+                </div>
+                <button onClick={() => setStep(2)} className="text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors">
+                  Change
+                </button>
+              </div>
+            ) : step === 2 && (
+              <div key={`step-2-${transitionKey}`} className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-4 active-form-section">
+
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-bold tracking-tight">What's happening with your {formData.model}?</h2>
+                  <p className="opacity-60 text-sm">Select one or more issues — we'll add up the estimates for you.</p>
                 </div>
 
-                <div className="relative z-10 space-y-8">
-                  <div className="flex items-center gap-3">
-                    <span className="w-8 h-8 rounded-xl text-xs font-black text-black flex items-center justify-center shadow-md bg-[#CDA032]">02</span>
-                    <h2 className="text-sm md:text-base font-black uppercase tracking-widest opacity-80">Describe Problem</h2>
-                  </div>
-
-                  <div className="space-y-3">
-                    <textarea
-                      placeholder="Provide a detailed description of the problem (e.g. shattered screen, battery drains fast, won't turn on)..."
-                      value={formData.description}
-                      onChange={e => setFormData({ ...formData, description: e.target.value })}
-                      rows={6}
-                      className={`${inputClass} resize-none leading-relaxed bg-[var(--bb-surface-2)] border-[var(--bb-border)] text-[var(--bb-text)]`}
-                    />
-                    <div className="flex justify-between text-[9px] opacity-50">
-                      <span>Minimum 10 characters required</span>
-                      <span className={formData.description.length >= 10 ? 'text-emerald-500 font-bold' : ''}>{formData.description.length} chars</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3 pt-2">
-                    <FieldLabel icon={<ImageIcon size={11} />} label="Upload Photos (Optional)" />
-                    <ImageUpload
-                      images={formData.photos}
-                      onImagesChange={photos => setFormData({ ...formData, photos })}
-                      maxImages={3}
-                      maxSize={5}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-between pt-6 border-t border-[var(--bb-border)]">
-                  <button
-                    onClick={() => setStep(1)}
-                    className="flex items-center gap-2 px-7 py-3 rounded-xl text-xs font-bold uppercase tracking-wider opacity-60 hover:opacity-100 hover:bg-[var(--bb-surface-2)] transition-all"
-                  >
-                    <ArrowLeft size={14} /> Back
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (formData.description.length < 10) {
-                        notify('Please provide a detailed issue description (min 10 chars).', 'error');
-                        return;
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  {mappedServices.map(service => {
+                    let costStr = '';
+                    let costNum = 0;
+                    if (isApple && formData.model && repairPricing[formData.model as keyof typeof repairPricing]) {
+                      if (service.serviceKey !== 'UNKNOWN') {
+                        costStr = repairPricing[formData.model as keyof typeof repairPricing][service.serviceKey as any];
+                        if (costStr && costStr !== 'N/A' && costStr !== 'Consult' && !costStr.includes('xxxxx')) {
+                          costNum = parseInt(costStr.split('-')[0].replace(/\D/g, ''));
+                        }
                       }
-                      setStep(3);
-                    }}
-                    className="flex items-center gap-2 px-7 py-3 rounded-xl text-xs font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] transition-all"
-                  >
-                    Next Step <ArrowRight size={14} />
-                  </button>
-                </div>
-              </section>
-            )}
-
-            {/* Section 3: Scheduling */}
-            {step === 3 && (
-              <section className="relative rounded-[2.5rem] p-6 md:p-10 space-y-8 border border-[var(--bb-border)] glow-surface shadow-xl overflow-hidden animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="pointer-events-none absolute inset-0 z-0">
-                  <div className="absolute top-4 left-4 w-12 h-12 border-t-2 border-l-2 rounded-tl-[1.5rem] transition-colors border-[#CDA032]/50" />
-                  <div className="absolute top-4 right-4 w-12 h-12 border-t-2 border-r-2 rounded-tr-[1.5rem] transition-colors border-[#CDA032]/50" />
-                  <div className="absolute bottom-4 left-4 w-12 h-12 border-b-2 border-l-2 rounded-bl-[1.5rem] transition-colors border-[#CDA032]/50" />
-                  <div className="absolute bottom-4 right-4 w-12 h-12 border-b-2 border-r-2 rounded-br-[1.5rem] transition-colors border-[#CDA032]/50" />
-                </div>
-
-                <div className="relative z-10 space-y-8">
-                  <div className="flex items-center gap-3">
-                    <span className="w-8 h-8 rounded-xl text-xs font-black text-black flex items-center justify-center shadow-md bg-[#CDA032]">03</span>
-                    <h2 className="text-sm md:text-base font-black uppercase tracking-widest opacity-80">Logistics & Schedule</h2>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="space-y-3">
-                      <FieldLabel icon={<Clock size={11} />} label="Service Priority" required />
-                      <div className="space-y-3">
-                        {urgencyLevels.map(level => (
-                          <button
-                            key={level.id}
-                            onClick={() => setFormData({ ...formData, urgency: level.id })}
-                            className={`w-full flex items-center justify-between p-4 rounded-xl border transition-all duration-200 ${formData.urgency === level.id ? 'bg-[#CDA032]/10 border-[#CDA032]' : 'border-[var(--bb-border)] bg-[var(--bb-surface-2)] hover:border-[#CDA032]/40'}`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <level.icon size={16} className={formData.urgency === level.id ? 'text-[#CDA032]' : 'opacity-50'} />
-                              <div className="text-left">
-                                <p className="text-[10px] font-bold uppercase tracking-wide opacity-90">{level.label}</p>
-                                <p className="text-[9px] opacity-50">{level.desc}</p>
-                              </div>
+                    }
+                    if (costStr === 'N/A' || costStr.includes('xxxxx')) return null;
+                    const selected = selectedIssueKeys.has(service.serviceKey);
+                    return (
+                      <button key={service.serviceKey}
+                        onClick={() => toggleIssue(service.serviceKey)}
+                        className={`flex flex-col text-left p-5 rounded-3xl border transition-all duration-300 relative overflow-hidden group ${selected
+                          ? 'border-[#CDA032] bg-[#CDA032]/10 shadow-[0_0_20px_rgba(205,160,50,0.15)] ring-1 ring-[#CDA032]'
+                          : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:bg-[var(--bb-surface-2)] hover:border-[#CDA032]/40'}`}
+                      >
+                        <div className="flex justify-between w-full items-start mb-2 z-10">
+                          <span className={`font-extrabold text-base sm:text-lg ${selected ? 'text-[#CDA032]' : ''}`}>{service.label}</span>
+                          <div className={`w-5 h-5 rounded-md flex items-center justify-center border transition-all shrink-0 ml-2 ${selected ? 'border-[#CDA032] bg-[#CDA032]' : 'border-[var(--bb-border)] opacity-30 group-hover:opacity-100 group-hover:border-[#CDA032]/50'}`}>
+                            {selected && <Check size={11} className="text-black" strokeWidth={4} />}
+                          </div>
+                        </div>
+                        <span className="text-xs opacity-60 leading-relaxed mb-6 z-10 flex-1">{service.desc}</span>
+                        <div className="w-full pt-4 border-t border-[var(--bb-border)] z-10">
+                          {costNum > 0 ? (
+                            <div className="flex items-end gap-2">
+                              <span className="text-xs font-bold uppercase tracking-wider opacity-60">Estimate:</span>
+                              <span className="text-lg font-black text-[#CDA032] leading-none">
+                                {costStr.includes('-') ? `₵${costStr}` : `₵${costNum}`}
+                              </span>
                             </div>
-                            <p className="text-[10px] font-black tracking-widest text-[#CDA032]">
-                              {level.price === 0 ? 'FREE' : `+${formatCurrency(level.price)}`}
-                            </p>
+                          ) : (
+                            <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">
+                              {service.serviceKey === 'UNKNOWN' ? 'Diagnostic Needed' : 'Custom Quote'}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Running total */}
+                {selectedIssueKeys.size > 0 && (
+                  <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl border border-[#CDA032]/30 bg-[#CDA032]/5 animate-in fade-in duration-300">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-0.5">Selected Services</p>
+                      <p className="text-sm font-bold">
+                        {Array.from(selectedIssueKeys).map(k => repairServicesMap[k as keyof typeof repairServicesMap].label).join(' + ')}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-0.5">Running Estimate</p>
+                      <p className="text-xl font-black text-[#CDA032]">{getEstimatedCost()}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Tell us more details section - Always visible once an issue is selected for better flow */}
+                {selectedIssueKeys.size > 0 && (
+                  <div className={`space-y-6 animate-in fade-in slide-in-from-top-4 duration-300 pt-6 border-t border-[var(--bb-border)]`}>
+                    <div className={`space-y-4 p-5 rounded-3xl border-2 transition-all duration-500 ${(() => {
+                      const needsDetailedInfo = selectedIssueKeys.has('H') || selectedIssueKeys.has('UNKNOWN');
+                      const isMissing = needsDetailedInfo && formData.description.trim().length < 5;
+                      return isMissing
+                        ? 'border-[#CDA032]/30 bg-[#CDA032]/5 shadow-[0_0_20px_rgba(205,160,50,0.05)]'
+                        : 'border-[var(--bb-border)] bg-[var(--bb-surface-2)]';
+                    })()}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-xl font-bold tracking-tight">Tell us more details</h3>
+                          {(selectedIssueKeys.has('H') || selectedIssueKeys.has('UNKNOWN')) && (
+                            <span className="text-[9px] font-black bg-[#CDA032] text-black px-2 py-0.5 rounded-full uppercase tracking-tighter animate-pulse">Required</span>
+                          )}
+                        </div>
+                        <Info size={16} className="text-[#CDA032] opacity-50 transition-opacity hover:opacity-100" />
+                      </div>
+
+                      <p className="text-xs opacity-60 mb-2 font-medium">
+                        {selectedIssueKeys.has('H')
+                          ? "For audio issues, please describe if it's the mic, main speaker, or earpiece."
+                          : selectedIssueKeys.has('UNKNOWN')
+                            ? "Please describe the symptoms (e.g. constant rebooting, won't turn on, etc.)"
+                            : "Any additional context helps our technicians work faster."
+                        }
+                      </p>
+
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {(selectedIssueKeys.has('H') ? ['Microphone', 'Earpiece', 'Main Speaker', 'Crackling Sound', 'No Sound'] :
+                          selectedIssueKeys.has('UNKNOWN') ? ['Wont turn on', 'Water Damage', 'Overheating', 'Software Loop', 'Random Shutdowns'] : []
+                        ).map(tag => (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => {
+                              const current = formData.description;
+                              if (!current.includes(tag)) {
+                                setFormData({ ...formData, description: current ? `${current}, ${tag}` : tag });
+                              }
+                            }}
+                            className="text-[10px] font-black uppercase tracking-wider px-3.5 py-1.5 rounded-full border border-[#CDA032]/30 bg-[#CDA032]/5 hover:bg-[#CDA032]/20 hover:border-[#CDA032] transition-all text-[#CDA032]"
+                          >
+                            + {tag}
                           </button>
                         ))}
                       </div>
+
+                      <textarea
+                        placeholder={selectedIssueKeys.has('UNKNOWN') || selectedIssueKeys.has('H')
+                          ? "Please explain the symptoms as best as you can..."
+                          : "Any additional details we should know? (Optional)"}
+                        value={formData.description}
+                        onChange={e => setFormData({ ...formData, description: e.target.value })}
+                        rows={4}
+                        className="w-full border border-[var(--bb-border)] rounded-2xl px-5 py-4 text-sm bg-[var(--bb-surface)] outline-none transition-all focus:border-[#CDA032]/50 focus:ring-1 focus:ring-[#CDA032]/20 resize-none leading-relaxed shadow-inner"
+                      />
                     </div>
 
-                    <div className="space-y-6">
-                      <div className="space-y-3">
-                        <FieldLabel icon={<Calendar size={11} />} label="Preferred Date" required />
-                        <div className="relative">
-                          <input
-                            type="date"
-                            value={formData.date}
-                            onChange={e => setFormData({ ...formData, date: e.target.value })}
-                            onClick={(e) => (e.target as any).showPicker?.()}
-                            min={new Date().toISOString().split('T')[0]}
-                            className={`${inputClass} pl-12 bg-[var(--bb-surface-2)] border-[var(--bb-border)] text-[var(--bb-text)] cursor-pointer`}
-                            style={{ colorScheme: theme === 'dark' ? 'dark' : 'light' }}
-                          />
-                          <Calendar size={16} className="absolute left-4 top-1/2 -translate-y-1/2 opacity-50 pointer-events-none text-[#CDA032]" />
-                        </div>
-                      </div>
+                    <div className="space-y-4 pt-4">
+                      <h3 className="text-xl font-bold tracking-tight">Upload Photos (Optional)</h3>
+                      <p className="opacity-60 text-sm">Upload photos of the damage to help our technicians estimate better.</p>
+                      <ImageUpload
+                        images={formData.photos}
+                        onImagesChange={photos => setFormData({ ...formData, photos })}
+                        maxImages={3}
+                        maxSize={5}
+                      />
+                    </div>
+                  </div>
+                )}
 
-                      <div className="space-y-3">
-                        <FieldLabel icon={<MapPin size={11} />} label="Time Slot" required />
-                        <div className="grid grid-cols-2 gap-2">
-                          {timeSlots.map(slot => (
-                            <button
-                              key={slot.id}
-                              onClick={() => slot.available && setFormData({ ...formData, timeSlot: slot.id })}
-                              disabled={!slot.available}
-                              className={`p-3 rounded-xl border text-center transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed ${formData.timeSlot === slot.id ? 'bg-[#CDA032]/10 border-[#CDA032]' : 'border-[var(--bb-border)] hover:border-[#CDA032]/30'}`}
-                            >
-                              <p className="text-xs font-black mb-0.5 opacity-90">{slot.time}</p>
-                              <p className="text-[8px] uppercase tracking-wider opacity-50">{slot.available ? slot.label : 'Booked'}</p>
-                            </button>
+                <div className="pt-8">
+                  <button
+                    onClick={() => {
+                      if (selectedIssueKeys.size === 0) {
+                        notify('Please select at least one issue.', 'error');
+                        return;
+                      }
+
+                      const needsInfo = selectedIssueKeys.has('H') || selectedIssueKeys.has('UNKNOWN');
+                      if (needsInfo && formData.description.trim().length < 5) {
+                        const issueName = selectedIssueKeys.has('H') ? 'Audio / Speaker' : 'Unspecified';
+                        notify(`Please provide details for the ${issueName} issue.`, 'error');
+                        return;
+                      }
+
+                      go(3);
+                    }}
+                    className="flex items-center gap-2 px-8 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] hover:scale-[1.02] active:scale-95 transition-all"
+                  >
+                    Continue to Booking <ArrowRight size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 3 — Schedule & Contact */}
+            {step > 3 ? (
+              <div className="flex justify-between items-center py-6 border-b border-[var(--bb-border)] animate-in fade-in transition-all">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032]">Booking Details</p>
+                  <h3 className="text-xl font-black text-white">
+                    {formData.date} at {timeSlots.find(t => t.id === formData.timeSlot)?.time}
+                  </h3>
+                </div>
+                <button onClick={() => setStep(3)} className="text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors">
+                  Change
+                </button>
+              </div>
+            ) : step === 3 && (
+              <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-4 active-form-section">
+                <div className="space-y-8">
+                  <div className="space-y-2">
+                    <h2 className="text-2xl font-bold tracking-tight">Schedule your drop-off or pickup</h2>
+                    <p className="opacity-60 text-sm">Choose a convenient time for us to service your device.</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-[#CDA032]">Priority Level</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {urgencyLevels.map(level => (
+                        <button key={level.id}
+                          onClick={() => setFormData({ ...formData, urgency: level.id })}
+                          className={`flex flex-col p-4 rounded-2xl border transition-all ${formData.urgency === level.id
+                            ? 'border-[#CDA032] bg-[#CDA032]/10 ring-1 ring-[#CDA032]'
+                            : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:bg-[var(--bb-surface-2)]'}`}
+                        >
+                          <div className="flex items-center justify-between w-full mb-3">
+                            <level.icon size={18} className={formData.urgency === level.id ? 'text-[#CDA032]' : 'opacity-50'} />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-[#CDA032]">
+                              {level.price === 0 ? 'Included' : `+ ₵${level.price}`}
+                            </span>
+                          </div>
+                          <span className={`text-sm font-bold text-left ${formData.urgency === level.id ? 'text-[#CDA032]' : ''}`}>{level.label}</span>
+                          <span className="text-[10px] opacity-60 mt-1 text-left">{level.desc} turnaround</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-bold uppercase tracking-widest opacity-80">Date</h3>
+                      <div className="relative">
+                        <input
+                          type="date"
+                          value={formData.date}
+                          onChange={e => setFormData({ ...formData, date: e.target.value })}
+                          onClick={e => (e.target as any).showPicker?.()}
+                          min={new Date().toISOString().split('T')[0]}
+                          className="w-full border border-[var(--bb-border)] rounded-xl pl-12 pr-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50 cursor-pointer h-[54px]"
+                          style={{ colorScheme: theme === 'dark' ? 'dark' : 'light' }}
+                        />
+                        <Calendar size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#CDA032] pointer-events-none" />
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-bold uppercase tracking-widest opacity-80">Time Slot</h3>
+                      <div className="relative">
+                        <select
+                          value={formData.timeSlot}
+                          onChange={e => setFormData({ ...formData, timeSlot: e.target.value })}
+                          className="w-full border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50 appearance-none cursor-pointer h-[54px]"
+                        >
+                          <option value="">Select an available time...</option>
+                          {timeSlots.map(t => (
+                            <option key={t.id} value={t.id} disabled={!t.available}>
+                              {t.time} - {t.available ? t.label : 'Fully Booked'}
+                            </option>
                           ))}
-                        </div>
+                        </select>
+                        <Clock size={18} className="absolute right-4 top-1/2 -translate-y-1/2 opacity-50 pointer-events-none" />
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex justify-between pt-6 border-t border-[var(--bb-border)]">
-                  <button
-                    onClick={() => setStep(2)}
-                    className="flex items-center gap-2 px-7 py-3 rounded-xl text-xs font-bold uppercase tracking-wider opacity-60 hover:opacity-100 hover:bg-[var(--bb-surface-2)] transition-all"
-                  >
-                    <ArrowLeft size={14} /> Back
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (!formData.date || !formData.timeSlot) {
-                        notify('Please select a schedule.', 'error');
-                        return;
-                      }
-                      setStep(4);
-                    }}
-                    className="flex items-center gap-2 px-7 py-3 rounded-xl text-xs font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] transition-all"
-                  >
-                    Next Step <ArrowRight size={14} />
-                  </button>
-                </div>
-              </section>
-            )}
-
-            {/* Section 4: Contact */}
-            {step === 4 && (
-              <section className="relative rounded-[2.5rem] p-6 md:p-10 space-y-8 border border-[var(--bb-border)] glow-surface shadow-xl overflow-hidden animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="pointer-events-none absolute inset-0 z-0">
-                  <div className="absolute top-4 left-4 w-12 h-12 border-t-2 border-l-2 rounded-tl-[1.5rem] transition-colors border-[#CDA032]/50" />
-                  <div className="absolute top-4 right-4 w-12 h-12 border-t-2 border-r-2 rounded-tr-[1.5rem] transition-colors border-[#CDA032]/50" />
-                  <div className="absolute bottom-4 left-4 w-12 h-12 border-b-2 border-l-2 rounded-bl-[1.5rem] transition-colors border-[#CDA032]/50" />
-                  <div className="absolute bottom-4 right-4 w-12 h-12 border-b-2 border-r-2 rounded-br-[1.5rem] transition-colors border-[#CDA032]/50" />
-                </div>
-
-                <div className="relative z-10 space-y-8">
-                  <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-                    <div className="flex items-center gap-3">
-                      <span className="w-8 h-8 rounded-xl text-xs font-black text-black flex items-center justify-center shadow-md bg-[#CDA032]">04</span>
-                      <h2 className="text-sm md:text-base font-black uppercase tracking-widest opacity-80">Owner Contact</h2>
-                    </div>
-                    {!user && (
-                      <button onClick={() => navigate({ to: '/auth' })} className="text-[10px] font-bold text-[#CDA032] underline tracking-widest uppercase">
-                        Sign in for faster booking
-                      </button>
-                    )}
+                <div className="space-y-6 pt-8 border-t border-[var(--bb-border)]">
+                  <div className="space-y-2">
+                    <h2 className="text-2xl font-bold tracking-tight">Your Details</h2>
+                    <p className="opacity-60 text-sm">We'll use this to keep you updated on your repair status.</p>
                   </div>
-
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div className="space-y-2 text-[var(--bb-text)]">
-                      <FieldLabel icon={<User size={11} />} label="Full Name" required />
+                    {[
+                      { placeholder: 'Full Name', value: formData.name, key: 'name', icon: <User size={16} /> },
+                      { placeholder: 'Phone Number', value: formData.phone, key: 'phone', icon: <Phone size={16} /> },
+                    ].map(f => (
+                      <div key={f.key} className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 opacity-40 pointer-events-none">{f.icon}</span>
+                        <input
+                          placeholder={f.placeholder}
+                          value={f.value}
+                          onChange={e => setFormData({ ...formData, [f.key as any]: e.target.value })}
+                          className="w-full border border-[var(--bb-border)] rounded-xl pl-10 pr-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50"
+                        />
+                      </div>
+                    ))}
+                    <div className="relative md:col-span-2">
+                      <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 opacity-40 pointer-events-none" />
                       <input
-                        value={formData.name}
-                        onChange={e => setFormData({ ...formData, name: e.target.value })}
-                        placeholder="John Doe"
-                        className={`${inputClass} bg-[var(--bb-surface-2)] border-[var(--bb-border)]`}
+                        type="email"
+                        placeholder="Email Address"
+                        value={formData.email}
+                        onChange={e => setFormData({ ...formData, email: e.target.value })}
+                        className="w-full border border-[var(--bb-border)] rounded-xl pl-10 pr-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50"
                       />
                     </div>
-                    <div className="space-y-2 text-[var(--bb-text)]">
-                      <FieldLabel icon={<Phone size={11} />} label="Phone Number" required />
-                      <input
-                        value={formData.phone}
-                        onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                        placeholder="050 123 4567"
-                        className={`${inputClass} bg-[var(--bb-surface-2)] border-[var(--bb-border)]`}
+                    <div className="relative md:col-span-2">
+                      <MapPin size={16} className="absolute left-4 top-3.5 opacity-40 pointer-events-none" />
+                      <textarea
+                        placeholder="Pickup Address (Optional — if you want us to collect the device)"
+                        value={formData.address}
+                        onChange={e => setFormData({ ...formData, address: e.target.value })}
+                        rows={2}
+                        className="w-full border border-[var(--bb-border)] rounded-xl pl-10 pr-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50 resize-none"
                       />
                     </div>
-                  </div>
-
-                  <div className="space-y-2 text-[var(--bb-text)]">
-                    <FieldLabel icon={<Mail size={11} />} label="Email Address" required />
-                    <input
-                      type="email"
-                      value={formData.email}
-                      onChange={e => setFormData({ ...formData, email: e.target.value })}
-                      placeholder="email@example.com"
-                      className={`${inputClass} bg-[var(--bb-surface-2)] border-[var(--bb-border)]`}
-                    />
-                  </div>
-
-                  <div className="space-y-2 text-[var(--bb-text)]">
-                    <FieldLabel icon={<MapPin size={11} />} label="Pickup Address (Optional)" />
-                    <textarea
-                      value={formData.address}
-                      onChange={e => setFormData({ ...formData, address: e.target.value })}
-                      placeholder="Provide address if you want us to pick up the device"
-                      rows={2}
-                      className={`${inputClass} resize-none bg-[var(--bb-surface-2)] border-[var(--bb-border)]`}
-                    />
                   </div>
                 </div>
 
-                <div className="flex justify-between pt-6 border-t border-[var(--bb-border)]">
-                  <button
-                    onClick={() => setStep(3)}
-                    className="flex items-center gap-2 px-7 py-3 rounded-xl text-xs font-bold uppercase tracking-wider opacity-60 hover:opacity-100 hover:bg-[var(--bb-surface-2)] transition-all"
-                  >
-                    <ArrowLeft size={14} /> Back
-                  </button>
+                <div className="pt-8">
                   <button
                     onClick={() => {
-                      if (!formData.name || !formData.email || !formData.phone) {
-                        notify('Please complete all contact details', 'error');
-                        return;
-                      }
-                      setStep(5);
+                      if (!formData.date || !formData.timeSlot) { notify('Please select a date and time slot.', 'error'); return; }
+                      if (!formData.name || !formData.phone || !formData.email) { notify('Please fill in all contact details.', 'error'); return; }
+                      go(4);
                     }}
-                    className="flex items-center gap-2 px-7 py-3 rounded-xl text-xs font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] transition-all"
+                    className="flex items-center gap-2 px-8 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] hover:scale-[1.02] active:scale-95 transition-all"
                   >
-                    Review Details <ArrowRight size={14} />
+                    Review Final Request <ArrowRight size={16} />
                   </button>
                 </div>
-              </section>
+              </div>
             )}
 
-            {/* Section 5: Review & Submit */}
-            {step === 5 && (
-              <section className="relative rounded-[2.5rem] p-6 md:p-10 space-y-8 border border-[var(--bb-border)] glow-surface shadow-xl overflow-hidden animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="pointer-events-none absolute inset-0 z-0">
-                  <div className="absolute top-4 left-4 w-12 h-12 border-t-2 border-l-2 rounded-tl-[1.5rem] transition-colors border-[#CDA032]/50" />
-                  <div className="absolute top-4 right-4 w-12 h-12 border-t-2 border-r-2 rounded-tr-[1.5rem] transition-colors border-[#CDA032]/50" />
-                  <div className="absolute bottom-4 left-4 w-12 h-12 border-b-2 border-l-2 rounded-bl-[1.5rem] transition-colors border-[#CDA032]/50" />
-                  <div className="absolute bottom-4 right-4 w-12 h-12 border-b-2 border-r-2 rounded-br-[1.5rem] transition-colors border-[#CDA032]/50" />
+            {/* STEP 4 — Review & Confirm */}
+            {step === 4 && (
+              <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 active-form-section">
+
+                <div className="space-y-2">
+                  <h2 className="text-3xl font-black tracking-tight">Review your quote</h2>
+                  <p className="opacity-60 text-sm">Please verify your details before submitting the final request.</p>
                 </div>
 
-                <div className="relative z-10 space-y-8">
-                  <div className="flex items-center gap-3">
-                    <span className="w-8 h-8 rounded-xl text-xs font-black text-black flex items-center justify-center shadow-md bg-[#CDA032]">05</span>
-                    <h2 className="text-sm md:text-base font-black uppercase tracking-widest opacity-80">Request Summary</h2>
+                <div className="rounded-3xl border border-[var(--bb-border)] bg-[var(--bb-surface)] overflow-hidden shadow-2xl">
+                  {/* Banner */}
+                  <div className="p-8 border-b border-[var(--bb-border)] bg-black/5 dark:bg-white/5 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-[#CDA032]/10 blur-3xl rounded-full" />
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032] mb-2">Device &amp; Repair Service</p>
+                    <h3 className="text-2xl font-black mb-1">{formData.brand} {formData.model}</h3>
+                    <p className="text-lg opacity-80">
+                      {selectedIssueKeys.size > 0
+                        ? Array.from(selectedIssueKeys).map(k => repairServicesMap[k as keyof typeof repairServicesMap].label).join(' + ')
+                        : 'Diagnostic Request'}
+                    </p>
                   </div>
 
-                  <div className="space-y-4 pt-2">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="p-4 rounded-xl border border-[var(--bb-border)] bg-[var(--bb-surface-2)]">
-                        <p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">Device Details</p>
-                        <p className="text-sm font-bold">{formData.brand || formData.model ? `${formData.brand} ${formData.model}` : 'Not Specified'}</p>
-                        <p className="text-xs opacity-70 mt-1 capitalize">{formData.deviceType} · Condition: {formData.condition}</p>
+                  <div className="p-8 space-y-8">
+                    {/* Cost */}
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center text-sm font-medium">
+                        <span className="opacity-70">Estimated Repair Cost</span>
+                        <span className="font-bold">{getTotalRepairCost() > 0 ? `₵${getTotalRepairCost()}` : 'Post-Diagnostic'}</span>
                       </div>
-
-                      <div className="p-4 rounded-xl border border-[var(--bb-border)] bg-[var(--bb-surface-2)]">
-                        <p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">Schedule</p>
-                        <p className="text-sm font-bold">{formData.date ? formData.date : 'Not Specified'}</p>
-                        <p className="text-xs opacity-70 mt-1">{formData.timeSlot ? timeSlots.find(t => t.id === formData.timeSlot)?.time : ''} · Priority: <span className="capitalize">{formData.urgency}</span></p>
+                      {formData.urgency !== 'standard' && (
+                        <div className="flex justify-between items-center text-sm font-medium">
+                          <span className="opacity-70 capitalize">{formData.urgency} Priority Level</span>
+                          <span className="font-bold">+ ₵{urgencyLevels.find(u => u.id === formData.urgency)?.price}</span>
+                        </div>
+                      )}
+                      <div className="pt-4 mt-4 border-t border-[var(--bb-border)] flex justify-between items-end">
+                        <span className="text-base font-black">Total Estimate</span>
+                        <span className="text-3xl font-black text-[#CDA032]">{getEstimatedCost()}</span>
                       </div>
-
-                      <div className="p-4 rounded-xl border border-[var(--bb-border)] bg-[var(--bb-surface-2)] md:col-span-2">
-                        <p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">Contact Info</p>
-                        <p className="text-sm font-bold">{formData.name} · {formData.phone}</p>
-                        <p className="text-xs opacity-70 mt-1">{formData.email}</p>
-                        {formData.address && <p className="text-xs opacity-70 mt-1">{formData.address}</p>}
-                      </div>
-
-                      <div className="p-4 rounded-xl border border-[var(--bb-border)] bg-[var(--bb-surface-2)] md:col-span-2">
-                        <p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-2">Issue Description</p>
-                        <p className="text-xs leading-relaxed opacity-80">{formData.description || 'Not specified'}</p>
+                      <div className="flex gap-3 items-start p-4 bg-[#CDA032]/10 rounded-xl mt-4">
+                        <Info size={16} className="text-[#CDA032] shrink-0 mt-0.5" />
+                        <p className="text-xs leading-relaxed text-[#CDA032] font-semibold">
+                          Final price confirmed after physical diagnostic. We will never charge you without your explicit approval.
+                        </p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3 p-4 rounded-xl border border-[#CDA032]/30 bg-[#CDA032]/5 mt-4">
-                      <AlertCircle size={18} className="text-[#CDA032] flex-shrink-0" />
-                      <p className="text-[10px] sm:text-xs leading-relaxed opacity-80 font-semibold">
-                        Payment is collected only after the diagnostic report is generated and approved by you. We will contact you to confirm the final estimate.
-                      </p>
+                    {/* Meta grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-6 border-t border-[var(--bb-border)]">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">Appointment</p>
+                        <p className="text-sm font-semibold">{formData.date}</p>
+                        <p className="text-sm opacity-80">{timeSlots.find(t => t.id === formData.timeSlot)?.time} · <span className="capitalize">{formData.urgency}</span></p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">Customer Info</p>
+                        <p className="text-sm font-semibold">{formData.name}</p>
+                        <p className="text-sm opacity-80">{formData.phone}</p>
+                        <p className="text-sm opacity-80">{formData.email}</p>
+                        {formData.address && (
+                          <div className="mt-3">
+                            <p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">Pickup Address</p>
+                            <p className="text-sm border-l-2 border-[#CDA032] pl-2 opacity-80">{formData.address}</p>
+                          </div>
+                        )}
+                      </div>
+                      <div className="sm:col-span-2 pt-4 border-t border-[var(--bb-border)]/50">
+                        <p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">Notes</p>
+                        <p className="text-sm opacity-80">{formData.description || 'No additional details provided.'}</p>
+                      </div>
                     </div>
                   </div>
-
-                  <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-6 border-t border-[var(--bb-border)]">
-                    <button
-                      onClick={() => setStep(4)}
-                      className="flex items-center gap-2 px-7 py-3 rounded-xl text-xs font-bold uppercase tracking-wider opacity-60 hover:opacity-100 hover:bg-[var(--bb-surface-2)] transition-all w-full sm:w-auto justify-center"
-                    >
-                      <ArrowLeft size={14} /> Back
-                    </button>
-                    <button
-                      onClick={submitRepairRequest}
-                      className="flex items-center justify-center gap-2 px-10 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest text-black bg-[#CDA032] hover:bg-[#B38B21] hover:scale-[1.02] shadow-xl hover:shadow-[#CDA032]/20 transition-all active:scale-95 w-full sm:w-auto"
-                    >
-                      Submit Repair Ticket <Send size={14} />
-                    </button>
-                  </div>
                 </div>
-              </section>
+
+                <div className="pt-4">
+                  <button
+                    onClick={submitRepairRequest}
+                    className="w-full sm:w-auto flex items-center justify-center gap-3 px-10 py-5 rounded-2xl text-sm font-black uppercase tracking-widest text-[#111] bg-gradient-to-r from-[#CDA032] to-[#FCE69B] hover:scale-[1.02] shadow-[0_0_30px_rgba(205,160,50,0.3)] transition-all active:scale-95"
+                  >
+                    Confirm &amp; Request Repair <Send size={18} />
+                  </button>
+                </div>
+              </div>
             )}
           </div>
+
+          {/* ── Sidebar (desktop only) ── */}
+          {step > 1 && (
+            <div className="hidden lg:block w-[350px] shrink-0 sticky top-32">
+              <div className="rounded-3xl border border-[var(--bb-border)] bg-[var(--bb-surface)] p-6 shadow-xl">
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-[#CDA032] mb-6 border-b border-[var(--bb-border)] pb-4">Repair Summary</h3>
+                <div className="space-y-6">
+                  <div className="flex gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-[var(--bb-surface-2)] border border-[var(--bb-border)] flex items-center justify-center shrink-0">
+                      {(() => {
+                        const IconComp = deviceTypes.find(d => d.id === formData.deviceType)?.icon as any;
+                        return IconComp ? <IconComp size={18} className="text-[#CDA032]" /> : null;
+                      })()}
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase font-bold tracking-widest opacity-50 mb-0.5">Device</p>
+                      <p className="text-sm font-bold">{formData.brand || 'Brand'} {formData.model || ''}</p>
+                    </div>
+                  </div>
+
+                  {step > 2 && selectedIssueKeys.size > 0 && (
+                    <div className="flex gap-4 animate-in fade-in">
+                      <div className="w-10 h-10 rounded-xl bg-[var(--bb-surface-2)] border border-[var(--bb-border)] flex items-center justify-center shrink-0">
+                        <AlertCircle size={18} className="text-[#CDA032]" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase font-bold tracking-widest opacity-50 mb-0.5">Services</p>
+                        <p className="text-sm font-bold leading-snug">
+                          {Array.from(selectedIssueKeys).map(k => repairServicesMap[k as keyof typeof repairServicesMap].label).join(', ')}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {step > 3 && formData.date && formData.timeSlot && (
+                    <div className="flex gap-4 animate-in fade-in">
+                      <div className="w-10 h-10 rounded-xl bg-[var(--bb-surface-2)] border border-[var(--bb-border)] flex items-center justify-center shrink-0">
+                        <Calendar size={18} className="text-[#CDA032]" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase font-bold tracking-widest opacity-50 mb-0.5">Schedule</p>
+                        <p className="text-sm font-bold">{formData.date}</p>
+                        <p className="text-xs opacity-70 mt-0.5">{timeSlots.find(t => t.id === formData.timeSlot)?.time}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {step >= 2 && selectedIssueKeys.size > 0 && (
+                    <div className="pt-6 border-t border-[var(--bb-border)]">
+                      <p className="text-[10px] uppercase font-bold tracking-widest opacity-50 mb-2">Estimated Total</p>
+                      <p className="text-2xl font-black text-[#CDA032] tracking-tighter">{getEstimatedCost()}</p>
+                      <p className="text-[9px] uppercase tracking-wider opacity-40 mt-1">* Confirmed on review step</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div >
   );
 };
-
-/* ── Small helper components ── */
-const FieldLabel: React.FC<{ icon: React.ReactNode; label: string; required?: boolean }> = ({ icon, label, required }) => (
-  <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest opacity-60">
-    <span className="text-[#CDA032]">{icon}</span>
-    {label}
-    {required && <span className="text-[#CDA032]">*</span>}
-  </label>
-);
