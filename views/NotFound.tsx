@@ -10,7 +10,7 @@ export const NotFound: React.FC<NotFoundProps> = ({ theme = 'dark' }) => {
     const isLight = theme === 'light';
 
     return (
-        <div className={`min-h-screen flex flex-col items-center justify-center p-6 text-center transition-colors duration-700 overflow-hidden relative ${isLight ? 'bg-white' : 'bg-[#0A0A0A]'}`}>
+        <div className={`h-[100dvh] w-full flex flex-col items-center justify-center p-6 text-center transition-colors duration-700 overflow-hidden relative ${isLight ? 'bg-white' : 'bg-[#0A0A0A]'}`}>
 
             {/* Background Glow */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden">

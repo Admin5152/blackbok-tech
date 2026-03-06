@@ -4,13 +4,14 @@ import { WhatsAppIcon } from './Icons';
 interface FloatingWhatsAppProps {
     phoneNumber: string;
     theme?: 'light' | 'dark';
+    hasNotification?: boolean;
 }
 
-export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ phoneNumber, theme = 'dark' }) => {
+export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ phoneNumber, theme = 'dark', hasNotification = false }) => {
     const isLight = theme === 'light';
 
     return (
-        <div className="fixed bottom-8 right-8 z-[100] group">
+        <div className={`fixed bottom-8 right-8 z-[100] group transition-all duration-500 ${hasNotification ? 'opacity-0 pointer-events-none scale-90' : 'opacity-100 scale-100'}`}>
             {/* Tooltip */}
             <div className={`absolute bottom-full right-0 mb-4 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 pointer-events-none shadow-2xl border ${isLight ? 'bg-white text-black border-black/5' : 'bg-black text-white border-white/10'
                 }`}>
