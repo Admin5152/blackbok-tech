@@ -30,7 +30,7 @@ export const Login: React.FC<LoginProps> = ({ setUser, navigateTo, theme, notify
       // Validate input
       const validation = AuthService.validateCredentials(formData);
       console.log('Validation result:', validation);
-      
+
       if (!validation.isValid) {
         notify(validation.error || 'Please check your input', 'error');
         setIsLoading(false);
@@ -44,7 +44,7 @@ export const Login: React.FC<LoginProps> = ({ setUser, navigateTo, theme, notify
 
       if (response.user) {
         console.log('Authentication successful, user:', response.user);
-        
+
         // Convert AuthUser to User format for compatibility
         const user: User = {
           id: response.user.id,
@@ -56,7 +56,7 @@ export const Login: React.FC<LoginProps> = ({ setUser, navigateTo, theme, notify
 
         console.log('Final user object:', user);
         setUser(user);
-        notify(`Welcome back, ${user.name}!`, 'success');
+        notify(`Login successful! Welcome back, ${user.name}!`, 'success');
 
         // Navigate based on role
         if (user.role === 'admin') {
@@ -68,11 +68,11 @@ export const Login: React.FC<LoginProps> = ({ setUser, navigateTo, theme, notify
         }
       } else {
         console.error('Authentication failed:', response.error);
-        notify(response.error || 'Authentication failed', 'error');
+        notify(response.error || 'Login failed. Please try again.', 'error');
       }
     } catch (error: any) {
       console.error('Login component error:', error);
-      notify('An unexpected error occurred', 'error');
+      notify('Login failed. An unexpected error occurred.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -92,10 +92,10 @@ export const Login: React.FC<LoginProps> = ({ setUser, navigateTo, theme, notify
           Email Address
         </label>
         <div className="relative">
-          <Mail 
-            className={`absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none ${cardMuted}`} 
-            size={18} 
-            aria-hidden 
+          <Mail
+            className={`absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none ${cardMuted}`}
+            size={18}
+            aria-hidden
           />
           <input
             id="auth-email"
@@ -118,10 +118,10 @@ export const Login: React.FC<LoginProps> = ({ setUser, navigateTo, theme, notify
           Password
         </label>
         <div className="relative">
-          <Lock 
-            className={`absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none ${cardMuted}`} 
-            size={18} 
-            aria-hidden 
+          <Lock
+            className={`absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none ${cardMuted}`}
+            size={18}
+            aria-hidden
           />
           <input
             id="auth-password"

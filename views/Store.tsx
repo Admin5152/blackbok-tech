@@ -115,10 +115,10 @@ export const Store: React.FC<StoreProps> = ({
     <div className="min-h-screen" style={{ backgroundColor: pageBg, color: isLight ? '#000' : '#fff' }}>
 
       {/* Search Bar */}
-      <div className="sticky top-0 z-40 border-b" style={{ backgroundColor: pageBg, borderColor: borderFaint }}>
+      <div className="sticky top-16 sm:top-20 lg:top-24 z-40 border-b backdrop-blur-md" style={{ backgroundColor: `${pageBg}e6`, borderColor: borderFaint }}>
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
           <div className="flex flex-col gap-3 sm:gap-4">
-            {/* Top Row - Back Button and Mobile Nav Toggle */}
+            {/* Top Row - Back Button, Mobile Nav Toggle, and Filter Button */}
             <div className="flex items-center justify-between">
               <button
                 onClick={() => navigateTo('home')}
@@ -128,18 +128,55 @@ export const Store: React.FC<StoreProps> = ({
                 <ArrowLeft size={16} className="sm:size-18" />
                 <span className="text-sm font-medium">Back</span>
               </button>
-              
-              {/* Mobile Navigation Toggle Button */}
-              <button
-                onClick={() => setShowMobileNav(!showMobileNav)}
-                className="lg:hidden flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 hover:border-white/20 transition-colors"
-                style={{ backgroundColor: panelBg, color: isLight ? '#000' : '#fff' }}
-              >
-                <Menu size={16} />
-                <span className="text-sm font-medium">Categories</span>
-              </button>
+
+              <div className="flex items-center gap-2">
+                {/* View Mode Toggle - Desktop Only */}
+                <div className="hidden lg:flex items-center gap-0.5 border rounded-lg p-0.5" style={{ borderColor: borderSubtle }}>
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    className={`p-1.5 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-[#CDA032] text-black' : 'text-current hover:bg-black/5 dark:hover:bg-white/5'}`}
+                  >
+                    <Grid3x3 size={14} />
+                  </button>
+                  <button
+                    onClick={() => setViewMode('list')}
+                    className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-[#CDA032] text-black' : 'text-current hover:bg-black/5 dark:hover:bg-white/5'}`}
+                  >
+                    <List size={14} />
+                  </button>
+                </div>
+
+                {/* Mobile Navigation Toggle Button */}
+                <button
+                  onClick={() => setShowMobileNav(!showMobileNav)}
+                  className="lg:hidden flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 hover:border-white/20 transition-colors"
+                  style={{ backgroundColor: panelBg, color: isLight ? '#000' : '#fff' }}
+                >
+                  <Menu size={16} />
+                  <span className="text-sm font-medium">Categories</span>
+                </button>
+
+                {/* Filter Button - Desktop Only */}
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`hidden lg:flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${activeFiltersCount > 0 ? 'bg-[#CDA032] text-black border-transparent' : 'border border-white/10 hover:border-white/20'}`}
+                  style={{
+                    backgroundColor: activeFiltersCount > 0 ? '#CDA032' : panelBg,
+                    borderColor: activeFiltersCount > 0 ? 'transparent' : borderSubtle,
+                    color: activeFiltersCount > 0 ? '#000' : isLight ? '#000' : '#fff'
+                  }}
+                >
+                  <Filter size={14} />
+                  <span className="hidden sm:inline">Filters</span>
+                  {activeFiltersCount > 0 && (
+                    <span className="bg-black/20 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                      {activeFiltersCount}
+                    </span>
+                  )}
+                </button>
+              </div>
             </div>
-            
+
             {/* Search Input Row  s */}
             <div className="w-full">
               <div className="relative">
@@ -176,40 +213,22 @@ export const Store: React.FC<StoreProps> = ({
                 )}
               </div>
 
-              {/* View Mode Toggle */}
-              <div className="flex items-center gap-1 border rounded-lg p-1" style={{ borderColor: borderSubtle }}>
+              {/* View Mode Toggle - Mobile Only */}
+              <div className="lg:hidden flex items-center gap-0.5 border rounded-lg p-0.5" style={{ borderColor: borderSubtle }}>
                 <button
                   onClick={() => setViewMode('grid')}
-                  className={`p-1.5 sm:p-2 rounded ${viewMode === 'grid' ? 'bg-[#CDA032] text-black' : 'text-current'}`}
+                  className={`p-1.5 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-[#CDA032] text-black' : 'text-current'}`}
                 >
-                  <Grid3x3 size={14} className="sm:size-16" />
+                  <Grid3x3 size={14} />
                 </button>
                 <button
                   onClick={() => setViewMode('list')}
-                  className={`p-1.5 sm:p-2 rounded ${viewMode === 'list' ? 'bg-[#CDA032] text-black' : 'text-current'}`}
+                  className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-[#CDA032] text-black' : 'text-current'}`}
                 >
-                  <List size={14} className="sm:size-16" />
+                  <List size={14} />
                 </button>
               </div>
 
-              {/* Filter Button - Desktop Only */}
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className={`hidden lg:flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeFiltersCount > 0 ? 'bg-[#CDA032] text-black' : 'border'}`}
-                style={{
-                  backgroundColor: activeFiltersCount > 0 ? '#CDA032' : panelBg,
-                  borderColor: borderSubtle,
-                  color: activeFiltersCount > 0 ? '#000' : isLight ? '#000' : '#fff'
-                }}
-              >
-                <Filter size={16} />
-                Filters
-                {activeFiltersCount > 0 && (
-                  <span className="bg-black/20 text-white text-xs px-2 py-0.5 rounded-full">
-                    {activeFiltersCount}
-                  </span>
-                )}
-              </button>
             </div>
           </div>
         </div>
@@ -380,37 +399,34 @@ export const Store: React.FC<StoreProps> = ({
                       toggleCategory(cat.value);
                       setShowMobileNav(false); // Close nav after selection
                     }}
-                    className={`flex items-center gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all border ${
-                      (cat.value === 'All' && selectedCategories.length === 0) || (cat.value !== 'All' && selectedCategories.includes(cat.value))
-                        ? 'bg-[#CDA032] border-[#CDA032] text-black shadow-lg shadow-[#CDA032]/20'
-                        : 'bg-white/5 border-white/5 text-white/40'
-                    }`}
+                    className={`flex items-center gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all border ${(cat.value === 'All' && selectedCategories.length === 0) || (cat.value !== 'All' && selectedCategories.includes(cat.value))
+                      ? 'bg-[#CDA032] border-[#CDA032] text-black shadow-lg shadow-[#CDA032]/20'
+                      : 'bg-white/5 border-white/5 text-white/40'
+                      }`}
                   >
                     {cat.icon}
                     <span className="flex-1 text-left text-xs sm:text-sm">{cat.label}</span>
-                    <span className={`text-[9px] sm:text-xs ${
-                      (cat.value === 'All' && selectedCategories.length === 0) || (cat.value !== 'All' && selectedCategories.includes(cat.value))
-                        ? 'opacity-80'
-                        : 'opacity-40'
-                    }`}>
+                    <span className={`text-[9px] sm:text-xs ${(cat.value === 'All' && selectedCategories.length === 0) || (cat.value !== 'All' && selectedCategories.includes(cat.value))
+                      ? 'opacity-80'
+                      : 'opacity-40'
+                      }`}>
                       {cat.count}
                     </span>
                   </button>
                 ))}
-                
+
                 {/* Mobile Filter Options */}
                 <div className="pt-2 mt-2 border-t border-white/10">
                   <div className="px-2 sm:px-3 py-2">
                     <h4 className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] opacity-60 mb-3">Quick Filters</h4>
-                    
+
                     {/* Promotions Toggle */}
                     <button
                       onClick={() => setShowPromotionsOnly(!showPromotionsOnly)}
-                      className={`w-full flex items-center justify-between p-2.5 sm:p-3 rounded-xl border transition-all duration-300 mb-2 ${
-                        showPromotionsOnly
-                          ? 'bg-[#CDA032] border-[#CDA032] text-black'
-                          : 'bg-white/5 border-white/5 text-white/40'
-                      }`}
+                      className={`w-full flex items-center justify-between p-2.5 sm:p-3 rounded-xl border transition-all duration-300 mb-2 ${showPromotionsOnly
+                        ? 'bg-[#CDA032] border-[#CDA032] text-black'
+                        : 'bg-white/5 border-white/5 text-white/40'
+                        }`}
                     >
                       <div className="flex items-center gap-2">
                         <Tag size={12} className="sm:size-14" />

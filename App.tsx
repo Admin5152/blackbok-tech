@@ -319,6 +319,12 @@ const policiesRoute = createRoute({
   component: () => <Policies />,
 });
 
+const splatRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '$',
+  component: NotFoundPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   storeRoute,
@@ -338,6 +344,7 @@ const routeTree = rootRoute.addChildren([
   promotionsRoute,
   compareRoute,
   policiesRoute,
+  splatRoute,
 ]);
 
 const router = createRouter({
@@ -374,7 +381,7 @@ function RootComponent() {
   useEffect(() => {
     const cleanup = setupMobileBackButton();
     preventAppClose();
-    
+
     // Register service worker for better mobile experience
     if ('serviceWorker' in navigator) {
       const swPath = import.meta.env.BASE_URL + 'sw.js';
@@ -386,7 +393,7 @@ function RootComponent() {
           console.log('Service Worker registration failed:', error);
         });
     }
-    
+
     return cleanup;
   }, []);
 
@@ -404,7 +411,7 @@ function RootComponent() {
       if (localUser) {
         const parsedUser = JSON.parse(localUser);
         console.log('Found local user:', parsedUser);
-        
+
         // Check if it's admin user (doesn't need Supabase validation)
         if (parsedUser.email === 'BlackBox@gmail.com' && parsedUser.role === 'admin') {
           console.log('Admin user detected, restoring without validation');
@@ -415,7 +422,7 @@ function RootComponent() {
             try {
               const currentUser = await AuthService.getCurrentUser();
               console.log('Current Supabase user:', currentUser);
-              
+
               if (currentUser && currentUser.id === parsedUser.id) {
                 // Session is valid, restore user
                 console.log('User session is valid, restoring user');
@@ -433,11 +440,11 @@ function RootComponent() {
               setUser(null);
             }
           };
-          
+
           validateUserSession();
         }
       }
-      
+
       if (localCart) setCart(JSON.parse(localCart));
       if (localOrders) setOrders(JSON.parse(localOrders));
       if (localRepairs) setRepairs(JSON.parse(localRepairs));
@@ -445,8 +452,8 @@ function RootComponent() {
       if (localWishlist) setWishlist(JSON.parse(localWishlist));
       if (localCompare) setCompareIds(JSON.parse(localCompare));
       if (localTheme === 'light' || localTheme === 'dark') setTheme(localTheme);
-    } catch (e) { 
-      console.error('Error loading from localStorage:', e); 
+    } catch (e) {
+      console.error('Error loading from localStorage:', e);
     }
 
     // Fetch products from Supabase
@@ -858,11 +865,11 @@ function RootComponent() {
 
         <Footer theme={theme} />
       </div>
-      
+
       {/* Notification Container */}
-      <NotificationContainer 
-        notifications={notifications} 
-        onClose={removeNotification} 
+      <NotificationContainer
+        notifications={notifications}
+        onClose={removeNotification}
       />
     </AppContext.Provider>
   );

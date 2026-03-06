@@ -24,20 +24,20 @@ export const SignUp: React.FC<SignUpProps> = ({ setUser, navigateTo, theme, noti
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
-      if (!formData.name || !formData.email || !formData.password){
-        alert("All Fields are Required!!");
+      if (!formData.name || !formData.email || !formData.password) {
+        notify("All Fields are Required!!", "error");
         return;
       }
 
       // Sign up user with Supabase Auth
       const { user } = await signUp(formData.email, formData.password);
-      
+
       if (user) {
         // Create user profile in Supabase database
         await createUserProfile(user.id, formData.name, formData.email);
-        
+
         const userObj: User = {
           id: user.id,
           name: formData.name,
@@ -45,12 +45,14 @@ export const SignUp: React.FC<SignUpProps> = ({ setUser, navigateTo, theme, noti
           password: formData.password,
           role: 'user'
         };
-        notify(`Account created successfully! Welcome, ${formData.name}!`, 'success');
+        notify(`Sign up successful! Welcome, ${formData.name}!`, 'success');
         setUser(userObj);
         navigateTo("home");
+      } else {
+        notify("Sign up failed. Please try again.", "error");
       }
     } catch (error: any) {
-      alert(error.message || "Authentication failed");
+      notify(`Sign up failed: ${error.message || 'Please try again'}`, "error");
     }
   };
 
