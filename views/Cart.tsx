@@ -14,7 +14,7 @@ import {
   FileText,
   Eye
 } from "lucide-react";
-import { CartItem, Product, User } from "../types";
+import { CartItem, Product } from "../types";
 import { formatCurrency } from "../lib/utils";
 import { ProductCard } from "../components/ProductCard";
 
@@ -259,7 +259,6 @@ export const Cart: React.FC<CartProps> = ({
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-24 bg-[#CDA032]/20 rounded-full filter blur-[50px] pointer-events-none" />
               <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-[#CDA032]/10 rounded-full filter blur-[40px] pointer-events-none" />
 
-
               <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tighter italic relative z-10 text-center md:text-left">
                 Summary
               </h2>
@@ -322,7 +321,7 @@ export const Cart: React.FC<CartProps> = ({
                             className="w-full bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl px-5 py-4 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#CDA032]/50 focus:border-[#CDA032] transition-all uppercase font-bold placeholder:tracking-widest appearance-none shadow-sm cursor-pointer text-black dark:text-white"
                             style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'calc(100% - 1rem) center' }}
                           >
-                            <option value="" disabled className="bg-white dark:bg-[#111] text-black dark:text-white">Select Region *</option>
+                            <option value="" disabled className="bg-white dark:bg-[#111] text-black dark:text-white">Region *</option>
                             <option value="Ashanti" className="bg-white dark:bg-[#111] text-black dark:text-white">Ashanti</option>
                             <option value="Ahafo" className="bg-white dark:bg-[#111] text-black dark:text-white">Ahafo</option>
                             <option value="Bono" className="bg-white dark:bg-[#111] text-black dark:text-white">Bono</option>
@@ -408,9 +407,9 @@ export const Cart: React.FC<CartProps> = ({
 
                 <div className="w-full h-px border-b border-dashed border-black/30 dark:border-white/30 my-6" />
 
-                <div className="flex justify-between items-end">
-                  <span className="text-xl sm:text-2xl font-black uppercase tracking-tighter italic">Total</span>
-                  <span className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#CDA032] tracking-tighter drop-shadow-sm">
+                <div className="flex justify-between items-end gap-2">
+                  <span className="text-xl sm:text-2xl font-black uppercase tracking-tighter italic shrink-0">Total</span>
+                  <span className="text-xl sm:text-2xl lg:text-3xl font-black text-[#CDA032] tracking-tighter drop-shadow-sm min-w-0 text-right break-all">
                     {formatCurrency(total)}
                   </span>
                 </div>
@@ -459,7 +458,7 @@ export const Cart: React.FC<CartProps> = ({
           </aside>
         </div>
 
-        {/* Recommendations - Moved below Summary */}
+        {/* Recommendations */}
         {cart.length > 0 && recommendations.length > 0 && (
           <div className="pt-24 border-t border-[var(--bb-border)] mt-12">
             <div className="flex items-center justify-between mb-10">
@@ -487,6 +486,6 @@ export const Cart: React.FC<CartProps> = ({
           </div>
         )}
       </div>
-    </div >
+    </div>
   );
 };

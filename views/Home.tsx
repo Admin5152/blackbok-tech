@@ -404,7 +404,7 @@ export const Home: React.FC<HomeProps> = ({
               </div>
               <div className="flex justify-center mt-8 relative z-10 transform group-hover:scale-110 transition-transform duration-700">
                 <img
-                  src="https://images.unsplash.com/photo-1517336714467-d13a2323485d?q=80&w=800&auto=format&fit=crop"
+                  src="/laptop.jpeg"
                   alt="Laptops"
                   className="h-40 md:h-56 object-contain drop-shadow-2xl"
                 />

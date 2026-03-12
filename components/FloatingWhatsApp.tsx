@@ -22,7 +22,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ phoneNumber,
 
             {/* Floating Button */}
             <a
-                href={`https://wa.me/${phoneNumber}`}
+                href={`https://wa.me/+233543217272`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="relative flex items-center justify-center w-16 h-16 rounded-[2rem] bg-[#25D366] text-white shadow-[0_20px_40px_rgba(37,211,102,0.3)] hover:shadow-[0_25px_50px_rgba(37,211,102,0.5)] transition-all duration-500 hover:scale-110 active:scale-95 group"

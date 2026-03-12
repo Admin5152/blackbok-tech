@@ -21,7 +21,7 @@ export const Footer: React.FC<FooterProps> = ({ theme }) => {
           </p>
           <div className="flex items-center gap-3">
             <a
-              href="https://wa.me/233000000000"
+              href="https://wa.me/+233543217272"
               target="_blank"
               rel="noopener noreferrer"
               className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/40 hover:bg-[#25D366] hover:text-white transition-all hover:scale-110 active:scale-90"
@@ -29,7 +29,7 @@ export const Footer: React.FC<FooterProps> = ({ theme }) => {
               <WhatsAppIcon size={18} />
             </a>
             <a
-              href="https://instagram.com/"
+              href="https://www.instagram.com/blackbox_gh/"
               target="_blank"
               rel="noreferrer"
               aria-label="Instagram"

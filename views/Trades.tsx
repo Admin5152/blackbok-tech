@@ -1,788 +1,697 @@
-import React, { useState, useMemo, useRef } from 'react';
-import { RefreshCcw, Smartphone, ArrowRight, Zap, ShieldCheck, Check, Sparkles, Scale, Info, Search, TrendingUp, Award, Clock, CheckCircle2 } from 'lucide-react';
-import { Link } from '@tanstack/react-router';
+import React, { useState, useMemo } from 'react';
+import {
+  RefreshCcw, Smartphone, Laptop, Tablet, Gamepad2, Watch, MonitorSmartphone,
+  ArrowRight, ArrowLeft, Check, Scale, Info, Search, Award, CheckCircle2,
+  Zap, ShieldCheck, Sparkles, Send, User, Phone, Mail, MapPin, Calendar,
+  Clock, Package, Activity, Wrench
+} from 'lucide-react';
+import { useNavigate } from '@tanstack/react-router';
 import { Product } from '../types';
-import { generateId, formatCurrency } from '../lib/utils';
-import { ProductCard } from '../components/ProductCard';
+import { formatCurrency } from '../lib/utils';
+import { useAppContext } from '../App';
 
 interface TradesProps {
   products: Product[];
   onAddToCart: (p: Product) => void;
-  notify: (msg: string, type?: 'success' | 'error') => void;
+  notify: (msg: string) => void;
   onQuickView: (product: Product) => void;
   wishlist: string[];
   toggleWishlist: (productId: string) => void;
   compareIds: string[];
   onToggleCompare: (productId: string) => void;
-  user: any;
-  trades: any[];
-  setTrades: (t: any[]) => void;
-  navigateTo: (view: any) => void;
 }
 
+const deviceTypes = [
+  { id: 'smartphone', label: 'Smartphone', icon: Smartphone },
+  { id: 'tablet', label: 'Tablet', icon: Tablet },
+  { id: 'laptop', label: 'Laptop', icon: Laptop },
+  { id: 'gaming', label: 'Console', icon: Gamepad2 },
+  { id: 'smartwatch', label: 'Watch', icon: Watch },
+  { id: 'other', label: 'Other', icon: MonitorSmartphone },
+];
+
+const brands = ['Apple', 'Samsung', 'Sony', 'Microsoft', 'Nintendo', 'HP', 'Dell', 'Lenovo', 'Other'];
+
+const valuations: Record<string, number> = {
+  'iPhone 11': 1500, 'iPhone 12': 2500, 'iPhone 13': 3500,
+  'iPhone 14': 5000, 'iPhone 15': 6500,
+};
+
+const conditionMultiplier: Record<string, number> = {
+  excellent: 1.0, good: 0.85, fair: 0.6, poor: 0.3,
+};
+
+const conditionLabels: Record<string, { label: string; desc: string; dot: string }> = {
+  excellent: { label: 'Excellent', desc: 'Zero faults · Pristine', dot: 'bg-emerald-400' },
+  good: { label: 'Good', desc: 'Light wear · Functional', dot: 'bg-blue-400' },
+  fair: { label: 'Fair', desc: 'Scratched · Works fine', dot: 'bg-amber-400' },
+  poor: { label: 'Poor', desc: 'Cracked · Needs repair', dot: 'bg-red-400' },
+};
+
+const timeSlots = [
+  { id: 'morning-1', time: '9:00 AM', label: 'Early Morning', available: true },
+  { id: 'morning-2', time: '10:30 AM', label: 'Mid Morning', available: true },
+  { id: 'afternoon-1', time: '12:00 PM', label: 'Noon', available: false },
+  { id: 'afternoon-2', time: '2:00 PM', label: 'Early Afternoon', available: true },
+  { id: 'afternoon-3', time: '3:30 PM', label: 'Mid Afternoon', available: true },
+  { id: 'evening-1', time: '5:00 PM', label: 'Evening', available: true },
+];
+
+const APPLE_MODELS = ['iPhone 11', 'iPhone 12', 'iPhone 13', 'iPhone 14', 'iPhone 15'];
+
 export const Trades: React.FC<TradesProps> = ({
-  products, onAddToCart, notify, onQuickView, wishlist, toggleWishlist, compareIds, onToggleCompare,
-  user, trades, setTrades, navigateTo
+  products, onAddToCart, notify, onQuickView, wishlist, toggleWishlist, compareIds, onToggleCompare
 }) => {
-  const [currentPhone, setCurrentPhone] = useState('');
-  const [condition, setCondition] = useState('excellent');
-  const [targetPhoneId, setTargetPhoneId] = useState('');
-  const [targetSearch, setTargetSearch] = useState('');
-  const [currentSearch, setCurrentSearch] = useState('');
-  const [selectedColor, setSelectedColor] = useState('');
-  const [targetColor, setTargetColor] = useState('');
-  const [showReviewDialog, setShowReviewDialog] = useState(false);
-  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const { user, theme } = useAppContext();
+  const navigate = useNavigate();
 
-  const yourDeviceRef = useRef<HTMLElement | null>(null);
-  const newDeviceRef = useRef<HTMLElement | null>(null);
+  const [step, setStep] = useState(1);
+  const [subStep, setSubStep] = useState(1); // 1=deviceType, 2=brand, 3=model
+  const [transitionKey, setTransitionKey] = useState(0);
 
-  const targetPhones = useMemo(() =>
-    products.filter(p =>
-      p.category === 'iPhone' &&
-      (targetSearch === '' || p.name.toLowerCase().includes(targetSearch.toLowerCase()))
-    ), [products, targetSearch]);
+  const [formData, setFormData] = useState({
+    deviceType: '',
+    brand: '',
+    model: '',
+    condition: 'excellent',
+    targetPhoneId: '',
+    notes: '',
+    date: '',
+    timeSlot: '',
+    name: user?.name || '',
+    email: user?.email || '',
+    phone: '',
+    address: '',
+  });
 
-  const relatedHardware = useMemo(() =>
-    products.filter(p => p.category === 'Accessories' || p.category === 'Audio').slice(0, 4),
-    [products]);
-
-  const valuations: Record<string, number> = {
-    'iPhone 11': 1500, 'iPhone 12': 2500, 'iPhone 13': 3500,
-    'iPhone 14': 5000, 'iPhone 15': 6500,
+  const go = (n: number) => {
+    setTransitionKey(k => k + 1);
+    setStep(n);
+    setSubStep(1);
   };
 
-  const conditionMultiplier: Record<string, number> = {
-    excellent: 1.0, good: 0.85, fair: 0.6, poor: 0.3,
-  };
-
-  const conditionLabels: Record<string, { label: string; desc: string; dot: string }> = {
-    excellent: { label: 'Excellent', desc: 'Zero faults · Pristine', dot: 'bg-emerald-400' },
-    good: { label: 'Good', desc: 'Light wear · Functional', dot: 'bg-blue-400' },
-    fair: { label: 'Fair', desc: 'Scratched · Works fine', dot: 'bg-amber-400' },
-    poor: { label: 'Poor', desc: 'Cracked · Needs repair', dot: 'bg-red-400' },
-  };
+  const isApple = formData.brand === 'Apple';
+  const modelOptions = isApple && formData.deviceType === 'smartphone' ? APPLE_MODELS : [];
 
   const tradeInValue = useMemo(() => {
-    if (!currentPhone) return 0;
-    return (valuations[currentPhone] || 1000) * conditionMultiplier[condition];
-  }, [currentPhone, condition]);
+    if (!formData.model) return 0;
+    return (valuations[formData.model] || 800) * conditionMultiplier[formData.condition];
+  }, [formData.model, formData.condition]);
 
-  const targetPhone = useMemo(() => targetPhones.find(p => p.id === targetPhoneId), [targetPhoneId, targetPhones]);
+  const targetPhone = useMemo(
+    () => products.find(p => p.id === formData.targetPhoneId),
+    [formData.targetPhoneId, products]
+  );
+
+  const targetPhones = useMemo(
+    () => products.filter(p => p.category === 'iPhone'),
+    [products]
+  );
+
   const difference = targetPhone ? Math.max(0, targetPhone.price - tradeInValue) : 0;
   const savingsPct = targetPhone ? Math.round((tradeInValue / targetPhone.price) * 100) : 0;
 
-  return (
-    <div className="min-h-screen no-print relative" style={{ backgroundColor: 'var(--bb-bg)', color: 'var(--bb-text)' }}>
+  const submitTradeRequest = () => {
+    if (!user) { navigate({ to: '/auth' }); return; }
+    notify('Trade-in request submitted! We\'ll be in touch within 24 hours.');
+    navigate({ to: '/profile' });
+  };
 
-      {/* Subtle bg glow */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #B38B21 0%, transparent 70%)', filter: 'blur(120px)', transform: 'translate(40%, -40%)' }} />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #B38B21 0%, transparent 70%)', filter: 'blur(100px)', transform: 'translate(-40%, 40%)' }} />
+  return (
+    <div className="min-h-screen pb-32 relative" style={{ backgroundColor: 'var(--bb-bg)', color: 'var(--bb-text)' }}>
+
+      {/* Background glows */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full opacity-10"
+          style={{ background: 'radial-gradient(circle, #CDA032 0%, transparent 60%)', filter: 'blur(100px)', transform: 'translate(30%, -30%)' }} />
+        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] rounded-full opacity-[0.05]"
+          style={{ background: 'radial-gradient(circle, #CDA032 0%, transparent 70%)', filter: 'blur(100px)', transform: 'translate(-30%, 30%)' }} />
       </div>
 
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 md:px-10 pt-8 sm:pt-10 pb-32 sm:pb-36 xl:pb-10 relative z-10 space-y-10 sm:space-y-12">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 md:px-10 pt-8 sm:pt-14 z-10 relative">
 
-        {/* ── Header ── */}
-        <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-8 border-b border-[var(--bb-border)]">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-lg" style={{ backgroundColor: '#B38B21' }}>
-                <RefreshCcw size={20} className="text-black" style={{ animation: 'spin 8s linear infinite' }} />
-              </div>
-              <span className="text-[10px] font-bold uppercase tracking-[0.35em] opacity-60">Trade In Console</span>
+        {/* Header */}
+        <header className="mb-10 sm:mb-16">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-[#CDA032]/10 border border-[#CDA032]/30">
+              <RefreshCcw size={20} className="text-[#CDA032]" />
             </div>
-            <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tight leading-none">Trade In</h1>
-            <p className="text-sm opacity-60 font-medium mt-2 max-w-md">Upgrade your tech by trading in your current devices. Get the best market value instantly.</p>
+            <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.3em] text-[#CDA032]">BlackBox Trade-In Center</span>
           </div>
-
-          {/* Trust badges */}
-          <div className="flex flex-wrap gap-3">
-            {[
-              { icon: <CheckCircle2 size={14} className="text-emerald-500 dark:text-emerald-400" />, label: 'Data Wiped Securely' },
-              { icon: <Award size={14} style={{ color: '#B38B21' }} />, label: 'Best Price Guarantee' },
-              { icon: <Zap size={14} className="text-amber-500 dark:text-amber-400" />, label: 'Same Day Processing' },
-            ].map((b, i) => (
-              <div key={i} className="flex items-center gap-2 px-4 py-2 rounded-full border border-black/5 dark:border-white/5 bg-[var(--bb-surface-2)] shadow-sm">
-                {b.icon}
-                <span className="text-[11px] font-bold tracking-wide opacity-70 uppercase">{b.label}</span>
-              </div>
-            ))}
-          </div>
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-black uppercase tracking-tighter leading-[1.1]">
+            Trade in. Upgrade<br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#CDA032] to-[#FCE69B]">without the hassle.</span>
+          </h1>
         </header>
 
-        {/* ── Main Grid ── */}
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
+        <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-start">
 
-          {/* Left: Steps */}
-          <div className="xl:col-span-8 space-y-8">
+          {/* ── Main Form ── */}
+          <div className="flex-1 w-full space-y-6">
 
-            {/* Step 1 */}
-            <section
-              ref={yourDeviceRef as any}
-              className="relative rounded-[2.5rem] p-6 md:p-10 space-y-8 border border-[var(--bb-border)] glow-surface shadow-xl overflow-hidden"
-            >
-              {/* Corner Marks */}
-              <div className="pointer-events-none absolute inset-0 z-0">
-                <div className="absolute top-4 left-4 w-12 h-12 border-t-2 border-l-2 rounded-tl-[1.5rem] transition-colors border-[#B38B21]/50" />
-                <div className="absolute top-4 right-4 w-12 h-12 border-t-2 border-r-2 rounded-tr-[1.5rem] transition-colors border-[#B38B21]/50" />
-                <div className="absolute bottom-4 left-4 w-12 h-12 border-b-2 border-l-2 rounded-bl-[1.5rem] transition-colors border-[#B38B21]/50" />
-                <div className="absolute bottom-4 right-4 w-12 h-12 border-b-2 border-r-2 rounded-br-[1.5rem] transition-colors border-[#B38B21]/50" />
-              </div>
-              <div className="relative z-10 space-y-8">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <span className="w-6 h-6 rounded-lg text-[10px] font-black text-black flex items-center justify-center" style={{ backgroundColor: '#B38B21' }}>01</span>
-                    <h2 className="text-sm font-black uppercase tracking-widest text-white/80">Your Device</h2>
-                  </div>
-                  <span className="hidden md:inline text-[10px] text-white/40 uppercase tracking-[0.25em]">
-                    Start here · Choose what you&apos;re trading in
-                  </span>
+            {/* STEP 1 — Your Device (sub-stepped) */}
+            {step > 1 ? (
+              <div className="flex justify-between items-center py-6 border-b border-[var(--bb-border)] animate-in fade-in transition-all">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032]">Your Device</p>
+                  <h3 className="text-xl font-black text-white">{formData.brand} {formData.model}</h3>
                 </div>
+                <button onClick={() => { setStep(1); setSubStep(1); }} className="text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors">
+                  Change
+                </button>
+              </div>
+            ) : step === 1 && (
+              <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  {/* Model select with search */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-white/60 flex items-center gap-1.5">
-                      <Smartphone size={11} style={{ color: '#B38B21' }} /> Model
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        placeholder="Search and select your device..."
-                        value={currentPhone}
-                        onChange={e => {
-                          setCurrentPhone(e.target.value);
-                          setCurrentSearch(e.target.value);
-                        }}
-                        className="w-full border border-white/20 rounded-xl px-4 py-3 text-sm font-semibold text-white outline-none transition-all focus:border-white/40 pl-10"
-                        style={{ backgroundColor: 'var(--bb-bg)' }}
-                      />
-                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/60" />
-
-                      {currentSearch && (
-                        <div className="absolute z-20 w-full mt-1 border border-white/10 rounded-xl shadow-lg max-h-40 overflow-y-auto" style={{ backgroundColor: 'var(--bb-surface)' }}>
-                          {Object.keys(valuations)
-                            .filter(v => v.toLowerCase().includes(currentSearch.toLowerCase()))
-                            .slice(0, 6)
-                            .map(v => (
-                              <button
-                                key={v}
-                                onClick={() => {
-                                  setCurrentPhone(v);
-                                  setCurrentSearch('');
-                                }}
-                                className="w-full text-left px-4 py-2 text-sm text-white/80 hover:bg-white/5 transition-colors"
-                              >
-                                {v}
-                              </button>
-                            ))}
-                          <button
-                            onClick={() => {
-                              setCurrentPhone('Other Apple Device');
-                              setCurrentSearch('');
-                            }}
-                            className="w-full text-left px-4 py-2 text-sm text-white/60 hover:bg-white/5 transition-colors border-t border-white/5"
-                          >
-                            Other Apple Device
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                {/* 1a: Device Type */}
+                {subStep > 1 ? (
+                  <div className="flex justify-between items-center py-5 border-b border-[var(--bb-border)] animate-in fade-in">
+                    <h3 className="text-lg font-bold">
+                      {deviceTypes.find(d => d.id === formData.deviceType)?.label}
+                    </h3>
+                    <button onClick={() => setSubStep(1)} className="text-sm font-bold text-blue-500 hover:text-blue-400">Change</button>
                   </div>
-
-                  {/* Color Selection */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-white/60 flex items-center gap-1.5">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#B38B21' }} /> Color
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {['Black', 'White', 'Red', 'Blue', 'Green', 'Purple', 'Pink', 'Gold', 'Silver'].map(color => (
-                        <button
-                          key={color}
-                          onClick={() => setSelectedColor(color)}
-                          className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${selectedColor === color
-                            ? 'border-[#B38B21] bg-[#B38B21]/20 text-[#B38B21]'
-                            : 'border-white/10 hover:border-white/20 text-white/60'
-                            }`}
+                ) : subStep === 1 && (
+                  <div className="space-y-4">
+                    <h2 className="text-2xl font-bold tracking-tight">What device are you trading in?</h2>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+                      {deviceTypes.map(type => (
+                        <button key={type.id}
+                          onClick={() => {
+                            setFormData({ ...formData, deviceType: type.id, brand: '', model: '' });
+                            setSubStep(2);
+                          }}
+                          className={`flex flex-col items-center justify-center p-6 sm:p-8 rounded-3xl border transition-all duration-300 ${formData.deviceType === type.id
+                            ? 'bg-[#CDA032]/10 border-[#CDA032] shadow-[0_0_30px_rgba(205,160,50,0.15)] ring-1 ring-[#CDA032]'
+                            : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:bg-[var(--bb-surface-2)] hover:border-[#CDA032]/40'}`}
                         >
-                          <div
-                            className="w-4 h-4 rounded-full border-2"
-                            style={{
-                              backgroundColor: color.toLowerCase() === 'black' ? '#000' :
-                                color.toLowerCase() === 'white' ? '#fff' :
-                                  color.toLowerCase() === 'red' ? '#ef4444' :
-                                    color.toLowerCase() === 'blue' ? '#3b82f6' :
-                                      color.toLowerCase() === 'green' ? '#10b981' :
-                                        color.toLowerCase() === 'purple' ? '#a855f7' :
-                                          color.toLowerCase() === 'pink' ? '#ec4899' :
-                                            color.toLowerCase() === 'gold' ? '#f59e0b' :
-                                              color.toLowerCase() === 'silver' ? '#9ca3af' :
-                                                '#6b7280',
-                              borderColor: selectedColor === color ? '#B38B21' : 'rgba(255,255,255,0.3)'
-                            }}
-                          />
-                          <span className="text-xs">{color}</span>
+                          <type.icon size={36} strokeWidth={1.5} className={`mb-4 transition-colors ${formData.deviceType === type.id ? 'text-[#CDA032]' : 'opacity-60'}`} />
+                          <span className={`text-sm sm:text-base font-bold transition-colors ${formData.deviceType === type.id ? 'text-[#CDA032]' : 'opacity-90'}`}>{type.label}</span>
                         </button>
                       ))}
                     </div>
                   </div>
+                )}
 
-                  {/* Condition */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-white/60 flex items-center gap-1.5">
-                      <Scale size={11} style={{ color: '#B38B21' }} /> Condition
-                    </label>
-                    <div className="space-y-1.5">
-                      {Object.entries(conditionLabels).map(([key, { label, desc, dot }]) => (
-                        <button
-                          key={key}
-                          onClick={() => setCondition(key)}
-                          className={`w-full text-left px-4 py-2.5 rounded-xl border transition-all duration-200 flex items-center justify-between
-                          ${condition === key
-                              ? 'border-white/40 bg-white/10'
-                              : 'border-white/10 hover:border-white/20'
-                            }`}
+                {/* 1b: Brand */}
+                {subStep > 2 ? (
+                  <div className="flex justify-between items-center py-5 border-b border-[var(--bb-border)] animate-in fade-in">
+                    <h3 className="text-lg font-bold">{formData.brand}</h3>
+                    <button onClick={() => setSubStep(2)} className="text-sm font-bold text-blue-500 hover:text-blue-400">Change</button>
+                  </div>
+                ) : subStep === 2 && (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300 pt-4">
+                    <div className="space-y-2">
+                      <p className="text-xs font-black uppercase tracking-widest text-[#CDA032] opacity-70">
+                        {deviceTypes.find(d => d.id === formData.deviceType)?.label}
+                      </p>
+                      <h2 className="text-2xl font-bold tracking-tight">Which brand?</h2>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {brands.map(brand => (
+                        <button key={brand}
+                          onClick={() => {
+                            setFormData({ ...formData, brand, model: '' });
+                            setSubStep(3);
+                          }}
+                          className={`py-5 px-4 rounded-2xl border text-sm font-bold text-center transition-all duration-200 ${formData.brand === brand
+                            ? 'bg-[#CDA032] text-black border-[#CDA032] shadow-lg shadow-[#CDA032]/20'
+                            : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:bg-[var(--bb-surface-2)] hover:border-[#CDA032]/40 opacity-80'}`}
                         >
-                          <div className="flex items-center gap-2.5">
-                            <div className={`w-1.5 h-1.5 rounded-full ${dot}`} />
-                            <span className="text-xs font-semibold text-white/70">{label}</span>
-                            <span className="text-[10px] text-white/60 hidden sm:block">— {desc}</span>
+                          {brand}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 1c: Model */}
+                {subStep === 3 && (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300 pt-4">
+                    <div className="space-y-2">
+                      <p className="text-xs font-black uppercase tracking-widest text-[#CDA032] opacity-70">
+                        {deviceTypes.find(d => d.id === formData.deviceType)?.label} · {formData.brand}
+                      </p>
+                      <h2 className="text-2xl font-bold tracking-tight">Which model?</h2>
+                    </div>
+
+                    {modelOptions.length > 0 ? (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {[...modelOptions].reverse().map(model => (
+                          <button key={model}
+                            onClick={() => setFormData(f => ({ ...f, model }))}
+                            className={`py-5 px-4 rounded-2xl border text-sm font-bold text-center transition-all duration-200 ${formData.model === model
+                              ? 'bg-[#CDA032]/10 border-[#CDA032] ring-1 ring-[#CDA032] text-[#CDA032]'
+                              : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:bg-[var(--bb-surface-2)] hover:border-[#CDA032]/40 opacity-80'}`}
+                          >
+                            {model}
+                            {formData.model === model && (
+                              <span className="block text-[10px] mt-1 font-black uppercase tracking-widest text-[#CDA032]/70">
+                                {formatCurrency((valuations[model] || 0) * conditionMultiplier[formData.condition])} value
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <input
+                        placeholder={`Enter your ${formData.brand} model...`}
+                        value={formData.model}
+                        onChange={e => setFormData({ ...formData, model: e.target.value })}
+                        className="w-full max-w-md border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50"
+                      />
+                    )}
+
+                    <button
+                      onClick={() => {
+                        if (!formData.model) { notify('Please select or enter your model.', 'error'); return; }
+                        go(2);
+                      }}
+                      className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] active:scale-[0.98] transition-all w-full max-w-md"
+                    >
+                      Continue <ArrowRight size={16} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* STEP 2 — Condition & Target Device */}
+            {step > 2 ? (
+              <div className="flex justify-between items-center py-6 border-b border-[var(--bb-border)] animate-in fade-in transition-all">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032]">Condition &amp; New Device</p>
+                  <h3 className="text-xl font-black text-white capitalize">
+                    {conditionLabels[formData.condition].label} · {targetPhone?.name || 'No device selected'}
+                  </h3>
+                </div>
+                <button onClick={() => setStep(2)} className="text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors">
+                  Change
+                </button>
+              </div>
+            ) : step === 2 && (
+              <div key={`step-2-${transitionKey}`} className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-4">
+
+                {/* Condition */}
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <h2 className="text-2xl font-bold tracking-tight">What condition is your {formData.model || 'device'} in?</h2>
+                    <p className="opacity-60 text-sm">Be honest — we'll inspect on arrival and adjust accordingly.</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {Object.entries(conditionLabels).map(([key, { label, desc, dot }]) => {
+                      const val = (valuations[formData.model] || 800) * conditionMultiplier[key];
+                      const selected = formData.condition === key;
+                      return (
+                        <button key={key}
+                          onClick={() => setFormData({ ...formData, condition: key })}
+                          className={`flex flex-col text-left p-5 rounded-3xl border transition-all duration-300 ${selected
+                            ? 'border-[#CDA032] bg-[#CDA032]/10 shadow-[0_0_20px_rgba(205,160,50,0.15)] ring-1 ring-[#CDA032]'
+                            : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:bg-[var(--bb-surface-2)] hover:border-[#CDA032]/40'}`}
+                        >
+                          <div className="flex justify-between w-full items-start mb-2">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-2 h-2 rounded-full ${dot}`} />
+                              <span className={`font-extrabold text-base sm:text-lg ${selected ? 'text-[#CDA032]' : ''}`}>{label}</span>
+                            </div>
+                            <div className={`w-5 h-5 rounded-md flex items-center justify-center border transition-all shrink-0 ml-2 ${selected ? 'border-[#CDA032] bg-[#CDA032]' : 'border-[var(--bb-border)] opacity-30'}`}>
+                              {selected && <Check size={11} className="text-black" strokeWidth={4} />}
+                            </div>
                           </div>
-                          {condition === key && (
-                            <div className="w-4 h-4 rounded-full flex items-center justify-center" style={{ backgroundColor: '#B38B21' }}>
-                              <Check size={10} className="text-black" strokeWidth={3} />
+                          <span className="text-xs opacity-60 leading-relaxed mb-4">{desc}</span>
+                          <div className="pt-4 border-t border-[var(--bb-border)]">
+                            <span className="text-xs font-bold uppercase tracking-wider opacity-60">Estimated value: </span>
+                            <span className="text-lg font-black text-[#CDA032] leading-none">{formatCurrency(val)}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Value banner */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl border border-[#CDA032]/30 bg-[#CDA032]/5 animate-in fade-in duration-300">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-0.5">Your Trade-In Value</p>
+                      <p className="text-sm font-bold">{formData.model} · <span className="capitalize">{conditionLabels[formData.condition].label}</span></p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-0.5">Credit Applied</p>
+                      <p className="text-xl font-black text-[#CDA032]">{formatCurrency(tradeInValue)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Select New Device */}
+                <div className="space-y-4 pt-6 border-t border-[var(--bb-border)]">
+                  <div className="space-y-1">
+                    <h2 className="text-2xl font-bold tracking-tight">Select your new device</h2>
+                    <p className="opacity-60 text-sm">Your trade-in credit will be applied to the balance.</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {targetPhones.map(p => {
+                      const selected = formData.targetPhoneId === p.id;
+                      const bal = Math.max(0, p.price - tradeInValue);
+                      return (
+                        <button key={p.id}
+                          onClick={() => setFormData(f => ({ ...f, targetPhoneId: p.id }))}
+                          className={`relative flex flex-col items-center gap-2 p-4 pt-5 rounded-2xl border transition-all duration-200 group text-center ${selected
+                            ? 'border-[#CDA032] bg-[#CDA032]/10 shadow-[0_0_16px_rgba(205,160,50,0.2)] ring-1 ring-[#CDA032]'
+                            : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:bg-[var(--bb-surface-2)] hover:border-[#CDA032]/40'}`}
+                        >
+                          {selected && (
+                            <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-[#CDA032] flex items-center justify-center">
+                              <Check size={9} className="text-black" strokeWidth={4} />
                             </div>
                           )}
+                          <div className="w-16 h-16 flex items-center justify-center">
+                            <img src={p.image} alt={p.name} className="h-14 w-auto object-contain transition-all duration-200 group-hover:scale-105" />
+                          </div>
+                          <p className={`text-[11px] font-black leading-tight ${selected ? 'text-[#CDA032]' : ''}`}>{p.name}</p>
+                          <p className="text-xs font-black text-white">{formatCurrency(p.price)}</p>
+                          {tradeInValue > 0 && (
+                            <p className="text-[10px] font-bold text-emerald-400">Pay: {formatCurrency(bal)}</p>
+                          )}
                         </button>
-                      ))}
-                    </div>
+                      );
+                    })}
                   </div>
-                </div>
 
-                {/* Valuation row */}
-                <div className="flex items-center justify-between pt-6 mt-4 border-t border-[var(--bb-border)]">
-                  <div>
-                    <p className="text-[11px] font-bold uppercase tracking-widest opacity-50 mb-1">Estimated Value</p>
-                    <p className="text-3xl md:text-4xl font-black tracking-tighter" style={{ color: '#B38B21' }}>
-                      {formatCurrency(tradeInValue)}
-                    </p>
-                  </div>
-                  {currentPhone && (
-                    <span className="text-xs font-bold px-4 py-2 rounded-xl bg-[#B38B21]/10 text-[#B38B21]">
-                      {Math.round(conditionMultiplier[condition] * 100)}% of base value
-                    </span>
-                  )}
-                </div>
-              </div>
-            </section>
-
-            {/* Step 2 */}
-            <section ref={newDeviceRef as any} className="relative rounded-[2.5rem] p-6 md:p-10 space-y-8 border border-[var(--bb-border)] glow-surface shadow-xl overflow-hidden">
-              {/* Corner Marks */}
-              <div className="pointer-events-none absolute inset-0 z-0">
-                <div className="absolute top-4 left-4 w-12 h-12 border-t-2 border-l-2 rounded-tl-[1.5rem] transition-colors border-[#B38B21]/50" />
-                <div className="absolute top-4 right-4 w-12 h-12 border-t-2 border-r-2 rounded-tr-[1.5rem] transition-colors border-[#B38B21]/50" />
-                <div className="absolute bottom-4 left-4 w-12 h-12 border-b-2 border-l-2 rounded-bl-[1.5rem] transition-colors border-[#B38B21]/50" />
-                <div className="absolute bottom-4 right-4 w-12 h-12 border-b-2 border-r-2 rounded-br-[1.5rem] transition-colors border-[#B38B21]/50" />
-              </div>
-              <div className="relative z-10 space-y-8">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <span className="w-8 h-8 rounded-xl text-xs font-black text-black flex items-center justify-center shadow-md" style={{ backgroundColor: '#B38B21' }}>02</span>
-                    <h2 className="text-sm md:text-base font-black uppercase tracking-widest opacity-80">Select New Device</h2>
-                  </div>
-                  <div className="relative w-full sm:w-64">
-                    <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/60" />
-                    <input
-                      placeholder="Search..."
-                      value={targetSearch}
-                      onChange={e => setTargetSearch(e.target.value)}
-                      className="w-full border border-white/20 rounded-xl pl-9 pr-4 py-2.5 text-xs font-medium text-white outline-none transition-all focus:border-white/40"
-                      style={{ backgroundColor: 'var(--bb-surface)' }}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {targetPhones.length > 0 ? targetPhones.map(p => (
-                    <div
-                      key={p.id}
-                      onClick={() => setTargetPhoneId(p.id)}
-                      className="relative rounded-2xl border cursor-pointer transition-all duration-300 p-4 flex flex-col items-center gap-3 text-center group overflow-hidden"
-                      style={{
-                        backgroundColor: targetPhoneId === p.id ? 'rgba(179,139,33,0.1)' : 'var(--bb-surface)',
-                        borderColor: targetPhoneId === p.id ? 'rgba(179,139,33,0.5)' : 'rgba(255,255,255,0.15)',
-                        boxShadow: targetPhoneId === p.id ? '0 0 20px rgba(179,139,33,0.12)' : 'none',
-                      }}
-                    >
-                      {/* Corner Marks */}
-                      <div className="pointer-events-none absolute inset-0 z-0">
-                        <div className="absolute top-2 left-2 w-6 h-6 border-t-2 border-l-2 rounded-tl-xl transition-colors border-[#B38B21]/40" />
-                        <div className="absolute top-2 right-2 w-6 h-6 border-t-2 border-r-2 rounded-tr-xl transition-colors border-[#B38B21]/40" />
-                        <div className="absolute bottom-2 left-2 w-6 h-6 border-b-2 border-l-2 rounded-bl-xl transition-colors border-[#B38B21]/40" />
-                        <div className="absolute bottom-2 right-2 w-6 h-6 border-b-2 border-r-2 rounded-br-xl transition-colors border-[#B38B21]/40" />
+                  {formData.targetPhoneId && targetPhone && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl border border-[#CDA032]/30 bg-[#CDA032]/5 animate-in fade-in">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-0.5">Upgrading To</p>
+                        <p className="text-sm font-bold">{targetPhone.name}</p>
                       </div>
-                      {targetPhoneId === p.id && (
-                        <div className="absolute -top-2 -right-2 w-5 h-5 rounded-full flex items-center justify-center z-10" style={{ backgroundColor: '#B38B21' }}>
-                          <Check size={10} className="text-black" strokeWidth={3} />
-                        </div>
-                      )}
-                      <div className="w-20 h-20 rounded-xl flex items-center justify-center overflow-hidden" style={{ backgroundColor: 'var(--bb-bg)' }}>
-                        <img src={p.image} alt={p.name} className="w-16 h-16 object-contain transition-transform duration-300 group-hover:scale-105" />
+                      <div className="text-right">
+                        <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-0.5">Balance Due</p>
+                        <p className="text-xl font-black text-[#CDA032]">{formatCurrency(difference)}</p>
+                        {savingsPct > 0 && (
+                          <p className="text-[10px] text-emerald-400 font-bold flex items-center gap-1 justify-end">
+                            <Sparkles size={10} /> Save {savingsPct}% with trade-in
+                          </p>
+                        )}
                       </div>
-                      <div className="space-y-1">
-                        <p className="text-[10px] font-bold text-white/60 uppercase tracking-wider">{p.category}</p>
-                        <h4 className="text-xs font-bold text-white leading-tight">{p.name}</h4>
-                        <p className="text-sm font-black text-white">{formatCurrency(p.price)}</p>
-                      </div>
-                      {p.specs && p.specs.length > 0 && (
-                        <div className="flex flex-wrap justify-center gap-1">
-                          {p.specs.slice(0, 2).map((s, i) => (
-                            <span key={i} className="px-2 py-0.5 rounded-full text-[9px] font-semibold text-white/60 bg-white/5">
-                              {s}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )) : (
-                    <div className="col-span-full py-16 rounded-2xl border border-dashed border-white/20 flex flex-col items-center justify-center gap-3" style={{ backgroundColor: 'var(--bb-surface)' }}>
-                      <Info size={32} className="text-white/20" />
-                      <p className="text-xs font-semibold text-white/50">No devices match your search</p>
-                      <button onClick={() => setTargetSearch('')} className="text-[10px] opacity-60 hover:opacity-100 transition-colors underline">Clear search</button>
                     </div>
                   )}
                 </div>
-              </div>
-            </section>
 
-            {/* Target Phone Color Selection */}
-            {targetPhone && (
-              <section className="relative rounded-[2.5rem] p-6 md:p-10 space-y-6 border border-[var(--bb-border)] glow-surface shadow-xl overflow-hidden">
-                {/* Corner Marks */}
-                <div className="pointer-events-none absolute inset-0 z-0">
-                  <div className="absolute top-4 left-4 w-12 h-12 border-t-2 border-l-2 rounded-tl-[1.5rem] transition-colors border-[#B38B21]/50" />
-                  <div className="absolute top-4 right-4 w-12 h-12 border-t-2 border-r-2 rounded-tr-[1.5rem] transition-colors border-[#B38B21]/50" />
-                  <div className="absolute bottom-4 left-4 w-12 h-12 border-b-2 border-l-2 rounded-bl-[1.5rem] transition-colors border-[#B38B21]/50" />
-                  <div className="absolute bottom-4 right-4 w-12 h-12 border-b-2 border-r-2 rounded-br-[1.5rem] transition-colors border-[#B38B21]/50" />
+                <div className="pt-4">
+                  <button
+                    onClick={() => {
+                      if (!formData.targetPhoneId) { notify('Please select a device to upgrade to.', 'error'); return; }
+                      go(3);
+                    }}
+                    className="flex items-center gap-2 px-8 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] hover:scale-[1.02] active:scale-95 transition-all"
+                  >
+                    Continue to Booking <ArrowRight size={16} />
+                  </button>
                 </div>
-                <div className="relative z-10 space-y-6">
-                  <div className="flex items-center gap-3">
-                    <span className="w-8 h-8 rounded-xl text-xs font-black text-black flex items-center justify-center shadow-md" style={{ backgroundColor: '#B38B21' }}>03</span>
-                    <h2 className="text-sm md:text-base font-black uppercase tracking-widest opacity-80">Choose Color</h2>
+              </div>
+            )}
+
+            {/* STEP 3 — Schedule & Contact */}
+            {step > 3 ? (
+              <div className="flex justify-between items-center py-6 border-b border-[var(--bb-border)] animate-in fade-in transition-all">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032]">Booking Details</p>
+                  <h3 className="text-xl font-black text-white">
+                    {formData.date} at {timeSlots.find(t => t.id === formData.timeSlot)?.time}
+                  </h3>
+                </div>
+                <button onClick={() => setStep(3)} className="text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors">
+                  Change
+                </button>
+              </div>
+            ) : step === 3 && (
+              <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-4">
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-bold tracking-tight">Schedule your drop-off</h2>
+                  <p className="opacity-60 text-sm">Choose a time to bring your device in for inspection.</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-bold uppercase tracking-widest opacity-80">Date</h3>
+                    <div className="relative">
+                      <input
+                        type="date"
+                        value={formData.date}
+                        onChange={e => setFormData({ ...formData, date: e.target.value })}
+                        onClick={e => (e.target as any).showPicker?.()}
+                        min={new Date().toISOString().split('T')[0]}
+                        className="w-full border border-[var(--bb-border)] rounded-xl pl-12 pr-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50 cursor-pointer h-[54px]"
+                        style={{ colorScheme: theme === 'dark' ? 'dark' : 'light' }}
+                      />
+                      <Calendar size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#CDA032] pointer-events-none" />
+                    </div>
                   </div>
-                  <p className="text-xs opacity-70">Select your preferred color for the new device</p>
-                  <div className="flex flex-wrap gap-3 mt-4">
-                    {['Black', 'White', 'Red', 'Blue', 'Green', 'Purple', 'Pink', 'Gold', 'Silver'].map(color => (
-                      <button
-                        key={color}
-                        onClick={() => setTargetColor(color)}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${targetColor === color
-                          ? 'border-[#B38B21] bg-[#B38B21]/20 text-[#B38B21]'
-                          : 'border-white/10 hover:border-white/20 text-white/60'
-                          }`}
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-bold uppercase tracking-widest opacity-80">Time Slot</h3>
+                    <div className="relative">
+                      <select
+                        value={formData.timeSlot}
+                        onChange={e => setFormData({ ...formData, timeSlot: e.target.value })}
+                        className="w-full border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50 appearance-none cursor-pointer h-[54px]"
                       >
-                        <div
-                          className="w-4 h-4 rounded-full border-2"
-                          style={{
-                            backgroundColor: color.toLowerCase() === 'black' ? '#000' :
-                              color.toLowerCase() === 'white' ? '#fff' :
-                                color.toLowerCase() === 'red' ? '#ef4444' :
-                                  color.toLowerCase() === 'blue' ? '#3b82f6' :
-                                    color.toLowerCase() === 'green' ? '#10b981' :
-                                      color.toLowerCase() === 'purple' ? '#a855f7' :
-                                        color.toLowerCase() === 'pink' ? '#ec4899' :
-                                          color.toLowerCase() === 'gold' ? '#f59e0b' :
-                                            color.toLowerCase() === 'silver' ? '#9ca3af' :
-                                              '#6b7280',
-                            borderColor: targetColor === color ? '#B38B21' : 'rgba(255,255,255,0.3)'
-                          }}
-                        />
-                        <span className="text-xs">{color}</span>
-                      </button>
-                    ))}
+                        <option value="">Select an available time...</option>
+                        {timeSlots.map(t => (
+                          <option key={t.id} value={t.id} disabled={!t.available}>
+                            {t.time} - {t.available ? t.label : 'Fully Booked'}
+                          </option>
+                        ))}
+                      </select>
+                      <Clock size={18} className="absolute right-4 top-1/2 -translate-y-1/2 opacity-50 pointer-events-none" />
+                    </div>
                   </div>
                 </div>
-              </section>
+
+                <div className="space-y-6 pt-8 border-t border-[var(--bb-border)]">
+                  <div className="space-y-2">
+                    <h2 className="text-2xl font-bold tracking-tight">Your Details</h2>
+                    <p className="opacity-60 text-sm">We'll use this to keep you updated on your trade-in status.</p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {[
+                      { placeholder: 'Full Name', value: formData.name, key: 'name', icon: <User size={16} /> },
+                      { placeholder: 'Phone Number', value: formData.phone, key: 'phone', icon: <Phone size={16} /> },
+                    ].map(f => (
+                      <div key={f.key} className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 opacity-40 pointer-events-none">{f.icon}</span>
+                        <input
+                          placeholder={f.placeholder}
+                          value={f.value}
+                          onChange={e => setFormData({ ...formData, [f.key]: e.target.value })}
+                          className="w-full border border-[var(--bb-border)] rounded-xl pl-10 pr-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50"
+                        />
+                      </div>
+                    ))}
+                    <div className="relative md:col-span-2">
+                      <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 opacity-40 pointer-events-none" />
+                      <input
+                        type="email"
+                        placeholder="Email Address"
+                        value={formData.email}
+                        onChange={e => setFormData({ ...formData, email: e.target.value })}
+                        className="w-full border border-[var(--bb-border)] rounded-xl pl-10 pr-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50"
+                      />
+                    </div>
+                    <div className="relative md:col-span-2">
+                      <MapPin size={16} className="absolute left-4 top-3.5 opacity-40 pointer-events-none" />
+                      <textarea
+                        placeholder="Pickup Address (Optional — if you want us to collect the device)"
+                        value={formData.address}
+                        onChange={e => setFormData({ ...formData, address: e.target.value })}
+                        rows={2}
+                        className="w-full border border-[var(--bb-border)] rounded-xl pl-10 pr-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50 resize-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-8">
+                  <button
+                    onClick={() => {
+                      if (!formData.date || !formData.timeSlot) { notify('Please select a date and time slot.', 'error'); return; }
+                      if (!formData.name || !formData.phone || !formData.email) { notify('Please fill in all contact details.', 'error'); return; }
+                      go(4);
+                    }}
+                    className="flex items-center gap-2 px-8 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] hover:scale-[1.02] active:scale-95 transition-all"
+                  >
+                    Review Trade-In <ArrowRight size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 4 — Review & Confirm */}
+            {step === 4 && (
+              <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="space-y-2">
+                  <h2 className="text-3xl font-black tracking-tight">Review your trade-in</h2>
+                  <p className="opacity-60 text-sm">Please verify your details before submitting.</p>
+                </div>
+
+                <div className="rounded-3xl border border-[var(--bb-border)] bg-[var(--bb-surface)] overflow-hidden shadow-2xl">
+                  {/* Banner */}
+                  <div className="p-8 border-b border-[var(--bb-border)] bg-black/5 dark:bg-white/5 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-[#CDA032]/10 blur-3xl rounded-full" />
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032] mb-2">Trade-In Summary</p>
+                    <h3 className="text-2xl font-black mb-1">{formData.brand} {formData.model}</h3>
+                    <p className="text-lg opacity-80 capitalize">{conditionLabels[formData.condition].label} Condition → {targetPhone?.name}</p>
+                  </div>
+
+                  <div className="p-8 space-y-8">
+                    {/* Cost breakdown */}
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center text-sm font-medium">
+                        <span className="opacity-70">New Device Price</span>
+                        <span className="font-bold">{targetPhone ? formatCurrency(targetPhone.price) : '—'}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-sm font-medium">
+                        <span className="opacity-70">Trade-In Credit ({conditionLabels[formData.condition].label})</span>
+                        <span className="font-bold text-emerald-400">− {formatCurrency(tradeInValue)}</span>
+                      </div>
+                      <div className="pt-4 mt-4 border-t border-[var(--bb-border)] flex justify-between items-end">
+                        <span className="text-base font-black">Balance Due</span>
+                        <span className="text-3xl font-black text-[#CDA032]">{formatCurrency(difference)}</span>
+                      </div>
+                      <div className="flex gap-3 items-start p-4 bg-[#CDA032]/10 rounded-xl mt-4">
+                        <Info size={16} className="text-[#CDA032] shrink-0 mt-0.5" />
+                        <p className="text-xs leading-relaxed text-[#CDA032] font-semibold">
+                          Final trade-in value confirmed after physical inspection. You'll never be charged without your explicit approval.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Meta grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-6 border-t border-[var(--bb-border)]">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">Appointment</p>
+                        <p className="text-sm font-semibold">{formData.date}</p>
+                        <p className="text-sm opacity-80">{timeSlots.find(t => t.id === formData.timeSlot)?.time}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">Customer Info</p>
+                        <p className="text-sm font-semibold">{formData.name}</p>
+                        <p className="text-sm opacity-80">{formData.phone}</p>
+                        <p className="text-sm opacity-80">{formData.email}</p>
+                        {formData.address && (
+                          <div className="mt-3">
+                            <p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">Pickup Address</p>
+                            <p className="text-sm border-l-2 border-[#CDA032] pl-2 opacity-80">{formData.address}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4">
+                  <button
+                    onClick={submitTradeRequest}
+                    className="w-full sm:w-auto flex items-center justify-center gap-3 px-10 py-5 rounded-2xl text-sm font-black uppercase tracking-widest text-[#111] bg-gradient-to-r from-[#CDA032] to-[#FCE69B] hover:scale-[1.02] shadow-[0_0_30px_rgba(205,160,50,0.3)] transition-all active:scale-95"
+                  >
+                    Confirm Trade-In <Send size={18} />
+                  </button>
+                </div>
+              </div>
             )}
           </div>
 
-          {/* ── Sidebar ── */}
-          <aside className="hidden xl:block xl:col-span-4">
-            <div className="sticky top-24 space-y-6 max-h-[calc(100vh-7rem)] overflow-auto pr-1">
-              <div className="rounded-[2.5rem] p-8 space-y-6 border border-[var(--bb-border)] glow-surface shadow-2xl">
-                <h3 className="text-sm font-black uppercase tracking-widest opacity-50 flex items-center gap-2 border-b border-[var(--bb-border)] pb-4">
-                  <Scale size={16} style={{ color: '#B38B21' }} /> Trade Summary
-                </h3>
+          {/* ── Sidebar (desktop only) ── */}
+          {step > 1 && (
+            <div className="hidden lg:block w-[350px] shrink-0 sticky top-32">
+              <div className="rounded-3xl border border-[var(--bb-border)] bg-[var(--bb-surface)] p-6 shadow-xl space-y-6">
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-[#CDA032] border-b border-[var(--bb-border)] pb-4">Trade-In Summary</h3>
 
-                {/* Visual comparison */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="relative rounded-2xl p-4 space-y-3 text-center border border-[var(--bb-border)] bg-[var(--bb-surface-2)] shadow-inner overflow-hidden">
-                    <div className="pointer-events-none absolute inset-0 z-0">
-                      <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 rounded-tl-md transition-colors border-[#B38B21]/40" />
-                      <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 rounded-tr-md transition-colors border-[#B38B21]/40" />
-                      <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 rounded-bl-md transition-colors border-[#B38B21]/40" />
-                      <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 rounded-br-md transition-colors border-[#B38B21]/40" />
-                    </div>
-                    <p className="text-[10px] font-bold opacity-60 uppercase tracking-widest relative z-10">Your Device</p>
-                    <div className="h-14 flex items-center justify-center relative z-10">
-                      {currentPhone
-                        ? <p className="text-xs font-bold">{currentPhone}</p>
-                        : <p className="text-[9px] opacity-20">—</p>
-                      }
-                    </div>
-                    <p className="text-base font-black relative z-10" style={{ color: '#B38B21' }}>{formatCurrency(tradeInValue)}</p>
+                {/* Device being traded */}
+                <div className="flex gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-[var(--bb-surface-2)] border border-[var(--bb-border)] flex items-center justify-center shrink-0">
+                    {(() => {
+                      const IconComp = deviceTypes.find(d => d.id === formData.deviceType)?.icon as any;
+                      return IconComp ? <IconComp size={18} className="text-[#CDA032]" /> : null;
+                    })()}
                   </div>
-
-                  <div className="relative rounded-2xl p-4 space-y-3 text-center border border-[var(--bb-border)] bg-[var(--bb-surface-2)] shadow-inner overflow-hidden">
-                    <div className="pointer-events-none absolute inset-0 z-0">
-                      <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 rounded-tl-md transition-colors border-[#B38B21]/40" />
-                      <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 rounded-tr-md transition-colors border-[#B38B21]/40" />
-                      <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 rounded-bl-md transition-colors border-[#B38B21]/40" />
-                      <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 rounded-br-md transition-colors border-[#B38B21]/40" />
-                    </div>
-                    <p className="text-[10px] font-bold opacity-60 uppercase tracking-widest relative z-10">New Device</p>
-                    <div className="h-14 flex items-center justify-center overflow-hidden relative z-10">
-                      {targetPhone
-                        ? <img src={targetPhone.image} alt="" className="h-12 w-12 object-contain drop-shadow-md" />
-                        : <p className="text-[9px] opacity-20">—</p>
-                      }
-                    </div>
-                    <p className="text-base font-black">{targetPhone ? formatCurrency(targetPhone.price) : '—'}</p>
+                  <div>
+                    <p className="text-[10px] uppercase font-bold tracking-widest opacity-50 mb-0.5">Trading In</p>
+                    <p className="text-sm font-bold">{formData.brand} {formData.model}</p>
+                    {formData.model && (
+                      <p className="text-xs text-emerald-400 font-bold capitalize mt-0.5">
+                        {conditionLabels[formData.condition].label} · {formatCurrency(tradeInValue)}
+                      </p>
+                    )}
                   </div>
                 </div>
 
-                {/* Breakdown */}
-                <div className="space-y-3 pt-4 border-t border-[var(--bb-border)]">
-                  {[
-                    { label: 'Trade-in credit', value: formatCurrency(tradeInValue), color: 'text-emerald-500 font-bold' },
-                    { label: 'Device price', value: targetPhone ? formatCurrency(targetPhone.price) : '—', color: 'opacity-50' },
-                  ].map((row, i) => (
-                    <div key={i} className="flex items-center justify-between">
-                      <span className="text-sm opacity-60 font-medium">{row.label}</span>
-                      <span className={`text-sm ${row.color}`}>{row.value}</span>
+                {step > 2 && targetPhone && (
+                  <div className="flex gap-4 animate-in fade-in">
+                    <div className="w-10 h-10 rounded-xl bg-[var(--bb-surface-2)] border border-[var(--bb-border)] flex items-center justify-center shrink-0 overflow-hidden">
+                      <img src={targetPhone.image} alt="" className="w-8 h-8 object-contain" />
                     </div>
-                  ))}
-                  <div className="h-px bg-black/5 dark:bg-white/5 my-2" />
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold opacity-50">Balance Due</span>
-                    <span className="text-xl font-black" style={{ color: '#B38B21' }}>{formatCurrency(difference)}</span>
-                  </div>
-                  {targetPhone && savingsPct > 0 && (
-                    <div className="flex items-center gap-1.5 pt-2">
-                      <Sparkles size={14} className="text-emerald-500" />
-                      <span className="text-xs font-bold text-emerald-500">Save {savingsPct}% with trade-in!</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Final amount */}
-                <div className="text-center py-6 border-t border-b border-[var(--bb-border)] mt-4 bg-[var(--bb-surface-2)] -mx-8 px-8">
-                  <p className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-2">Final Payment</p>
-                  <p className="text-5xl font-black tracking-tighter" style={{ color: '#B38B21' }}>{formatCurrency(difference)}</p>
-                  <p className="text-[10px] opacity-30 mt-2 font-medium">Inc. VAT (12.5%)</p>
-
-                  {/* CTA */}
-                  <button
-                    disabled={!targetPhoneId || !currentPhone}
-                    onClick={() => setShowReviewDialog(true)}
-                    className="w-full mt-6 py-5 rounded-2xl text-xs font-black uppercase tracking-[0.2em] text-black flex items-center justify-center gap-3 transition-transform hover:scale-105 disabled:opacity-30 disabled:hover:scale-100 shadow-[0_10px_30px_rgba(179,139,33,0.3)]"
-                    style={{ backgroundColor: '#B38B21' }}
-                  >
-                    Confirm Trade
-                    <ArrowRight size={18} />
-                  </button>
-
-                  <div className="flex items-center justify-center gap-2 text-white/20">
-                    <ShieldCheck size={12} style={{ color: '#B38B21' }} />
-                    <span className="text-[10px] font-medium">Precision Exchange Program</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Guarantee card */}
-              <div className="rounded-2xl p-5 space-y-2" style={{ backgroundColor: 'rgba(179,139,33,0.04)', borderLeft: '2px solid rgba(179,139,33,0.15)' }}>
-                <div className="flex items-center gap-2">
-                  <Award size={15} style={{ color: '#B38B21' }} />
-                  <h4 className="text-xs font-black uppercase tracking-wider text-white/70">Best Value Guarantee</h4>
-                </div>
-                <p className="text-[10px] text-white/60 leading-relaxed">
-                  Find a better offer within 48 hours and we'll match it plus 10%.
-                </p>
-              </div>
-            </div>
-          </aside>
-        </div>
-
-        {/* ── Related Products ── */}
-        <section className="pt-8 space-y-6" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
-          <div className="flex items-end justify-between">
-            <div>
-              <h2 className="text-xl font-black uppercase tracking-tight text-white">Upgrade Essentials</h2>
-              <p className="text-[10px] text-white/60 mt-1 uppercase tracking-widest">Complete your new kit</p>
-            </div>
-            <Link to="/store" className="text-[10px] font-bold uppercase tracking-wider text-white/60 hover:text-white transition-colors flex items-center gap-2 group">
-              View All <ArrowRight size={13} className="group-hover:translate-x-1 transition-transform" />
-            </Link>
-          </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {relatedHardware.map(p => (
-              <ProductCard
-                key={p.id}
-                product={p}
-                onQuickView={onQuickView}
-                isWishlisted={wishlist.includes(p.id)}
-                onToggleWishlist={toggleWishlist}
-                onAddToCart={onAddToCart}
-                isCompared={compareIds.includes(p.id)}
-                onToggleCompare={onToggleCompare}
-              />
-            ))}
-          </div>
-        </section>
-      </div>
-
-      {/* Mobile bottom confirm bar (replaces summary at page bottom) */}
-      <div
-        className="xl:hidden fixed bottom-0 left-0 right-0 z-[120] border-t border-white/10 backdrop-blur-xl"
-        style={{ backgroundColor: 'var(--bb-surface)' }}
-      >
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-4 flex items-center gap-3">
-          <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">Final payment</p>
-            <p className="text-xl font-black truncate" style={{ color: '#B38B21' }}>{formatCurrency(difference)}</p>
-          </div>
-          <button
-            disabled={!targetPhoneId || !currentPhone}
-            onClick={() => setShowReviewDialog(true)}
-            className="px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-black flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-20 disabled:cursor-not-allowed"
-            style={{ backgroundColor: '#B38B21' }}
-          >
-            Review & Confirm
-            <ArrowRight size={14} />
-          </button>
-        </div>
-      </div>
-
-      {/* Review & Confirm dialog (with edit actions) */}
-      {showReviewDialog && (
-        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="border border-white/10 rounded-3xl p-6 sm:p-8 max-w-lg w-full mx-auto shadow-2xl" style={{ backgroundColor: 'var(--bb-surface)' }}>
-            <div className="mb-6">
-              <h3 className="text-2xl font-black text-white mb-1">Review your trade</h3>
-              <p className="text-sm text-white/60">Confirm the details below, or edit them before finalizing.</p>
-            </div>
-
-            <div className="space-y-3 mb-6">
-              {/* Visual snapshot of both devices */}
-              <div className="rounded-2xl border border-white/10 p-4 mb-2" style={{ backgroundColor: 'var(--bb-bg)' }}>
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex-1 text-center">
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-white/40 mb-2">
-                      Trading In
-                    </p>
-                    <div className="mx-auto mb-2 w-14 h-14 rounded-xl border border-white/10 flex items-center justify-center text-xs text-white/60">
-                      {currentPhone || 'Your device'}
+                    <div>
+                      <p className="text-[10px] uppercase font-bold tracking-widest opacity-50 mb-0.5">Upgrading To</p>
+                      <p className="text-sm font-bold leading-snug">{targetPhone.name}</p>
+                      <p className="text-xs opacity-60">{formatCurrency(targetPhone.price)}</p>
                     </div>
                   </div>
-                  <ArrowRight size={18} className="text-white/30" />
-                  <div className="flex-1 text-center">
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-white/40 mb-2">
-                      Getting
-                    </p>
-                    <div className="mx-auto mb-2 w-14 h-14 rounded-xl border border-white/10 flex items-center justify-center overflow-hidden bg-black/40">
-                      {targetPhone ? (
-                        <img
-                          src={targetPhone.image}
-                          alt={targetPhone.name}
-                          className="w-full h-full object-contain"
-                        />
-                      ) : (
-                        <span className="text-xs text-white/40">—</span>
+                )}
+
+                {step > 3 && formData.date && formData.timeSlot && (
+                  <div className="flex gap-4 animate-in fade-in">
+                    <div className="w-10 h-10 rounded-xl bg-[var(--bb-surface-2)] border border-[var(--bb-border)] flex items-center justify-center shrink-0">
+                      <Calendar size={18} className="text-[#CDA032]" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase font-bold tracking-widest opacity-50 mb-0.5">Appointment</p>
+                      <p className="text-sm font-bold">{formData.date}</p>
+                      <p className="text-xs opacity-70 mt-0.5">{timeSlots.find(t => t.id === formData.timeSlot)?.time}</p>
+                    </div>
+                  </div>
+                )}
+
+                {step >= 2 && tradeInValue > 0 && (
+                  <div className="pt-6 border-t border-[var(--bb-border)] space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="opacity-50">Trade-in credit</span>
+                      <span className="font-bold text-emerald-400">{formatCurrency(tradeInValue)}</span>
+                    </div>
+                    {targetPhone && (
+                      <div className="flex justify-between text-xs">
+                        <span className="opacity-50">Device price</span>
+                        <span className="font-bold">{formatCurrency(targetPhone.price)}</span>
+                      </div>
+                    )}
+                    <div className="pt-3 border-t border-[var(--bb-border)]">
+                      <p className="text-[10px] uppercase font-bold tracking-widest opacity-50 mb-2">Balance Due</p>
+                      <p className="text-2xl font-black text-[#CDA032] tracking-tighter">
+                        {targetPhone ? formatCurrency(difference) : '—'}
+                      </p>
+                      {savingsPct > 0 && (
+                        <p className="text-[10px] text-emerald-400 font-bold flex items-center gap-1 mt-1">
+                          <Sparkles size={9} /> Save {savingsPct}% with trade-in
+                        </p>
                       )}
                     </div>
                   </div>
-                </div>
-              </div>
+                )}
 
-              <div className="rounded-2xl border border-white/10 p-4" style={{ backgroundColor: 'var(--bb-bg)' }}>
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-white/50">Your device</p>
-                  <button
-                    onClick={() => {
-                      setShowReviewDialog(false);
-                      yourDeviceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }}
-                    className="text-[10px] font-black uppercase tracking-widest text-[#B38B21] hover:opacity-80"
-                  >
-                    Edit
-                  </button>
-                </div>
-                <div className="mt-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-white/60">Model</span>
-                    <span className="text-xs font-semibold text-white">{currentPhone || '—'}</span>
+                {/* Guarantee */}
+                <div className="rounded-2xl p-4 space-y-1.5 bg-[#CDA032]/5 border border-[#CDA032]/20">
+                  <div className="flex items-center gap-2">
+                    <Award size={14} className="text-[#CDA032]" />
+                    <h4 className="text-[10px] font-black uppercase tracking-wider text-[#CDA032]">Best Value Guarantee</h4>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-white/60">Color</span>
-                    <span className="text-xs font-semibold text-white">{selectedColor || '—'}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-white/60">Condition</span>
-                    <span className="text-xs font-semibold text-white">{conditionLabels[condition]?.label || condition}</span>
-                  </div>
-                  <div className="h-px bg-white/10 my-2" />
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-white/50">Trade-in credit</span>
-                    <span className="text-xs font-black" style={{ color: '#B38B21' }}>{formatCurrency(tradeInValue)}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 p-4" style={{ backgroundColor: 'var(--bb-bg)' }}>
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-white/50">New device</p>
-                  <button
-                    onClick={() => {
-                      setShowReviewDialog(false);
-                      newDeviceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }}
-                    className="text-[10px] font-black uppercase tracking-widest text-[#B38B21] hover:opacity-80"
-                  >
-                    Edit
-                  </button>
-                </div>
-                <div className="mt-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-white/60">Model</span>
-                    <span className="text-xs font-semibold text-white">{targetPhone?.name || '—'}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-white/60">Color</span>
-                    <span className="text-xs font-semibold text-white">{targetColor || '—'}</span>
-                  </div>
-                  <div className="h-px bg-white/10 my-2" />
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-white/50">Final payment</span>
-                    <span className="text-base font-black text-white">{formatCurrency(difference)}</span>
-                  </div>
+                  <p className="text-[10px] opacity-50 leading-relaxed">
+                    Find a better offer within 48 hrs and we'll match it plus 10%.
+                  </p>
                 </div>
               </div>
             </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowReviewDialog(false)}
-                className="flex-1 py-3 bg-white/10 text-white rounded-xl text-sm font-semibold transition-all hover:bg-white/20"
-              >
-                Back
-              </button>
-              <button
-                disabled={!targetPhoneId || !currentPhone}
-                onClick={() => {
-                  if (!user) {
-                    notify('Please sign in to confirm trade-in', 'error');
-                    navigateTo('/auth');
-                    return;
-                  }
-
-                  const newTrade: any = {
-                    id: generateId(),
-                    userId: user.id,
-                    userName: user.name,
-                    device: currentPhone,
-                    condition: condition.charAt(0).toUpperCase() + condition.slice(1),
-                    status: 'Pending',
-                    date: new Date().toISOString(),
-                    estimatedValue: tradeInValue,
-                    imageUrl: undefined // Add image if needed
-                  };
-
-                  setTrades([newTrade, ...trades]);
-                  setShowReviewDialog(false);
-                  setShowSuccessPopup(true);
-                }}
-                className="flex-1 py-3 bg-[#B38B21] text-black rounded-xl text-sm font-black uppercase tracking-wider transition-all disabled:opacity-20 disabled:cursor-not-allowed"
-              >
-                Confirm trade
-              </button>
-            </div>
-          </div>
+          )}
         </div>
-      )}
-
-      {/* Success Popup */}
-      {showSuccessPopup && (
-        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="border border-white/10 rounded-3xl p-8 max-w-md w-full mx-auto shadow-2xl" style={{ backgroundColor: 'var(--bb-surface)' }}>
-            {/* Header */}
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-[#B38B21]/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle2 size={32} className="text-[#B38B21]" />
-              </div>
-              <h3 className="text-2xl font-black text-white mb-2">Trade-In Confirmed!</h3>
-              <p className="text-sm text-white/70">Your trade-in reservation has been successfully initiated</p>
-            </div>
-
-            {/* Trade Details */}
-            <div className="space-y-4 mb-6">
-              <div className="flex justify-between items-center py-3 border-b border-white/5">
-                <span className="text-sm text-white/70">Device Trading In</span>
-                <span className="text-sm font-semibold text-white">{currentPhone}</span>
-              </div>
-              <div className="flex justify-between items-center py-3 border-b border-white/5">
-                <span className="text-sm text-white/40">Device Getting</span>
-                <span className="text-sm font-semibold text-white">{targetPhone?.name || 'Selected Device'}</span>
-              </div>
-              <div className="flex justify-between items-center py-3 border-b border-white/5">
-                <span className="text-sm text-white/40">Trade-In Value</span>
-                <span className="text-sm font-semibold text-[#B38B21]">{formatCurrency(tradeInValue)}</span>
-              </div>
-              <div className="flex justify-between items-center py-3">
-                <span className="text-sm text-white/40">Final Payment</span>
-                <span className="text-lg font-black text-white">{formatCurrency(difference)}</span>
-              </div>
-            </div>
-
-            {/* Next Steps */}
-            <div className="bg-[#B38B21]/5 border border-[#B38B21]/20 rounded-xl p-4 mb-6">
-              <h4 className="text-sm font-semibold text-[#B38B21] mb-2">Next Steps</h4>
-              <ul className="space-y-1 text-xs text-white/50">
-                <li>• Diagnostic appointment scheduled within 24hrs</li>
-                <li>• Bring your device and original packaging</li>
-                <li>• Receive instant credit upon approval</li>
-              </ul>
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowSuccessPopup(false);
-                  notify('Trade-in reservation initiated. Diagnostic appointment scheduled.', 'success');
-                }}
-                className="flex-1 py-3 bg-[#B38B21] text-black rounded-xl text-sm font-black uppercase tracking-wider transition-all hover:scale-105"
-              >
-                Got it
-              </button>
-              <button
-                onClick={() => {
-                  setShowSuccessPopup(false);
-                  navigateTo('/profile'); // Changed to go to profile to see the trade
-                }}
-                className="flex-1 py-3 bg-white/10 text-white rounded-xl text-sm font-semibold transition-all hover:bg-white/20"
-              >
-                View Details
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <style>{`
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-      `}</style>
+      </div>
     </div>
   );
 };
