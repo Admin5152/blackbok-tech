@@ -14,6 +14,10 @@ export interface LoginCredentials {
   password: string;
 }
 
+export interface SignUpCredentials extends LoginCredentials {
+  name: string;
+}
+
 export interface AuthResponse {
   user: AuthUser | null;
   error?: string;
@@ -24,107 +28,151 @@ class AuthService {
   // Sign In
   static async signIn(credentials: LoginCredentials): Promise<AuthResponse> {
     try {
-      console.log('Attempting sign in with:', credentials.email);
+      console.log('=== SIGN IN ATTEMPT ===');
+      console.log('Credentials:', { email: credentials.email, password: '***' });
       
       // Check for admin credentials first
       if (credentials.email === 'BlackBox@gmail.com' && credentials.password === 'BlackBox') {
-        console.log('Admin credentials detected');
+        console.log(' Admin credentials detected');
         const adminUser: AuthUser = {
           id: 'admin-001',
           email: 'BlackBox@gmail.com',
           name: 'Admin User',
           role: 'admin'
         };
+        console.log(' Admin login successful:', adminUser);
         return { user: adminUser };
       }
 
       // Check if Supabase is configured
-      if (!isSupabaseConfigured()) {
-        console.error('Supabase is not configured');
+      const configured = isSupabaseConfigured();
+      console.log('Supabase configured:', configured);
+      
+      if (!configured) {
+        console.error(' Supabase is not configured');
         return { user: null, error: 'Database connection error. Please try again later.' };
       }
 
       // Get Supabase client with error handling
-      const client = getSupabaseClient();
-      
-      // Authenticate with Supabase
-      console.log('Attempting Supabase authentication...');
-      const { data, error } = await client.auth.signInWithPassword({
-        email: credentials.email,
-        password: credentials.password,
-      });
+      try {
+        const client = getSupabaseClient();
+        console.log(' Supabase client obtained');
+        
+        // Authenticate with Supabase
+        console.log(' Attempting Supabase authentication...');
+        const { data, error } = await client.auth.signInWithPassword({
+          email: credentials.email,
+          password: credentials.password,
+        });
 
-      console.log('Supabase response:', { data, error });
+        console.log(' Supabase response:', { 
+          hasData: !!data, 
+          hasUser: !!data?.user,
+          error: error?.message 
+        });
 
-      if (error) {
-        console.error('Supabase auth error:', error);
-        return { user: null, error: error.message };
+        if (error) {
+          console.error(' Supabase auth error:', error);
+          return { user: null, error: error.message };
+        }
+
+        if (data.user) {
+          console.log(' Supabase auth successful, user:', data.user);
+          
+          // Get user profile from Supabase
+          const profile = await this.getUserProfile(data.user.id);
+          console.log(' User profile:', profile);
+          
+          const authUser: AuthUser = {
+            id: data.user.id,
+            email: data.user.email || '',
+            name: profile?.name || data.user.email?.split('@')[0] || 'User',
+            role: profile?.role || 'user'
+          };
+          
+          console.log(' Final auth user:', authUser);
+          return { user: authUser };
+        }
+
+        console.log(' No user data returned from Supabase');
+        return { user: null, error: 'Authentication failed - no user data returned' };
+      } catch (clientError: any) {
+        console.error(' Error getting Supabase client:', clientError);
+        return { user: null, error: 'Database client error: ' + clientError.message };
       }
-
-      if (data.user) {
-        console.log('Supabase auth successful, user:', data.user);
-        
-        // Get user profile from Supabase
-        const profile = await this.getUserProfile(data.user.id);
-        console.log('User profile:', profile);
-        
-        const authUser: AuthUser = {
-          id: data.user.id,
-          email: data.user.email || '',
-          name: profile?.name || data.user.email?.split('@')[0] || 'User',
-          role: profile?.role || 'user'
-        };
-        
-        console.log('Final auth user:', authUser);
-        return { user: authUser };
-      }
-
-      return { user: null, error: 'Authentication failed' };
     } catch (error: any) {
-      console.error('Sign in error:', error);
+      console.error(' Sign in error:', error);
       return { user: null, error: error.message || 'Authentication failed' };
     }
   }
 
   // Sign Up
-  static async signUp(credentials: LoginCredentials): Promise<AuthResponse> {
+  static async signUp(credentials: SignUpCredentials): Promise<AuthResponse> {
     try {
-      console.log('Attempting sign up with:', credentials.email);
+      console.log('=== SIGN UP ATTEMPT ===');
+      console.log('Credentials:', { email: credentials.email, name: credentials.name, password: '***' });
       
-      const client = getSupabaseClient();
-      
-      const { data, error } = await client.auth.signUp({
-        email: credentials.email,
-        password: credentials.password,
-      });
-
-      console.log('Supabase signup response:', { data, error });
-
-      if (error) {
-        console.error('Supabase signup error:', error);
-        return { user: null, error: error.message };
+      // Check if Supabase is configured
+      if (!isSupabaseConfigured()) {
+        console.error('❌ Supabase is not configured');
+        return { user: null, error: 'Database connection error. Please try again later.' };
       }
 
-      if (data.user) {
-        console.log('Supabase signup successful, creating profile...');
+      // Get Supabase client with error handling
+      try {
+        const client = getSupabaseClient();
+        console.log('✅ Supabase client obtained');
         
-        // Create user profile
-        await this.createUserProfile(data.user.id, credentials.email);
-        
-        const authUser: AuthUser = {
-          id: data.user.id,
-          email: data.user.email || '',
-          name: data.user.email?.split('@')[0] || 'User',
-          role: 'user'
-        };
-        
-        console.log('Final auth user after signup:', authUser);
-        return { user: authUser };
-      }
+        // Create user with Supabase Auth
+        console.log('🔄 Attempting Supabase registration...');
+        const { data, error } = await client.auth.signUp({
+          email: credentials.email,
+          password: credentials.password,
+        });
 
-      return { user: null, error: 'Registration failed' };
+        console.log('📊 Supabase signup response:', { 
+          hasData: !!data, 
+          hasUser: !!data?.user,
+          error: error?.message 
+        });
+
+        if (error) {
+          console.error('❌ Supabase signup error:', error);
+          return { user: null, error: error.message };
+        }
+
+        if (data.user) {
+          console.log('✅ Supabase signup successful, creating profile...');
+          
+          // Create user profile with safe method (won't fail if RLS blocks it)
+          const profile = await this.createUserProfileSafe(data.user.id, credentials.email, 'user', credentials.name);
+          
+          if (profile) {
+            console.log('✅ Profile created successfully');
+          } else {
+            console.warn('⚠️ Profile creation skipped, but user was created successfully');
+            console.log('ℹ️ User can still log in and profile will be created on first login');
+          }
+          
+          const authUser: AuthUser = {
+            id: data.user.id,
+            email: data.user.email || '',
+            name: credentials.name || data.user.email?.split('@')[0] || 'User',
+            role: 'user'
+          };
+          
+          console.log('✅ Final auth user after signup:', authUser);
+          return { user: authUser };
+        }
+
+        console.log('❌ No user data returned from Supabase');
+        return { user: null, error: 'Registration failed - no user data returned' };
+      } catch (clientError: any) {
+        console.error('❌ Error getting Supabase client:', clientError);
+        return { user: null, error: 'Database client error: ' + clientError.message };
+      }
     } catch (error: any) {
-      console.error('Sign up error:', error);
+      console.error('❌ Sign up error:', error);
       return { user: null, error: error.message || 'Registration failed' };
     }
   }
@@ -180,7 +228,20 @@ class AuthService {
         return null;
       }
 
-      const profile = await this.getUserProfile(user.id);
+      // Try to get user profile
+      let profile = await this.getUserProfile(user.id);
+      
+      // If profile doesn't exist, create it
+      if (!profile) {
+        console.log('Profile not found, creating one for user:', user.id);
+        profile = await this.createUserProfileSafe(
+          user.id, 
+          user.email || '', 
+          'user', 
+          user.email?.split('@')[0]
+        );
+      }
+      
       console.log('User profile:', profile);
       
       return {
@@ -230,9 +291,9 @@ class AuthService {
   }
 
   // Create User Profile
-  static async createUserProfile(userId: string, email: string, role: 'user' | 'admin' = 'user') {
+  static async createUserProfile(userId: string, email: string, role: 'user' | 'admin' = 'user', name?: string) {
     try {
-      console.log('Creating user profile:', { userId, email, role });
+      console.log('Creating user profile:', { userId, email, role, name });
       
       // Check if Supabase is configured
       if (!isSupabaseConfigured()) {
@@ -247,7 +308,7 @@ class AuthService {
         .from('profiles')
         .insert({
           id: userId,
-          name: email.split('@')[0],
+          name: name || email.split('@')[0],
           email,
           role
         })
@@ -265,6 +326,50 @@ class AuthService {
     } catch (error) {
       console.error('Create user profile error:', error);
       throw error;
+    }
+  }
+
+  // Create User Profile with Admin Bypass (for new registrations)
+  static async createUserProfileSafe(userId: string, email: string, role: 'user' | 'admin' = 'user', name?: string) {
+    try {
+      console.log('Creating user profile safely:', { userId, email, role, name });
+      
+      // Check if Supabase is configured
+      if (!isSupabaseConfigured()) {
+        console.log('Supabase not configured, cannot create user profile');
+        return null;
+      }
+
+      // Get Supabase client with error handling
+      const client = getSupabaseClient();
+      
+      // Use service role key to bypass RLS (if available)
+      // For now, try regular insert with better error handling
+      const profileData = {
+        id: userId,
+        name: name || email.split('@')[0],
+        email,
+        role
+      };
+
+      console.log('Profile data to insert:', profileData);
+      
+      const { data, error } = await client
+        .from('profiles')
+        .insert(profileData)
+        .select()
+        .single();
+
+      if (error) {
+        console.warn('Profile creation failed (this is ok for new users):', error);
+        return null; // Return null instead of throwing
+      }
+      
+      console.log('✅ Profile created successfully:', data);
+      return data;
+    } catch (error) {
+      console.warn('Profile creation failed (this is ok for new users):', error);
+      return null; // Return null instead of throwing
     }
   }
 

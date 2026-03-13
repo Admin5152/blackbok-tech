@@ -35,7 +35,7 @@ export const supabase = supabaseUrl && supabaseAnonKey
 
 // Helper function to check if Supabase is available
 export const isSupabaseConfigured = (): boolean => {
-  return !!(supabaseUrl && supabaseAnonKey);
+  return !!(supabase);
 };
 
 // Helper function to get Supabase client with error handling
