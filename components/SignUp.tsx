@@ -62,30 +62,19 @@ export const SignUp: React.FC<SignUpProps> = ({ setUser, navigateTo, theme, noti
       if (response.user) {
         console.log('Registration successful, user:', response.user);
 
-        // Update user name from form data
-        const user: User = {
-          id: response.user.id,
-          name: formData.name.trim(),
-          email: response.user.email,
-          password: formData.password,
-          role: response.user.role || 'user'
-        };
+        // Show success message and redirect to confirmation page
+        notify(`Registration successful! Please check your email to confirm your account.`, 'success');
 
-        console.log('Final user object:', user);
-        
-        // Set user first, then navigate with a small delay
-        setUser(user);
-        notify(`Welcome to BlackBox, ${user.name}!`, 'success');
-
-        // Navigate to home after successful registration
-        console.log('Navigating to home');
+        // Navigate to confirmation page with email
+        console.log('Navigating to confirmation page');
         setTimeout(() => {
           try {
-            navigateTo('home');
+            // Navigate to confirmation page with email as query parameter
+            navigateTo('/confirmation?email=' + encodeURIComponent(formData.email));
           } catch (error) {
             console.error('Navigation failed, trying window.location:', error);
             // Fallback navigation
-            window.location.href = '/';
+            window.location.href = '/confirmation?email=' + encodeURIComponent(formData.email);
           }
         }, 100);
       } else {

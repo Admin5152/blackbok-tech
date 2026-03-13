@@ -186,7 +186,7 @@ export const Navbar: React.FC<{
                 )}
               </Link>
               {/* Only show Admin link for admin users */}
-              {user?.email === 'BlackBox@gmail.com' && user?.role === 'admin' && (
+              {user?.role === 'admin' && (
                 <Link to="/admin" className={navItemClass('/admin')}>
                   <UserCog size={16} /> Admin
                 </Link>
@@ -279,7 +279,6 @@ export const Navbar: React.FC<{
                   </p>
                 </div>
               </div>
-            </div>
 
             {/* Navigation Items */}
             <div className="flex-1 overflow-y-auto">
@@ -291,7 +290,7 @@ export const Navbar: React.FC<{
                   { path: '/repair', label: 'Repairs', icon: Wrench },
                   { path: '/cart', label: 'Cart', icon: ShoppingCart, badge: cartCount },
                   // Only show Admin navigation for admin users
-                  ...(user?.email === 'BlackBox@gmail.com' && user?.role === 'admin' 
+                  ...(user?.role === 'admin' 
                     ? [{ path: '/admin', label: 'Admin', icon: UserCog }] 
                     : []),
                   { path: user ? '/profile' : '/auth', label: 'Account', icon: UserIcon }
@@ -328,7 +327,6 @@ export const Navbar: React.FC<{
             </div>
 
             {/* Footer */}
-            <div className="p-6 border-t border-white/10">
               {/* Version Info */}
               <div className="mb-4 text-center">
                 <p className="text-white/30 text-xs font-black uppercase tracking-widest">
