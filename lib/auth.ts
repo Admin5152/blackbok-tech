@@ -31,19 +31,6 @@ class AuthService {
       console.log('=== SIGN IN ATTEMPT ===');
       console.log('Credentials:', { email: credentials.email, password: '***' });
       
-      // Check for admin credentials first
-      if (credentials.email === 'BlackBox@gmail.com' && credentials.password === 'BlackBox') {
-        console.log(' Admin credentials detected');
-        const adminUser: AuthUser = {
-          id: 'admin-001',
-          email: 'BlackBox@gmail.com',
-          name: 'Admin User',
-          role: 'admin'
-        };
-        console.log(' Admin login successful:', adminUser);
-        return { user: adminUser };
-      }
-
       // Check if Supabase is configured
       const configured = isSupabaseConfigured();
       console.log('Supabase configured:', configured);
@@ -64,18 +51,18 @@ class AuthService {
           email: credentials.email,
           password: credentials.password,
         });
-
+        
         console.log(' Supabase response:', { 
           hasData: !!data, 
           hasUser: !!data?.user,
           error: error?.message 
         });
-
+        
         if (error) {
           console.error(' Supabase auth error:', error);
           return { user: null, error: error.message };
         }
-
+        
         if (data.user) {
           console.log(' Supabase auth successful, user:', data.user);
           
@@ -93,7 +80,7 @@ class AuthService {
           console.log(' Final auth user:', authUser);
           return { user: authUser };
         }
-
+        
         console.log(' No user data returned from Supabase');
         return { user: null, error: 'Authentication failed - no user data returned' };
       } catch (clientError: any) {
@@ -142,7 +129,7 @@ class AuthService {
         }
 
         if (data.user) {
-          console.log('✅ Supabase signup successful, creating profile...');
+          console.log('✅ Supabase signup successful, user created but not confirmed');
           
           // Create user profile with safe method (won't fail if RLS blocks it)
           const profile = await this.createUserProfileSafe(data.user.id, credentials.email, 'user', credentials.name);
@@ -151,9 +138,10 @@ class AuthService {
             console.log('✅ Profile created successfully');
           } else {
             console.warn('⚠️ Profile creation skipped, but user was created successfully');
-            console.log('ℹ️ User can still log in and profile will be created on first login');
+            console.log('ℹ️ Profile will be created when user confirms email and logs in');
           }
           
+          // Return user info but don't log them in - they need to confirm email first
           const authUser: AuthUser = {
             id: data.user.id,
             email: data.user.email || '',
@@ -161,7 +149,7 @@ class AuthService {
             role: 'user'
           };
           
-          console.log('✅ Final auth user after signup:', authUser);
+          console.log('✅ User created successfully, awaiting email confirmation:', authUser);
           return { user: authUser };
         }
 

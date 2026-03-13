@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import AuthService, { type LoginCredentials, type AuthResponse } from '../lib/auth';
 import type { User } from '../interface/interface';
+import { useLocation } from '@tanstack/react-router';
 
 interface LoginProps {
   setUser: (user: User | null) => void;
@@ -11,12 +12,25 @@ interface LoginProps {
 }
 
 export const Login: React.FC<LoginProps> = ({ setUser, navigateTo, theme, notify }) => {
+  const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState<LoginCredentials>({
     email: '',
     password: '',
   });
+
+  // Check for success message from email confirmation
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const message = urlParams.get('message');
+    
+    if (message) {
+      notify(message, 'success');
+      // Clear the message from URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [notify]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });

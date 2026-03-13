@@ -4,13 +4,15 @@ import {
   MapPin, Mail, ChevronRight, Activity, Shield, CreditCard as CardIcon,
   Truck, XCircle, User as UserIcon, Settings, Heart, Sliders, HelpCircle,
   Eye, RefreshCw, Smartphone, Trash2, Download, FileText, AlertCircle, Menu, X, Zap,
-  Calendar, ShoppingBag
+  Calendar, ShoppingBag, AlertTriangle
 } from 'lucide-react';
 import { User, RepairRequest, Order, Product, TradeRequest } from '../types';
 import { formatDate, formatCurrency } from '../lib/utils';
 import { ProductCard } from '../components/ProductCard';
 import { OrderTracking } from '../components/OrderTracking';
 import { handleSignOut } from '../lib/signOut';
+import { DeleteAccountService, type DeleteAccountResult } from '../lib/deleteAccount';
+import { DeleteAccountModal } from '../components/DeleteAccountModal';
 
 interface ProfileProps {
   user: User | null;
@@ -33,6 +35,11 @@ export const Profile: React.FC<ProfileProps> = ({
   const [activeTab, setActiveTab] = useState<'overview' | 'settings' | 'orders' | 'repairs' | 'address' | 'payment' | 'wishlist' | 'purchases' | 'trades'>('overview');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [userDataForDeletion, setUserDataForDeletion] = useState<any>(null);
 
   if (!user) return (
     <div className={`min-h-screen flex items-center justify-center p-6 ${isLight ? 'bg-white' : 'bg-black'}`}>
@@ -65,6 +72,43 @@ export const Profile: React.FC<ProfileProps> = ({
     }, 0);
     return orderTotal + repairTotal;
   }, [orders, repairs]);
+
+  // Delete account functions
+  const handleDeleteAccount = async () => {
+    setIsDeleting(true);
+    setDeleteError('');
+    
+    try {
+      const result = await DeleteAccountService.deleteAccount(deletePassword);
+      
+      if (result.success) {
+        console.log('Account deleted successfully');
+        // Sign out and redirect to home
+        await handleSignOut(setUser, navigateTo);
+        setShowDeleteModal(false);
+      } else {
+        setDeleteError(result.error || 'Failed to delete account');
+      }
+    } catch (error: any) {
+      setDeleteError(error.message || 'An unexpected error occurred');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const openDeleteModal = async () => {
+    try {
+      const userData = await DeleteAccountService.getUserDataForDeletion();
+      setUserDataForDeletion(userData);
+      
+      const passwordCheck = await DeleteAccountService.checkPasswordRequirement();
+      if (passwordCheck.success) {
+        setShowDeleteModal(true);
+      }
+    } catch (error) {
+      console.error('Error preparing delete account:', error);
+    }
+  };
 
   const menuItems = [
     { id: 'overview', icon: Sliders, label: 'Overview' },
@@ -563,7 +607,7 @@ export const Profile: React.FC<ProfileProps> = ({
                   { label: 'Comms Stream', value: user.email, action: 'VERIFY' },
                   { label: 'Security Key', value: '••••••••••••', action: 'RESET' },
                 ].map((field, i) => (
-                  <div key={i} className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-4 border-b border-white/5 group">
+                  <div key={i} className="flex flex-col md:flex-row md:items-end justify-between gap-6 py-4 border-b border-white/5 group">
                     <div className="space-y-1">
                       <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-30">{field.label}</p>
                       <p className={`text-lg font-bold group-hover:text-[#B38B21] transition-colors ${isLight ? 'text-black' : 'text-white'}`}>{field.value}</p>
@@ -575,41 +619,24 @@ export const Profile: React.FC<ProfileProps> = ({
                 ))}
               </div>
 
-              {/* Alphabet Icon Picker */}
-              <div className="mt-12 space-y-6">
-                <div className="flex items-center gap-4 border-b border-white/10 pb-4">
-                  <div className="w-12 h-12 rounded-xl bg-[#B38B21] flex items-center justify-center text-black font-black text-xl italic">
-                    {user.avatarLetter || user.name.charAt(0)}
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-black uppercase tracking-widest italic">Personal Identifier</h4>
-                    <p className="text-[10px] opacity-40 font-bold uppercase tracking-widest">Select your custom alphabet identity tag</p>
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-5 sm:grid-cols-7 md:grid-cols-9 lg:grid-cols-13 gap-2">
-                  {"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(char => (
-                    <button
-                      key={char}
-                      onClick={() => setUser({ ...user, avatarLetter: char })}
-                      className={`aspect-square flex items-center justify-center rounded-lg text-xs font-black transition-all border ${(user.avatarLetter || user.name.charAt(0)) === char
-                        ? 'bg-[#B38B21] text-black border-transparent shadow-lg shadow-[#B38B21]/20'
-                        : 'bg-white/5 text-white/40 border-white/5 hover:border-white/20 hover:text-white'
-                        }`}
-                    >
-                      {char}
-                    </button>
-                  ))}
+              {/* Delete Account Section */}
+              <div className="mt-8 flex items-center justify-center p-8 bg-red-600/5 border border-dashed border-red-600/20 rounded-3xl">
+                <div className="text-center space-y-4">
+                  <div className="flex items-center justify-center gap-3">
+                    <Trash2 className="w-5 h-5 text-red-500" />
+                    <h4 className="text-sm font-black uppercase tracking-widest text-red-500">DANGER ZONE</h4>
+                  </div>
+                  <p className="text-xs text-red-400/60 font-medium">
+                    Permanently delete your account and all associated data. This action cannot be undone.
+                  </p>
+                  <button
+                    onClick={openDeleteModal}
+                    className="px-8 py-3 bg-red-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-700 active:scale-95 transition-all shadow-lg shadow-red-600/20"
+                  >
+                    DELETE ACCOUNT
+                  </button>
                 </div>
-              </div>
-
-              <div className="mt-12 flex items-center justify-center p-8 bg-red-500/5 border border-dashed border-red-500/20 rounded-3xl">
-                <button
-                  onClick={() => handleSignOut(setUser, navigateTo)}
-                  className="px-10 py-4 bg-red-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] hover:scale-105 active:scale-95 transition-all shadow-xl shadow-red-500/20"
-                >
-                  DEACTIVATE CONNECTION
-                </button>
               </div>
             </div>
           </div>
@@ -751,6 +778,24 @@ export const Profile: React.FC<ProfileProps> = ({
       <main className="flex-1 min-h-[600px] relative z-10 p-2 md:p-0">
         {renderContent()}
       </main>
+
+      {/* Delete Account Modal */}
+      <DeleteAccountModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setDeletePassword('');
+          setDeleteError('');
+        }}
+        onConfirm={handleDeleteAccount}
+        isDeleting={isDeleting}
+        error={deleteError}
+        password={deletePassword}
+        setPassword={setDeletePassword}
+        userData={userDataForDeletion}
+        requiresPassword={true}
+        theme={theme}
+      />
 
       <style jsx>{`
         @keyframes spin-slow {

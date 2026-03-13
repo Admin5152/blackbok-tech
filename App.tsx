@@ -28,6 +28,7 @@ import { Repair } from './views/Repair';
 import { Store } from './views/Store';
 import { Auth } from './views/Auth';
 import { Profile } from './views/Profile';
+import { Confirmation } from './views/Confirmation';
 import { Cart } from './views/Cart';
 import { Checkout } from './views/Checkout';
 import { Trades } from './views/Trades';
@@ -240,8 +241,8 @@ const adminRoute = createRoute({
   path: '/admin',
   component: () => {
     const context = useAppContext();
-    // Check if user is admin
-    if (context.user?.email === 'BlackBox@gmail.com' && context.user?.role === 'admin') {
+    // Check if user has admin role
+    if (context.user?.role === 'admin') {
       return <Admin setUser={context.setUser} navigateTo={context.navigateTo} />;
     }
     // Redirect non-admin users to home
@@ -311,13 +312,23 @@ const compareRoute = createRoute({
 
 const policiesRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/policies",
+  path: '/policies',
+  component: () => <Policies />,
+});
+
+const confirmationRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/confirmation',
+  component: () => {
+    const context = useAppContext();
+    const { email } = confirmationRoute.useSearch();
+    return <Confirmation theme={context.theme} navigateTo={context.navigateTo} email={email} />;
+  },
   validateSearch: (search: Record<string, unknown>) => {
     return {
-      tab: (search.tab as string) || 'privacy'
-    }
+      email: (search.email as string) || ''
+    };
   },
-  component: () => <Policies />,
 });
 
 const splatRoute = createRoute({
@@ -345,6 +356,7 @@ const routeTree = rootRoute.addChildren([
   promotionsRoute,
   compareRoute,
   policiesRoute,
+  confirmationRoute,
   splatRoute,
 ]);
 
@@ -418,37 +430,31 @@ function RootComponent() {
         const parsedUser = JSON.parse(localUser);
         console.log('Found local user:', parsedUser);
 
-        // Check if it's admin user (doesn't need Supabase validation)
-        if (parsedUser.email === 'BlackBox@gmail.com' && parsedUser.role === 'admin') {
-          console.log('Admin user detected, restoring without validation');
-          setUser(parsedUser);
-        } else {
-          // Validate if regular user session is still valid
-          const validateUserSession = async () => {
-            try {
-              const currentUser = await AuthService.getCurrentUser();
-              console.log('Current Supabase user:', currentUser);
+        // Validate if user session is still valid
+        const validateUserSession = async () => {
+          try {
+            const currentUser = await AuthService.getCurrentUser();
+            console.log('Current Supabase user:', currentUser);
 
-              if (currentUser && currentUser.id === parsedUser.id) {
-                // Session is valid, restore user
-                console.log('User session is valid, restoring user');
-                setUser(parsedUser);
-              } else {
-                // Session is invalid, clear user
-                console.log('User session is invalid, clearing user');
-                localStorage.removeItem(STORAGE_KEYS.USER);
-                setUser(null);
-              }
-            } catch (error) {
-              console.error('Error validating user session:', error);
-              // On error, clear user to be safe
+            if (currentUser && currentUser.id === parsedUser.id) {
+              // Session is valid, restore user
+              console.log('User session is valid, restoring user');
+              setUser(parsedUser);
+            } else {
+              // Session is invalid, clear user
+              console.log('User session is invalid, clearing user');
               localStorage.removeItem(STORAGE_KEYS.USER);
               setUser(null);
             }
-          };
+          } catch (error) {
+            console.error('Error validating user session:', error);
+            // On error, clear user to be safe
+            localStorage.removeItem(STORAGE_KEYS.USER);
+            setUser(null);
+          }
+        };
 
-          validateUserSession();
-        }
+        validateUserSession();
       }
 
       if (localCart) setCart(JSON.parse(localCart));
