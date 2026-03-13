@@ -510,12 +510,17 @@ function RootComponent() {
   };
 
   const navigateTo = (to: string, id?: string) => {
+    console.log('NavigateTo called with:', { to, id });
+    
     if (id) {
+      console.log('Navigating to product:', id);
       navigate({ to: `/product/${id}` as any });
     } else if (to.startsWith('http')) {
+      console.log('Opening external URL:', to);
       window.open(to, '_blank', 'noopener,noreferrer');
     } else {
       const path = to === 'home' ? '/' : (to.startsWith('/') ? to : `/${to}`);
+      console.log('Navigating to path:', path);
       navigate({ to: path as any });
     }
     setIsMobileMenuOpen(false);

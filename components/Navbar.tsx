@@ -3,7 +3,7 @@ import {
   X, CheckCircle2, Activity, Scale, RefreshCcw, Home as HomeIcon,
   ShoppingBag, Wrench, ShoppingCart, User as UserIcon, LogOut,
   ChevronRight, ChevronDown, Settings, AlertTriangle,
-  Sparkles, Eye, Clock, Menu, Sun, Moon, Search, TrendingUp, Box, Laptop, Smartphone, Gamepad2, History, Calendar, Info, Heart
+  Sparkles, Eye, Clock, Menu, Sun, Moon, Search, TrendingUp, Box, Laptop, Smartphone, Gamepad2, History, Calendar, Info, Heart, UserCog
 } from 'lucide-react';
 import { Link, useLocation } from '@tanstack/react-router';
 import { User, CartItem, Product } from '../types';
@@ -185,6 +185,12 @@ export const Navbar: React.FC<{
                   </span>
                 )}
               </Link>
+              {/* Only show Admin link for admin users */}
+              {user?.email === 'BlackBox@gmail.com' && user?.role === 'admin' && (
+                <Link to="/admin" className={navItemClass('/admin')}>
+                  <UserCog size={16} /> Admin
+                </Link>
+              )}
             </div>
 
             {/* Right Section: Account, Search, Theme, Mobile Menu */}
@@ -284,6 +290,10 @@ export const Navbar: React.FC<{
                   { path: '/trades', label: 'Trades', icon: RefreshCcw },
                   { path: '/repair', label: 'Repairs', icon: Wrench },
                   { path: '/cart', label: 'Cart', icon: ShoppingCart, badge: cartCount },
+                  // Only show Admin navigation for admin users
+                  ...(user?.email === 'BlackBox@gmail.com' && user?.role === 'admin' 
+                    ? [{ path: '/admin', label: 'Admin', icon: UserCog }] 
+                    : []),
                   { path: user ? '/profile' : '/auth', label: 'Account', icon: UserIcon }
                 ].map((item) => {
                   const active = location.pathname === item.path;
