@@ -2,14 +2,15 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   Send, Activity, Smartphone, Laptop, Tablet, Gamepad2, Watch, Check,
   ArrowLeft, ArrowRight, Calendar, AlertCircle, Clock, MapPin, Phone, Mail, User,
-  Wrench, Package, Info, MonitorSmartphone
+  Wrench, Package, Info, MonitorSmartphone, ChevronRight
 } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
-import { RepairRequest } from '../types';
+import type { RepairRequest } from '../types';
 import { generateId } from '../lib/utils';
 import { useAppContext } from '../App';
 import { ImageUpload } from '../components/ImageUpload';
 import { repairPricing, repairServicesMap } from '../data/repairPrices';
+import { createRepairRequest, getRepairRequests } from '../lib/api';
 
 export const Repair: React.FC = () => {
   const { user, repairs, setRepairs, notify, theme } = useAppContext();
@@ -17,6 +18,8 @@ export const Repair: React.FC = () => {
   const [step, setStep] = useState(1);
   const [subStep, setSubStep] = useState(1); // 1=deviceType, 2=brand, 3=model
   const [transitionKey, setTransitionKey] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+  const [myRepairs, setMyRepairs] = useState<RepairRequest[]>([]);
   const [selectedIssueKeys, setSelectedIssueKeys] = useState<Set<keyof typeof repairServicesMap>>(new Set());
   const [selectedSeries, setSelectedSeries] = useState<string>('');
   const [formData, setFormData] = useState({
@@ -31,10 +34,19 @@ export const Repair: React.FC = () => {
     phone: '',
     address: '',
     photos: [] as string[],
-    urgency: 'standard'
+    urgency: 'standard',
+    fulfillmentMethod: 'Headquarters' as 'Headquarters' | 'Pickup'
   });
 
   const formRef = useRef<HTMLDivElement>(null);
+
+  // Load past repairs from Supabase
+  useEffect(() => {
+    if (!user) return;
+    getRepairRequests(user.id)
+      .then(d => setMyRepairs(d as RepairRequest[]))
+      .catch(() => { });
+  }, [user]);
 
   useEffect(() => {
     // Scroll to the active form section whenever step or substep changes
@@ -82,22 +94,44 @@ export const Repair: React.FC = () => {
     });
   };
 
-  const submitRepairRequest = () => {
+  const submitRepairRequest = async () => {
     if (!user) { navigate({ to: '/auth' }); return; }
+    if (submitting) return;
     const selectedLabels = Array.from(selectedIssueKeys).map(k => repairServicesMap[k as keyof typeof repairServicesMap].label);
     const issueText = selectedLabels.length > 0
       ? `${selectedLabels.join(', ')}${formData.description ? ' – ' + formData.description : ''}`
       : formData.description;
-    const newRepair: RepairRequest = {
-      id: generateId(), userId: user.id, userName: user.name,
-      device: `${formData.brand} ${formData.model}`,
-      issue: issueText,
-      status: 'Received', date: new Date().toISOString(),
-      imageUrl: formData.photos[0],
-    };
-    setRepairs([newRepair, ...repairs]);
-    notify('Repair request submitted!');
-    navigate({ to: '/profile' });
+    setSubmitting(true);
+    try {
+      const created = await createRepairRequest({
+        user_id: user.id,
+        user_name: formData.name || user.name,
+        device: `${formData.brand} ${formData.model}`,
+        issue: issueText,
+        image_url: formData.photos[0] || '',
+        ai_diagnosis: '',
+        fulfillment_method: formData.fulfillmentMethod,
+      });
+      const newRepair: RepairRequest = {
+        id: created?.id || generateId(),
+        userId: user.id,
+        userName: formData.name || user.name,
+        device: `${formData.brand} ${formData.model}`,
+        issue: issueText,
+        status: 'Received',
+        date: new Date().toISOString(),
+        imageUrl: formData.photos[0],
+        fulfillmentMethod: formData.fulfillmentMethod,
+      };
+      setRepairs([newRepair, ...repairs]);
+      setMyRepairs(prev => [newRepair, ...prev]);
+      notify('Repair request submitted! We’ll review and confirm your booking.', 'success');
+      navigate({ to: '/profile' });
+    } catch (err: any) {
+      notify('Submission failed: ' + (err.message || 'Please try again'), 'error');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const go = (n: number) => {
@@ -643,7 +677,33 @@ export const Repair: React.FC = () => {
                 <div className="space-y-8">
                   <div className="space-y-2">
                     <h2 className="text-2xl font-bold tracking-tight">Schedule your drop-off or pickup</h2>
-                    <p className="opacity-60 text-sm">Choose a convenient time for us to service your device.</p>
+                    <p className="opacity-60 text-sm">Choose how you'd like to get your device to our service center.</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-[#CDA032]">How will we receive your device?</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {[
+                        { id: 'Headquarters', label: 'Bring to Headquarters', desc: 'No service fee', icon: MapPin },
+                        { id: 'Pickup', label: 'Request Pickup Service', desc: '₵20 service fee', icon: Package },
+                      ].map(method => (
+                        <button key={method.id}
+                          onClick={() => setFormData({ ...formData, fulfillmentMethod: method.id as any })}
+                          className={`flex flex-col p-4 rounded-2xl border transition-all ${formData.fulfillmentMethod === method.id
+                            ? 'border-[#CDA032] bg-[#CDA032]/10 ring-1 ring-[#CDA032]'
+                            : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:bg-[var(--bb-surface-2)]'}`}
+                        >
+                          <div className="flex items-center justify-between w-full mb-3">
+                            <method.icon size={18} className={formData.fulfillmentMethod === method.id ? 'text-[#CDA032]' : 'opacity-50'} />
+                            {method.id === 'Headquarters' && (
+                              <span className="text-[9px] font-black uppercase tracking-widest bg-[#CDA032] text-black px-2 py-0.5 rounded-full">Recommended</span>
+                            )}
+                          </div>
+                          <span className={`text-sm font-bold text-left ${formData.fulfillmentMethod === method.id ? 'text-[#CDA032]' : ''}`}>{method.label}</span>
+                          <span className="text-[10px] opacity-60 mt-1 text-left">{method.desc}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   <div className="space-y-4">
@@ -841,9 +901,10 @@ export const Repair: React.FC = () => {
                 <div className="pt-4">
                   <button
                     onClick={submitRepairRequest}
-                    className="w-full sm:w-auto flex items-center justify-center gap-3 px-10 py-5 rounded-2xl text-sm font-black uppercase tracking-widest text-[#111] bg-gradient-to-r from-[#CDA032] to-[#FCE69B] hover:scale-[1.02] shadow-[0_0_30px_rgba(205,160,50,0.3)] transition-all active:scale-95"
+                    disabled={submitting}
+                    className="w-full sm:w-auto flex items-center justify-center gap-3 px-10 py-5 rounded-2xl text-sm font-black uppercase tracking-widest text-[#111] bg-gradient-to-r from-[#CDA032] to-[#FCE69B] hover:scale-[1.02] shadow-[0_0_30px_rgba(205,160,50,0.3)] transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Confirm &amp; Request Repair <Send size={18} />
+                    {submitting ? 'Submitting...' : <><span>Confirm &amp; Request Repair</span> <Send size={18} /></>}
                   </button>
                 </div>
               </div>

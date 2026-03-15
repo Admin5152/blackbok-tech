@@ -44,7 +44,7 @@ export const History: React.FC = () => {
             userId: user?.id || 'guest',
             userName: user?.name || 'Guest User',
             device: 'MacBook Air M1',
-            condition: 'Mint',
+            condition: 'Like New',
             status: 'Completed',
             date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
             estimatedValue: 4500,

@@ -7,7 +7,7 @@ export const signUp = async (email: string, password: string) => {
     email,
     password,
   });
-  
+
   if (error) throw error;
   return data;
 };
@@ -17,7 +17,7 @@ export const signIn = async (email: string, password: string) => {
     email,
     password,
   });
-  
+
   if (error) throw error;
   return data;
 };
@@ -56,7 +56,7 @@ export const createUserProfile = async (userId: string, name: string, email: str
     })
     .select()
     .single();
-  
+
   if (error) throw error;
   return data;
 };
@@ -67,7 +67,7 @@ export const getUserProfile = async (userId: string) => {
     .select('*')
     .eq('id', userId)
     .maybeSingle(); // Use maybeSingle() instead of single() to handle no results
-  
+
   if (error) throw error;
   return data; // Will return null if no profile exists
 };
@@ -78,9 +78,9 @@ export const getProducts = async (): Promise<Product[]> => {
     .from('products')
     .select('*')
     .order('created_at', { ascending: false });
-  
+
   if (error) throw error;
-  
+
   return data.map(product => ({
     id: product.id,
     name: product.name,
@@ -103,10 +103,10 @@ export const getProduct = async (id: string): Promise<Product | null> => {
     .select('*')
     .eq('id', id)
     .single();
-  
+
   if (error) throw error;
   if (!data) return null;
-  
+
   return {
     id: data.id,
     name: data.name,
@@ -139,7 +139,7 @@ export const createProduct = async (product: Omit<Product, 'id'>) => {
     })
     .select()
     .single();
-  
+
   if (error) throw error;
   return data;
 };
@@ -161,7 +161,7 @@ export const updateProduct = async (id: string, updates: Partial<Product>) => {
     .eq('id', id)
     .select()
     .single();
-  
+
   if (error) throw error;
   return data;
 };
@@ -171,14 +171,14 @@ export const deleteProduct = async (id: string) => {
     .from('products')
     .delete()
     .eq('id', id);
-  
+
   if (error) throw error;
 };
 
 // Orders
 export const createOrder = async (items: CartItem[], userId: string) => {
   const totalPrice = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  
+
   // Create order
   const { data: order, error: orderError } = await supabase
     .from('orders')
@@ -188,9 +188,9 @@ export const createOrder = async (items: CartItem[], userId: string) => {
     })
     .select()
     .single();
-  
+
   if (orderError) throw orderError;
-  
+
   // Create order items
   const orderItems = items.map(item => ({
     order_id: order.id,
@@ -198,13 +198,13 @@ export const createOrder = async (items: CartItem[], userId: string) => {
     quantity: item.quantity,
     price: item.price
   }));
-  
+
   const { error: itemsError } = await supabase
     .from('order_items')
     .insert(orderItems);
-  
+
   if (itemsError) throw itemsError;
-  
+
   return order;
 };
 
@@ -226,15 +226,15 @@ export const getOrders = async (userId?: string): Promise<Order[]> => {
       )
     `)
     .order('created_at', { ascending: false });
-  
+
   if (userId) {
     query = query.eq('user_id', userId);
   }
-  
+
   const { data, error } = await query;
-  
+
   if (error) throw error;
-  
+
   return data.map(order => ({
     id: order.id,
     userId: order.user_id,
@@ -275,10 +275,10 @@ export const getOrder = async (id: string): Promise<Order | null> => {
     `)
     .eq('id', id)
     .single();
-  
+
   if (error) throw error;
   if (!data) return null;
-  
+
   return {
     id: data.id,
     userId: data.user_id,
@@ -306,9 +306,9 @@ export const getUsers = async (): Promise<User[]> => {
     .from('profiles')
     .select('*')
     .order('created_at', { ascending: false });
-  
+
   if (error) throw error;
-  
+
   return data.map(profile => ({
     id: profile.id,
     email: profile.email,
@@ -317,14 +317,153 @@ export const getUsers = async (): Promise<User[]> => {
   }));
 };
 
-export const updateUserRole = async (userId: string, role: 'user' | 'admin') => {
+export const updateUserRole = async (userId: string, role: 'user' | 'admin' | 'sales' | 'repair') => {
   const { data, error } = await supabase
     .from('profiles')
     .update({ role })
     .eq('id', userId)
     .select()
     .single();
-  
+
   if (error) throw error;
   return data;
 };
+
+// ── Trade-In Requests ────────────────────────────────────────────
+
+export const createTradeRequest = async (trade: {
+  user_id: string;
+  user_name: string;
+  user_email: string;
+  device: string;
+  target_device?: string;
+  user_description?: string;
+  preferred_date?: string;
+  preferred_time?: string;
+  contact_name?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  fulfillment_method?: 'Headquarters' | 'Pickup';
+}) => {
+  const { data, error } = await supabase
+    .from('trade_requests')
+    .insert({ ...trade, status: 'Pending', estimated_value: 0 })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const getTradeRequests = async (userId?: string) => {
+  let query = supabase
+    .from('trade_requests')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (userId) query = query.eq('user_id', userId);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []).map((t: any) => ({
+    id: t.id,
+    userId: t.user_id,
+    userName: t.user_name || '',
+    userEmail: t.user_email || '',
+    device: t.device || '',
+    condition: t.condition || '',
+    status: t.status || 'Pending',
+    date: t.created_at,
+    estimatedValue: Number(t.estimated_value) || 0,
+    finalValue: t.final_value ? Number(t.final_value) : undefined,
+    adminNote: t.admin_note || '',
+    targetDevice: t.target_device || '',
+    userDescription: t.user_description || '',
+    preferredDate: t.preferred_date || '',
+    preferredTime: t.preferred_time || '',
+    contactName: t.contact_name || '',
+    contactEmail: t.contact_email || '',
+    contactPhone: t.contact_phone || '',
+    fulfillmentMethod: t.fulfillment_method || 'Headquarters',
+  }));
+};
+
+export const updateTradeRequest = async (
+  id: string,
+  updates: {
+    status?: string;
+    condition?: string;
+    estimated_value?: number;
+    final_value?: number;
+    admin_note?: string;
+  }
+) => {
+  const { data, error } = await supabase
+    .from('trade_requests')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+// ── Repair Requests ──────────────────────────────────────────────
+
+export const createRepairRequest = async (repair: {
+  user_id: string;
+  user_name: string;
+  device: string;
+  issue: string;
+  image_url?: string;
+  ai_diagnosis?: string;
+  fulfillment_method?: 'Headquarters' | 'Pickup';
+}) => {
+  const { data, error } = await supabase
+    .from('repair_requests')
+    .insert({ ...repair, status: 'Received' })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const getRepairRequests = async (userId?: string) => {
+  let query = supabase
+    .from('repair_requests')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (userId) query = query.eq('user_id', userId);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []).map((r: any) => ({
+    id: r.id,
+    userId: r.user_id,
+    userName: r.user_name || '',
+    device: r.device || '',
+    issue: r.issue || '',
+    status: r.status || 'Received',
+    date: r.created_at,
+    imageUrl: r.image_url || '',
+    estimatedCost: r.estimated_cost || '',
+    aiDiagnosis: r.ai_diagnosis || '',
+    adminNote: r.admin_note || '',
+    fulfillmentMethod: r.fulfillment_method || 'Headquarters',
+  }));
+};
+
+export const updateRepairRequest = async (
+  id: string,
+  updates: {
+    status?: string;
+    estimated_cost?: string;
+    admin_note?: string;
+  }
+) => {
+  const { data, error } = await supabase
+    .from('repair_requests')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
