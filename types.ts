@@ -2,8 +2,8 @@
 export type Category = 'iPhone' | 'Laptop' | 'Accessories' | 'Gaming' | 'Audio' | 'Trades' | 'Tablet';
 
 export interface ProductVariant {
-  name: string; // e.g., "Color", "Storage"
-  options: string[]; // e.g., ["Space Gray", "Silver"], ["128GB", "256GB"]
+  name: string;
+  options: string[];
 }
 
 export interface Product {
@@ -21,6 +21,9 @@ export interface Product {
   reviewCount?: number;
   specs?: string[];
   variants?: ProductVariant[];
+  colors?: string[];
+  storage?: string[];
+  ram?: string[];
 }
 
 export interface User {
@@ -28,9 +31,9 @@ export interface User {
   name: string;
   email: string;
   phone?: string;
-  role: 'user' | 'admin';
+  role: 'user' | 'admin' | 'sales' | 'repair';
   address?: string;
-  wishlist?: string[]; // Array of product IDs
+  wishlist?: string[];
   avatarLetter?: string;
 }
 
@@ -63,24 +66,41 @@ export interface RepairRequest {
   userName: string;
   device: string;
   issue: string;
-  status: 'Received' | 'Diagnosing' | 'In Repair' | 'Ready' | 'Completed';
+  /** Lifecycle: Received → Diagnosing → Estimate Sent → In Repair → Ready → Completed | Rejected */
+  status: 'Received' | 'Diagnosing' | 'Estimate Sent' | 'In Repair' | 'Ready' | 'Completed' | 'Rejected';
   date: string;
   aiDiagnosis?: string;
+  /** Cost string set by admin, e.g. "$120" */
   estimatedCost?: string;
+  adminNote?: string;
   imageUrl?: string;
+  fulfillmentMethod?: 'Headquarters' | 'Pickup';
 }
 
 export interface TradeRequest {
   id: string;
   userId: string;
   userName: string;
+  userEmail?: string;
   device: string;
-  condition: 'Mint' | 'Good' | 'Fair' | 'Broken';
-  status: 'Pending' | 'Inspecting' | 'Offer Made' | 'Accepted' | 'Completed' | 'Rejected';
+  /** Set by admin after inspection */
+  condition?: 'Like New' | 'Excellent' | 'Good' | 'Fair' | 'Poor';
+  /** Lifecycle: Pending → Inspecting → Offer Made (Awaiting User) → Accepted | Rejected → Completed */
+  status: 'Pending' | 'Inspecting' | 'Offer Made' | 'Awaiting User' | 'Accepted' | 'Completed' | 'Rejected';
   date: string;
   estimatedValue: number;
   finalValue?: number;
+  adminNote?: string;
   imageUrl?: string;
+  // Extended fields
+  targetDevice?: string;
+  userDescription?: string;
+  preferredDate?: string;
+  preferredTime?: string;
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  fulfillmentMethod?: 'Headquarters' | 'Pickup';
 }
 
 export interface ChatMessage {

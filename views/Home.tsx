@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   ChevronRight, ChevronLeft, ArrowRight, Smartphone, Laptop as LaptopIcon, Gamepad2, Package, Settings,
   Users, Award, TrendingUp, Star, Quote, ArrowLeftRight, Wrench, Mail, Phone, MapPin, Search, Heart, Eye
@@ -46,7 +46,12 @@ export const Home: React.FC<HomeProps> = ({
   }, [themeImages]);
 
   const [currentHighlightsIndex, setCurrentHighlightsIndex] = useState(0);
-  const highlights = products.filter(p => ['Accessories', 'Gaming', 'Audio', 'iPhone'].includes(p.category)).slice(0, 6);
+  // Prioritize featured products, then fall back to category highlights
+  const featuredProducts = products.filter(p => (p as any).featured);
+  const highlights = useMemo(() => {
+    const combined = [...featuredProducts, ...products.filter(p => !featuredProducts.find(f => f.id === p.id))];
+    return combined.filter(p => ['Accessories', 'Gaming', 'Audio', 'iPhone'].includes(p.category)).slice(0, 10);
+  }, [products, featuredProducts]);
 
   const nextHighlight = () => setCurrentHighlightsIndex((prev) => (prev + 1) % highlights.length);
   const prevHighlight = () => setCurrentHighlightsIndex((prev) => (prev - 1 + highlights.length) % highlights.length);
@@ -265,6 +270,41 @@ export const Home: React.FC<HomeProps> = ({
           </div>
         </div>
       </section>
+
+      {/* Dynamic Featured Products Section */}
+      {featuredProducts.length > 0 && (
+        <section className={`py-12 md:py-20 px-8 ${theme === 'dark' ? 'bg-black' : 'bg-white'}`}>
+          <div className="max-w-7xl mx-auto">
+            <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#CDA032] mb-2 block">Premium Finds</span>
+                <h2 className={`text-4xl md:text-6xl font-black italic tracking-tighter uppercase leading-tight ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+                  Featured Arrivals
+                </h2>
+              </div>
+              <Link to="/store" className="text-sm font-bold text-[#CDA032] hover:underline flex items-center gap-2">
+                View catalog <ArrowRight size={16} />
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {featuredProducts.slice(0, 8).map(p => (
+                <ProductCard
+                  key={p.id}
+                  product={p}
+                  isWishlisted={wishlist.includes(p.id)}
+                  onToggleWishlist={toggleWishlist}
+                  onQuickView={onQuickView}
+                  onAddToCart={onAddToCart}
+                  isCompareSelected={compareIds.includes(p.id)}
+                  onToggleCompare={onToggleCompare}
+                  theme={theme}
+                />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Quick Access / Accessories Slider */}
       <section className={`py-6 md:py-10 overflow-hidden ${theme === 'dark' ? 'bg-black' : 'bg-[#f5f5f7]'}`}>

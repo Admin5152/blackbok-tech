@@ -185,12 +185,10 @@ export const Navbar: React.FC<{
                   </span>
                 )}
               </Link>
-              {/* Only show Admin link for admin users */}
-              {user?.role === 'admin' && (
-                <Link to="/admin" className={navItemClass('/admin')}>
-                  <UserCog size={16} /> Admin
-                </Link>
-              )}
+              {/* Show Admin link for everyone */}
+              <Link to="/admin" className={navItemClass('/admin')}>
+                <UserCog size={16} /> Admin
+              </Link>
             </div>
 
             {/* Right Section: Account, Search, Theme, Mobile Menu */}
@@ -245,11 +243,11 @@ export const Navbar: React.FC<{
 
           {/* Mobile Navigation Drawer */}
           <div className={`absolute right-0 top-0 h-full w-80 bg-black border-l border-white/10 shadow-2xl transform transition-transform duration-500 ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-            
+
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-white/10">
               <span className="text-white text-sm font-black uppercase tracking-widest">Menu</span>
-              
+
               {/* Close Button */}
               <button
                 onClick={() => setIsMobileMenuOpen(false)}
@@ -268,7 +266,7 @@ export const Navbar: React.FC<{
                     {user ? (user.avatarLetter || user.name.charAt(0)) : 'U'}
                   </span>
                 </div>
-                
+
                 {/* User Info */}
                 <div className="flex-1">
                   <h3 className="text-white text-lg font-bold">
@@ -280,53 +278,48 @@ export const Navbar: React.FC<{
                 </div>
               </div>
 
-            {/* Navigation Items */}
-            <div className="flex-1 overflow-y-auto">
-              <div className="p-2">
-                {[
-                  { path: '/', label: 'Home', icon: HomeIcon },
-                  { path: '/store', label: 'Products', icon: ShoppingBag },
-                  { path: '/trades', label: 'Trades', icon: RefreshCcw },
-                  { path: '/repair', label: 'Repairs', icon: Wrench },
-                  { path: '/cart', label: 'Cart', icon: ShoppingCart, badge: cartCount },
-                  // Only show Admin navigation for admin users
-                  ...(user?.role === 'admin' 
-                    ? [{ path: '/admin', label: 'Admin', icon: UserCog }] 
-                    : []),
-                  { path: user ? '/profile' : '/auth', label: 'Account', icon: UserIcon }
-                ].map((item) => {
-                  const active = location.pathname === item.path;
-                  return (
-                    <Link
-                      key={item.path}
-                      to={item.path}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className={`flex items-center gap-4 px-4 py-3 rounded-xl mx-2 mb-1 transition-all ${
-                        active 
-                          ? 'bg-[#CDA032]/20 text-[#CDA032]' 
-                          : 'text-white/70 hover:text-white hover:bg-white/5'
-                      }`}
-                    >
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                        active ? 'bg-[#CDA032] text-black' : 'bg-white/10 text-white/70'
-                      }`}>
-                        <item.icon size={18} />
-                      </div>
-                      <span className="flex-1 text-sm font-medium uppercase tracking-wider">
-                        {item.label}
-                      </span>
-                      {item.badge && item.badge > 0 && (
-                        <span className="px-2 py-1 bg-[#CDA032] text-black text-xs font-black rounded-full">
-                          {item.badge}
+              {/* Navigation Items */}
+              <div className="flex-1 overflow-y-auto">
+                <div className="p-2">
+                  {[
+                    { path: '/', label: 'Home', icon: HomeIcon },
+                    { path: '/store', label: 'Products', icon: ShoppingBag },
+                    { path: '/trades', label: 'Trades', icon: RefreshCcw },
+                    { path: '/repair', label: 'Repairs', icon: Wrench },
+                    { path: '/cart', label: 'Cart', icon: ShoppingCart, badge: cartCount },
+                    { path: '/admin', label: 'Admin', icon: UserCog },
+                    { path: user ? '/profile' : '/auth', label: 'Account', icon: UserIcon }
+                  ].map((item) => {
+                    const active = location.pathname === item.path;
+                    return (
+                      <Link
+                        key={item.path}
+                        to={item.path}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className={`flex items-center gap-4 px-4 py-3 rounded-xl mx-2 mb-1 transition-all ${active
+                            ? 'bg-[#CDA032]/20 text-[#CDA032]'
+                            : 'text-white/70 hover:text-white hover:bg-white/5'
+                          }`}
+                      >
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${active ? 'bg-[#CDA032] text-black' : 'bg-white/10 text-white/70'
+                          }`}>
+                          <item.icon size={18} />
+                        </div>
+                        <span className="flex-1 text-sm font-medium uppercase tracking-wider">
+                          {item.label}
                         </span>
-                      )}
-                    </Link>
-                  );
-                })}
+                        {item.badge && item.badge > 0 && (
+                          <span className="px-2 py-1 bg-[#CDA032] text-black text-xs font-black rounded-full">
+                            {item.badge}
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
 
-            {/* Footer */}
+              {/* Footer */}
               {/* Version Info */}
               <div className="mb-4 text-center">
                 <p className="text-white/30 text-xs font-black uppercase tracking-widest">

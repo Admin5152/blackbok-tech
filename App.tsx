@@ -241,13 +241,7 @@ const adminRoute = createRoute({
   path: '/admin',
   component: () => {
     const context = useAppContext();
-    // Check if user has admin role
-    if (context.user?.role === 'admin') {
-      return <Admin setUser={context.setUser} navigateTo={context.navigateTo} />;
-    }
-    // Redirect non-admin users to home
-    context.navigateTo('home');
-    return null;
+    return <Admin setUser={context.setUser} navigateTo={context.navigateTo} />;
   },
 });
 
@@ -517,7 +511,7 @@ function RootComponent() {
 
   const navigateTo = (to: string, id?: string) => {
     console.log('NavigateTo called with:', { to, id });
-    
+
     if (id) {
       console.log('Navigating to product:', id);
       navigate({ to: `/product/${id}` as any });
