@@ -77,10 +77,10 @@ export const Profile: React.FC<ProfileProps> = ({
   const handleDeleteAccount = async () => {
     setIsDeleting(true);
     setDeleteError('');
-    
+
     try {
       const result = await DeleteAccountService.deleteAccount(deletePassword);
-      
+
       if (result.success) {
         console.log('Account deleted successfully');
         // Sign out and redirect to home
@@ -100,7 +100,7 @@ export const Profile: React.FC<ProfileProps> = ({
     try {
       const userData = await DeleteAccountService.getUserDataForDeletion();
       setUserDataForDeletion(userData);
-      
+
       const passwordCheck = await DeleteAccountService.checkPasswordRequirement();
       if (passwordCheck.success) {
         setShowDeleteModal(true);
@@ -142,8 +142,8 @@ export const Profile: React.FC<ProfileProps> = ({
               <div className="px-6 md:px-10 pb-10 -mt-16 md:-mt-24 flex flex-col md:flex-row items-center md:items-end justify-between gap-8">
                 <div className="flex flex-col md:flex-row items-center md:items-end gap-6 text-center md:text-left">
                   {/* Huge Avatar Frame */}
-                  <div className={`w-32 h-32 md:w-48 md:h-48 rounded-[2rem] border-4 flex items-center justify-center shadow-2xl relative group overflow-hidden ${isLight ? 'bg-white border-white' : 'bg-gradient-to-br from-neutral-800 to-neutral-900 border-[#050505]'}`}>
-                    <span className={`text-4xl md:text-7xl font-black italic drop-shadow-2xl translate-y-2 uppercase ${isLight ? 'text-black' : 'text-white/90'}`}>
+                  <div className={`w-24 h-24 sm:w-32 sm:h-32 md:w-48 md:h-48 rounded-[1.5rem] sm:rounded-[2rem] border-2 sm:border-4 flex items-center justify-center shadow-2xl relative group overflow-hidden ${isLight ? 'bg-white border-white' : 'bg-gradient-to-br from-neutral-800 to-neutral-900 border-[#050505]'}`}>
+                    <span className={`text-3xl sm:text-4xl md:text-7xl font-black italic drop-shadow-2xl translate-y-2 uppercase ${isLight ? 'text-black' : 'text-white/90'}`}>
                       {user.avatarLetter || user.name.charAt(0)}
                     </span>
                     <button
@@ -158,21 +158,21 @@ export const Profile: React.FC<ProfileProps> = ({
                   </div>
 
                   {/* Name & Subtitle */}
-                  <div className="space-y-3 pb-2">
-                    <div className="flex items-center justify-center md:justify-start gap-4">
-                      <h2 className={`text-3xl md:text-5xl font-black italic tracking-tighter uppercase leading-none ${isLight ? 'text-black' : 'text-white'}`}>{user.name}</h2>
+                  <div className="space-y-3 pb-2 w-full max-w-full overflow-hidden">
+                    <div className="flex items-center justify-center md:justify-start gap-4 w-full">
+                      <h2 className={`text-xl sm:text-2xl md:text-4xl lg:text-5xl font-black italic tracking-tighter uppercase leading-[1.1] break-all sm:break-words ${isLight ? 'text-black' : 'text-white'}`}>{user.name}</h2>
                     </div>
-                    <p className={`text-[10px] font-bold uppercase tracking-[0.4em] italic ${isLight ? 'text-gray-400' : 'text-white/30'}`}>BlackBox Member • Account Verified</p>
-                    <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 pt-4">
+                    <p className={`text-[8px] sm:text-[10px] font-bold uppercase tracking-[0.4em] italic leading-relaxed ${isLight ? 'text-gray-400' : 'text-white/30'}`}>BlackBox Member • Account Verified</p>
+                    <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 sm:gap-4 pt-4">
                       <button
                         onClick={() => setActiveTab('settings')}
-                        className={`px-8 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${isLight ? 'bg-black text-white border-black' : 'bg-white text-black border-white shadow-xl hover:scale-105'}`}
+                        className={`flex-1 sm:flex-initial px-4 sm:px-8 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${isLight ? 'bg-black text-white border-black' : 'bg-white text-black border-white shadow-xl hover:scale-105'}`}
                       >
                         Edit Profile
                       </button>
                       <button
                         onClick={() => navigateTo('support' as any)}
-                        className={`px-8 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${isLight ? 'bg-white text-black border-gray-200 hover:bg-gray-50' : 'bg-white/5 text-white border-white/10 hover:bg-white/10'}`}
+                        className={`flex-1 sm:flex-initial px-4 sm:px-8 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${isLight ? 'bg-white text-black border-gray-200 hover:bg-gray-50' : 'bg-white/5 text-white border-white/10 hover:bg-white/10'}`}
                       >
                         Support Terminal
                       </button>
