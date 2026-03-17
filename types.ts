@@ -58,6 +58,16 @@ export interface Order {
   payment_status?: 'pending' | 'paid' | 'failed' | 'refunded';
   shipping_method?: string;
   shipping_cost?: number;
+  tracking_updates?: TrackingUpdate[];
+}
+
+export interface TrackingUpdate {
+  id: string;
+  order_id: string;
+  status: 'Order Placed' | 'Processing' | 'On its way' | 'Delivered';
+  description: string;
+  timestamp: string;
+  location?: string;
 }
 
 export interface RepairRequest {

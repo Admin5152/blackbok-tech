@@ -6,12 +6,16 @@ import { useAppContext } from '../App';
 import { CartItem, Order } from '../types';
 import { formatCurrency, generateId } from '../lib/utils';
 import { signIn, signUp, getUserProfile } from '../lib/api';
+import { OrderCompletePopup } from '../components/OrderCompletePopup';
+import { addTrackingUpdate } from '../lib/setupTracking';
 
 export const Checkout: React.FC = () => {
   const { user, setUser, cart, setCart, orders, setOrders, notify } = useAppContext();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [showOrderComplete, setShowOrderComplete] = useState(false);
+  const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
   const [formData, setFormData] = useState({
     shippingAddress: user?.address || '',
     region: '',
@@ -101,6 +105,13 @@ export const Checkout: React.FC = () => {
     try {
       setLoading(true);
 
+      // Generate tracking number
+      const trackingNumber = `BB${Date.now().toString().slice(-10)}`;
+      
+      // Calculate estimated delivery (3-5 business days from now)
+      const estimatedDelivery = new Date();
+      estimatedDelivery.setDate(estimatedDelivery.getDate() + 5);
+
       // Create order in database
       const orderData = {
         user_id: user.id,
@@ -112,7 +123,9 @@ export const Checkout: React.FC = () => {
         shipping_address: shippingMethod === 'pickup' ? 'Pick up from store' : `${formData.shippingAddress}, ${formData.city}, ${formData.region}, ${formData.postalCode}`,
         shipping_method: shippingMethod,
         shipping_cost: shippingCost,
-        payment_status: 'pending'
+        payment_status: 'paid',
+        tracking_number: trackingNumber,
+        estimated_delivery: estimatedDelivery.toISOString()
       };
 
       const { data: order, error } = await supabase
@@ -124,11 +137,16 @@ export const Checkout: React.FC = () => {
       if (error) throw error;
 
       // Add initial tracking update
-      await supabase.rpc('add_tracking_update', {
-        p_order_id: order.id,
-        p_status: 'Order Placed',
-        p_description: 'Your order has been received and is being processed.'
-      });
+      try {
+        await addTrackingUpdate(
+          order.id,
+          'Order Placed',
+          'Your order has been received and is being processed.'
+        );
+      } catch (trackingError) {
+        console.error('Error adding tracking update:', trackingError);
+        // Continue even if tracking fails
+      }
 
       // Clear cart
       setCart([]);
@@ -147,13 +165,15 @@ export const Checkout: React.FC = () => {
         shipping_address: order.shipping_address,
         payment_status: order.payment_status,
         shipping_method: order.shipping_method,
-        shipping_cost: order.shipping_cost
+        shipping_cost: order.shipping_cost,
+        estimated_delivery: order.estimated_delivery
       };
 
       setOrders([newOrder, ...orders]);
+      setCompletedOrder(newOrder);
+      setShowOrderComplete(true);
 
       notify('Order placed successfully!');
-      navigate({ to: '/profile' });
 
     } catch (error) {
       console.error('Error placing order:', error);
@@ -554,6 +574,14 @@ export const Checkout: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Order Complete Popup */}
+      {showOrderComplete && completedOrder && (
+        <OrderCompletePopup 
+          order={completedOrder} 
+          onClose={() => setShowOrderComplete(false)} 
+        />
+      )}
     </div>
   );
 };

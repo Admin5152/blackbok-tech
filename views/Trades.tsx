@@ -19,15 +19,15 @@ interface TradesProps {
 
 // ── Brand catalogue ────────────────────────────────────────────────────────────
 const BRANDS = [
-  { id: 'apple', name: 'Apple', logo: '🍎' },
-  { id: 'samsung', name: 'Samsung', logo: '⬡' },
-  { id: 'google', name: 'Google', logo: '⬤' },
-  { id: 'sony', name: 'Sony', logo: '♦' },
+  { id: 'apple', name: 'Apple', logo: '' },
+  { id: 'samsung', name: 'Samsung', logo: '𖠌' },
+  { id: 'google', name: 'Google', logo: 'G' },
+  { id: 'sony', name: 'Sony', logo: 'SONY' },
   { id: 'microsoft', name: 'Microsoft', logo: '⊞' },
-  { id: 'nintendo', name: 'Nintendo', logo: '🎮' },
-  { id: 'dell', name: 'Dell', logo: '💻' },
-  { id: 'hp', name: 'HP', logo: '🖥' },
-  { id: 'lenovo', name: 'Lenovo', logo: '🔲' },
+  { id: 'nintendo', name: 'Nintendo', logo: 'Game' },
+  { id: 'dell', name: 'Dell', logo: 'Dell' },
+  { id: 'hp', name: 'HP', logo: 'HP' },
+  { id: 'lenovo', name: 'Lenovo', logo: 'Lenovo' },
   { id: 'other', name: 'Other', logo: '📱' },
 ];
 
