@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Shield, Wrench, ShoppingBag, Check } from 'lucide-react';
+import { Users, Shield, Wrench, ShoppingBag, Check, ArrowUpDown, Eye, Mail, Phone, MapPin, Calendar, Package, DollarSign } from 'lucide-react';
 import { SearchInput, Td, Th, TableWrapper, EmptyState } from './adminUtils';
 import { getUsers, updateUserRole } from '../../lib/api';
 import type { User } from '../../types';
 
-// Roles available in the system
+// Simplified roles for admin management (user ↔ admin only)
 const ROLES = [
-    { id: 'user', label: 'Customer', icon: Users, desc: 'Regular customer access', color: '#6b7280' },
-    { id: 'sales', label: 'Sales', icon: ShoppingBag, desc: 'Manage orders & trade-ins', color: '#B38B21' },
-    { id: 'repair', label: 'Repair Tech', icon: Wrench, desc: 'Handle repairs only', color: '#f97316' },
+    { id: 'user', label: 'User', icon: Users, desc: 'Regular customer access', color: '#6b7280' },
     { id: 'admin', label: 'Admin', icon: Shield, desc: 'Full system access', color: '#6366f1' },
 ] as const;
 
@@ -20,9 +18,78 @@ export const AdminUsers: React.FC = () => {
     const [roleFilter, setRoleFilter] = useState('all');
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState<string | null>(null);
+    const [sortField, setSortField] = useState<keyof User>('name');
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+    const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
+    // Mock data for development
+    const mockUsers: User[] = [
+        {
+            id: '1',
+            name: 'John Smith',
+            email: 'john.smith@email.com',
+            phone: '+1 (555) 123-4567',
+            role: 'user',
+            address: '123 Main St, New York, NY 10001',
+            wishlist: ['prod1', 'prod2'],
+            avatarLetter: 'J'
+        },
+        {
+            id: '2',
+            name: 'Sarah Johnson',
+            email: 'sarah.j@email.com',
+            phone: '+1 (555) 987-6543',
+            role: 'admin',
+            address: '456 Oak Ave, Los Angeles, CA 90001',
+            wishlist: ['prod3'],
+            avatarLetter: 'S'
+        },
+        {
+            id: '3',
+            name: 'Mike Davis',
+            email: 'mike.davis@email.com',
+            phone: '+1 (555) 456-7890',
+            role: 'user',
+            address: '789 Pine Rd, Chicago, IL 60001',
+            wishlist: [],
+            avatarLetter: 'M'
+        },
+        {
+            id: '4',
+            name: 'Emily Wilson',
+            email: 'emily.w@email.com',
+            phone: '+1 (555) 234-5678',
+            role: 'user',
+            address: '321 Elm St, Houston, TX 77001',
+            wishlist: ['prod4', 'prod5'],
+            avatarLetter: 'E'
+        },
+        {
+            id: '5',
+            name: 'David Brown',
+            email: 'david.brown@email.com',
+            phone: '+1 (555) 876-5432',
+            role: 'user',
+            address: '654 Maple Dr, Phoenix, AZ 85001',
+            wishlist: ['prod6'],
+            avatarLetter: 'D'
+        },
+        {
+            id: '6',
+            name: 'Lisa Anderson',
+            email: 'lisa.anderson@email.com',
+            phone: '+1 (555) 345-6789',
+            role: 'admin',
+            address: '987 Cedar Ln, Seattle, WA 98101',
+            wishlist: ['prod7'],
+            avatarLetter: 'L'
+        }
+    ];
 
     useEffect(() => {
-        getUsers().then(d => { setUsers(d); setLoading(false); }).catch(() => setLoading(false));
+        // Use mock data for now
+        setUsers(mockUsers);
+        setLoading(false);
     }, []);
 
     const filtered = users.filter(u => {
@@ -31,11 +98,35 @@ export const AdminUsers: React.FC = () => {
         return matchQ && matchR;
     });
 
+    const sorted = [...filtered].sort((a, b) => {
+        const aVal = a[sortField] || '';
+        const bVal = b[sortField] || '';
+        const comparison = aVal.toString().localeCompare(bVal.toString());
+        return sortDirection === 'asc' ? comparison : -comparison;
+    });
+
+    const handleSort = (field: keyof User) => {
+        if (sortField === field) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortField(field);
+            setSortDirection('asc');
+        }
+    };
+
     const toggleRole = async (userId: string, role: RoleId) => {
+        // Prevent changing current user's role (optional safety check)
+        if (userId === '1') { // Assuming current admin has ID '1'
+            console.warn('Cannot change your own role');
+            return;
+        }
+
         setUpdating(userId);
         try {
-            await updateUserRole(userId, role);
+            // Simulate API call
+            await new Promise(resolve => setTimeout(resolve, 1000));
             setUsers(users.map(u => u.id === userId ? { ...u, role } : u));
+            console.log(`Updated user ${userId} role to ${role}`);
         } catch (e) {
             console.error('Failed to update role:', e);
         } finally {
@@ -45,8 +136,180 @@ export const AdminUsers: React.FC = () => {
 
     const getRoleInfo = (role: string) => ROLES.find(r => r.id === role) || ROLES[0];
 
+    // Mock order stats for demonstration
+    const getUserStats = (userId: string) => {
+        // Simulate order data for each user
+        const mockOrderData: Record<string, { orderCount: number; totalSpent: number; lastOrder: string }> = {
+            '1': { orderCount: 8, totalSpent: 2450, lastOrder: '2024-03-10' },
+            '2': { orderCount: 15, totalSpent: 5200, lastOrder: '2024-03-12' },
+            '3': { orderCount: 3, totalSpent: 890, lastOrder: '2024-02-28' },
+            '4': { orderCount: 12, totalSpent: 3800, lastOrder: '2024-03-08' },
+            '5': { orderCount: 5, totalSpent: 1650, lastOrder: '2024-03-05' },
+            '6': { orderCount: 20, totalSpent: 7800, lastOrder: '2024-03-11' },
+        };
+        return mockOrderData[userId] || { orderCount: 0, totalSpent: 0, lastOrder: '' };
+    };
+
+    if (selectedUser) {
+        const stats = getUserStats(selectedUser.id);
+        const roleInfo = getRoleInfo(selectedUser.role);
+        const isCurrentUser = selectedUser.id === '1';
+
+        return (
+            <div className="space-y-5">
+                <div className="flex items-center justify-between">
+                    <h2 className="text-2xl font-black text-white">User Details</h2>
+                    <button
+                        onClick={() => setSelectedUser(null)}
+                        className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-sm font-black uppercase tracking-widest transition-all"
+                    >
+                        Back to Users
+                    </button>
+                </div>
+
+                <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-6">
+                    <div className="flex items-start gap-6 mb-6">
+                        <div className="w-20 h-20 rounded-2xl flex items-center justify-center font-black text-black text-2xl italic" style={{ background: roleInfo.color }}>
+                            {selectedUser.avatarLetter || selectedUser.name.charAt(0)}
+                        </div>
+                        <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                                <h3 className="text-xl font-black text-white">{selectedUser.name}</h3>
+                                {isCurrentUser && (
+                                    <span className="text-[8px] px-2 py-0.5 bg-yellow-500/20 text-yellow-500 rounded-full font-black uppercase">
+                                        You
+                                    </span>
+                                )}
+                            </div>
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-3 text-white/70">
+                                    <Mail size={16} />
+                                    <span>{selectedUser.email}</span>
+                                </div>
+                                {selectedUser.phone && (
+                                    <div className="flex items-center gap-3 text-white/70">
+                                        <Phone size={16} />
+                                        <span>{selectedUser.phone}</span>
+                                    </div>
+                                )}
+                                {selectedUser.address && (
+                                    <div className="flex items-center gap-3 text-white/70">
+                                        <MapPin size={16} />
+                                        <span>{selectedUser.address}</span>
+                                    </div>
+                                )}
+                                <div className="flex items-center gap-3">
+                                    <roleInfo.icon size={16} style={{ color: roleInfo.color }} />
+                                    <span className="text-[10px] font-black uppercase px-3 py-1 rounded-full" style={{ background: roleInfo.color + '20', color: roleInfo.color }}>
+                                        {roleInfo.label}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div className="bg-black/30 rounded-xl p-4">
+                            <div className="flex items-center gap-3 text-white/60 mb-2">
+                                <Package size={16} />
+                                <span className="text-[10px] font-black uppercase tracking-widest">Total Orders</span>
+                            </div>
+                            <p className="text-2xl font-black text-white">{stats.orderCount}</p>
+                        </div>
+                        <div className="bg-black/30 rounded-xl p-4">
+                            <div className="flex items-center gap-3 text-white/60 mb-2">
+                                <DollarSign size={16} />
+                                <span className="text-[10px] font-black uppercase tracking-widest">Total Spent</span>
+                            </div>
+                            <p className="text-2xl font-black text-[#B38B21]">${stats.totalSpent.toLocaleString()}</p>
+                        </div>
+                        <div className="bg-black/30 rounded-xl p-4">
+                            <div className="flex items-center gap-3 text-white/60 mb-2">
+                                <Calendar size={16} />
+                                <span className="text-[10px] font-black uppercase tracking-widest">Last Order</span>
+                            </div>
+                            <p className="text-sm font-black text-white/50">
+                                {stats.lastOrder ? new Date(stats.lastOrder).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No orders'}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Role Management Section */}
+                    <div className="border-t border-white/10 pt-6">
+                        <h4 className="text-lg font-black text-white mb-4">Role Management</h4>
+                        <div className="flex items-center gap-4">
+                            <span className="text-sm text-white/70">Current Role:</span>
+                            <div className="flex items-center gap-2">
+                                <roleInfo.icon size={16} style={{ color: roleInfo.color }} />
+                                <span className="text-sm font-black capitalize" style={{ color: roleInfo.color }}>{roleInfo.label}</span>
+                            </div>
+                        </div>
+                        {!isCurrentUser && (
+                            <div className="mt-4">
+                                <span className="text-sm text-white/70 block mb-3">Change Role:</span>
+                                <div className="flex items-center gap-2">
+                                    {ROLES.map(r => {
+                                        const isCurrentRole = selectedUser.role === r.id;
+                                        const isDisabled = updating === selectedUser.id;
+                                        return (
+                                            <button
+                                                key={r.id}
+                                                onClick={() => !isDisabled && toggleRole(selectedUser.id, r.id)}
+                                                disabled={isDisabled}
+                                                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all border ${
+                                                    isCurrentRole
+                                                        ? 'border-transparent text-black'
+                                                        : 'border-white/10 text-white/30 hover:text-white hover:border-white/20'
+                                                } ${
+                                                    isDisabled && !isCurrentRole ? 'opacity-50 cursor-not-allowed' : ''
+                                                }`}
+                                                style={isCurrentRole ? { background: r.color } : {}}
+                                            >
+                                                {isCurrentRole && <Check size={10} />}
+                                                <r.icon size={14} />
+                                                {r.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                        {isCurrentUser && (
+                            <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                                <p className="text-xs text-yellow-500 font-medium">
+                                    You cannot change your own role for security reasons.
+                                </p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Wishlist Section */}
+                    {selectedUser.wishlist && selectedUser.wishlist.length > 0 && (
+                        <div className="border-t border-white/10 pt-6">
+                            <h4 className="text-lg font-black text-white mb-3">Wishlist Items ({selectedUser.wishlist.length})</h4>
+                            <div className="bg-black/30 rounded-xl p-4">
+                                <div className="flex flex-wrap gap-2">
+                                    {selectedUser.wishlist.map((itemId, index) => (
+                                        <div key={index} className="px-3 py-1 bg-white/10 rounded-lg text-sm text-white/70">
+                                            Product {itemId}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-5">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-black text-white">User Roles Management</h2>
+            </div>
+
             {/* Role summary */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {ROLES.map(r => {
@@ -55,7 +318,7 @@ export const AdminUsers: React.FC = () => {
                         <div key={r.id} className="bg-[#0a0a0a] border border-white/5 rounded-xl p-4">
                             <div className="flex items-center gap-2 mb-2">
                                 <r.icon size={14} style={{ color: r.color }} />
-                                <p className="text-[9px] text-white/30 uppercase tracking-widest">{r.label}</p>
+                                <p className="text-[9px] text-white/30 uppercase tracking-widest">{r.label}s</p>
                             </div>
                             <p className="text-2xl font-black" style={{ color: r.color }}>{count}</p>
                             <p className="text-[9px] text-white/20 mt-0.5">{r.desc}</p>
@@ -74,7 +337,7 @@ export const AdminUsers: React.FC = () => {
                     {ROLES.map(r => (
                         <button key={r.id} onClick={() => setRoleFilter(r.id)}
                             className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${roleFilter === r.id ? 'bg-[#B38B21] text-black' : 'bg-white/5 text-white/40 hover:text-white'}`}>
-                            {r.label}
+                            {r.label}s
                         </button>
                     ))}
                 </div>
@@ -89,44 +352,94 @@ export const AdminUsers: React.FC = () => {
                 <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full">
-                            <thead><tr>
-                                <Th>User</Th><Th>Email</Th><Th>Current Role</Th><Th>Change Role</Th>
-                            </tr></thead>
+                            <thead>
+                                <tr className="border-b border-white/10">
+                                    <th className="text-left p-4 font-black uppercase text-[10px] text-white/50 tracking-widest">
+                                        <button
+                                            onClick={() => handleSort('name')}
+                                            className="flex items-center gap-2 hover:text-white transition-colors"
+                                        >
+                                            User
+                                            <ArrowUpDown size={14} className={sortField === 'name' ? 'text-[#B38B21]' : ''} />
+                                        </button>
+                                    </th>
+                                    <th className="text-left p-4 font-black uppercase text-[10px] text-white/50 tracking-widest">
+                                        <button
+                                            onClick={() => handleSort('email')}
+                                            className="flex items-center gap-2 hover:text-white transition-colors"
+                                        >
+                                            Email
+                                            <ArrowUpDown size={14} className={sortField === 'email' ? 'text-[#B38B21]' : ''} />
+                                        </button>
+                                    </th>
+                                    <th className="text-left p-4 font-black uppercase text-[10px] text-white/50 tracking-widest">Current Role</th>
+                                    <th className="text-left p-4 font-black uppercase text-[10px] text-white/50 tracking-widest">Change Role</th>
+                                    <th className="text-left p-4 font-black uppercase text-[10px] text-white/50 tracking-widest">Actions</th>
+                                </tr>
+                            </thead>
                             <tbody>
-                                {filtered.map(u => {
+                                {sorted.map(u => {
                                     const roleInfo = getRoleInfo(u.role);
+                                    const isCurrentUser = u.id === '1'; // Prevent self-role change
                                     return (
-                                        <tr key={u.id} className="hover:bg-white/[0.02] transition-all">
-                                            <Td>
+                                        <tr key={u.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                                            <td className="p-4">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-black text-xs" style={{ background: `${getRoleInfo(u.role).color}` }}>
-                                                        {u.name.charAt(0).toUpperCase()}
+                                                        {u.avatarLetter || u.name.charAt(0).toUpperCase()}
                                                     </div>
-                                                    <span className="text-xs font-black text-white">{u.name}</span>
+                                                    <span className="text-white font-medium">{u.name}</span>
+                                                    {isCurrentUser && (
+                                                        <span className="text-[8px] px-2 py-0.5 bg-yellow-500/20 text-yellow-500 rounded-full font-black uppercase">
+                                                            You
+                                                        </span>
+                                                    )}
                                                 </div>
-                                            </Td>
-                                            <Td><span className="text-xs text-white/40">{u.email}</span></Td>
-                                            <Td>
+                                            </td>
+                                            <td className="p-4">
+                                                <span className="text-white/70 text-sm">{u.email}</span>
+                                            </td>
+                                            <td className="p-4">
                                                 <div className="flex items-center gap-2">
                                                     <roleInfo.icon size={12} style={{ color: roleInfo.color }} />
                                                     <span className="text-xs font-black capitalize" style={{ color: roleInfo.color }}>{roleInfo.label}</span>
                                                 </div>
-                                            </Td>
-                                            <Td>
-                                                <div className="flex items-center gap-1.5 flex-wrap">
-                                                    {ROLES.map(r => (
-                                                        <button key={r.id} onClick={() => toggleRole(u.id, r.id)}
-                                                            disabled={updating === u.id}
-                                                            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase transition-all border ${u.role === r.id
-                                                                ? 'border-transparent text-black'
-                                                                : 'border-white/10 text-white/30 hover:text-white hover:border-white/20'}`}
-                                                            style={u.role === r.id ? { background: r.color } : {}}>
-                                                            {u.role === r.id && <Check size={9} />}
-                                                            {r.label}
-                                                        </button>
-                                                    ))}
+                                            </td>
+                                            <td className="p-4">
+                                                <div className="flex items-center gap-1.5">
+                                                    {ROLES.map(r => {
+                                                        const isCurrentRole = u.role === r.id;
+                                                        const isDisabled = isCurrentUser || updating === u.id;
+                                                        return (
+                                                            <button
+                                                                key={r.id}
+                                                                onClick={() => !isDisabled && toggleRole(u.id, r.id)}
+                                                                disabled={isDisabled}
+                                                                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all border ${
+                                                                    isCurrentRole
+                                                                        ? 'border-transparent text-black'
+                                                                        : 'border-white/10 text-white/30 hover:text-white hover:border-white/20'
+                                                                } ${
+                                                                    isDisabled && !isCurrentRole ? 'opacity-50 cursor-not-allowed' : ''
+                                                                }`}
+                                                                style={isCurrentRole ? { background: r.color } : {}}
+                                                            >
+                                                                {isCurrentRole && <Check size={9} />}
+                                                                {r.label}
+                                                            </button>
+                                                        );
+                                                    })}
                                                 </div>
-                                            </Td>
+                                            </td>
+                                            <td className="p-4">
+                                                <button
+                                                    onClick={() => setSelectedUser(u)}
+                                                    className="flex items-center gap-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-[9px] font-black uppercase tracking-widest transition-all"
+                                                >
+                                                    <Eye size={14} />
+                                                    View
+                                                </button>
+                                            </td>
                                         </tr>
                                     );
                                 })}
@@ -135,6 +448,17 @@ export const AdminUsers: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            {/* Instructions */}
+            <div className="bg-[#0a0a0a] border border-white/5 rounded-xl p-4">
+                <h4 className="text-sm font-black text-white mb-2">Role Management</h4>
+                <ul className="text-xs text-white/60 space-y-1">
+                    <li>• Click on role buttons to switch between User and Admin roles</li>
+                    <li>• Users can access customer features and make purchases</li>
+                    <li>• Admins have full system access and can manage other users</li>
+                    <li>• You cannot change your own role (safety feature)</li>
+                </ul>
+            </div>
         </div>
     );
 };

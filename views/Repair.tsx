@@ -149,7 +149,19 @@ export const Repair: React.FC = () => {
     { id: 'other', label: 'Other', icon: MonitorSmartphone },
   ];
 
-  const brands = ['Apple', 'Samsung', 'Sony', 'Microsoft', 'Nintendo', 'HP', 'Dell', 'Lenovo', 'Other'];
+  const brandsWithIcons = [
+    { id: 'Apple', label: 'Apple', img: '/iphone_modern.png' },
+    { id: 'Samsung', label: 'Samsung', img: '/galaxy_s24.png' },
+    { id: 'Sony', label: 'Sony', img: '/sony_phone.png' },
+    { id: 'Microsoft', label: 'Microsoft', img: '/surface.png' },
+    { id: 'Nintendo', label: 'Nintendo', img: '/nintendo_switch.png' },
+    { id: 'HP', label: 'HP', img: '/hp_laptop.png' },
+    { id: 'Dell', label: 'Dell', img: '/dell_laptop.png' },
+    { id: 'Lenovo', label: 'Lenovo', img: '/lenovo_laptop.png' },
+    { id: 'Other', label: 'Other', img: '/other_device.png' },
+  ];
+
+  const brands = brandsWithIcons.map(b => b.label);
 
   const timeSlots = [
     { id: 'morning-1', time: '9:00 AM', label: 'Early Morning', available: true },
@@ -274,30 +286,38 @@ export const Repair: React.FC = () => {
                   </div>
                 ) : subStep === 2 && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300 pt-4">
-                    <div className="space-y-2">
-                      <p className="text-xs font-black uppercase tracking-widest text-[#CDA032] opacity-70">
-                        {deviceTypes.find(d => d.id === formData.deviceType)?.label}
-                      </p>
-                      <h2 className="text-2xl font-bold tracking-tight">Which brand?</h2>
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-2">
+                        <p className="text-xs font-black uppercase tracking-widest text-[#CDA032] opacity-70">
+                          {deviceTypes.find(d => d.id === formData.deviceType)?.label}
+                        </p>
+                        <h2 className="text-2xl font-bold tracking-tight">Which brand?</h2>
+                      </div>
+                      <button onClick={() => setSubStep(1)} className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-white/40 hover:text-[#CDA032] transition-colors">
+                        <ArrowLeft size={14} /> Back
+                      </button>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      {brands.map(brand => (
-                        <button key={brand}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                      {brandsWithIcons.map(brand => (
+                        <button key={brand.id}
                           onClick={() => {
-                            setFormData({ ...formData, brand, model: '' });
+                            setFormData({ ...formData, brand: brand.label, model: '' });
                             setSelectedSeries('');
                             setSubStep(3);
                           }}
-                          className={`py-5 px-4 rounded-2xl border text-sm font-bold text-center transition-all duration-200 ${formData.brand === brand
-                            ? 'bg-[#CDA032] text-black border-[#CDA032] shadow-lg shadow-[#CDA032]/20'
-                            : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:bg-[var(--bb-surface-2)] hover:border-[#CDA032]/40 opacity-80'}`}
+                          className={`group flex flex-col items-center justify-center p-6 rounded-3xl border transition-all duration-300 ${formData.brand === brand.label
+                            ? 'bg-[#CDA032]/10 border-[#CDA032] shadow-[0_0_30px_rgba(205,160,50,0.15)] ring-1 ring-[#CDA032]'
+                            : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:bg-[var(--bb-surface-2)] hover:border-[#CDA032]/40'}`}
                         >
-                          {brand}
+                          <div className="h-16 mb-4 flex items-center justify-center overflow-hidden">
+                            <img src={brand.img} alt={brand.label} className={`h-full w-auto object-contain transition-all duration-500 scale-90 group-hover:scale-105 ${formData.brand === brand.label ? 'opacity-100' : 'opacity-40 group-hover:opacity-100'}`} />
+                          </div>
+                          <span className={`text-xs font-black uppercase tracking-widest text-center ${formData.brand === brand.label ? 'text-[#CDA032]' : 'text-white/60'}`}>{brand.label}</span>
                         </button>
                       ))}
                     </div>
                   </div>
-                )}
+                ) as any}
 
                 {/* 1c: Series (Apple Smartphones Only) */}
                 {isApple && formData.deviceType === 'smartphone' && (
@@ -317,14 +337,19 @@ export const Repair: React.FC = () => {
                           </p>
                           <h2 className="text-2xl font-bold tracking-tight">Select your iPhone series</h2>
                         </div>
-                        <a
-                          href="https://support.apple.com/en-us/108044"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs sm:text-sm font-black text-blue-500 hover:text-blue-400 hover:underline flex items-center gap-1 transition-colors shrink-0 px-3 py-1.5 rounded-full bg-blue-500/10"
-                        >
-                          Help identify your model →
-                        </a>
+                        <div className="flex items-center gap-4">
+                          <button onClick={() => setSubStep(2)} className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-white/40 hover:text-[#CDA032] transition-colors">
+                            <ArrowLeft size={14} /> Back
+                          </button>
+                          <a
+                            href="https://support.apple.com/en-us/108044"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs sm:text-sm font-black text-blue-500 hover:text-blue-400 hover:underline flex items-center gap-1 transition-colors shrink-0 px-3 py-1.5 rounded-full bg-blue-500/10"
+                          >
+                            Help identify your model →
+                          </a>
+                        </div>
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 content-start pr-1">
                         {Object.keys(appleSeriesGroups).reverse().map(series => {
@@ -364,6 +389,9 @@ export const Repair: React.FC = () => {
                         </p>
                         <h2 className="text-2xl font-bold tracking-tight">Select your {formData.brand === 'Apple' ? 'iPhone' : 'specific'} model</h2>
                       </div>
+                      <button onClick={() => setSubStep(isApple && formData.deviceType === 'smartphone' ? 3 : 2)} className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-white/40 hover:text-[#CDA032] transition-colors">
+                        <ArrowLeft size={14} /> Back
+                      </button>
                     </div>
 
                     {isApple && formData.deviceType === 'smartphone' ? (
@@ -454,21 +482,28 @@ export const Repair: React.FC = () => {
                         </div>
                       </div>
                     ) : (
-                      <div className="space-y-4 max-w-md">
-                        <input
-                          placeholder={`Enter your ${formData.brand} model...`}
-                          value={formData.model}
-                          onChange={e => setFormData({ ...formData, model: e.target.value })}
-                          className="w-full border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface)] outline-none transition-all focus:border-[#CDA032]/50"
-                        />
+                      <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+                        <div className="p-8 rounded-[2.5rem] border border-[var(--bb-border)] bg-[var(--bb-surface)] shadow-2xl relative overflow-hidden group">
+                          <div className="absolute inset-0 bg-gradient-to-br from-[#CDA032]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+                          <div className="relative z-10 space-y-4">
+                            <label className="text-[10px] font-black uppercase tracking-[0.3em] text-[#CDA032]">Model Identification</label>
+                            <input
+                              placeholder={`Type your ${formData.brand} model name...`}
+                              value={formData.model}
+                              onChange={e => setFormData({ ...formData, model: e.target.value })}
+                              className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-5 text-lg font-bold outline-none transition-all focus:border-[#CDA032] focus:bg-white/[0.08] placeholder:text-white/20"
+                            />
+                            <p className="text-[10px] font-medium text-white/40 leading-relaxed uppercase tracking-widest">Please enter the full model name as seen on the device back or in settings.</p>
+                          </div>
+                        </div>
                         <button
                           onClick={() => {
                             if (!formData.model) { notify('Please enter your model to continue.', 'error'); return; }
                             go(2);
                           }}
-                          className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] active:scale-[0.98] transition-all w-full"
+                          className="flex items-center justify-center gap-3 px-10 py-5 rounded-[2rem] text-sm font-black uppercase tracking-[0.2em] text-black bg-[#CDA032] hover:bg-[#B38B21] active:scale-[0.98] transition-all w-full shadow-[0_20px_40px_rgba(205,160,50,0.25)]"
                         >
-                          Continue <ArrowRight size={16} />
+                          Confirm Model <ArrowRight size={18} />
                         </button>
                       </div>
                     )}
