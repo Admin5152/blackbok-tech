@@ -5,7 +5,7 @@ import {
   ChevronRight, ChevronDown, Settings, AlertTriangle,
   Sparkles, Eye, Clock, Menu, Sun, Moon, Search, TrendingUp, Box, Laptop, Smartphone, Gamepad2, History, Calendar, Info, Heart, UserCog
 } from 'lucide-react';
-import { Link, useLocation } from '@tanstack/react-router';
+import { Link, useLocation, useNavigate } from '@tanstack/react-router';
 import { User, CartItem, Product } from '../types';
 import { formatCurrency } from '../lib/utils';
 import { handleSignOut } from '../lib/signOut';
@@ -40,10 +40,12 @@ export const Navbar: React.FC<{
   setUser
 }) => {
     const location = useLocation();
+    const navigate = useNavigate();
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [activeMobileSubmenu, setActiveMobileSubmenu] = useState<string | null>(null);
 
     const cartCount = cart.reduce((a, c) => a + c.quantity, 0);
     const isLight = theme === 'light';
@@ -282,38 +284,113 @@ export const Navbar: React.FC<{
               <div className="flex-1 overflow-y-auto">
                 <div className="p-2">
                   {[
-                    { path: '/', label: 'Home', icon: HomeIcon },
-                    { path: '/store', label: 'Products', icon: ShoppingBag },
-                    { path: '/trades', label: 'Trades', icon: RefreshCcw },
-                    { path: '/repair', label: 'Repairs', icon: Wrench },
+                    {
+                      path: '/', label: 'Home', icon: HomeIcon, subItems: [
+                        { path: '/about', label: 'About BlackBox', icon: Info },
+                        { path: '/policies', label: 'Policies & FAQ', icon: Scale }
+                      ]
+                    },
+                    {
+                      path: '/store', label: 'Products', icon: ShoppingBag, subItems: [
+                        { path: '/store', label: 'All Products', icon: Box },
+                        { path: '/store', label: 'iPhone', icon: Smartphone, search: { category: 'iPhone' } },
+                        { path: '/store', label: 'Laptops', icon: Laptop, search: { category: 'Laptop' } },
+                        { path: '/store', label: 'Gaming', icon: Gamepad2, search: { category: 'Gaming' } },
+                        { path: '/store', label: 'Accessories', icon: Box, search: { category: 'Accessories' } }
+                      ]
+                    },
+                    {
+                      path: '/trades', label: 'Trades', icon: RefreshCcw, subItems: [
+                        { type: 'info', label: 'Your Trade-In Items', content: 'Track your device value in real-time.' },
+                        { path: '/trades', label: 'Trade-In Program', icon: RefreshCcw },
+                        { path: '/history', label: 'Trade-In History', icon: History, search: { tab: 'trades' } }
+                      ]
+                    },
+                    {
+                      path: '/repair', label: 'Repairs', icon: Wrench, subItems: [
+                        { path: '/repair', label: 'Schedule Repair', icon: Calendar },
+                        { path: '/history', label: 'Repair History', icon: History, search: { tab: 'repairs' } }
+                      ]
+                    },
                     { path: '/cart', label: 'Cart', icon: ShoppingCart, badge: cartCount },
                     { path: '/admin', label: 'Admin', icon: UserCog },
-                    { path: user ? '/profile' : '/auth', label: 'Account', icon: UserIcon }
+                    { path: user ? '/profile' : '/auth', label: user ? 'Account' : 'Sign In', icon: UserIcon }
                   ].map((item) => {
                     const active = location.pathname === item.path;
+                    const hasSubItems = item.subItems && item.subItems.length > 0;
+                    const isSubmenuOpen = activeMobileSubmenu === item.label;
+
                     return (
-                      <Link
-                        key={item.path}
-                        to={item.path}
-                        onClick={() => setIsMobileMenuOpen(false)}
-                        className={`flex items-center gap-4 px-4 py-3 rounded-xl mx-2 mb-1 transition-all ${active
-                            ? 'bg-[#CDA032]/20 text-[#CDA032]'
-                            : 'text-white/70 hover:text-white hover:bg-white/5'
-                          }`}
-                      >
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${active ? 'bg-[#CDA032] text-black' : 'bg-white/10 text-white/70'
-                          }`}>
-                          <item.icon size={18} />
+                      <div key={item.label} className="mb-1">
+                        <div className="flex items-center">
+                          <button
+                            onClick={() => {
+                              if (hasSubItems) {
+                                setActiveMobileSubmenu(isSubmenuOpen ? null : item.label);
+                              } else {
+                                navigate({ to: item.path });
+                                setIsMobileMenuOpen(false);
+                              }
+                            }}
+                            className={`flex-1 flex items-center gap-4 px-4 py-3 rounded-xl mx-2 transition-all ${active && !hasSubItems
+                              ? 'bg-[#CDA032]/20 text-[#CDA032]'
+                              : 'text-white/70 hover:text-white hover:bg-white/5'
+                              }`}
+                          >
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${active && !hasSubItems ? 'bg-[#CDA032] text-black' : 'bg-white/10 text-white/70'
+                              }`}>
+                              <item.icon size={18} />
+                            </div>
+                            <span className="flex-1 text-sm font-black uppercase tracking-widest text-left">
+                              {item.label}
+                            </span>
+                            {item.badge && item.badge > 0 && (
+                              <span className="px-2 py-1 bg-[#CDA032] text-black text-xs font-black rounded-full">
+                                {item.badge}
+                              </span>
+                            )}
+                          </button>
+                          {hasSubItems && (
+                            <button
+                              onClick={() => setActiveMobileSubmenu(isSubmenuOpen ? null : item.label)}
+                              className="p-3 mr-2 rounded-xl hover:bg-white/5 text-white/40"
+                            >
+                              <ChevronDown size={16} className={`transition-transform duration-300 ${isSubmenuOpen ? 'rotate-180' : ''}`} />
+                            </button>
+                          )}
                         </div>
-                        <span className="flex-1 text-sm font-medium uppercase tracking-wider">
-                          {item.label}
-                        </span>
-                        {item.badge && item.badge > 0 && (
-                          <span className="px-2 py-1 bg-[#CDA032] text-black text-xs font-black rounded-full">
-                            {item.badge}
-                          </span>
+
+                        {hasSubItems && (
+                          <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isSubmenuOpen ? 'max-h-[500px] opacity-100 mt-2 mb-6' : 'max-h-0 opacity-0'}`}>
+                            <div className="ml-12 mr-6 space-y-2">
+                              {item.subItems?.map((sub: any, idx: number) => {
+                                if (sub.type === 'info') {
+                                  return (
+                                    <div key={idx} className="bg-white/5 p-4 rounded-xl mb-2 border border-white/5">
+                                      <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032] mb-1">{sub.label}</p>
+                                      <p className="text-[11px] text-white/40 leading-relaxed">{sub.content}</p>
+                                    </div>
+                                  );
+                                }
+                                return (
+                                  <Link
+                                    key={sub.label}
+                                    to={sub.path}
+                                    search={sub.search as any}
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                    className="flex items-center gap-4 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-white/40 hover:text-[#CDA032] hover:bg-white/5 transition-all border border-transparent hover:border-white/5"
+                                  >
+                                    <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
+                                      <sub.icon size={14} className="opacity-40" />
+                                    </div>
+                                    {sub.label}
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          </div>
                         )}
-                      </Link>
+                      </div>
                     );
                   })}
                 </div>
