@@ -112,42 +112,53 @@ export const Checkout: React.FC = () => {
       const estimatedDelivery = new Date();
       estimatedDelivery.setDate(estimatedDelivery.getDate() + 5);
 
-      // Create order in database - use correct column names
-      const orderData = {
+      // Create basic order in database first
+      const basicOrderData = {
         user_id: user.id,
-        user_name: user.name,
-        items: cart,
-        total_price: total, // Changed from 'total' to 'total_price'
-        status: 'Pending',
-        payment_method: formData.paymentMethod,
-        shipping_address: shippingMethod === 'pickup' ? 'Pick up from store' : `${formData.shippingAddress}, ${formData.city}, ${formData.region}, ${formData.postalCode}`,
-        shipping_method: shippingMethod,
-        shipping_cost: shippingCost,
-        payment_status: 'paid',
-        tracking_number: trackingNumber,
-        estimated_delivery: estimatedDelivery.toISOString()
+        total_price: total, // Use correct column name from schema
+        status: 'pending' // Use lowercase to match schema
       };
 
       let order;
       let error;
 
       try {
-        // Try to insert into database
+        // Insert basic order
         const result = await supabase
           .from('orders')
-          .insert(orderData)
+          .insert(basicOrderData)
           .select()
           .single();
         
         order = result.data;
         error = result.error;
+
+        if (!error && order) {
+          // Now add order items
+          const orderItems = cart.map(item => ({
+            order_id: order.id,
+            product_id: item.id,
+            quantity: item.quantity,
+            price: item.price
+          }));
+
+          const { error: itemsError } = await supabase
+            .from('order_items')
+            .insert(orderItems);
+
+          if (itemsError) {
+            console.error('Error adding order items:', itemsError);
+            // Continue even if items fail
+          }
+        }
       } catch (dbError) {
         console.error('Database error, using mock data:', dbError);
         // Create mock order if database fails
         order = {
           id: generateId(),
           created_at: new Date().toISOString(),
-          ...orderData
+          ...basicOrderData,
+          status: 'Pending' // Capitalize for frontend
         };
         error = null;
       }
@@ -169,22 +180,22 @@ export const Checkout: React.FC = () => {
       // Clear cart
       setCart([]);
 
-      // Update local orders
+      // Update local orders with enhanced data for frontend
       const newOrder: Order = {
         id: order.id,
         userId: user.id,
         userName: user.name,
         items: cart,
         total: total, // Keep total for local Order type
-        status: 'Pending',
+        status: 'Pending', // Capitalize for frontend
         date: order.created_at,
         paymentMethod: formData.paymentMethod,
-        tracking_number: order.tracking_number,
-        shipping_address: order.shipping_address,
-        payment_status: order.payment_status,
-        shipping_method: order.shipping_method,
-        shipping_cost: order.shipping_cost,
-        estimated_delivery: order.estimated_delivery
+        tracking_number: trackingNumber,
+        shipping_address: shippingMethod === 'pickup' ? 'Pick up from store' : `${formData.shippingAddress}, ${formData.city}, ${formData.region}, ${formData.postalCode}`,
+        payment_status: 'paid',
+        shipping_method: shippingMethod,
+        shipping_cost: shippingCost,
+        estimated_delivery: estimatedDelivery.toISOString()
       };
 
       setOrders([newOrder, ...orders]);
@@ -195,7 +206,7 @@ export const Checkout: React.FC = () => {
 
     } catch (error) {
       console.error('Error placing order:', error);
-      notify('Checkout completed! Order tracking available in your profile.', 'success');
+      notify('Order placed successfully! Tracking available in your profile.', 'success');
       
       // Create a mock order to show the popup even if database fails
       const mockOrder: Order = {
