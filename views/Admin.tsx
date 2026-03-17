@@ -37,7 +37,7 @@ const SECTION_TITLES: Record<AdminSection, string> = {
   products: 'Product Catalogue',
   trades: 'Trade-In Requests',
   repairs: 'Repair Requests',
-  users: 'User Roles & Permissions',
+  users: 'Users',
 };
 
 export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo }) => {
