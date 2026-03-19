@@ -1,5 +1,7 @@
-// Shared utilities, types and helpers for admin modules
+import React, { useState, useRef, useEffect } from 'react';
+import { ChevronDown, Calendar } from 'lucide-react';
 
+// Shared utilities, types and helpers for admin modules
 export const TRADE_KEY = 'bb_v4_trades';
 export const REPAIR_KEY = 'bb_v4_repairs';
 export const PROD_KEY = 'bb_v4_products';
@@ -37,7 +39,7 @@ export const SearchInput = ({ value, onChange, placeholder = 'Search...' }: { va
     <div className="relative">
         <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="11" cy="11" r="8" strokeWidth="2" /><path d="M21 21l-4.35-4.35" strokeWidth="2" strokeLinecap="round" /></svg>
         <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-            className="pl-9 pr-4 py-2 bg-black/40 border border-white/10 rounded-xl text-white text-sm focus:border-[#B38B21]/50 focus:outline-none w-56" />
+            className="pl-9 pr-4 py-1.5 bg-black/40 border border-white/10 rounded-2xl text-white text-xs focus:border-[#B38B21]/50 focus:outline-none w-48" />
     </div>
 );
 
@@ -144,4 +146,52 @@ export const DonutChart = ({ segments }: { segments: { value: number; color: str
     );
 };
 
-import React from 'react';
+
+export const DateFilterDropdown = ({ value, onChange, options }: { value: string; onChange: (val: string) => void; options: readonly string[] }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (ref.current && !ref.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    return (
+        <div className="relative group shrink-0" ref={ref}>
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="flex items-center gap-2 bg-white/5 border border-white/10 text-white/70 text-[9px] sm:text-[11px] font-bold uppercase rounded-2xl px-2.5 sm:px-3 py-1.5 hover:bg-white/10 hover:border-[#B38B21]/50 focus:outline-none transition-colors w-[100px] sm:w-[130px] justify-between shadow-sm"
+            >
+                <div className="flex items-center gap-1.5 truncate">
+                    <Calendar size={13} className="text-[#B38B21] shrink-0 hidden sm:block" />
+                    <span className="truncate">{value}</span>
+                </div>
+                <ChevronDown size={14} className={`text-white/40 shrink-0 transition-transform duration-300 ${isOpen ? 'rotate-180 text-white/70' : ''}`} />
+            </button>
+
+            {/* Animated Dropdown Menu */}
+            <div className={`absolute top-full right-0 sm:left-0 sm:right-auto mt-2 w-40 bg-[#111] border border-white/10 rounded-xl shadow-2xl py-1.5 z-50 overflow-hidden transform transition-all duration-200 origin-top
+                ${isOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'}`}>
+                {options.map(opt => (
+                    <button
+                        key={opt}
+                        onClick={() => {
+                            onChange(opt);
+                            setIsOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-2.5 text-xs font-bold uppercase transition-colors flex items-center justify-between group
+                            ${value === opt ? 'text-[#B38B21] bg-[#B38B21]/10' : 'text-white/60 hover:bg-white/5 hover:text-white'}`}
+                    >
+                        {opt}
+                        <div className={`w-1.5 h-1.5 rounded-full transition-colors ${value === opt ? 'bg-[#B38B21]' : 'bg-transparent group-hover:bg-white/20'}`} />
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+};

@@ -256,6 +256,18 @@ export const getOrders = async (userId?: string): Promise<Order[]> => {
   }));
 };
 
+export const updateOrderStatus = async (id: string, status: Order['status']) => {
+  const { data, error } = await supabase
+    .from('orders')
+    .update({ status })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
 export const getOrder = async (id: string): Promise<Order | null> => {
   const { data, error } = await supabase
     .from('orders')
