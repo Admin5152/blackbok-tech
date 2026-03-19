@@ -95,9 +95,26 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     name: user?.name || '',
     email: user?.email || '',
     phone: '',
+    address: '',
     date: '',
     timeSlot: '',
     fulfillmentMethod: 'Headquarters' as 'Headquarters' | 'Pickup'
+  });
+
+  const [deviceDetails, setDeviceDetails] = useState({
+    serialNumber: '',
+    physicalDesc: '',
+    issueDesc: '',
+    whenStarted: '',
+    previousRepairs: ''
+  });
+
+  const [accessories, setAccessories] = useState({
+    chargers: false,
+    caseCover: false,
+    cables: false,
+    memory: false,
+    other: false
   });
 
   // Admin-managed device list
@@ -160,17 +177,24 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
   const submitRequest = async () => {
     if (!user) { navigate({ to: '/auth' }); return; }
     if (!selectedDevice || !selectedVariant) { notify('Please select your device', 'error'); return; }
-    if (!formData.name || !formData.email || !formData.phone) { notify('Please fill in all contact details', 'error'); return; }
+    if (!formData.name || !formData.email || !formData.phone || !formData.address) { notify('Please fill in all contact details', 'error'); return; }
 
     setSubmitting(true);
     try {
+      const accessoriesList = Object.entries(accessories)
+        .filter(([_, v]) => v)
+        .map(([k, _]) => k)
+        .join(', ');
+
+      const detailsText = `${notes ? notes + '\n\n' : ''}Serial Number: ${deviceDetails.serialNumber || 'N/A'}\nPhysical Description: ${deviceDetails.physicalDesc || 'N/A'}\nIssues: ${deviceDetails.issueDesc || 'N/A'}\nWhen Started: ${deviceDetails.whenStarted || 'N/A'}\nPrevious Repairs: ${deviceDetails.previousRepairs || 'N/A'}\nAccessories: ${accessoriesList || 'None'}`;
+
       const data = await createTradeRequest({
         user_id: user.id,
         user_name: formData.name,
         user_email: formData.email,
         device: `${selectedDevice.name} — ${selectedVariant}`,
         target_device: targetProduct?.name || '',
-        user_description: notes,
+        user_description: detailsText,
         preferred_date: formData.date,
         preferred_time: timeSlots.find(t => t.id === formData.timeSlot)?.time || '',
         contact_name: formData.name,
@@ -423,10 +447,32 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                 </div>
 
                 <div>
-                  <h3 className="text-base font-bold mb-2">Describe your device (optional)</h3>
-                  <p className="text-xs text-white/40 mb-2">Any accessories, box, receipts? Any damage or faults?</p>
-                  <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)}
-                    placeholder="e.g. Original box and charger included. Small crack on the back corner..."
+                  <h3 className="text-base font-bold mb-2">Device Details</h3>
+                  <div className="space-y-3">
+                    <input type="text" placeholder="Serial Number (Optional)" value={deviceDetails.serialNumber} onChange={e => setDeviceDetails({...deviceDetails, serialNumber: e.target.value})} className="w-full border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />
+                    <textarea rows={2} placeholder="Physical description (e.g. Scratches, dents?)" value={deviceDetails.physicalDesc} onChange={e => setDeviceDetails({...deviceDetails, physicalDesc: e.target.value})} className="w-full border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50 resize-none" />
+                    <textarea rows={2} placeholder="Issues description (Describe the problem)" value={deviceDetails.issueDesc} onChange={e => setDeviceDetails({...deviceDetails, issueDesc: e.target.value})} className="w-full border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50 resize-none" />
+                    <input type="text" placeholder="When did the issue start?" value={deviceDetails.whenStarted} onChange={e => setDeviceDetails({...deviceDetails, whenStarted: e.target.value})} className="w-full border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />
+                    <input type="text" placeholder="Any previous repairs made?" value={deviceDetails.previousRepairs} onChange={e => setDeviceDetails({...deviceDetails, previousRepairs: e.target.value})} className="w-full border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-base font-bold mb-2">Accessories Included</h3>
+                  <div className="grid grid-cols-2 gap-2 text-sm text-[var(--bb-text)] opacity-80">
+                    {Object.entries({chargers: 'Chargers', caseCover: 'Case / Cover', cables: 'Cables', memory: 'Memory', other: 'Other'}).map(([k, label]) => (
+                      <label key={k} className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={(accessories as any)[k]} onChange={e => setAccessories({...accessories, [k]: e.target.checked})} className="accent-[#CDA032]" />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-base font-bold mb-2">Additional Notes (Optional)</h3>
+                  <textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)}
+                    placeholder="Any other details..."
                     className="w-full border border-[var(--bb-border)] rounded-2xl px-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50 resize-none" />
                 </div>
 
@@ -508,6 +554,12 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                     <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
                     <input type="email" placeholder="Email Address" value={formData.email}
                       onChange={e => setFormData({ ...formData, email: e.target.value })}
+                      className="w-full border border-[var(--bb-border)] rounded-xl pl-10 pr-3 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />
+                  </div>
+                  <div className="relative sm:col-span-2">
+                    <MapPin size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
+                    <input type="text" placeholder="Physical Address" value={formData.address}
+                      onChange={e => setFormData({ ...formData, address: e.target.value })}
                       className="w-full border border-[var(--bb-border)] rounded-xl pl-10 pr-3 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />
                   </div>
                 </div>

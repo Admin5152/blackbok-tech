@@ -180,8 +180,16 @@ html[data-theme="light"] .bg-white\/3 {
 }
 
 /* Common dark hex backgrounds used across screens */
+html[data-theme="light"] .bg-\[\#060606\] {
+  background-color: var(--bb-bg) !important;
+}
+
 html[data-theme="light"] .bg-\[\#060605\] {
   background-color: var(--bb-bg) !important;
+}
+
+html[data-theme="light"] .bg-\[\#0d0d0d\] {
+  background-color: var(--bb-surface) !important;
 }
 
 html[data-theme="light"] .bg-\[\#0d0d0b\] {

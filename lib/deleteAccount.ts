@@ -79,15 +79,28 @@ export class DeleteAccountService {
         // Continue even if trades deletion fails
       }
 
-      // Delete the user's authentication account
-      const { error: deleteError } = await client.auth.admin.deleteUser(user.id);
-
-      if (deleteError) {
-        console.error('Error deleting user account:', deleteError);
-        return { success: false, error: 'Failed to delete account: ' + deleteError.message };
+      // Call the Supabase Edge Function to delete the user's authentication account
+      const { data: { session } } = await client.auth.getSession();
+      
+      if (!session) {
+        return { success: false, error: 'No active session found for deletion' };
       }
 
-      console.log('✅ Account deleted successfully');
+      const response = await fetch('https://crkmhpfgrvcnmqgiekjb.supabase.co/functions/v1/delete-account', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error deleting user account via Edge Function:', errorText);
+        return { success: false, error: 'Failed to delete account: ' + (errorText || response.statusText) };
+      }
+
+      console.log('✅ Account deleted successfully via Edge Function');
       return { success: true };
 
     } catch (error: any) {

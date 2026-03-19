@@ -129,10 +129,10 @@ export const Home: React.FC<HomeProps> = ({
             </div>
           )}
 
-          {/* Dark overlay for text readability */}
+          {/* Dark or light overlay for text readability */}
           <div className={`absolute inset-0 ${theme === 'dark'
             ? 'bg-gradient-to-r from-black/60 via-transparent to-black/40'
-            : 'bg-gradient-to-r from-black/20 via-transparent to-black/10'
+            : 'bg-gradient-to-r from-white/70 via-white/40 to-white/10'
             }`}></div>
         </div>
 
