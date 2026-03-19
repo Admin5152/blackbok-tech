@@ -336,31 +336,36 @@ body {
   color: var(--bb-text);
 }
 
-/* Premium Custom Scrollbars */
+/* Premium Custom Scrollbars (macOS / Glassmorphism inspired) */
 ::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
+  width: 14px; /* Slightly wider track to allow for borders acting as margins */
+  height: 14px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bb-bg);
+  background: transparent; /* Clean transparent track */
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #CDA032;
-  border-radius: 10px;
-  border: 4px solid var(--bb-bg);
-  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.15); /* Subtle glass thumb */
+  border-radius: 100px; /* Fully rounded */
+  border: 4px solid rgba(0, 0, 0, 0); /* Transparent border creates padding around the thumb */
+  background-clip: content-box; /* Makes the border act as padding */
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #B38B21;
+  background: rgba(255, 255, 255, 0.3); /* Brighter on hover */
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* Firefox support */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #CDA032 var(--bb-bg) !important;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
 
 /* Scrollable containers helper */
@@ -368,13 +373,16 @@ body {
   overflow: auto;
 }
 
-/* Ensure visibility on specific elements */
-.no-scrollbar {
-  scrollbar-width: thin !important;
-  -ms-overflow-style: auto !important;
+/* Proper Hiding Utilities */
+.scrollbar-hide::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
-.no-scrollbar::-webkit-scrollbar {
-  display: block !important;
-  width: 12px !important;
+.scrollbar-hide,
+.no-scrollbar {
+  -ms-overflow-style: none !important; /* IE and Edge */
+  scrollbar-width: none !important; /* Firefox */
 }

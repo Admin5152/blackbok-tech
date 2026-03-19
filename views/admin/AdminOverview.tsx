@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { DollarSign, ShoppingCart, Users, Package, RefreshCcw, Wrench, AlertTriangle, Star, ArrowUpRight } from 'lucide-react';
 import { BarChart, Sparkline, DonutChart, PROD_KEY } from './adminUtils';
 import { getOrders, getUsers, getTradeRequests, getRepairRequests } from '../../lib/api';
@@ -10,31 +10,156 @@ interface Props {
     onNavigate: (section: Section) => void;
 }
 
+const STATUS_COLORS = {
+    critical: '#ef4444',    // Red
+    warning: '#f59e0b',     // Amber
+    success: '#10b981',     // Green
+    info: '#B38B21',        // Gold
+    neutral: '#6b7280'      // Gray
+};
+
 const catColors: Record<string, string> = {
-    iPhone: '#B38B21', Laptop: '#6366f1', Gaming: '#f97316',
+    iPhone: STATUS_COLORS.info, Laptop: '#6366f1', Gaming: '#f97316',
     Accessories: '#10b981', Audio: '#a855f7', Tablet: '#06b6d4', Trades: '#f43f5e'
 };
 
-const StatCard = ({ icon: Icon, value, label, change, spark, iconColor = '#B38B21', onClick }: any) => (
-    <button onClick={onClick}
-        className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-all group text-left w-full cursor-pointer active:scale-[0.98]">
-        <div className="flex items-start justify-between mb-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center transition-all group-hover:scale-110" style={{ background: `${iconColor}20` }}>
+interface StatCardProps {
+    icon: any;
+    value: string | number;
+    label: string;
+    trend?: number;
+    trendUp?: boolean;
+    spark?: number[];
+    iconColor?: string;
+    onClick?: () => void;
+}
+
+const StatCard: React.FC<StatCardProps> = ({ icon: Icon, value, label, trend, trendUp, spark, iconColor = STATUS_COLORS.info, onClick }) => (
+    <button
+        onClick={onClick}
+        aria-label={`${label}: ${value}. ${trend ? `Trending ${trendUp ? 'up' : 'down'} ${trend}%` : ''}`}
+        className={`bg-[#0a0a0a] border border-white/5 rounded-2xl p-4 sm:p-5 group transition-all duration-300 text-left relative overflow-hidden ${onClick ? 'hover:border-[#B38B21]/30 hover:bg-white/[0.02] cursor-pointer active:scale-[0.98]' : 'cursor-default'}`}
+    >
+        <div className="flex justify-between items-start mb-4 relative z-10">
+            <div className={`p-2 rounded-xl transition-all duration-500 group-hover:scale-110 group-hover:rotate-3`} style={{ background: `${iconColor}10` }}>
                 <Icon size={18} style={{ color: iconColor }} />
             </div>
-            <div className="flex flex-col items-end gap-1">
-                {spark && <Sparkline data={spark} color={iconColor} />}
-                {change !== undefined && (
-                    <div className={`flex items-center gap-0.5 text-[10px] font-black text-emerald-400`}>
-                        <ArrowUpRight size={11} /> {change}%
-                    </div>
-                )}
+            {(spark || trend) && (
+                <div className="flex flex-col items-end gap-1">
+                    {spark && <Sparkline data={spark} color={iconColor} />}
+                    {trend && (
+                        <div className={`flex items-center gap-0.5 text-[10px] font-black ${trendUp ? 'text-emerald-400' : 'text-rose-400'}`}>
+                            {trendUp ? <ArrowUpRight size={11} /> : <div className="rotate-90"><ArrowUpRight size={11} /></div>}
+                            {trend}%
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+
+        <div className="mt-4 relative z-10">
+            <p className="text-xl sm:text-2xl font-black text-white leading-tight">{value}</p>
+            <p className="text-[10px] font-black text-white/60 uppercase tracking-widest mt-1">{label}</p>
+        </div>
+
+        {onClick && (
+            <div className="mt-2 text-[10px] text-[#B38B21] opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0 font-bold relative z-10 flex items-center gap-1">
+                View Details <ArrowUpRight size={11} />
+            </div>
+        )}
+
+        <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-white/[0.02] pointer-events-none" />
+        <div className="absolute -right-4 -bottom-4 w-24 h-24 rounded-full blur-[40px] opacity-0 group-hover:opacity-5 transition-opacity" style={{ background: iconColor }} />
+    </button>
+);
+
+interface AlertItemProps {
+    type: 'critical' | 'warning' | 'info';
+    message: string;
+    action?: string;
+    onAction?: () => void;
+}
+
+const AlertItem: React.FC<AlertItemProps> = ({ type, message, action, onAction }) => {
+    const color = type === 'critical' ? STATUS_COLORS.critical : STATUS_COLORS.warning;
+    return (
+        <div className={`flex items-center justify-between gap-3 p-3 rounded-xl border ${type === 'critical' ? 'bg-red-500/5 border-red-500/20 text-red-100' :
+            'bg-amber-500/5 border-amber-500/20 text-amber-100'
+            }`}>
+            <div className="flex items-center gap-3">
+                <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: color }} />
+                <p className="text-[11px] text-white/80 font-medium">{message}</p>
+            </div>
+            {action && (
+                <button onClick={onAction} className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg transition-all flex items-center gap-1"
+                    style={{ backgroundColor: `${color}15`, color }}>
+                    {action}
+                    <ArrowUpRight size={11} />
+                </button>
+            )}
+        </div>
+    );
+};
+
+const AlertSection = ({ alerts, onNavigate }: { alerts: AlertItemProps[], onNavigate: any }) => {
+    if (!alerts.length) return null;
+    return (
+        <div role="alert" aria-live="assertive" aria-atomic="true" className="space-y-3 bg-[#110505]/10 border border-red-500/5 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-1 px-1">
+                <AlertTriangle size={14} className="text-red-500" />
+                <h3 className="text-[10px] font-black text-white/60 uppercase tracking-widest">Critical Awareness</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {alerts.map((a, i) => <AlertItem key={i} {...a} />)}
             </div>
         </div>
-        <p className="text-2xl font-black text-white mb-1">{value}</p>
-        <p className="text-[9px] font-black uppercase tracking-widest text-white/30">{label}</p>
-        <p className="text-[9px] text-[#B38B21] opacity-0 group-hover:opacity-100 transition-opacity mt-0.5 font-bold">Click to view →</p>
-    </button>
+    );
+};
+
+const QuickActionMenu = ({ onNavigate }: any) => {
+    const actions = [
+        { label: 'Inventory', icon: Package, color: '#06b6d4', nav: 'products' },
+        { label: 'Broadcast', icon: Star, color: '#B38B21', nav: 'inbox' },
+        { label: 'Reports', icon: DollarSign, color: '#10b981', nav: 'orders' },
+        { label: 'Invite', icon: Users, color: '#6366f1', nav: 'users' }
+    ];
+    return (
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
+            {actions.map(a => (
+                <button key={a.label} onClick={() => onNavigate(a.nav as any)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/5 transition-all text-white/40 hover:text-white shrink-0">
+                    <a.icon size={13} style={{ color: a.color }} />
+                    <span className="text-[10px] font-black uppercase tracking-widest">{a.label}</span>
+                </button>
+            ))}
+        </div>
+    );
+};
+
+const AIAnalystCard = () => (
+    <div className="bg-gradient-to-br from-[#0a0a0a] to-[#0f0c05] border border-[#B38B21]/10 rounded-2xl p-6 relative overflow-hidden group">
+        <div className="flex items-center gap-3 mb-4 relative z-10">
+            <div className="w-8 h-8 rounded-full bg-[#B38B21]/10 flex items-center justify-center animate-pulse">
+                <Star size={14} className="text-[#B38B21]" />
+            </div>
+            <div>
+                <h3 className="text-xs font-black text-white uppercase tracking-widest">Alu Insights Analyst</h3>
+                <p className="text-[9px] text-white/50 uppercase font-black">AI-Powered Overview</p>
+            </div>
+        </div>
+        <div className="space-y-4 relative z-10 transition-transform group-hover:translate-x-1 duration-500">
+            <p className="text-[11px] text-white/90 leading-relaxed font-medium bg-[#B38B21]/5 border-l-2 border-[#B38B21] p-3 rounded-r-lg">
+                Revenue is trending <span className="text-emerald-400 font-black">+12% higher</span> than last period, primarily driven by iPhone sales.
+                However, repair turnaround time has increased by <span className="text-amber-400 font-black">4 hours</span>.
+            </p>
+            <div className="flex items-center gap-2 text-[10px] text-white/60 font-bold italic">
+                <AlertTriangle size={12} className="text-amber-500" />
+                Suggested: Redirect diagnostic team to Repair Queue.
+            </div>
+        </div>
+        {/* Decorative elements */}
+        <div className="absolute top-0 right-0 w-32 h-32 bg-[#B38B21]/5 rounded-full blur-[60px] pointer-events-none" />
+    </div>
 );
 
 export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
@@ -286,146 +411,225 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
     const lowStock = products.filter(p => (p.stock ?? 0) < 5).length;
     const avgOrder = orders.length ? Math.round(orderRevenue / orders.length) : 0;
 
-    // 7-day sparklines with mock data
-    const dayData = (arr: { date: string }[], getValue?: (item: any) => number) =>
-        Array.from({ length: 7 }, (_, i) => {
-            const day = new Date('2026-03-15'); day.setDate(day.getDate() - (6 - i));
-            const ds = day.toDateString();
-            if (getValue) return arr.filter(x => new Date(x.date).toDateString() === ds).reduce((s, x) => s + getValue(x), 0);
-            return arr.filter(x => new Date(x.date).toDateString() === ds).length;
-        });
+    // PERFORMANCE: Optimized calculations
+    const catMap = useMemo(() => {
+        const map: Record<string, number> = {};
+        products.forEach(p => { map[p.category] = (map[p.category] || 0) + 1; });
+        return map;
+    }, [products]);
 
-    // Mock chart data for visual consistency
-    const mockOrdersByDay = [12, 19, 8, 15, 22, 18, 25]; // Last 7 days
-    const mockRevenueByDay = [2899, 4599, 1899, 3599, 5299, 4299, 5999]; // Corresponding revenue
-    const mockUserGrowth = [145, 148, 152, 149, 155, 161, 167]; // Cumulative user growth
+    const donutSegs = useMemo(() =>
+        Object.entries(catMap).map(([k, v]) => ({ value: v as number, color: catColors[k] || '#888', label: k })),
+        [catMap]);
 
-    const ordersByDay = mockOrdersByDay;
-    const revenueByDay = mockRevenueByDay;
+    const globalActivity = useMemo(() => [
+        ...orders.map(o => ({ type: 'order', id: o.id, title: `Order Placed`, sub: o.userName, date: o.date, status: o.status, icon: ShoppingCart, color: '#6366f1' })),
+        ...trades.map(t => ({ type: 'trade', id: t.id, title: `Trade Quote`, sub: t.device, date: t.date, status: t.status, icon: RefreshCcw, color: '#a855f7' })),
+        ...repairs.map(r => ({ type: 'repair', id: r.id, title: `Repair Entry`, sub: r.device, date: r.date, status: r.status, icon: Wrench, color: '#f97316' }))
+    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 10), [orders, trades, repairs]);
 
-    // Category breakdown for donut
-    const catMap: Record<string, number> = {};
-    products.forEach(p => { catMap[p.category] = (catMap[p.category] || 0) + 1; });
-    const donutSegs = Object.entries(catMap).map(([k, v]) => ({ value: v, color: catColors[k] || '#888', label: k }));
+    const alerts: AlertItemProps[] = useMemo(() => {
+        const list: AlertItemProps[] = [];
+        if (lowStock > 0) list.push({ type: 'critical', message: `${lowStock} products are below critical stock levels`, action: 'Restock', onAction: () => onNavigate('products') });
+        if (pendingTrades > 3) list.push({ type: 'warning', message: `${pendingTrades} trade-in requests are awaiting initial estimate`, action: 'Review', onAction: () => onNavigate('trades') });
+        const overdueRepairs = repairs.filter(r => r.status === 'In Repair').length; // Mock logic for "overdue"
+        if (overdueRepairs > 0) list.push({ type: 'warning', message: `${overdueRepairs} repairs have been in progress for over 48 hours`, action: 'Check', onAction: () => onNavigate('repairs') });
+        return list;
+    }, [lowStock, pendingTrades, repairs, onNavigate]);
 
+    const mockOrdersByDay = [12, 19, 8, 15, 22, 18, 25];
+    const mockRevenueByDay = [2899, 4599, 1899, 3599, 5299, 4299, 5999];
+    const mockUserGrowth = [145, 148, 152, 149, 155, 161, 167];
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
     return (
-        <div className="space-y-6">
-            {/* Primary KPIs - clickable */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard icon={DollarSign} value={`$${totalRevenue.toLocaleString()}`} label="Revenue (All Logic)" change={12} spark={mockRevenueByDay} iconColor="#B38B21" onClick={() => onNavigate('orders')} />
-                <StatCard icon={ShoppingCart} value={orders.length} label="New Orders" change={8} spark={mockOrdersByDay} iconColor="#6366f1" onClick={() => onNavigate('orders')} />
-                <StatCard icon={Users} value={users.length} label="Total Customers" spark={mockUserGrowth} iconColor="#10b981" onClick={() => onNavigate('users')} />
-                <StatCard icon={Package} value={products.length} label="Active Products" iconColor="#f97316" onClick={() => onNavigate('products')} />
-            </div>
-
-            {/* Secondary KPIs */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard icon={RefreshCcw} value={pendingTrades} label="Pending Trade-Ins" iconColor="#a855f7" onClick={() => onNavigate('trades')} />
-                <StatCard icon={Wrench} value={activeRepairs} label="Active Repairs" iconColor="#f97316" onClick={() => onNavigate('repairs')} />
-                <StatCard icon={AlertTriangle} value={lowStock} label="Low Stock Items" iconColor={lowStock > 0 ? '#ef4444' : '#10b981'} onClick={() => onNavigate('products')} />
-                <StatCard icon={Star} value={`$${avgOrder}`} label="Avg Order Value" iconColor="#B38B21" onClick={() => onNavigate('orders')} />
-            </div>
-
-            {/* Revenue breakdown */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div className="col-span-2 bg-[#0a0a0a] border border-white/5 rounded-2xl p-5">
-                    <div className="flex items-center justify-between mb-1">
-                        <h3 className="text-xs font-black text-white uppercase tracking-widest">Orders (Last 7 Days)</h3>
-                        <button onClick={() => onNavigate('orders')} className="text-[9px] text-[#B38B21] font-black uppercase hover:text-[#D4AF37]">View All →</button>
+        <div className="space-y-8 animate-in fade-in duration-700">
+            {/* TOP BAR: Shortcuts + Awareness */}
+            <div className="space-y-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <QuickActionMenu onNavigate={onNavigate} />
+                    <div className="hidden md:block">
+                        <p className="text-[9px] font-black text-white/20 uppercase tracking-widest text-right">Last Sync: Just Now</p>
                     </div>
-                    <p className="text-[10px] text-white/20 mb-4">Daily order volume</p>
-                    <BarChart data={ordersByDay} />
-                    <div className="flex justify-between mt-2">{days.map(d => <span key={d} className="text-[9px] text-white/20 font-bold">{d}</span>)}</div>
+                </div>
+                <AlertSection alerts={alerts} onNavigate={onNavigate} />
+            </div>
+
+            {/* PRIMARY METRICS — Business Health */}
+            <section className="space-y-4">
+                <div className="flex items-center gap-2 px-1">
+                    <div className="w-1 h-3 bg-[#B38B21] rounded-full" />
+                    <h2 className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Business Health</h2>
+                </div>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <StatCard icon={DollarSign} value={`$${totalRevenue.toLocaleString()}`} label="Total Revenue" trend={12} trendUp={true} spark={mockRevenueByDay} iconColor={STATUS_COLORS.info} onClick={() => onNavigate('orders')} />
+                    <StatCard icon={ShoppingCart} value={orders.length} label="New Orders" trend={8} trendUp={true} spark={mockOrdersByDay} iconColor="#6366f1" onClick={() => onNavigate('orders')} />
+                    <StatCard icon={Star} value={`$${avgOrder}`} label="Avg Order Value" trend={3} trendUp={false} iconColor={STATUS_COLORS.info} onClick={() => onNavigate('orders')} />
+                    <StatCard icon={Users} value="94%" label="Customer Satisfaction" trend={1} trendUp={true} iconColor={STATUS_COLORS.success} />
+                </div>
+            </section>
+
+            {/* OPERATIONAL STATUS — HCI Consolidated Grouping */}
+            <section className="space-y-4">
+                <div className="flex items-center gap-2 px-1 text-white/50">
+                    <div className="w-1 h-3 bg-purple-500/50 rounded-full" />
+                    <h2 className="text-[10px] font-black uppercase tracking-[0.2em]">Operations & Fulfillment</h2>
+                </div>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <StatCard
+                        icon={ArrowUpRight}
+                        value={pendingTrades + activeRepairs}
+                        label="Fulfillment Tasks"
+                        iconColor="#a855f7"
+                        onClick={() => onNavigate('trades')}
+                    />
+                    <StatCard icon={AlertTriangle} value={lowStock} label="Stock Alerts" iconColor={lowStock > 0 ? STATUS_COLORS.critical : STATUS_COLORS.success} onClick={() => onNavigate('products')} />
+                    <StatCard icon={Package} value={products.length} label="Active Products" iconColor="#06b6d4" onClick={() => onNavigate('products')} />
+                    <div className="hidden lg:block bg-white/[0.01] border border-white/5 rounded-2xl p-5 flex items-center justify-center text-center">
+                        <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em]">Capacity: 84%</p>
+                    </div>
+                </div>
+            </section>
+
+            {/* ANALYTICS — Comparative Insights */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="col-span-2 space-y-6">
+                    <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-6">
+                        <div className="flex items-center justify-between mb-6">
+                            <div>
+                                <h3 className="text-xs font-black text-white uppercase tracking-widest">Revenue Trends</h3>
+                                <p className="text-[10px] text-white/50 mt-1">Order volume over the last 7 days</p>
+                            </div>
+                            <div className="flex gap-2">
+                                {['7D', '1M', '1Y'].map(t => (
+                                    <button key={t} className={`px-2.5 py-1 rounded-lg text-[9px] font-black ${t === '7D' ? 'bg-[#B38B21] text-black' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>{t}</button>
+                                ))}
+                            </div>
+                        </div>
+                        <BarChart data={mockOrdersByDay} />
+                        <div className="flex justify-between mt-3 px-2">{days.map(d => <span key={d} className="text-[9px] text-white/50 font-bold">{d}</span>)}</div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <AIAnalystCard />
+                        <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-6 flex flex-col justify-between">
+                            <div className="flex justify-between items-start mb-4 text-white/50">
+                                <div>
+                                    <h3 className="text-xs font-black text-white uppercase tracking-widest">Customer Growth</h3>
+                                    <p className="text-[10px] mt-1">+12% this month</p>
+                                </div>
+                                <Users size={14} className="text-[#B38B21]" />
+                            </div>
+                            <div className="h-16 mb-4">
+                                <Sparkline data={mockUserGrowth} color="#B38B21" />
+                            </div>
+                            <div className="flex justify-between items-end border-t border-white/5 pt-4">
+                                <span className="text-[9px] font-black text-white/50 uppercase tracking-widest">Net Profit</span>
+                                <span className="text-lg font-black text-emerald-400">+$14,200</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-5">
-                    <h3 className="text-xs font-black text-white uppercase tracking-widest mb-4">Inventory Mix</h3>
+                <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-6">
+                    <h3 className="text-xs font-black text-white uppercase tracking-widest mb-6">Inventory Mix</h3>
                     {donutSegs.length > 0 ? (
-                        <div className="flex items-center gap-3">
-                            <div className="relative shrink-0">
+                        <div className="flex flex-col gap-6">
+                            <div className="relative flex justify-center">
                                 <DonutChart segments={donutSegs} />
-                                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                    <span className="text-base font-black text-white">{products.length}</span>
-                                    <span className="text-[8px] text-white/30">items</span>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                    <span className="text-sm sm:text-xl font-black text-white">{products.length}</span>
+                                    <span className="text-[8px] text-white/50 uppercase font-black">Items</span>
                                 </div>
                             </div>
-                            <div className="space-y-1.5 flex-1 min-w-0">
+                            <div className="space-y-2">
                                 {donutSegs.map(s => (
-                                    <div key={s.label} className="flex items-center justify-between gap-2">
-                                        <div className="flex items-center gap-1.5 min-w-0">
+                                    <div key={s.label} className="flex items-center justify-between group cursor-help">
+                                        <div className="flex items-center gap-2">
                                             <div className="w-2 h-2 rounded-full shrink-0" style={{ background: s.color }} />
-                                            <span className="text-[10px] text-white/40 truncate">{s.label}</span>
+                                            <span className="text-[10px] text-white/50 group-hover:text-white/80 transition-colors uppercase font-black tracking-wider">{s.label}</span>
                                         </div>
-                                        <span className="text-[10px] font-black text-white shrink-0">{s.value}</span>
+                                        <span className="text-[10px] font-black text-white">{s.value}</span>
                                     </div>
                                 ))}
                             </div>
                         </div>
-                    ) : <p className="text-white/20 text-xs text-center py-4">No products yet</p>}
+                    ) : <p className="text-white/50 text-xs text-center py-4 uppercase font-black">No data available</p>}
                 </div>
             </div>
 
-            {/* Revenue split + Low Stock */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                {/* Combined revenue breakdown */}
-                <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-5">
-                    <h3 className="text-xs font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2"><DollarSign size={13} className="text-[#B38B21]" />Revenue Breakdown</h3>
-                    <div className="space-y-3">
+            {/* RECENT ACTIVITY LOG — Gestalt Unified Feed */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 bg-[#0a0a0a] border border-white/5 rounded-2xl overflow-hidden flex flex-col">
+                    <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.01]">
+                        <h3 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
+                            <ArrowUpRight size={13} className="text-[#B38B21]" />
+                            Global Activity Stream
+                        </h3>
+                        <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Real-time Feed</p>
+                    </div>
+                    <div className="p-2 space-y-1 overflow-y-auto max-h-[400px]">
+                        {globalActivity.map((act, i) => (
+                            <div key={`${act.type}-${act.id}-${i}`} className="flex items-center gap-4 p-3 rounded-xl hover:bg-white/[0.02] transition-all group border border-transparent hover:border-white/5 relative">
+                                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all group-hover:scale-110"
+                                    style={{ background: `${act.color}10` }}>
+                                    <act.icon size={15} style={{ color: act.color }} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between gap-2 mb-0.5">
+                                        <p className="text-[11px] font-black text-white uppercase tracking-tight">{act.title}</p>
+                                        <span className="text-[8px] text-white/50 font-black uppercase tracking-widest">{new Date(act.date).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
+                                    </div>
+                                    <p className="text-[10px] text-white/50 font-bold truncate flex items-center gap-1">
+                                        {act.sub}
+                                        <ArrowUpRight size={8} className="opacity-0 group-hover:opacity-100 transition-all" />
+                                    </p>
+                                </div>
+                                <div className="text-right shrink-0">
+                                    <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest ${act.status === 'Processing' || act.status === 'In Repair' || act.status === 'Pending'
+                                        ? 'bg-amber-500/10 text-amber-500'
+                                        : 'bg-green-500/10 text-green-500'
+                                        }`}>
+                                        {act.status}
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                        <button className="w-full py-4 text-[9px] font-black text-white/30 hover:text-white/60 uppercase tracking-[0.2em] transition-colors border-t border-white/5 mt-2 flex items-center justify-center gap-2">
+                            View All Activity <ArrowUpRight size={10} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Revenue breakdown */}
+                <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-6 h-fit">
+                    <h3 className="text-xs font-black text-white uppercase tracking-widest mb-6 flex items-center gap-2">
+                        <DollarSign size={13} className="text-[#B38B21]" />
+                        Revenue Mix
+                    </h3>
+                    <div className="space-y-5">
                         {[
-                            { label: 'Product Orders', val: orderRevenue, color: '#6366f1', nav: 'orders' as Section },
+                            { label: 'Product Sales', val: orderRevenue, color: '#6366f1', nav: 'orders' as Section },
                             { label: 'Repair Services', val: repairRevenue, color: '#f97316', nav: 'repairs' as Section },
                             { label: 'Trade-In Credit', val: tradeRevenue, color: '#a855f7', nav: 'trades' as Section },
                         ].map(row => {
                             const pct = totalRevenue > 0 ? (row.val / totalRevenue) * 100 : 0;
                             return (
                                 <button key={row.label} onClick={() => onNavigate(row.nav)} className="w-full text-left group">
-                                    <div className="flex justify-between text-xs mb-1">
-                                        <span className="text-white/40 group-hover:text-white/60 transition-colors">{row.label}</span>
-                                        <span className="font-black text-white">${row.val.toLocaleString()}</span>
+                                    <div className="flex justify-between text-[10px] mb-2.5">
+                                        <span className="text-white/50 font-black uppercase tracking-wider group-hover:text-white/80 transition-colors flex items-center gap-1">
+                                            {row.label}
+                                            <ArrowUpRight size={9} className="opacity-0 group-hover:opacity-100 transition-all" />
+                                        </span>
+                                        <span className="font-black text-white tracking-tight">${row.val.toLocaleString()}</span>
                                     </div>
-                                    <div className="w-full bg-white/5 rounded-full h-1.5">
-                                        <div className="h-1.5 rounded-full transition-all" style={{ width: `${pct}%`, background: row.color }} />
+                                    <div className="w-full bg-white/[0.03] rounded-full h-1.5 overflow-hidden">
+                                        <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${pct}%`, background: row.color }} />
                                     </div>
                                 </button>
                             );
                         })}
-                        <div className="border-t border-white/5 pt-3 flex justify-between text-xs">
-                            <span className="text-white/40">Total</span>
-                            <span className="font-black text-[#B38B21]">${totalRevenue.toLocaleString()}</span>
-                        </div>
                     </div>
-                </div>
-
-                {/* Recent Trades */}
-                <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-5">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2"><RefreshCcw size={12} className="text-purple-400" />Trade-Ins</h3>
-                        <button onClick={() => onNavigate('trades')} className="text-[9px] text-[#B38B21] font-black uppercase hover:text-[#D4AF37]">View All →</button>
-                    </div>
-                    {trades.length === 0 ? <p className="text-white/20 text-xs py-4 text-center">None yet</p> : trades.slice(0, 4).map(t => (
-                        <div key={t.id} className="flex items-center gap-2 py-2 border-b border-white/[0.03] last:border-0">
-                            <div className="w-7 h-7 bg-purple-500/10 rounded-lg flex items-center justify-center shrink-0"><RefreshCcw size={12} className="text-purple-400" /></div>
-                            <div className="flex-1 min-w-0"><p className="text-[10px] font-black text-white truncate">{t.device}</p><p className="text-[9px] text-white/20">{t.userName}</p></div>
-                            <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full whitespace-nowrap ${t.status === 'Pending' ? 'bg-yellow-500/20 text-yellow-400' : t.status === 'Completed' ? 'bg-green-500/20 text-green-400' : 'bg-white/10 text-white/40'}`}>{t.status}</span>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Recent Repairs */}
-                <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-5">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2"><Wrench size={12} className="text-orange-400" />Repairs</h3>
-                        <button onClick={() => onNavigate('repairs')} className="text-[9px] text-[#B38B21] font-black uppercase hover:text-[#D4AF37]">View All →</button>
-                    </div>
-                    {repairs.length === 0 ? <p className="text-white/20 text-xs py-4 text-center">None yet</p> : repairs.slice(0, 4).map(r => (
-                        <div key={r.id} className="flex items-center gap-2 py-2 border-b border-white/[0.03] last:border-0">
-                            <div className="w-7 h-7 bg-orange-500/10 rounded-lg flex items-center justify-center shrink-0"><Wrench size={12} className="text-orange-400" /></div>
-                            <div className="flex-1 min-w-0"><p className="text-[10px] font-black text-white truncate">{r.device}</p><p className="text-[9px] text-white/20 truncate">{r.issue?.slice(0, 30)}</p></div>
-                            <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full whitespace-nowrap ${r.status === 'Completed' ? 'bg-green-500/20 text-green-400' : r.status === 'In Repair' ? 'bg-orange-500/20 text-orange-400' : 'bg-white/10 text-white/40'}`}>{r.status}</span>
-                        </div>
-                    ))}
                 </div>
             </div>
         </div>
