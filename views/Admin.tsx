@@ -7,7 +7,7 @@ import { AdminProducts } from './admin/AdminProducts';
 import { AdminTrades } from './admin/AdminTrades';
 import { AdminRepairs } from './admin/AdminRepairs';
 import { AdminUsers } from './admin/AdminUsers';
-import { AdminInbox } from './admin/AdminInbox';
+// import { AdminInbox } from './admin/AdminInbox';
 import {
   Home, Users, Package, ShoppingCart, RefreshCcw,
   Wrench, LogOut, Menu, X, Shield, MessageSquare
@@ -23,7 +23,7 @@ export type AdminSection = 'overview' | 'inbox' | 'orders' | 'customers' | 'prod
 
 const NAV_ITEMS: { id: AdminSection; label: string; icon: any }[] = [
   { id: 'overview', label: 'Overview', icon: Home },
-  { id: 'inbox', label: 'Inbox', icon: MessageSquare },
+  // { id: 'inbox', label: 'Inbox', icon: MessageSquare },
   { id: 'orders', label: 'Orders', icon: ShoppingCart },
   { id: 'customers', label: 'Customers', icon: Users },
   { id: 'products', label: 'Products', icon: Package },
@@ -161,7 +161,7 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo }) => {
         {/* Content */}
         <main className="flex-1 overflow-auto p-4 sm:p-5 lg:p-6">
           {section === 'overview' && <AdminOverview onNavigate={navigate} />}
-          {section === 'inbox' && <AdminInbox />}
+          {/* {section === 'inbox' && <AdminInbox />} */}
           {section === 'orders' && <AdminOrders />}
           {section === 'customers' && <AdminCustomers />}
           {section === 'products' && <AdminProducts canEdit={isSales} />}

@@ -186,7 +186,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
         .map(([k, _]) => k)
         .join(', ');
 
-      const detailsText = `${notes ? notes + '\n\n' : ''}Serial Number: ${deviceDetails.serialNumber || 'N/A'}\nPhysical Description: ${deviceDetails.physicalDesc || 'N/A'}\nIssues: ${deviceDetails.issueDesc || 'N/A'}\nWhen Started: ${deviceDetails.whenStarted || 'N/A'}\nPrevious Repairs: ${deviceDetails.previousRepairs || 'N/A'}\nAccessories: ${accessoriesList || 'None'}`;
+      const detailsText = `${notes ? notes + '\n\n' : ''}Serial/IMEI: ${deviceDetails.serialNumber || 'N/A'}\nPhysical Description: ${deviceDetails.physicalDesc || 'N/A'}\nIssues: ${deviceDetails.issueDesc || 'N/A'}\nWhen Started: ${deviceDetails.whenStarted || 'N/A'}\nPrevious Repairs: ${deviceDetails.previousRepairs || 'N/A'}\nAccessories: ${accessoriesList || 'None'}`;
 
       const data = await createTradeRequest({
         user_id: user.id,
@@ -449,7 +449,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                 <div>
                   <h3 className="text-base font-bold mb-2">Device Details</h3>
                   <div className="space-y-3">
-                    <input type="text" placeholder="Serial Number (Optional)" value={deviceDetails.serialNumber} onChange={e => setDeviceDetails({...deviceDetails, serialNumber: e.target.value})} className="w-full border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />
+                    <input type="text" placeholder="Serial / IMEI Number (Optional)" value={deviceDetails.serialNumber} onChange={e => setDeviceDetails({...deviceDetails, serialNumber: e.target.value})} className="w-full border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />
                     <textarea rows={2} placeholder="Physical description (e.g. Scratches, dents?)" value={deviceDetails.physicalDesc} onChange={e => setDeviceDetails({...deviceDetails, physicalDesc: e.target.value})} className="w-full border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50 resize-none" />
                     <textarea rows={2} placeholder="Issues description (Describe the problem)" value={deviceDetails.issueDesc} onChange={e => setDeviceDetails({...deviceDetails, issueDesc: e.target.value})} className="w-full border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50 resize-none" />
                     <input type="text" placeholder="When did the issue start?" value={deviceDetails.whenStarted} onChange={e => setDeviceDetails({...deviceDetails, whenStarted: e.target.value})} className="w-full border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />

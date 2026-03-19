@@ -26,16 +26,36 @@ export const Repair: React.FC = () => {
     deviceType: '',
     brand: '',
     model: '',
+    serialImei: '',
+    physicalDescription: '',
     description: '',
+    whenStarted: '',
+    previouslyRepaired: 'no',
+    previousRepairDetails: '',
+    accessories: {
+      charger: false,
+      caseCover: false,
+      cables: false,
+      memorySim: false,
+      other: false
+    },
     date: '',
     timeSlot: '',
     name: user?.name || '',
     email: user?.email || '',
     phone: '',
     address: '',
+    devicePassword: '',
     photos: [] as string[],
     urgency: 'standard',
-    fulfillmentMethod: 'Headquarters' as 'Headquarters' | 'Pickup'
+    fulfillmentMethod: 'Headquarters' as 'Headquarters' | 'Pickup',
+    diagnosticFee: 'waived' as 'waived' | 'accepted',
+    diagnosticFeeAmount: '',
+    repairApproval: 'quote' as 'authorize' | 'quote',
+    repairApprovalLimit: '',
+    dataBackup: 'acknowledges' as 'requests' | 'acknowledges',
+    agreesToTerms: false,
+    clientSignature: ''
   });
 
   const formRef = useRef<HTMLDivElement>(null);
@@ -98,9 +118,25 @@ export const Repair: React.FC = () => {
     if (!user) { navigate({ to: '/auth' }); return; }
     if (submitting) return;
     const selectedLabels = Array.from(selectedIssueKeys).map(k => repairServicesMap[k as keyof typeof repairServicesMap].label);
-    const issueText = selectedLabels.length > 0
-      ? `${selectedLabels.join(', ')}${formData.description ? ' – ' + formData.description : ''}`
-      : formData.description;
+    const accessoriesList = Object.entries(formData.accessories).filter(([_, v]) => v).map(([k]) => k).join(', ');
+    const issueText = `
+Diagnostics: ${selectedLabels.join(', ') || 'N/A'}
+Description: ${formData.description || 'N/A'}
+When Started: ${formData.whenStarted || 'N/A'}
+Previously Repaired: ${formData.previouslyRepaired === 'yes' ? formData.previousRepairDetails : 'No'}
+
+[Device Condition]
+Serial/IMEI: ${formData.serialImei || 'N/A'}
+Physical Description: ${formData.physicalDescription || 'N/A'}
+Accessories: ${accessoriesList || 'None'}
+Device Password: ${formData.devicePassword || 'None provided'}
+
+[Authorization & Terms]
+Diagnostic Fee: ${formData.diagnosticFee === 'accepted' ? 'Accepted (GHC ' + formData.diagnosticFeeAmount + ')' : 'Waived'}
+Repair Cost Auth: ${formData.repairApproval === 'authorize' ? 'Authorized up to GHC ' + formData.repairApprovalLimit : 'Require Quote'}
+Data Backup: ${formData.dataBackup === 'requests' ? 'Client Requests Backup' : 'Client acknowledges data loss'}
+Signed by: ${formData.clientSignature} (Agreed: ${formData.agreesToTerms ? 'Yes' : 'No'})
+    `.trim();
     setSubmitting(true);
     try {
       const created = await createRepairRequest({
@@ -468,6 +504,11 @@ export const Repair: React.FC = () => {
                               );
                             })}
                           </div>
+                          <div className="space-y-3 pt-4 border-t border-[var(--bb-border)]/50">
+                            <h3 className="text-xs font-bold opacity-80 uppercase tracking-widest text-[#CDA032]">Device Specifics</h3>
+                            <input placeholder="Serial / IMEI Number (Optional)" value={formData.serialImei} onChange={e => setFormData({ ...formData, serialImei: e.target.value })} className="w-full bg-[var(--bb-surface-2)] border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm focus:border-[#CDA032] outline-none" />
+                            <textarea placeholder="Physical Description (Color, scratches, visible defects)" value={formData.physicalDescription} onChange={e => setFormData({ ...formData, physicalDescription: e.target.value })} rows={2} className="w-full bg-[var(--bb-surface-2)] border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm focus:border-[#CDA032] outline-none resize-none" />
+                          </div>
                           <div className="pt-2">
                             <button
                               onClick={() => {
@@ -495,6 +536,11 @@ export const Repair: React.FC = () => {
                             />
                             <p className="text-[10px] font-medium text-white/40 leading-relaxed uppercase tracking-widest">Please enter the full model name as seen on the device back or in settings.</p>
                           </div>
+                        </div>
+                        <div className="space-y-4 pt-4 border-t border-[var(--bb-border)]/50">
+                          <h3 className="text-xs font-bold opacity-80 uppercase tracking-widest text-[#CDA032]">Device Specifics (Optional)</h3>
+                          <input placeholder="Serial / IMEI Number" value={formData.serialImei} onChange={e => setFormData({ ...formData, serialImei: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm focus:border-[#CDA032] outline-none" />
+                          <textarea placeholder="Physical Description (Color, inscriptions, visible defects)" value={formData.physicalDescription} onChange={e => setFormData({ ...formData, physicalDescription: e.target.value })} rows={2} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm focus:border-[#CDA032] outline-none resize-none" />
                         </div>
                         <button
                           onClick={() => {
@@ -645,15 +691,62 @@ export const Repair: React.FC = () => {
                         ))}
                       </div>
 
-                      <textarea
-                        placeholder={selectedIssueKeys.has('UNKNOWN') || selectedIssueKeys.has('H')
-                          ? "Please explain the symptoms as best as you can..."
-                          : "Any additional details we should know? (Optional)"}
-                        value={formData.description}
-                        onChange={e => setFormData({ ...formData, description: e.target.value })}
-                        rows={4}
-                        className="w-full border border-[var(--bb-border)] rounded-2xl px-5 py-4 text-sm bg-[var(--bb-surface)] outline-none transition-all focus:border-[#CDA032]/50 focus:ring-1 focus:ring-[#CDA032]/20 resize-none leading-relaxed shadow-inner"
-                      />
+                      <div className="space-y-4">
+                        <textarea
+                          placeholder={selectedIssueKeys.has('UNKNOWN') || selectedIssueKeys.has('H')
+                            ? "Please explain the symptoms as best as you can..."
+                            : "Describe the problem in detail"}
+                          value={formData.description}
+                          onChange={e => setFormData({ ...formData, description: e.target.value })}
+                          rows={3}
+                          className="w-full border border-[var(--bb-border)] rounded-2xl px-5 py-3 text-sm bg-[var(--bb-surface-2)] outline-none transition-all focus:border-[#CDA032]/50 focus:ring-1 focus:ring-[#CDA032]/20 resize-none leading-relaxed shadow-inner"
+                        />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <input
+                            placeholder="When did it start? (e.g. 2 days ago)"
+                            value={formData.whenStarted}
+                            onChange={e => setFormData({ ...formData, whenStarted: e.target.value })}
+                            className="w-full border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface-2)] outline-none transition-all focus:border-[#CDA032]/50 focus:ring-1 focus:ring-[#CDA032]/20"
+                          />
+                          <div className="flex bg-[var(--bb-surface-2)] border border-[var(--bb-border)] rounded-xl p-1 relative">
+                            <div className="absolute top-1/2 left-4 -translate-y-1/2 text-[10px] font-bold uppercase tracking-widest opacity-60 pointer-events-none">Previously Repaired?</div>
+                            <div className="flex flex-1 justify-end gap-1">
+                              <button onClick={() => setFormData({ ...formData, previouslyRepaired: 'no' })} className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${formData.previouslyRepaired === 'no' ? 'bg-[var(--bb-surface)] text-white shadow' : 'opacity-60 hover:opacity-100'}`}>No</button>
+                              <button onClick={() => setFormData({ ...formData, previouslyRepaired: 'yes' })} className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${formData.previouslyRepaired === 'yes' ? 'bg-[#CDA032]/20 text-[#CDA032] shadow ring-1 ring-[#CDA032]' : 'opacity-60 hover:opacity-100'}`}>Yes</button>
+                            </div>
+                          </div>
+                        </div>
+                        {formData.previouslyRepaired === 'yes' && (
+                          <input
+                            placeholder="Please describe the previous repairs briefly..."
+                            value={formData.previousRepairDetails}
+                            onChange={e => setFormData({ ...formData, previousRepairDetails: e.target.value })}
+                            className="w-full border border-[#CDA032]/50 rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface-2)] outline-none transition-all focus:border-[#CDA032] focus:ring-1 focus:ring-[#CDA032]/20 animate-in fade-in"
+                          />
+                        )}
+                        
+                        <div className="pt-2">
+                          <p className="text-xs opacity-60 font-medium mb-3">Check Included Accessories</p>
+                          <div className="flex flex-wrap gap-2">
+                            {([
+                              { id: 'charger', label: 'Charger' },
+                              { id: 'caseCover', label: 'Case/Cover' },
+                              { id: 'cables', label: 'Cables' },
+                              { id: 'memorySim', label: 'Memory Card/SIM' },
+                              { id: 'other', label: 'Other' },
+                            ] as const).map(acc => (
+                              <button
+                                key={acc.id}
+                                onClick={() => setFormData({ ...formData, accessories: { ...formData.accessories, [acc.id]: !formData.accessories[acc.id] } })}
+                                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all border ${formData.accessories[acc.id] ? 'bg-[#CDA032]/10 border-[#CDA032] text-[#CDA032]' : 'bg-[var(--bb-surface-2)] border-[var(--bb-border)] opacity-70 hover:opacity-100'}`}
+                              >
+                                {formData.accessories[acc.id] && <Check size={12} />}
+                                {acc.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
                     <div className="space-y-4 pt-4">
@@ -842,6 +935,30 @@ export const Repair: React.FC = () => {
                       />
                     </div>
                   </div>
+                  
+                  {/* Device Access Section */}
+                  <div className="mt-8 pt-8 border-t border-[var(--bb-border)]">
+                    <div className="space-y-2 mb-4">
+                      <h2 className="text-xl font-bold tracking-tight">Device Access</h2>
+                      <p className="opacity-60 text-sm">Required for our technicians to perform post-repair diagnostics.</p>
+                    </div>
+                    <div className="relative">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 opacity-40 pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="Device Password / PIN (Optional but recommended)"
+                        value={formData.devicePassword}
+                        onChange={e => setFormData({ ...formData, devicePassword: e.target.value })}
+                        className="w-full border border-[var(--bb-border)] rounded-xl pl-10 pr-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50"
+                      />
+                    </div>
+                    <p className="text-[10px] uppercase tracking-widest opacity-40 mt-2 font-bold flex items-center gap-1.5">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                      Passwords are treated with strict confidentiality
+                    </p>
+                  </div>
                 </div>
 
                 <div className="pt-8">
@@ -853,7 +970,7 @@ export const Repair: React.FC = () => {
                     }}
                     className="flex items-center gap-2 px-8 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] hover:scale-[1.02] active:scale-95 transition-all"
                   >
-                    Review Final Request <ArrowRight size={16} />
+                    Proceed to Authorization <ArrowRight size={16} />
                   </button>
                 </div>
               </div>
@@ -933,9 +1050,90 @@ export const Repair: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="pt-4">
+                {/* --- Step 4.B: Diagnostic & Repair Authorization --- */}
+                <div className="space-y-6 pt-6">
+                  <h3 className="text-xl font-bold tracking-tight">Diagnostic &amp; Repair Authorization</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-[var(--bb-surface)] border border-[var(--bb-border)] p-6 rounded-3xl shadow-lg">
+                    {/* Diagnostic Fee */}
+                    <div className="space-y-3">
+                      <h4 className="text-[10px] font-black uppercase tracking-widest opacity-60">Diagnostic Fee</h4>
+                      <div className="flex bg-[var(--bb-surface-2)] border border-[var(--bb-border)] rounded-xl p-1 relative h-12">
+                        <button onClick={() => setFormData({ ...formData, diagnosticFee: 'waived' })} className={`flex-1 text-xs font-bold rounded-lg transition-all ${formData.diagnosticFee === 'waived' ? 'bg-[#CDA032]/20 text-[#CDA032] shadow ring-1 ring-[#CDA032]' : 'opacity-60 hover:opacity-100'}`}>Waived</button>
+                        <button onClick={() => setFormData({ ...formData, diagnosticFee: 'accepted' })} className={`flex-1 text-xs font-bold rounded-lg transition-all ${formData.diagnosticFee === 'accepted' ? 'bg-[#CDA032]/20 text-[#CDA032] shadow ring-1 ring-[#CDA032]' : 'opacity-60 hover:opacity-100'}`}>Accepted</button>
+                      </div>
+                      {formData.diagnosticFee === 'accepted' && (
+                        <input placeholder="Diagnostic Amount (GHC)" value={formData.diagnosticFeeAmount} onChange={e => setFormData({ ...formData, diagnosticFeeAmount: e.target.value })} className="w-full border border-[#CDA032]/50 rounded-lg px-4 py-2 text-sm bg-[var(--bb-surface-2)] outline-none animate-in fade-in" />
+                      )}
+                    </div>
+
+                    {/* Repair Costs Approval */}
+                    <div className="space-y-3">
+                      <h4 className="text-[10px] font-black uppercase tracking-widest opacity-60">Approval for Repair Costs</h4>
+                      <select value={formData.repairApproval} onChange={e => setFormData({ ...formData, repairApproval: e.target.value as any })} className="w-full border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface-2)] outline-none h-12 appearance-none cursor-pointer">
+                        <option value="quote">Require quote approval</option>
+                        <option value="authorize">Auto-authorize limit</option>
+                      </select>
+                      {formData.repairApproval === 'authorize' && (
+                        <input placeholder="Limit Amount (GHC)" value={formData.repairApprovalLimit} onChange={e => setFormData({ ...formData, repairApprovalLimit: e.target.value })} className="w-full border border-[#CDA032]/50 rounded-lg px-4 py-2 text-sm bg-[var(--bb-surface-2)] outline-none animate-in fade-in" />
+                      )}
+                    </div>
+
+                    {/* Data Backup */}
+                    <div className="space-y-3 md:col-span-2 pt-2 border-t border-[var(--bb-border)]/50">
+                      <h4 className="text-[10px] font-black uppercase tracking-widest opacity-60">Data Backup Responsibility</h4>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <button onClick={() => setFormData({ ...formData, dataBackup: 'acknowledges' })} className={`flex-1 p-3 text-left border rounded-xl transition-all ${formData.dataBackup === 'acknowledges' ? 'bg-[#CDA032]/10 border-[#CDA032]' : 'bg-[var(--bb-surface-2)] border-[var(--bb-border)] opacity-70 hover:opacity-100'}`}>
+                          <p className={`text-xs font-bold ${formData.dataBackup === 'acknowledges' ? 'text-[#CDA032]' : ''}`}>I Acknowledge Risk</p>
+                          <p className="text-[9px] mt-1">I understand there is potential data loss during repairs.</p>
+                        </button>
+                        <button onClick={() => setFormData({ ...formData, dataBackup: 'requests' })} className={`flex-1 p-3 text-left border rounded-xl transition-all ${formData.dataBackup === 'requests' ? 'bg-[#CDA032]/10 border-[#CDA032]' : 'bg-[var(--bb-surface-2)] border-[var(--bb-border)] opacity-70 hover:opacity-100'}`}>
+                          <p className={`text-xs font-bold ${formData.dataBackup === 'requests' ? 'text-[#CDA032]' : ''}`}>Request Backup</p>
+                          <p className="text-[9px] mt-1">Additional fees may apply. Subject to device state.</p>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* --- Step 4.C: Terms & Conditions --- */}
+                <div className="bg-[var(--bb-surface)] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-[#CDA032]" />
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-[#CDA032] mb-4">Terms &amp; Conditions</h3>
+                  <div className="text-xs opacity-60 space-y-3 leading-relaxed mb-6 font-medium">
+                    <p><strong className="text-white">Liability:</strong> BLACKBOX is not responsible for data loss, pre-existing damage, or issues unrelated to the repair.</p>
+                    <p><strong className="text-white">Warranty:</strong> Repairs are covered under warranty for 7 days / 1 week unless tampered with.</p>
+                    <p><strong className="text-white">Unclaimed Devices:</strong> Devices not collected within 2 weeks after completion of repairs may incur storage fees or be disposed of.</p>
+                    <p><strong className="text-white">Passwords:</strong> Passwords will be treated with strict confidentiality and only authorized staff will have access.</p>
+                  </div>
+                  
+                  <div className="pt-4 border-t border-[var(--bb-border)] flex items-start gap-3">
+                    <div onClick={() => setFormData({ ...formData, agreesToTerms: !formData.agreesToTerms })} className={`w-5 h-5 rounded flex items-center justify-center shrink-0 cursor-pointer border transition-all mt-0.5 ${formData.agreesToTerms ? 'bg-[#CDA032] border-[#CDA032]' : 'border-[var(--bb-border)] hover:border-[#CDA032]/50'}`}>
+                      {formData.agreesToTerms && <Check size={14} className="text-black stroke-[3]" />}
+                    </div>
+                    <div className="cursor-pointer" onClick={() => setFormData({ ...formData, agreesToTerms: !formData.agreesToTerms })}>
+                      <p className="text-sm font-bold">I agree to the Terms &amp; Conditions</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Digital Signature */}
+                <div className="space-y-3 pt-6">
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-[#CDA032]">Client Digital Signature</h3>
+                  <input
+                    placeholder="Type your full legal name to sign"
+                    value={formData.clientSignature}
+                    onChange={e => setFormData({ ...formData, clientSignature: e.target.value })}
+                    className="w-full sm:w-1/2 border-b-2 border-[#CDA032] px-2 py-3 text-lg font-['Dancing_Script',cursive,sans-serif] bg-transparent outline-none transition-all placeholder:font-sans placeholder:text-sm placeholder:opacity-40"
+                  />
+                </div>
+
+                <div className="pt-4 pb-12">
                   <button
-                    onClick={submitRepairRequest}
+                    onClick={() => {
+                      if (!formData.agreesToTerms) { notify('You must agree to the Terms & Conditions.', 'error'); return; }
+                      if (!formData.clientSignature.trim()) { notify('Please provide your digital signature.', 'error'); return; }
+                      submitRepairRequest();
+                    }}
                     disabled={submitting}
                     className="w-full sm:w-auto flex items-center justify-center gap-3 px-10 py-5 rounded-2xl text-sm font-black uppercase tracking-widest text-[#111] bg-gradient-to-r from-[#CDA032] to-[#FCE69B] hover:scale-[1.02] shadow-[0_0_30px_rgba(205,160,50,0.3)] transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                   >

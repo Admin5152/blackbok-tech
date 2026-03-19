@@ -131,8 +131,8 @@ export const Home: React.FC<HomeProps> = ({
 
           {/* Dark or light overlay for text readability */}
           <div className={`absolute inset-0 ${theme === 'dark'
-            ? 'bg-gradient-to-r from-black/60 via-transparent to-black/40'
-            : 'bg-gradient-to-r from-white/70 via-white/40 to-white/10'
+            ? 'bg-transparent'
+            : 'bg-gradient-to-r from-black/60 via-black/30 to-transparent'
             }`}></div>
         </div>
 
@@ -140,21 +140,16 @@ export const Home: React.FC<HomeProps> = ({
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             {/* Left Side - Main Content */}
             <div className="space-y-8">
-              <h1 className={`text-4xl sm:text-5xl md:text-6xl lg:text-[5rem] font-heading font-bold tracking-wider leading-[1.1] lg:leading-[0.9] lg:min-h-[2.7em] ${theme === 'dark' ? 'text-off-white' : 'text-gray-900'
-                }`}>
+              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-[5rem] font-heading font-bold tracking-wider leading-[1.1] lg:leading-[0.9] lg:min-h-[2.7em] text-off-white">
                 Redefining Your
                 <br />
-                <span className={`bg-gradient-to-r bg-clip-text text-transparent ${theme === 'dark'
-                  ? 'from-[#D4AF37] to-[#F4E4C1]'
-                  : 'from-[#B38B21] to-[#D4AF37]'
-                  }`}>
+                <span className="bg-gradient-to-r bg-clip-text text-transparent from-[#D4AF37] to-[#F4E4C1]">
                   Tech Experience
                 </span>
               </h1>
 
               <div className="space-y-4 max-w-lg">
-                <p className={`text-lg font-light leading-relaxed ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+                <p className="text-lg font-light leading-relaxed text-gray-300">
                   Premium tech products, expert repairs, and seamless trade-ins for the modern enthusiast.
                 </p>
               </div>
