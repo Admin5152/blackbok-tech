@@ -17,6 +17,7 @@ interface AdminProps {
   user?: any;
   setUser?: (user: any) => void;
   navigateTo?: (view: string) => void;
+  theme?: 'light' | 'dark';
 }
 
 export type AdminSection = 'overview' | 'inbox' | 'orders' | 'customers' | 'products' | 'trades' | 'repairs' | 'users';
@@ -43,7 +44,7 @@ const SECTION_TITLES: Record<AdminSection, string> = {
   users: 'Users',
 };
 
-export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo }) => {
+export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme = 'dark' }) => {
   const role: string = user?.role || 'user';
   const [section, setSection] = useState<AdminSection>('overview');
   const [sidebar, setSidebar] = useState(true);
@@ -59,33 +60,35 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo }) => {
     if (setUser && navigateTo) await handleSignOut(setUser, navigateTo);
   };
 
+  const isLight = theme === 'light';
+
   return (
-    <div className="min-h-screen bg-[#060606] flex">
+    <div className={`min-h-screen flex ${isLight ? 'bg-[#FAFAFA]' : 'bg-[#060606]'}`}>
       {/* Mobile backdrop */}
       {sidebar && (
         <div
-          className="lg:hidden fixed inset-0 z-[70] bg-black/80"
+          className={`lg:hidden fixed inset-0 z-[70] ${isLight ? 'bg-black/20' : 'bg-black/80'}`}
           onClick={() => setSidebar(false)}
         />
       )}
 
       {/* ── Sidebar ── */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-[80] bg-[#0a0a0a] border-r border-white/5
-          flex flex-col transition-all duration-300
-          ${sidebar ? 'translate-x-0 w-60' : '-translate-x-full lg:translate-x-0 lg:w-[68px]'}`}
+        className={`fixed lg:static inset-y-0 left-0 z-[80] flex flex-col transition-all duration-300
+          ${sidebar ? 'translate-x-0 w-60' : '-translate-x-full lg:translate-x-0 lg:w-[68px]'}
+          ${isLight ? 'bg-white border-r border-black/10' : 'bg-[#0a0a0a] border-r border-white/5'}`}
       >
         {/* Logo row */}
-        <div className="p-4 border-b border-white/5 flex items-center gap-3">
+        <div className={`p-4 flex items-center gap-3 border-b ${isLight ? 'border-black/5' : 'border-white/5'}`}>
           {sidebar && (
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-black tracking-widest text-white uppercase italic">BLACKBOX</p>
-              <p className="text-[9px] text-white/20 uppercase tracking-widest font-bold capitalize">{role} Panel</p>
+              <p className={`text-xs font-black tracking-widest uppercase italic ${isLight ? 'text-black' : 'text-white'}`}>BLACKBOX</p>
+              <p className={`text-[9px] uppercase tracking-widest font-bold capitalize ${isLight ? 'text-black/40' : 'text-white/20'}`}>{role} Panel</p>
             </div>
           )}
           <button
             onClick={() => setSidebar(v => !v)}
-            className="text-white/20 hover:text-white transition-colors ml-auto shrink-0"
+            className={`transition-colors ml-auto shrink-0 ${isLight ? 'text-black/40 hover:text-black' : 'text-white/20 hover:text-white'}`}
           >
             {sidebar ? <X size={18} /> : <Menu size={18} />}
           </button>
@@ -103,8 +106,10 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo }) => {
               title={!sidebar ? item.label : undefined}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all
                 ${section === item.id
-                  ? 'bg-[#B38B21] text-black'
-                  : 'text-white/30 hover:text-white hover:bg-white/5'}`}
+                  ? 'bg-[#B38B21] text-black shadow-sm'
+                  : isLight
+                    ? 'text-black/60 hover:text-black hover:bg-black/5'
+                    : 'text-white/30 hover:text-white hover:bg-white/5'}`}
             >
               <item.icon size={17} className="shrink-0" />
               {sidebar && (
@@ -117,17 +122,17 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo }) => {
         </nav>
 
         {/* User info + sign out */}
-        <div className="p-2 border-t border-white/5 space-y-1">
+        <div className={`p-2 space-y-1 border-t ${isLight ? 'border-black/5' : 'border-white/5'}`}>
           {sidebar && user && (
-            <div className="px-3 py-2 rounded-xl bg-white/[0.03] mb-1">
-              <p className="text-[9px] text-white/20 uppercase tracking-widest">Signed in as</p>
-              <p className="text-xs font-black text-white truncate">{user.name || user.email}</p>
+            <div className={`px-3 py-2 rounded-xl mb-1 ${isLight ? 'bg-black/5' : 'bg-white/[0.03]'}`}>
+              <p className={`text-[9px] uppercase tracking-widest ${isLight ? 'text-black/40' : 'text-white/20'}`}>Signed in as</p>
+              <p className={`text-xs font-black truncate ${isLight ? 'text-black' : 'text-white'}`}>{user.name || user.email}</p>
               <p className="text-[8px] text-[#B38B21] font-black uppercase">{role}</p>
             </div>
           )}
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-all"
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${isLight ? 'text-black/40 hover:text-red-600 hover:bg-red-500/10' : 'text-white/20 hover:text-red-400 hover:bg-red-500/10'}`}
           >
             <LogOut size={17} />
             {sidebar && <span className="text-xs font-black uppercase tracking-wider">Sign Out</span>}
@@ -138,18 +143,18 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo }) => {
       {/* ── Main ── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Header */}
-        <header className="bg-[#0a0a0a] border-b border-white/5 px-4 sm:px-6 py-3.5 flex items-center gap-3 sticky top-0 z-10">
+        <header className={`px-4 sm:px-6 py-3.5 flex items-center gap-3 sticky top-0 z-10 border-b ${isLight ? 'bg-white border-black/10' : 'bg-[#0a0a0a] border-white/5'}`}>
           <button
             onClick={() => setSidebar(true)}
-            className="lg:hidden text-white/30 hover:text-white"
+            className={`lg:hidden ${isLight ? 'text-black/40 hover:text-black' : 'text-white/30 hover:text-white'}`}
           >
             <Menu size={20} />
           </button>
           <div>
-            <h1 className="text-base font-black italic uppercase tracking-tight text-white">
+            <h1 className={`text-base font-black italic uppercase tracking-tight ${isLight ? 'text-black' : 'text-white'}`}>
               {SECTION_TITLES[section]}
             </h1>
-            <p className="text-[9px] font-black uppercase tracking-widest text-white/20">
+            <p className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-black/40' : 'text-white/20'}`}>
               BlackBox Admin ·{' '}
               {new Date().toLocaleDateString('en', {
                 weekday: 'long', month: 'long', day: 'numeric',

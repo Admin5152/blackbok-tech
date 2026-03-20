@@ -3,6 +3,7 @@ import { DollarSign, ShoppingCart, Users, Package, RefreshCcw, Wrench, AlertTria
 import { BarChart, Sparkline, DonutChart, PROD_KEY } from './adminUtils';
 import { getOrders, getUsers, getTradeRequests, getRepairRequests } from '../../lib/api';
 import type { Order, User, Product, TradeRequest, RepairRequest } from '../../types';
+import { useAppContext } from '../../App';
 
 type Section = 'overview' | 'orders' | 'customers' | 'products' | 'trades' | 'repairs' | 'users';
 
@@ -34,11 +35,13 @@ interface StatCardProps {
     onClick?: () => void;
 }
 
-const StatCard: React.FC<StatCardProps> = ({ icon: Icon, value, label, trend, trendUp, spark, iconColor = STATUS_COLORS.info, onClick }) => (
+const StatCard: React.FC<StatCardProps & { isLight?: boolean }> = ({ icon: Icon, value, label, trend, trendUp, spark, iconColor = STATUS_COLORS.info, onClick, isLight }) => (
     <button
         onClick={onClick}
         aria-label={`${label}: ${value}. ${trend ? `Trending ${trendUp ? 'up' : 'down'} ${trend}%` : ''}`}
-        className={`bg-[#0a0a0a] border border-white/5 rounded-2xl p-4 sm:p-5 group transition-all duration-300 text-left relative overflow-hidden ${onClick ? 'hover:border-[#B38B21]/30 hover:bg-white/[0.02] cursor-pointer active:scale-[0.98]' : 'cursor-default'}`}
+        className={`border rounded-2xl p-4 sm:p-5 group transition-all duration-300 text-left relative overflow-hidden
+        ${isLight ? 'bg-white border-black/5 hover:border-[#B38B21]/30 hover:bg-black/5' : 'bg-[#0a0a0a] border-white/5 hover:border-[#B38B21]/30 hover:bg-white/[0.02]'}
+        ${onClick ? 'cursor-pointer active:scale-[0.98]' : 'cursor-default'}`}
     >
         <div className="flex justify-between items-start mb-4 relative z-10">
             <div className={`p-2 rounded-xl transition-all duration-500 group-hover:scale-110 group-hover:rotate-3`} style={{ background: `${iconColor}10` }}>
@@ -58,8 +61,8 @@ const StatCard: React.FC<StatCardProps> = ({ icon: Icon, value, label, trend, tr
         </div>
 
         <div className="mt-4 relative z-10">
-            <p className="text-xl sm:text-2xl font-black text-white leading-tight">{value}</p>
-            <p className="text-[10px] font-black text-white/60 uppercase tracking-widest mt-1">{label}</p>
+            <p className={`text-xl sm:text-2xl font-black leading-tight ${isLight ? 'text-black' : 'text-white'}`}>{value}</p>
+            <p className={`text-[10px] font-black uppercase tracking-widest mt-1 ${isLight ? 'text-black/50' : 'text-white/60'}`}>{label}</p>
         </div>
 
         {onClick && (
@@ -88,7 +91,7 @@ const AlertItem: React.FC<AlertItemProps> = ({ type, message, action, onAction }
             }`}>
             <div className="flex items-center gap-3">
                 <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: color }} />
-                <p className="text-[11px] text-white/80 font-medium">{message}</p>
+                <p className="text-[11px] font-medium opacity-90">{message}</p>
             </div>
             {action && (
                 <button onClick={onAction} className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg transition-all flex items-center gap-1"
@@ -101,13 +104,13 @@ const AlertItem: React.FC<AlertItemProps> = ({ type, message, action, onAction }
     );
 };
 
-const AlertSection = ({ alerts, onNavigate }: { alerts: AlertItemProps[], onNavigate: any }) => {
+const AlertSection = ({ alerts, onNavigate, isLight }: { alerts: AlertItemProps[], onNavigate: any, isLight: boolean }) => {
     if (!alerts.length) return null;
     return (
-        <div role="alert" aria-live="assertive" aria-atomic="true" className="space-y-3 bg-[#110505]/10 border border-red-500/5 rounded-2xl p-4">
+        <div role="alert" aria-live="assertive" aria-atomic="true" className={`space-y-3 border rounded-2xl p-4 ${isLight ? 'bg-red-50 border-red-100' : 'bg-[#110505]/10 border-red-500/5'}`}>
             <div className="flex items-center gap-2 mb-1 px-1">
                 <AlertTriangle size={14} className="text-red-500" />
-                <h3 className="text-[10px] font-black text-white/60 uppercase tracking-widest">Critical Awareness</h3>
+                <h3 className={`text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-black/50' : 'text-white/60'}`}>Critical Awareness</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {alerts.map((a, i) => <AlertItem key={i} {...a} />)}
@@ -116,10 +119,10 @@ const AlertSection = ({ alerts, onNavigate }: { alerts: AlertItemProps[], onNavi
     );
 };
 
-const QuickActionMenu = ({ onNavigate }: any) => {
+const QuickActionMenu = ({ onNavigate, isLight }: { onNavigate: any, isLight: boolean }) => {
     const actions = [
         { label: 'Inventory', icon: Package, color: '#06b6d4', nav: 'products' },
-        { label: 'Broadcast', icon: Star, color: '#B38B21', nav: 'inbox' },
+        // { label: 'Broadcast', icon: Star, color: '#B38B21', nav: 'inbox' },
         { label: 'Reports', icon: DollarSign, color: '#10b981', nav: 'orders' },
         { label: 'Invite', icon: Users, color: '#6366f1', nav: 'users' }
     ];
@@ -127,7 +130,8 @@ const QuickActionMenu = ({ onNavigate }: any) => {
         <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
             {actions.map(a => (
                 <button key={a.label} onClick={() => onNavigate(a.nav as any)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/5 transition-all text-white/40 hover:text-white shrink-0">
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all shrink-0
+                    ${isLight ? 'bg-white border-black/5 hover:bg-black/5 text-black/60 hover:text-black' : 'bg-white/[0.03] border-white/5 hover:bg-white/5 text-white/40 hover:text-white'}`}>
                     <a.icon size={13} style={{ color: a.color }} />
                     <span className="text-[10px] font-black uppercase tracking-widest">{a.label}</span>
                 </button>
@@ -136,23 +140,23 @@ const QuickActionMenu = ({ onNavigate }: any) => {
     );
 };
 
-const AIAnalystCard = () => (
-    <div className="bg-gradient-to-br from-[#0a0a0a] to-[#0f0c05] border border-[#B38B21]/10 rounded-2xl p-6 relative overflow-hidden group">
+const AIAnalystCard = ({ isLight }: { isLight: boolean }) => (
+    <div className={`border rounded-2xl p-6 relative overflow-hidden group ${isLight ? 'bg-gradient-to-br from-white to-[#FAFAFA] border-[#B38B21]/20 shadow-sm' : 'bg-gradient-to-br from-[#0a0a0a] to-[#0f0c05] border-[#B38B21]/10'}`}>
         <div className="flex items-center gap-3 mb-4 relative z-10">
             <div className="w-8 h-8 rounded-full bg-[#B38B21]/10 flex items-center justify-center animate-pulse">
                 <Star size={14} className="text-[#B38B21]" />
             </div>
             <div>
-                <h3 className="text-xs font-black text-white uppercase tracking-widest">Alu Insights Analyst</h3>
-                <p className="text-[9px] text-white/50 uppercase font-black">AI-Powered Overview</p>
+                <h3 className={`text-xs font-black uppercase tracking-widest ${isLight ? 'text-black' : 'text-white'}`}>Alu Insights Analyst</h3>
+                <p className={`text-[9px] uppercase font-black ${isLight ? 'text-black/50' : 'text-white/50'}`}>AI-Powered Overview</p>
             </div>
         </div>
         <div className="space-y-4 relative z-10 transition-transform group-hover:translate-x-1 duration-500">
-            <p className="text-[11px] text-white/90 leading-relaxed font-medium bg-[#B38B21]/5 border-l-2 border-[#B38B21] p-3 rounded-r-lg">
+            <p className={`text-[11px] leading-relaxed font-medium bg-[#B38B21]/5 border-l-2 border-[#B38B21] p-3 rounded-r-lg ${isLight ? 'text-black/80' : 'text-white/90'}`}>
                 Revenue is trending <span className="text-emerald-400 font-black">+12% higher</span> than last period, primarily driven by iPhone sales.
                 However, repair turnaround time has increased by <span className="text-amber-400 font-black">4 hours</span>.
             </p>
-            <div className="flex items-center gap-2 text-[10px] text-white/60 font-bold italic">
+            <div className={`flex items-center gap-2 text-[10px] font-bold italic ${isLight ? 'text-black/60' : 'text-white/60'}`}>
                 <AlertTriangle size={12} className="text-amber-500" />
                 Suggested: Redirect diagnostic team to Repair Queue.
             </div>
@@ -163,6 +167,9 @@ const AIAnalystCard = () => (
 );
 
 export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
+    const { theme } = useAppContext();
+    const isLight = theme === 'light';
+
     const [orders, setOrders] = useState<Order[]>([]);
     const [users, setUsers] = useState<User[]>([]);
     const [trades, setTrades] = useState<TradeRequest[]>([]);
@@ -447,46 +454,46 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
             {/* TOP BAR: Shortcuts + Awareness */}
             <div className="space-y-6">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <QuickActionMenu onNavigate={onNavigate} />
+                    <QuickActionMenu onNavigate={onNavigate} isLight={isLight} />
                     <div className="hidden md:block">
-                        <p className="text-[9px] font-black text-white/20 uppercase tracking-widest text-right">Last Sync: Just Now</p>
+                        <p className={`text-[9px] font-black uppercase tracking-widest text-right ${isLight ? 'text-black/40' : 'text-white/20'}`}>Last Sync: Just Now</p>
                     </div>
                 </div>
-                <AlertSection alerts={alerts} onNavigate={onNavigate} />
+                <AlertSection alerts={alerts} onNavigate={onNavigate} isLight={isLight} />
             </div>
 
             {/* PRIMARY METRICS — Business Health */}
             <section className="space-y-4">
-                <div className="flex items-center gap-2 px-1">
+                <div className={`flex items-center gap-2 px-1 ${isLight ? 'text-black/40' : 'text-white/40'}`}>
                     <div className="w-1 h-3 bg-[#B38B21] rounded-full" />
-                    <h2 className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Business Health</h2>
+                    <h2 className="text-[10px] font-black uppercase tracking-[0.2em]">Business Health</h2>
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <StatCard icon={DollarSign} value={`$${totalRevenue.toLocaleString()}`} label="Total Revenue" trend={12} trendUp={true} spark={mockRevenueByDay} iconColor={STATUS_COLORS.info} onClick={() => onNavigate('orders')} />
-                    <StatCard icon={ShoppingCart} value={orders.length} label="New Orders" trend={8} trendUp={true} spark={mockOrdersByDay} iconColor="#6366f1" onClick={() => onNavigate('orders')} />
-                    <StatCard icon={Star} value={`$${avgOrder}`} label="Avg Order Value" trend={3} trendUp={false} iconColor={STATUS_COLORS.info} onClick={() => onNavigate('orders')} />
-                    <StatCard icon={Users} value="94%" label="Customer Satisfaction" trend={1} trendUp={true} iconColor={STATUS_COLORS.success} />
+                    <StatCard isLight={isLight} icon={DollarSign} value={`$${totalRevenue.toLocaleString()}`} label="Total Revenue" trend={12} trendUp={true} spark={mockRevenueByDay} iconColor={STATUS_COLORS.info} onClick={() => onNavigate('orders')} />
+                    <StatCard isLight={isLight} icon={ShoppingCart} value={orders.length} label="New Orders" trend={8} trendUp={true} spark={mockOrdersByDay} iconColor="#6366f1" onClick={() => onNavigate('orders')} />
+                    <StatCard isLight={isLight} icon={Star} value={`$${avgOrder}`} label="Avg Order Value" trend={3} trendUp={false} iconColor={STATUS_COLORS.info} onClick={() => onNavigate('orders')} />
+                    <StatCard isLight={isLight} icon={Users} value="94%" label="Customer Satisfaction" trend={1} trendUp={true} iconColor={STATUS_COLORS.success} />
                 </div>
             </section>
 
             {/* OPERATIONAL STATUS — HCI Consolidated Grouping */}
             <section className="space-y-4">
-                <div className="flex items-center gap-2 px-1 text-white/50">
+                <div className={`flex items-center gap-2 px-1 ${isLight ? 'text-black/50' : 'text-white/50'}`}>
                     <div className="w-1 h-3 bg-purple-500/50 rounded-full" />
                     <h2 className="text-[10px] font-black uppercase tracking-[0.2em]">Operations & Fulfillment</h2>
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <StatCard
+                    <StatCard isLight={isLight}
                         icon={ArrowUpRight}
                         value={pendingTrades + activeRepairs}
                         label="Fulfillment Tasks"
                         iconColor="#a855f7"
                         onClick={() => onNavigate('trades')}
                     />
-                    <StatCard icon={AlertTriangle} value={lowStock} label="Stock Alerts" iconColor={lowStock > 0 ? STATUS_COLORS.critical : STATUS_COLORS.success} onClick={() => onNavigate('products')} />
-                    <StatCard icon={Package} value={products.length} label="Active Products" iconColor="#06b6d4" onClick={() => onNavigate('products')} />
-                    <div className="hidden lg:block bg-white/[0.01] border border-white/5 rounded-2xl p-5 flex items-center justify-center text-center">
-                        <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em]">Capacity: 84%</p>
+                    <StatCard isLight={isLight} icon={AlertTriangle} value={lowStock} label="Stock Alerts" iconColor={lowStock > 0 ? STATUS_COLORS.critical : STATUS_COLORS.success} onClick={() => onNavigate('products')} />
+                    <StatCard isLight={isLight} icon={Package} value={products.length} label="Active Products" iconColor="#06b6d4" onClick={() => onNavigate('products')} />
+                    <div className={`hidden lg:block border rounded-2xl p-5 flex items-center justify-center text-center ${isLight ? 'bg-black/5 border-black/5' : 'bg-white/[0.01] border-white/5'}`}>
+                        <p className={`text-[9px] font-black uppercase tracking-[0.2em] ${isLight ? 'text-black/40' : 'text-white/30'}`}>Capacity: 84%</p>
                     </div>
                 </div>
             </section>
@@ -494,28 +501,28 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
             {/* ANALYTICS — Comparative Insights */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="col-span-2 space-y-6">
-                    <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-6">
+                    <div className={`border rounded-2xl p-6 ${isLight ? 'bg-white border-black/5 shadow-sm' : 'bg-[#0a0a0a] border-white/5'}`}>
                         <div className="flex items-center justify-between mb-6">
                             <div>
-                                <h3 className="text-xs font-black text-white uppercase tracking-widest">Revenue Trends</h3>
-                                <p className="text-[10px] text-white/50 mt-1">Order volume over the last 7 days</p>
+                                <h3 className={`text-xs font-black uppercase tracking-widest ${isLight ? 'text-black' : 'text-white'}`}>Revenue Trends</h3>
+                                <p className={`text-[10px] mt-1 ${isLight ? 'text-black/50' : 'text-white/50'}`}>Order volume over the last 7 days</p>
                             </div>
                             <div className="flex gap-2">
                                 {['7D', '1M', '1Y'].map(t => (
-                                    <button key={t} className={`px-2.5 py-1 rounded-lg text-[9px] font-black ${t === '7D' ? 'bg-[#B38B21] text-black' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>{t}</button>
+                                    <button key={t} className={`px-2.5 py-1 rounded-lg text-[9px] font-black ${t === '7D' ? 'bg-[#B38B21] text-black' : isLight ? 'bg-black/5 text-black/40 hover:bg-black/10' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>{t}</button>
                                 ))}
                             </div>
                         </div>
                         <BarChart data={mockOrdersByDay} />
-                        <div className="flex justify-between mt-3 px-2">{days.map(d => <span key={d} className="text-[9px] text-white/50 font-bold">{d}</span>)}</div>
+                        <div className="flex justify-between mt-3 px-2">{days.map(d => <span key={d} className={`text-[9px] font-bold ${isLight ? 'text-black/50' : 'text-white/50'}`}>{d}</span>)}</div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <AIAnalystCard />
-                        <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-6 flex flex-col justify-between">
-                            <div className="flex justify-between items-start mb-4 text-white/50">
+                        <AIAnalystCard isLight={isLight} />
+                        <div className={`border rounded-2xl p-6 flex flex-col justify-between ${isLight ? 'bg-white border-black/5 shadow-sm' : 'bg-[#0a0a0a] border-white/5'}`}>
+                            <div className={`flex justify-between items-start mb-4 ${isLight ? 'text-black/50' : 'text-white/50'}`}>
                                 <div>
-                                    <h3 className="text-xs font-black text-white uppercase tracking-widest">Customer Growth</h3>
+                                    <h3 className={`text-xs font-black uppercase tracking-widest ${isLight ? 'text-black' : 'text-white'}`}>Customer Growth</h3>
                                     <p className="text-[10px] mt-1">+12% this month</p>
                                 </div>
                                 <Users size={14} className="text-[#B38B21]" />
@@ -523,23 +530,23 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
                             <div className="h-16 mb-4">
                                 <Sparkline data={mockUserGrowth} color="#B38B21" />
                             </div>
-                            <div className="flex justify-between items-end border-t border-white/5 pt-4">
-                                <span className="text-[9px] font-black text-white/50 uppercase tracking-widest">Net Profit</span>
+                            <div className={`flex justify-between items-end border-t pt-4 ${isLight ? 'border-black/5' : 'border-white/5'}`}>
+                                <span className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-black/50' : 'text-white/50'}`}>Net Profit</span>
                                 <span className="text-lg font-black text-emerald-400">+$14,200</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-6">
-                    <h3 className="text-xs font-black text-white uppercase tracking-widest mb-6">Inventory Mix</h3>
+                <div className={`border rounded-2xl p-6 ${isLight ? 'bg-white border-black/5 shadow-sm' : 'bg-[#0a0a0a] border-white/5'}`}>
+                    <h3 className={`text-xs font-black uppercase tracking-widest mb-6 ${isLight ? 'text-black' : 'text-white'}`}>Inventory Mix</h3>
                     {donutSegs.length > 0 ? (
                         <div className="flex flex-col gap-6">
                             <div className="relative flex justify-center">
                                 <DonutChart segments={donutSegs} />
                                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                    <span className="text-sm sm:text-xl font-black text-white">{products.length}</span>
-                                    <span className="text-[8px] text-white/50 uppercase font-black">Items</span>
+                                    <span className={`text-sm sm:text-xl font-black ${isLight ? 'text-black' : 'text-white'}`}>{products.length}</span>
+                                    <span className={`text-[8px] uppercase font-black ${isLight ? 'text-black/50' : 'text-white/50'}`}>Items</span>
                                 </div>
                             </div>
                             <div className="space-y-2">
@@ -547,40 +554,41 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
                                     <div key={s.label} className="flex items-center justify-between group cursor-help">
                                         <div className="flex items-center gap-2">
                                             <div className="w-2 h-2 rounded-full shrink-0" style={{ background: s.color }} />
-                                            <span className="text-[10px] text-white/50 group-hover:text-white/80 transition-colors uppercase font-black tracking-wider">{s.label}</span>
+                                            <span className={`text-[10px] transition-colors uppercase font-black tracking-wider ${isLight ? 'text-black/50 group-hover:text-black/80' : 'text-white/50 group-hover:text-white/80'}`}>{s.label}</span>
                                         </div>
-                                        <span className="text-[10px] font-black text-white">{s.value}</span>
+                                        <span className={`text-[10px] font-black ${isLight ? 'text-black' : 'text-white'}`}>{s.value}</span>
                                     </div>
                                 ))}
                             </div>
                         </div>
-                    ) : <p className="text-white/50 text-xs text-center py-4 uppercase font-black">No data available</p>}
+                    ) : <p className={`text-xs text-center py-4 uppercase font-black ${isLight ? 'text-black/50' : 'text-white/50'}`}>No data available</p>}
                 </div>
             </div>
 
             {/* RECENT ACTIVITY LOG — Gestalt Unified Feed */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 bg-[#0a0a0a] border border-white/5 rounded-2xl overflow-hidden flex flex-col">
-                    <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.01]">
-                        <h3 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
+                <div className={`lg:col-span-2 border rounded-2xl overflow-hidden flex flex-col ${isLight ? 'bg-white border-black/5 shadow-sm' : 'bg-[#0a0a0a] border-white/5'}`}>
+                    <div className={`p-6 border-b flex items-center justify-between ${isLight ? 'border-black/5 bg-black/[0.01]' : 'border-white/5 bg-white/[0.01]'}`}>
+                        <h3 className={`text-xs font-black uppercase tracking-widest flex items-center gap-2 ${isLight ? 'text-black' : 'text-white'}`}>
                             <ArrowUpRight size={13} className="text-[#B38B21]" />
                             Global Activity Stream
                         </h3>
-                        <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Real-time Feed</p>
+                        <p className={`text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-black/50' : 'text-white/50'}`}>Real-time Feed</p>
                     </div>
                     <div className="p-2 space-y-1 overflow-y-auto max-h-[400px]">
                         {globalActivity.map((act, i) => (
-                            <div key={`${act.type}-${act.id}-${i}`} className="flex items-center gap-4 p-3 rounded-xl hover:bg-white/[0.02] transition-all group border border-transparent hover:border-white/5 relative">
+                            <div key={`${act.type}-${act.id}-${i}`} className={`flex items-center gap-4 p-3 rounded-xl transition-all group border relative
+                                ${isLight ? 'hover:bg-black/[0.02] border-transparent hover:border-black/5' : 'hover:bg-white/[0.02] border-transparent hover:border-white/5'}`}>
                                 <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all group-hover:scale-110"
                                     style={{ background: `${act.color}10` }}>
                                     <act.icon size={15} style={{ color: act.color }} />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center justify-between gap-2 mb-0.5">
-                                        <p className="text-[11px] font-black text-white uppercase tracking-tight">{act.title}</p>
-                                        <span className="text-[8px] text-white/50 font-black uppercase tracking-widest">{new Date(act.date).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
+                                        <p className={`text-[11px] font-black uppercase tracking-tight ${isLight ? 'text-black' : 'text-white'}`}>{act.title}</p>
+                                        <span className={`text-[8px] font-black uppercase tracking-widest ${isLight ? 'text-black/50' : 'text-white/50'}`}>{new Date(act.date).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
                                     </div>
-                                    <p className="text-[10px] text-white/50 font-bold truncate flex items-center gap-1">
+                                    <p className={`text-[10px] font-bold truncate flex items-center gap-1 ${isLight ? 'text-black/50' : 'text-white/50'}`}>
                                         {act.sub}
                                         <ArrowUpRight size={8} className="opacity-0 group-hover:opacity-100 transition-all" />
                                     </p>
@@ -595,15 +603,16 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
                                 </div>
                             </div>
                         ))}
-                        <button className="w-full py-4 text-[9px] font-black text-white/30 hover:text-white/60 uppercase tracking-[0.2em] transition-colors border-t border-white/5 mt-2 flex items-center justify-center gap-2">
+                        <button className={`w-full py-4 text-[9px] font-black uppercase tracking-[0.2em] transition-colors border-t mt-2 flex items-center justify-center gap-2
+                            ${isLight ? 'border-black/5 text-black/40 hover:text-black/60' : 'border-white/5 text-white/30 hover:text-white/60'}`}>
                             View All Activity <ArrowUpRight size={10} />
                         </button>
                     </div>
                 </div>
 
                 {/* Revenue breakdown */}
-                <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-6 h-fit">
-                    <h3 className="text-xs font-black text-white uppercase tracking-widest mb-6 flex items-center gap-2">
+                <div className={`border rounded-2xl p-6 h-fit ${isLight ? 'bg-white border-black/5 shadow-sm' : 'bg-[#0a0a0a] border-white/5'}`}>
+                    <h3 className={`text-xs font-black uppercase tracking-widest mb-6 flex items-center gap-2 ${isLight ? 'text-black' : 'text-white'}`}>
                         <DollarSign size={13} className="text-[#B38B21]" />
                         Revenue Mix
                     </h3>
@@ -617,13 +626,13 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
                             return (
                                 <button key={row.label} onClick={() => onNavigate(row.nav)} className="w-full text-left group">
                                     <div className="flex justify-between text-[10px] mb-2.5">
-                                        <span className="text-white/50 font-black uppercase tracking-wider group-hover:text-white/80 transition-colors flex items-center gap-1">
+                                        <span className={`font-black uppercase tracking-wider transition-colors flex items-center gap-1 ${isLight ? 'text-black/50 group-hover:text-black/80' : 'text-white/50 group-hover:text-white/80'}`}>
                                             {row.label}
                                             <ArrowUpRight size={9} className="opacity-0 group-hover:opacity-100 transition-all" />
                                         </span>
-                                        <span className="font-black text-white tracking-tight">${row.val.toLocaleString()}</span>
+                                        <span className={`font-black tracking-tight ${isLight ? 'text-black' : 'text-white'}`}>${row.val.toLocaleString()}</span>
                                     </div>
-                                    <div className="w-full bg-white/[0.03] rounded-full h-1.5 overflow-hidden">
+                                    <div className={`w-full rounded-full h-1.5 overflow-hidden ${isLight ? 'bg-black/5' : 'bg-white/[0.03]'}`}>
                                         <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${pct}%`, background: row.color }} />
                                     </div>
                                 </button>
