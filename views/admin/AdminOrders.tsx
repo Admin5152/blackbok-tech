@@ -4,70 +4,6 @@ import { Badge, SearchInput, Modal, ModalClose, Td, Th, TableWrapper, EmptyState
 import { getOrders, updateOrderStatus } from '../../lib/api';
 import type { Order } from '../../types';
 
-// Dummy data for when no actual orders exist
-const MOCK_ORDERS: Order[] = [
-    {
-        id: 'ord_f83m29a1b',
-        userId: 'usr_1',
-        userName: 'Kwame Mensah',
-        date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(),
-        status: 'Processing',
-        total: 1549.00,
-        paymentMethod: 'Credit Card',
-        payment_status: 'paid',
-        shipping_method: 'Standard Delivery',
-        shipping_cost: 50.00,
-        shipping_address: '15 Independence Ave, Ridge, Accra',
-        estimated_delivery: new Date(Date.now() + 1000 * 60 * 60 * 24 * 3).toISOString(),
-        items: [
-            { id: '1', name: 'MacBook Pro 16" M3 Max', category: 'Laptop', price: 1499.00, description: 'Space Black', image: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&q=80', stock: 10, quantity: 1 },
-            { id: '2', name: 'Magic Mouse Black', category: 'Accessories', price: 50.00, description: 'Black Edition', image: 'https://images.unsplash.com/photo-1615663245857-ac1eeb5304af?auto=format&fit=crop&q=80', stock: 15, quantity: 1 }
-        ],
-        tracking_updates: [
-            { id: 't1', order_id: 'ord_f83m29a1b', status: 'Order Placed', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(), description: 'Order has been placed by the customer.' },
-            { id: 't2', order_id: 'ord_f83m29a1b', status: 'Processing', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), description: 'Payment verified, preparing for dispatch.' }
-        ]
-    },
-    {
-        id: 'ord_a94z72c4d',
-        userId: 'usr_2',
-        userName: 'Esi Osei',
-        date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString(),
-        status: 'Delivered',
-        total: 2199.00,
-        paymentMethod: 'Mobile Money',
-        payment_status: 'paid',
-        shipping_method: 'Express Delivery',
-        shipping_cost: 0.00,
-        shipping_address: 'Plot 45, Kumasi City Center',
-        actual_delivery: new Date(Date.now() - 1000 * 60 * 60 * 24 * 1).toISOString(),
-        items: [
-            { id: '3', name: 'iPhone 15 Pro Max', category: 'iPhone', price: 2199.00, description: 'Natural Titanium, 512GB', image: 'https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?auto=format&fit=crop&q=80', stock: 5, quantity: 1 }
-        ],
-        tracking_updates: [
-            { id: 't1', order_id: 'ord_a94z72c4d', status: 'Order Placed', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString(), description: 'Order placed.' },
-            { id: 't2', order_id: 'ord_a94z72c4d', status: 'On its way', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(), description: 'Dispatched via Express.' },
-            { id: 't3', order_id: 'ord_a94z72c4d', status: 'Delivered', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 1).toISOString(), description: 'Delivered successfully.' }
-        ]
-    },
-    {
-        id: 'ord_x11p55b2n',
-        userId: 'usr_3',
-        userName: 'Nana Yaa Afriyie',
-        date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 1).toISOString(),
-        status: 'Pending',
-        total: 129.00,
-        paymentMethod: 'Bank Transfer',
-        payment_status: 'pending',
-        shipping_method: 'Standard Delivery',
-        shipping_cost: 30.00,
-        shipping_address: 'Block A, East Legon',
-        items: [
-            { id: '4', name: 'AirPods Pro 2', category: 'Audio', price: 99.00, description: 'Noise Cancelling', image: 'https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?auto=format&fit=crop&q=80', stock: 20, quantity: 1 }
-        ]
-    }
-];
-
 export const AdminOrders: React.FC = () => {
     const [orders, setOrders] = useState<Order[]>([]);
     const [q, setQ] = useState('');
@@ -81,15 +17,11 @@ export const AdminOrders: React.FC = () => {
 
     useEffect(() => {
         getOrders().then(d => {
-            // Inject mock data if no real data is found for demo purposes
-            if (!d || d.length === 0) {
-                setOrders(MOCK_ORDERS);
-            } else {
-                setOrders(d);
-            }
+            setOrders(d || []);
             setLoading(false);
-        }).catch(() => {
-            setOrders(MOCK_ORDERS); // Fallback to mocks if fetching fails
+        }).catch((err) => {
+            console.error('Failed to load orders:', err);
+            setOrders([]);
             setLoading(false);
         });
     }, []);
@@ -139,10 +71,10 @@ export const AdminOrders: React.FC = () => {
                             order.status === 'Cancelled' ? 'text-red-400 bg-red-400/10' :
                                 order.status === 'Refunded' ? 'text-rose-500 bg-rose-500/10' :
                                     order.status === 'Processing' ? 'text-blue-400 bg-blue-400/10' :
-                                        order.status === 'Shipped' ? 'text-purple-400 bg-purple-400/10' :
+                                        order.status === 'Shipped' || order.status === 'shipped' as any ? 'text-emerald-400 bg-emerald-400/20 shadow-[0_0_10px_rgba(52,211,153,0.3)]' :
                                             'text-amber-400 bg-amber-400/10'}`}
                 >
-                    {isUpdating ? 'Updating...' : order.status}
+                    {isUpdating ? 'Updating...' : (order.status.toLowerCase() === 'shipped' ? 'Ready' : order.status)}
                     <ChevronDown size={12} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                 </button>
 
@@ -157,7 +89,7 @@ export const AdminOrders: React.FC = () => {
                                     className={`w-full text-left px-3 py-1.5 text-[10px] font-bold uppercase transition-colors
                                         ${order.status === s ? 'text-[#B38B21] bg-[#B38B21]/10' : 'text-white/70 hover:bg-white/5 hover:text-white'}`}
                                 >
-                                    {s}
+                                    {s === 'Shipped' ? 'Ready' : s}
                                 </button>
                             ))}
                         </div>
@@ -239,7 +171,7 @@ export const AdminOrders: React.FC = () => {
                         <button key={s} onClick={() => setStatusFilter(s)}
                             className={`px-2.5 py-1 md:py-1.5 rounded-xl text-[9px] md:text-[11px] font-black uppercase whitespace-nowrap transition-all 
                                 ${statusFilter === s ? 'bg-[#B38B21] text-black shadow-[0_0_15px_rgba(179,139,33,0.3)]' : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white'}`}>
-                            {s}
+                            {s === 'Shipped' ? 'Ready' : s}
                         </button>
                     ))}
                 </div>
@@ -330,6 +262,15 @@ export const AdminOrders: React.FC = () => {
                                 <div className="flex items-center gap-3 mb-1">
                                     <h2 className="text-lg md:text-xl font-black text-white tracking-tight uppercase">Order #{sel.id.slice(-6).toUpperCase()}</h2>
                                     <StatusDropdown order={sel} />
+                                    {sel.status !== 'Shipped' && sel.status !== 'shipped' && sel.status !== 'Delivered' && (
+                                        <button 
+                                            onClick={() => handleStatusChange(sel.id, 'Shipped')}
+                                            disabled={updatingOrderId === sel.id}
+                                            className="ml-auto px-4 py-1.5 md:py-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-wider hover:bg-emerald-500/30 transition-colors disabled:opacity-50"
+                                        >
+                                            Mark as Ready
+                                        </button>
+                                    )}
                                 </div>
                                 <p className="text-xs font-bold text-white/40 flex items-center gap-1.5"><Calendar size={12} /> Placed on {new Date(sel.date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} at {new Date(sel.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                             </div>
@@ -345,6 +286,7 @@ export const AdminOrders: React.FC = () => {
                                         <MapPin size={12} /> Customer & Delivery
                                     </h3>
                                     <p className="text-sm font-bold text-white mb-1">{sel.userName || 'Guest User'}</p>
+                                    <p className="text-xs text-white/50 mb-1">{sel.userEmail || 'N/A'}</p>
                                     <p className="text-xs text-white/50 mb-3">{sel.shipping_address || 'No address provided'}</p>
                                     <div className="pt-3 border-t border-white/5 flex items-center justify-between text-xs">
                                         <span className="text-white/40 font-bold">Method</span>

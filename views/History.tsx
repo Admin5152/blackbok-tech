@@ -123,9 +123,8 @@ export const History: React.FC = () => {
                     {activeTab === 'orders' && (
                         orders.length > 0 ? (
                             orders.map(order => (
-                                <Link
+                                <div
                                     key={order.id}
-                                    to={`/tracking/order/${order.id}`}
                                     className={`group p-6 md:p-8 rounded-[2.5rem] border transition-all duration-500 flex flex-col md:flex-row md:items-center justify-between gap-8 ${isLight ? 'bg-white border-black/5 hover:border-black' : 'bg-white/5 border-white/5 hover:border-[#CDA032]/30 hover:bg-white/[0.07] shadow-2xl shadow-black'}`}
                                 >
                                     <div className="flex items-center gap-6">
@@ -133,22 +132,31 @@ export const History: React.FC = () => {
                                             <Package size={28} className={isLight ? 'text-black' : 'text-white/60 group-hover:text-[#CDA032]'} />
                                         </div>
                                         <div className="space-y-1">
-                                            <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Order #{order.id}</p>
+                                            <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Order #{order.id.slice(-8).toUpperCase()}</p>
                                             <h3 className={`text-xl font-black italic tracking-tight uppercase ${isLight ? 'text-black' : 'text-white'}`}>
                                                 {order.items.length} {order.items.length === 1 ? 'Item' : 'Items'} • {formatCurrency(order.total)}
                                             </h3>
                                             <p className="text-[10px] font-bold opacity-60 uppercase tracking-widest">Placed on {new Date(order.date).toLocaleDateString()}</p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center justify-between md:justify-end gap-6 border-t md:border-0 pt-6 md:pt-0 border-white/5">
-                                        <span className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest ${getStatusColor(order.status)}`}>
-                                            {order.status}
+                                    <div className="flex items-center justify-between md:justify-end gap-3 border-t md:border-0 pt-6 md:pt-0 border-white/5">
+                                        <span className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest ${getStatusColor(order.status.toLowerCase() === 'shipped' ? 'ready' : order.status)}`}>
+                                            {order.status.toLowerCase() === 'shipped' ? 'Ready' : order.status}
                                         </span>
-                                        <div className={`w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-white/30 group-hover:text-[#CDA032] group-hover:border-[#CDA032] transition-all`}>
+                                        <Link
+                                            to={`/receipt/${order.id}` as any}
+                                            className="px-4 py-2 rounded-xl bg-[#CDA032]/10 text-[#CDA032] border border-[#CDA032]/20 text-[9px] font-black uppercase tracking-widest hover:bg-[#CDA032]/20 transition-colors whitespace-nowrap"
+                                        >
+                                            View Receipt
+                                        </Link>
+                                        <Link
+                                            to={`/tracking/order/${order.id}` as any}
+                                            className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-white/30 hover:text-[#CDA032] hover:border-[#CDA032] transition-all"
+                                        >
                                             <ChevronRight size={20} />
-                                        </div>
+                                        </Link>
                                     </div>
-                                </Link>
+                                </div>
                             ))
                         ) : (
                             <div className="py-20 text-center space-y-6">

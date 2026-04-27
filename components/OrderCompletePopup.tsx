@@ -14,7 +14,7 @@ export const OrderCompletePopup: React.FC<OrderCompletePopupProps> = ({ order, o
 
   const handleTrackOrder = () => {
     onClose();
-    navigate({ to: '/profile', hash: 'orders' });
+    navigate({ to: `/receipt/${order.id}` as any });
   };
 
   const handleContinueShopping = () => {
@@ -34,8 +34,8 @@ export const OrderCompletePopup: React.FC<OrderCompletePopupProps> = ({ order, o
           <div className="w-16 h-16 bg-[#B38B21]/20 rounded-full flex items-center justify-center mx-auto mb-4">
             <Check size={32} className="text-[#B38B21]" />
           </div>
-          <h3 className="text-2xl font-black text-white mb-2">Order Complete!</h3>
-          <p className="text-sm text-gray-400">Thank you for your purchase. Your order has been successfully placed.</p>
+          <h3 className="text-2xl font-black text-white mb-2">Order Successful!</h3>
+          <p className="text-sm text-gray-400">Your order is being processed.</p>
         </div>
 
         {/* Order Details */}
@@ -47,17 +47,21 @@ export const OrderCompletePopup: React.FC<OrderCompletePopupProps> = ({ order, o
           
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-gray-400">Total Amount</span>
-              <span className="text-white font-semibold">{formatCurrency(order.total)}</span>
+              <span className="text-gray-400">Subtotal</span>
+              <span className="text-white font-semibold">{formatCurrency(order.total - (order.shipping_cost || 0))}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-400">Payment Method</span>
-              <span className="text-white capitalize">{order.paymentMethod}</span>
+              <span className="text-gray-400">Shipping / Fees</span>
+              <span className="text-white font-semibold">{formatCurrency(order.shipping_cost || 0)}</span>
+            </div>
+            <div className="flex justify-between border-t border-white/10 pt-2 pb-1">
+              <span className="text-white font-bold">Grand Total</span>
+              <span className="text-[#B38B21] font-black">{formatCurrency(order.total)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">Estimated Delivery</span>
               <span className="text-white">
-                {order.estimated_delivery || '3-5 business days'}
+                {order.estimated_delivery ? new Date(order.estimated_delivery).toLocaleDateString() : '3-5 business days'}
               </span>
             </div>
           </div>
@@ -66,21 +70,23 @@ export const OrderCompletePopup: React.FC<OrderCompletePopupProps> = ({ order, o
         {/* Order Items Preview */}
         <div className="mb-6 relative z-10">
           <p className="text-xs text-gray-400 mb-2">Order Items ({order.items.length})</p>
-          <div className="space-y-2 max-h-24 overflow-y-auto">
-            {order.items.slice(0, 3).map((item) => (
-              <div key={item.id} className="flex items-center gap-3 text-sm">
-                <div className="w-8 h-8 bg-white/10 rounded flex items-center justify-center">
-                  <ShoppingBag size={14} className="text-[#B38B21]" />
+          <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
+            {order.items.map((item) => (
+              <div key={item.id} className="flex items-center justify-between gap-3 text-sm">
+                <div className="flex items-center gap-3 overflow-hidden">
+                    <div className="w-8 h-8 bg-white/10 rounded flex-shrink-0 flex items-center justify-center">
+                    <ShoppingBag size={14} className="text-[#B38B21]" />
+                    </div>
+                    <span className="text-white truncate">{item.name}</span>
+                    <span className="text-gray-400 text-xs">x{item.quantity}</span>
                 </div>
-                <span className="text-white flex-1">{item.name}</span>
-                <span className="text-gray-400">x{item.quantity}</span>
+                <span className="text-white font-bold flex-shrink-0">{formatCurrency(item.price * item.quantity)}</span>
               </div>
             ))}
-            {order.items.length > 3 && (
-              <p className="text-xs text-gray-400 text-center pt-1">
-                +{order.items.length - 3} more items
-              </p>
-            )}
+          </div>
+          
+          <div className="mt-4 p-3 bg-[#B38B21]/10 border border-[#B38B21]/20 rounded-lg text-center">
+            <p className="text-xs text-[#B38B21] font-semibold">You will be notified when your order is ready.</p>
           </div>
         </div>
 
@@ -90,7 +96,7 @@ export const OrderCompletePopup: React.FC<OrderCompletePopupProps> = ({ order, o
             onClick={handleTrackOrder}
             className="flex-1 py-3 bg-[#B38B21] text-black rounded-xl text-sm font-black uppercase tracking-wider transition-all hover:scale-105 flex items-center justify-center gap-2"
           >
-            Track Order
+            View My Order
             <ArrowRight size={16} />
           </button>
           <button

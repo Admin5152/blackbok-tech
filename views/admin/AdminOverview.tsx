@@ -167,14 +167,14 @@ const AIAnalystCard = ({ isLight }: { isLight: boolean }) => (
 );
 
 export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
-    const { theme } = useAppContext();
+    const { theme, products: contextProducts } = useAppContext();
     const isLight = theme === 'light';
 
     const [orders, setOrders] = useState<Order[]>([]);
     const [users, setUsers] = useState<User[]>([]);
     const [trades, setTrades] = useState<TradeRequest[]>([]);
     const [repairs, setRepairs] = useState<RepairRequest[]>([]);
-    const [products, setProducts] = useState<Product[]>([]);
+    const [products, setProducts] = useState<Product[]>(contextProducts || []);
 
     // Mock data for development
     const mockOrders: Order[] = [
@@ -399,13 +399,38 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
     ];
 
     useEffect(() => {
-        // Use mock data instead of API calls
-        setOrders(mockOrders);
-        setUsers(mockUsers);
-        setTrades(mockTrades);
-        setRepairs(mockRepairs);
-        setProducts(mockProducts);
-    }, []);
+        let mounted = true;
+        const fetchAdminData = async () => {
+            try {
+                const [dbOrders, dbUsers, dbTrades, dbRepairs] = await Promise.all([
+                    getOrders(),
+                    getUsers(),
+                    getTradeRequests(),
+                    getRepairRequests()
+                ]);
+                
+                if (mounted) {
+                    setOrders(dbOrders.length > 0 ? dbOrders : mockOrders);
+                    setUsers(dbUsers.length > 0 ? dbUsers : mockUsers);
+                    setTrades(dbTrades.length > 0 ? dbTrades : mockTrades);
+                    setRepairs(dbRepairs.length > 0 ? dbRepairs : mockRepairs);
+                }
+            } catch (err) {
+                console.error("Failed to fetch admin data from Supabase:", err);
+                if (mounted) {
+                    setOrders(mockOrders);
+                    setUsers(mockUsers);
+                    setTrades(mockTrades);
+                    setRepairs(mockRepairs);
+                }
+            }
+        };
+
+        fetchAdminData();
+        setProducts(contextProducts.length > 0 ? contextProducts : mockProducts);
+        
+        return () => { mounted = false; };
+    }, [contextProducts]);
 
     // Combined revenue
     const orderRevenue = orders.reduce((s, o) => s + o.total, 0);

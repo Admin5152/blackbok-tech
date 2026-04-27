@@ -213,6 +213,10 @@ export const getOrders = async (userId?: string): Promise<Order[]> => {
     .from('orders')
     .select(`
       *,
+      profiles (
+        email,
+        name
+      ),
       order_items (
         id,
         product_id,
@@ -238,7 +242,8 @@ export const getOrders = async (userId?: string): Promise<Order[]> => {
   return data.map(order => ({
     id: order.id,
     userId: order.user_id,
-    userName: '', // TODO: Join with profiles table
+    userName: order.profiles?.name || order.profiles?.email?.split('@')[0] || 'Unknown User',
+    userEmail: order.profiles?.email || 'N/A',
     items: order.order_items.map((item: any) => ({
       id: item.product_id,
       name: item.products?.name || '',
@@ -252,7 +257,8 @@ export const getOrders = async (userId?: string): Promise<Order[]> => {
     total: Number(order.total_price),
     date: order.created_at,
     status: order.status,
-    paymentMethod: 'Credit Card' // TODO: Add payment method to orders table
+    paymentMethod: 'Not provided', // Info not in schema
+    shipping_address: 'Not provided', // Info not in schema
   }));
 };
 
@@ -273,6 +279,10 @@ export const getOrder = async (id: string): Promise<Order | null> => {
     .from('orders')
     .select(`
       *,
+      profiles (
+        email,
+        name
+      ),
       order_items (
         id,
         product_id,
@@ -294,7 +304,8 @@ export const getOrder = async (id: string): Promise<Order | null> => {
   return {
     id: data.id,
     userId: data.user_id,
-    userName: '', // TODO: Join with profiles table
+    userName: data.profiles?.name || data.profiles?.email?.split('@')[0] || 'Unknown User',
+    userEmail: data.profiles?.email || 'N/A',
     items: data.order_items.map((item: any) => ({
       id: item.product_id,
       name: item.products?.name || '',
@@ -308,7 +319,8 @@ export const getOrder = async (id: string): Promise<Order | null> => {
     total: Number(data.total_price),
     date: data.created_at,
     status: data.status,
-    paymentMethod: 'Credit Card' // TODO: Add payment method to orders table
+    paymentMethod: 'Not provided',
+    shipping_address: 'Not provided'
   };
 };
 
@@ -323,8 +335,8 @@ export const getUsers = async (): Promise<User[]> => {
 
   return data.map(profile => ({
     id: profile.id,
-    email: profile.email,
-    name: profile.email.split('@')[0], // Use email prefix as name
+    email: profile.email || '',
+    name: profile.name || (profile.email ? profile.email.split('@')[0] : 'Unknown User'),
     role: profile.role as 'user' | 'admin'
   }));
 };

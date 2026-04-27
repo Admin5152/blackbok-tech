@@ -87,9 +87,24 @@ export const AdminUsers: React.FC = () => {
     ];
 
     useEffect(() => {
-        // Use mock data for now
-        setUsers(mockUsers);
-        setLoading(false);
+        let mounted = true;
+        const fetchUserData = async () => {
+            try {
+                const dbUsers = await getUsers();
+                if (mounted) {
+                    setUsers(dbUsers.length > 0 ? dbUsers : mockUsers);
+                    setLoading(false);
+                }
+            } catch (error) {
+                console.error("Failed to fetch users from database:", error);
+                if (mounted) {
+                    setUsers(mockUsers);
+                    setLoading(false);
+                }
+            }
+        };
+        fetchUserData();
+        return () => { mounted = false; };
     }, []);
 
     const filtered = users.filter(u => {
@@ -123,12 +138,18 @@ export const AdminUsers: React.FC = () => {
 
         setUpdating(userId);
         try {
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // If it's a real user from DB (id doesn't look like mock ID '1', '2', etc.), update via API
+            if (userId.length > 5) {
+                await updateUserRole(userId, role);
+            } else {
+                // Simulate API call for mock users
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
             setUsers(users.map(u => u.id === userId ? { ...u, role } : u));
             console.log(`Updated user ${userId} role to ${role}`);
         } catch (e) {
-            console.error('Failed to update role:', e);
+            console.error('Failed to update role in DB:', e);
+            alert('Failed to update user role in the database.');
         } finally {
             setUpdating(null);
         }

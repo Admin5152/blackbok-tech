@@ -11,9 +11,10 @@ import {
   createHashHistory
 } from '@tanstack/react-router';
 import { X, CheckCircle2, Activity, Scale, RefreshCcw, Home as HomeIcon, ShoppingBag, Wrench, ShoppingCart, User as UserIcon, LogOut, ChevronRight, ChevronDown, Settings, AlertTriangle, Sparkles, Eye, Clock } from 'lucide-react';
+import { supabase } from './lib/supabase';
 import { WhatsAppIcon } from './components/Icons';
 import { Product, User, CartItem, Category, RepairRequest, Order, TradeRequest } from './types';
-import { getProducts, createOrder } from './lib/api';
+import { getProducts } from './lib/api';
 import { handleSignOut } from './lib/signOut';
 import AuthService from './lib/auth';
 import { setupMobileBackButton, preventAppClose } from './lib/mobileNavigation';
@@ -43,6 +44,7 @@ import { NotFound } from './views/NotFound';
 import { ErrorPage } from './views/ErrorPage';
 import { History } from './views/History';
 import { Tracking } from './views/Tracking';
+import { OrderReceipt } from './views/OrderReceipt';
 // import { orders } from './data/orders'; 
 import { QuickViewModal } from './components/QuickViewModal';
 import { CompareModal } from './components/CompareModal';
@@ -77,6 +79,8 @@ export interface AppContextType {
   selectedCategories: Category[];
   setSelectedCategories: (c: Category[]) => void;
   setUser: (u: User | null) => void;
+  setCart: React.Dispatch<React.SetStateAction<CartItem[]>>;
+  setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
   setRepairs: (r: RepairRequest[]) => void;
   setTrades: (t: TradeRequest[]) => void;
   addToCart: (p: Product, o?: any, q?: number) => void;
@@ -292,6 +296,14 @@ const trackingRoute = createRoute({
   },
 });
 
+const receiptRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/receipt/$orderId',
+  component: () => {
+    return <OrderReceipt />;
+  },
+});
+
 const promotionsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/promotions",
@@ -347,6 +359,7 @@ const routeTree = rootRoute.addChildren([
   contactRoute,
   historyRoute,
   trackingRoute,
+  receiptRoute,
   promotionsRoute,
   compareRoute,
   policiesRoute,
@@ -490,6 +503,30 @@ function RootComponent() {
     localStorage.setItem(STORAGE_KEYS.THEME, theme);
   }, [user, cart, orders, repairs, trades, wishlist, compareIds, theme]);
 
+  // Supabase Realtime subscription for Order "Ready" notifications
+  useEffect(() => {
+    if (!user || !supabase) return;
+
+    const channel = supabase.channel('customer-order-updates')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'orders', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          if (payload.new.status === 'shipped' && payload.old.status !== 'shipped') {
+             notify('✅ Your order is ready for pickup/delivery!', 'success');
+             
+             // Update local order state mapping "shipped" to visually trigger "Ready" tracking
+             setOrders(prev => prev.map(o => o.id === payload.new.id ? { ...o, status: 'Shipped' } : o));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (supabase) supabase.removeChannel(channel);
+    };
+  }, [user]);
+
   // Apply theme globally (CSS reads html[data-theme]).
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -569,38 +606,21 @@ function RootComponent() {
     setCart(prev => prev.filter(p => `${p.id}-${JSON.stringify(p.selectedOptions)}` !== uniqueId));
   };
 
-  const handleCheckout = async (total: number) => {
-    if (!user) { notify('Auth required.', 'error'); return; }
-
-    try {
-      // Create order in Supabase
-      const order = await createOrder(cart, user.id);
-
-      // Create local order for UI compatibility
-      const newOrder: Order = {
-        id: order.id,
-        userId: user.id,
-        userName: user.name,
-        items: [...cart],
-        total,
-        status: 'Pending',
-        date: order.created_at,
-        paymentMethod: 'Credit Card'
-      };
-
-      setOrders([newOrder, ...orders]);
-      setCart([]);
-      notify('Transaction Authorized.');
-    } catch (error: any) {
-      notify('Checkout failed: ' + error.message, 'error');
+  const handleCheckout = (total: number) => {
+    if (!user) {
+      notify('Please sign in to place an order.', 'error');
+      navigate({ to: '/auth' as any });
+      return;
     }
+    // Navigate to the full checkout form — order is created there
+    navigate({ to: '/checkout' as any });
   };
 
   const contextValues: AppContextType = {
     products, cart, wishlist, compareIds, user, orders, repairs, trades,
     searchQuery, setSearchQuery,
     selectedCategories, setSelectedCategories,
-    setUser,
+    setUser, setCart, setOrders,
     setRepairs, setTrades, addToCart, toggleWishlist, toggleCompare,
     onToggleCompare: toggleCompare,
     updateQuantity, removeFromCart, handleCheckout, notify, navigateTo,
