@@ -203,7 +203,7 @@ export const AdminOrders: React.FC = () => {
                     <thead>
                         <tr>
                             <Th>Order Info</Th>
-                            <Th>Customer</Th>
+                            <Th>Customer Details</Th>
                             <Th>Amount</Th>
                             <Th>Date</Th>
                             <Th>Status</Th>
@@ -224,7 +224,14 @@ export const AdminOrders: React.FC = () => {
                                         </div>
                                     </div>
                                 </Td>
-                                <Td><p className="text-xs font-bold text-white/90">{o.userName || 'Guest User'}</p></Td>
+                                <Td>
+                                    <div className="space-y-1">
+                                        <p className="text-xs font-bold text-white/90">{o.userName || 'Guest User'}</p>
+                                        <p className="text-[10px] text-white/50">{o.userEmail || 'No email'}</p>
+                                        <p className="text-[10px] text-white/40">{o.userPhone || 'No phone'}</p>
+                                        <p className="text-[9px] text-[#B38B21]/60 truncate">{o.shipping_address}</p>
+                                    </div>
+                                </Td>
                                 <Td><p className="text-xs font-black text-white">GH₵{o.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p></Td>
                                 <Td><p className="text-[11px] font-bold text-white/50">{new Date(o.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</p></Td>
                                 <Td><StatusDropdown order={o} /></Td>
@@ -287,6 +294,7 @@ export const AdminOrders: React.FC = () => {
                                     </h3>
                                     <p className="text-sm font-bold text-white mb-1">{sel.userName || 'Guest User'}</p>
                                     <p className="text-xs text-white/50 mb-1">{sel.userEmail || 'N/A'}</p>
+                                    <p className="text-xs text-white/50 mb-1">{sel.userPhone || 'No phone'}</p>
                                     <p className="text-xs text-white/50 mb-3">{sel.shipping_address || 'No address provided'}</p>
                                     <div className="pt-3 border-t border-white/5 flex items-center justify-between text-xs">
                                         <span className="text-white/40 font-bold">Method</span>

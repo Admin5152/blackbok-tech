@@ -242,8 +242,9 @@ export const getOrders = async (userId?: string): Promise<Order[]> => {
   return data.map(order => ({
     id: order.id,
     userId: order.user_id,
-    userName: order.profiles?.name || order.profiles?.email?.split('@')[0] || 'Unknown User',
-    userEmail: order.profiles?.email || 'N/A',
+    userName: order.customer_name || order.profiles?.name || order.profiles?.email?.split('@')[0] || 'Unknown User',
+    userEmail: order.customer_email || order.profiles?.email || 'N/A',
+    userPhone: order.customer_phone || 'N/A',
     items: order.order_items.map((item: any) => ({
       id: item.product_id,
       name: item.products?.name || '',
@@ -256,9 +257,13 @@ export const getOrders = async (userId?: string): Promise<Order[]> => {
     })),
     total: Number(order.total_price),
     date: order.created_at,
-    status: order.status,
-    paymentMethod: 'Not provided', // Info not in schema
-    shipping_address: 'Not provided', // Info not in schema
+    status: order.status.charAt(0).toUpperCase() + order.status.slice(1),
+    paymentMethod: order.payment_method || 'Not provided',
+    shipping_address: order.delivery_location || 'Not provided',
+    tracking_number: order.tracking_number,
+    payment_status: 'paid' as any,
+    shipping_method: 'standard' as any,
+    shipping_cost: 0
   }));
 };
 
