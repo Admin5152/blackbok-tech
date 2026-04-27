@@ -112,21 +112,27 @@ export const Checkout: React.FC = () => {
       const estimatedDelivery = new Date();
       estimatedDelivery.setDate(estimatedDelivery.getDate() + 5);
 
-      // Create basic order in database first
-      const basicOrderData = {
+      // Create complete order with customer details
+      const completeOrderData = {
         user_id: user.id,
-        total_price: total, // Use correct column name from schema
-        status: 'pending' // Use lowercase to match schema
+        customer_name: user.name,
+        customer_email: user.email,
+        customer_phone: formData.phone || user.phone || '',
+        delivery_location: shippingMethod === 'pickup' ? 'Pick up from store' : `${formData.shippingAddress}, ${formData.city}, ${formData.region}, ${formData.postalCode}`,
+        total_price: total,
+        payment_method: formData.paymentMethod,
+        status: 'pending',
+        notes: `Shipping method: ${shippingMethod}, Shipping cost: ${shippingCost}`
       };
 
       let order;
       let error;
 
       try {
-        // Insert basic order
+        // Insert complete order
         const result = await supabase
           .from('orders')
-          .insert(basicOrderData)
+          .insert(completeOrderData)
           .select()
           .single();
         
@@ -157,7 +163,7 @@ export const Checkout: React.FC = () => {
         order = {
           id: generateId(),
           created_at: new Date().toISOString(),
-          ...basicOrderData,
+          ...completeOrderData,
           status: 'Pending' // Capitalize for frontend
         };
         error = null;

@@ -12,7 +12,7 @@ export const AdminOrders: React.FC = () => {
     const [sel, setSel] = useState<Order | null>(null);
     const [loading, setLoading] = useState(true);
     const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
-    const ORDER_STATUS_OPTIONS = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled', 'Refunded'] as const;
+    const ORDER_STATUS_OPTIONS = ['Pending', 'Processing', 'Ready', 'Shipped', 'Delivered', 'Cancelled', 'Refunded'] as const;
     const DATE_FILTER_OPTIONS = ['All Time', 'Today', 'Past 7 Days', 'Past 30 Days', 'Past 3 Months'] as const;
 
     useEffect(() => {
@@ -74,7 +74,7 @@ export const AdminOrders: React.FC = () => {
                                         order.status === 'Shipped' || order.status === 'shipped' as any ? 'text-emerald-400 bg-emerald-400/20 shadow-[0_0_10px_rgba(52,211,153,0.3)]' :
                                             'text-amber-400 bg-amber-400/10'}`}
                 >
-                    {isUpdating ? 'Updating...' : (order.status.toLowerCase() === 'shipped' ? 'Ready' : order.status)}
+                    {isUpdating ? 'Updating...' : (order.status.toLowerCase() === 'ready' ? 'Ready' : order.status)}
                     <ChevronDown size={12} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                 </button>
 
@@ -89,7 +89,7 @@ export const AdminOrders: React.FC = () => {
                                     className={`w-full text-left px-3 py-1.5 text-[10px] font-bold uppercase transition-colors
                                         ${order.status === s ? 'text-[#B38B21] bg-[#B38B21]/10' : 'text-white/70 hover:bg-white/5 hover:text-white'}`}
                                 >
-                                    {s === 'Shipped' ? 'Ready' : s}
+                                    {s}
                                 </button>
                             ))}
                         </div>
@@ -99,7 +99,7 @@ export const AdminOrders: React.FC = () => {
         );
     };
 
-    const statuses = ['All', 'Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled', 'Refunded'];
+    const statuses = ['All', 'Pending', 'Processing', 'Ready', 'Shipped', 'Delivered', 'Cancelled', 'Refunded'];
 
     // Helper to check if a date is within a specific range
     const isDateInRange = (dateString: string, filterStr: string) => {

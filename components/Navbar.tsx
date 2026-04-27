@@ -9,6 +9,7 @@ import { Link, useLocation, useNavigate } from '@tanstack/react-router';
 import { User, CartItem, Product } from '../types';
 import { formatCurrency } from '../lib/utils';
 import { handleSignOut } from '../lib/signOut';
+import { NotificationSystem } from './NotificationSystem';
 
 const ViewfinderLogo = () => (
   <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-8 h-8">
@@ -195,6 +196,9 @@ export const Navbar: React.FC<{
 
             {/* Right Section: Account, Search, Theme, Mobile Menu */}
             <div className="flex items-center gap-2 sm:gap-4">
+
+              {/* Notification System */}
+              {user && <NotificationSystem />}
 
               {/* Account Button */}
               <Link

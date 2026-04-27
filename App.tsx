@@ -45,10 +45,12 @@ import { ErrorPage } from './views/ErrorPage';
 import { History } from './views/History';
 import { Tracking } from './views/Tracking';
 import { OrderReceipt } from './views/OrderReceipt';
+import { Receipt } from './views/Receipt';
 // import { orders } from './data/orders'; 
 import { QuickViewModal } from './components/QuickViewModal';
 import { CompareModal } from './components/CompareModal';
 import { WelcomeScreen } from './components/WelcomeScreen';
+import { NotificationSystem } from './components/NotificationSystem';
 import { generateId } from './lib/utils';
 
 const STORAGE_KEYS = {
@@ -300,7 +302,7 @@ const receiptRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/receipt/$orderId',
   component: () => {
-    return <OrderReceipt />;
+    return <Receipt />;
   },
 });
 
