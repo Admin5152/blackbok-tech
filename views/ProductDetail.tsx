@@ -27,6 +27,13 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [isReviewFormOpen, setIsReviewFormOpen] = useState(false);
+  const [reviewForm, setReviewForm] = useState({
+    name: '',
+    rating: 5,
+    title: '',
+    body: ''
+  });
   const overviewRef = useRef<HTMLDivElement | null>(null);
   const specsRef = useRef<HTMLDivElement | null>(null);
   const reviewsRef = useRef<HTMLDivElement | null>(null);
@@ -74,6 +81,15 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
   };
 
   const handleAddToCart = () => {
+    // Validate required variants are selected
+    const requiredVariants = product.variants?.filter(v => v.name === 'Color' || v.name === 'Storage') || [];
+    const missingVariants = requiredVariants.filter(variant => !selectedOptions[variant.name]);
+    
+    if (missingVariants.length > 0) {
+      alert(`Please select ${missingVariants.map(v => v.name.toLowerCase()).join(' and ')} before adding to cart`);
+      return;
+    }
+    
     addToCart(product, selectedOptions, quantity);
   };
 
@@ -86,6 +102,15 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
     navigator.clipboard.writeText(shareUrl);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  const handleReviewSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log('Review submitted:', reviewForm);
+    // Here you would normally send to backend
+    alert('Review submitted successfully!');
+    setIsReviewFormOpen(false);
+    setReviewForm({ name: '', rating: 5, title: '', body: '' });
   };
 
   const shareLinks = [
@@ -372,6 +397,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               <p className="text-sm text-white/50 mt-2">See what customers are saying about this product.</p>
             </div>
             <button
+              onClick={() => setIsReviewFormOpen(true)}
               className="px-6 py-3 rounded-full bg-white/10 border border-white/10 text-[10px] font-black uppercase tracking-[0.3em] hover:bg-white/20 transition"
               type="button"
             >
@@ -590,6 +616,104 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                 Spread the word about blackbox premium
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Review Form Modal */}
+      {isReviewFormOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300"
+            onClick={() => setIsReviewFormOpen(false)}
+          />
+          <div className="relative bg-[#1a1a1a] border border-white/10 w-full max-w-lg rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b border-white/5">
+              <h3 className="text-lg font-bold tracking-tight">Write a Review</h3>
+              <button
+                onClick={() => setIsReviewFormOpen(false)}
+                className="p-2 hover:bg-white/5 rounded-full transition-colors"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Review Form */}
+            <form onSubmit={handleReviewSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-white/80 mb-2">Your Name</label>
+                <input
+                  type="text"
+                  required
+                  value={reviewForm.name}
+                  onChange={(e) => setReviewForm({...reviewForm, name: e.target.value})}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-[#B38B21] transition-colors"
+                  placeholder="Enter your name"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-white/80 mb-2">Rating</label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setReviewForm({...reviewForm, rating: star})}
+                      className="text-2xl transition-colors"
+                    >
+                      <Star
+                        className={`w-8 h-8 ${star <= reviewForm.rating
+                          ? 'fill-yellow-400 text-yellow-400'
+                          : 'text-white/20 hover:text-yellow-400/50'
+                        }`}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-white/80 mb-2">Review Title</label>
+                <input
+                  type="text"
+                  required
+                  value={reviewForm.title}
+                  onChange={(e) => setReviewForm({...reviewForm, title: e.target.value})}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-[#B38B21] transition-colors"
+                  placeholder="Summarize your experience"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-white/80 mb-2">Review</label>
+                <textarea
+                  required
+                  value={reviewForm.body}
+                  onChange={(e) => setReviewForm({...reviewForm, body: e.target.value})}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-[#B38B21] transition-colors h-32 resize-none"
+                  placeholder="Tell us about your experience with this product..."
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsReviewFormOpen(false)}
+                  className="flex-1 px-4 py-3 bg-white/10 border border-white/10 rounded-lg text-white hover:bg-white/20 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-3 bg-[#B38B21] text-black rounded-lg font-medium hover:bg-[#D4AF37] transition-colors"
+                >
+                  Submit Review
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

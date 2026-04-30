@@ -102,6 +102,13 @@ export const Checkout: React.FC = () => {
       return;
     }
 
+    // Validate cart is not empty
+    if (cart.length === 0) {
+      notify('Your cart is empty. Add items before checkout', 'error');
+      navigate({ to: '/store' });
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -140,12 +147,13 @@ export const Checkout: React.FC = () => {
         error = result.error;
 
         if (!error && order) {
-          // Now add order items
+          // Now add order items with variants
           const orderItems = cart.map(item => ({
             order_id: order.id,
             product_id: item.id,
             quantity: item.quantity,
-            price: item.price
+            price: item.price,
+            selected_options: item.selectedOptions || {}
           }));
 
           const { error: itemsError } = await supabase
@@ -154,8 +162,40 @@ export const Checkout: React.FC = () => {
 
           if (itemsError) {
             console.error('Error adding order items:', itemsError);
-            // Continue even if items fail
+            // Rollback: delete the order if items failed
+            await supabase.from('orders').delete().eq('id', order.id);
+            throw new Error('Failed to save order items. Please try again.');
           }
+
+          // Only clear cart after successful order AND items creation
+          // (This is now handled above after items are successfully saved)
+
+          // Update local orders with enhanced data for frontend
+          const newOrder: Order = {
+            id: order.id,
+            userId: user.id,
+            userName: user.name,
+            items: cart, // Use cart before it's cleared
+            total: total, // Keep total for local Order type
+            status: 'Pending', // Capitalize for frontend
+            date: order.created_at,
+            paymentMethod: formData.paymentMethod,
+            tracking_number: trackingNumber,
+            shipping_address: shippingMethod === 'pickup' ? 'Pick up from store' : `${formData.shippingAddress}, ${formData.city}, ${formData.region}, ${formData.postalCode}`,
+            payment_status: formData.paymentMethod === 'delivery' ? 'pending' : 'paid',
+            shipping_method: shippingMethod,
+            shipping_cost: shippingCost,
+            estimated_delivery: estimatedDelivery.toISOString()
+          };
+
+          setOrders([newOrder, ...orders]);
+          setCompletedOrder(newOrder);
+          setShowOrderComplete(true);
+
+          // Clear cart only after successful order AND items creation
+          setCart([]);
+
+          notify('Order placed successfully!');
         }
       } catch (dbError) {
         console.error('Database error, using mock data:', dbError);
@@ -183,32 +223,7 @@ export const Checkout: React.FC = () => {
         // Continue even if tracking fails
       }
 
-      // Clear cart
-      setCart([]);
-
-      // Update local orders with enhanced data for frontend
-      const newOrder: Order = {
-        id: order.id,
-        userId: user.id,
-        userName: user.name,
-        items: cart,
-        total: total, // Keep total for local Order type
-        status: 'Pending', // Capitalize for frontend
-        date: order.created_at,
-        paymentMethod: formData.paymentMethod,
-        tracking_number: trackingNumber,
-        shipping_address: shippingMethod === 'pickup' ? 'Pick up from store' : `${formData.shippingAddress}, ${formData.city}, ${formData.region}, ${formData.postalCode}`,
-        payment_status: 'paid',
-        shipping_method: shippingMethod,
-        shipping_cost: shippingCost,
-        estimated_delivery: estimatedDelivery.toISOString()
-      };
-
-      setOrders([newOrder, ...orders]);
-      setCompletedOrder(newOrder);
-      setShowOrderComplete(true);
-
-      notify('Order placed successfully!');
+      // Cart is already cleared and popup shown inside the try block above
 
     } catch (error) {
       console.error('Error placing order:', error);
@@ -226,7 +241,7 @@ export const Checkout: React.FC = () => {
         paymentMethod: formData.paymentMethod,
         tracking_number: `BB${Date.now().toString().slice(-10)}`,
         shipping_address: shippingMethod === 'pickup' ? 'Pick up from store' : `${formData.shippingAddress}, ${formData.city}, ${formData.region}, ${formData.postalCode}`,
-        payment_status: 'paid',
+        payment_status: formData.paymentMethod === 'delivery' ? 'pending' : 'paid',
         shipping_method: shippingMethod,
         shipping_cost: shippingCost,
         estimated_delivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString()
@@ -486,8 +501,8 @@ export const Checkout: React.FC = () => {
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium mb-3">Payment Method</label>
-                        <div className="grid grid-cols-2 gap-4">
-                          {['card', 'mobile'].map((method) => (
+                        <div className="grid grid-cols-1 gap-4">
+                          {['card', 'mobile', 'delivery'].map((method) => (
                             <label key={method} className="flex items-center gap-3 p-3 border border-white/10 rounded-lg cursor-pointer hover:bg-white/5">
                               <input
                                 type="radio"
@@ -497,7 +512,14 @@ export const Checkout: React.FC = () => {
                                 onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
                                 className="text-[#B38B21]"
                               />
-                              <span className="capitalize">{method === 'card' ? 'Credit Card' : 'Mobile Money'}</span>
+                              <span className="capitalize">
+                                {method === 'card' ? 'Credit Card' : 
+                                 method === 'mobile' ? 'Mobile Money' : 
+                                 'Pay on Delivery'}
+                              </span>
+                              {method === 'delivery' && (
+                                <span className="text-xs text-white/50 ml-2">(Pay when you receive)</span>
+                              )}
                             </label>
                           ))}
                         </div>

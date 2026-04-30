@@ -52,6 +52,7 @@ import { CompareModal } from './components/CompareModal';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { NotificationSystem } from './components/NotificationSystem';
 import { generateId } from './lib/utils';
+import { getProduct } from './lib/api';
 
 const STORAGE_KEYS = {
   PRODUCTS: 'bb_v4_products',
@@ -150,9 +151,21 @@ const storeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/store',
   validateSearch: (search: Record<string, unknown>): { categories?: string[] } => {
-    return {
-      categories: Array.isArray(search.categories) ? (search.categories as string[]) : (search.category ? [search.category as string] : undefined),
-    };
+    let categories: string[] | undefined;
+    
+    if (search.categories) {
+      // Handle ?categories=phones,laptops format
+      if (typeof search.categories === 'string') {
+        categories = (search.categories as string).split(',').map(c => c.trim());
+      } else {
+        categories = search.categories as string[];
+      }
+    } else if (search.category) {
+      // Handle ?category=phones format
+      categories = [search.category as string];
+    }
+    
+    return { categories };
   },
   component: () => {
     const context = useAppContext();
@@ -167,8 +180,42 @@ const productDetailRoute = createRoute({
   component: () => {
     const { productId } = useParams({ from: productDetailRoute.id } as any);
     const { products, theme, ...context } = useAppContext();
-    const product = products.find((p: Product) => p.id === productId);
-    if (!product) return <NotFound theme={theme} />;
+    
+    // Try to find in local state first, then fallback to database
+    const localProduct = products.find((p: Product) => p.id === productId);
+    const [product, setProduct] = useState<Product | null>(localProduct || null);
+    const [loading, setLoading] = useState(!localProduct);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+      if (!localProduct && productId) {
+        setLoading(true);
+        setError(null);
+        getProduct(productId)
+          .then(setProduct)
+          .catch((err) => {
+            console.error('Failed to fetch product:', err);
+            setError('Product not found');
+          })
+          .finally(() => setLoading(false));
+      }
+    }, [productId, localProduct]);
+
+    if (loading) {
+      return (
+        <div className="min-h-screen bg-black text-white flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-8 h-8 rounded-full border-2 border-t-[#B38B21] border-white/10 animate-spin mx-auto mb-4" />
+            <p className="text-sm text-white/60">Loading product...</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (error || !product) {
+      return <NotFound theme={theme} />;
+    }
+
     return (
       <ProductDetail
         product={product}
