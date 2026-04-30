@@ -268,9 +268,9 @@ export const Checkout: React.FC = () => {
           </div>
 
           <div className="space-y-4">
-            <h2 className="text-4xl font-black uppercase tracking-tighter italic">Checkout <span className="text-[#B38B21]">Aborted</span></h2>
+            <h2 className="text-4xl font-black uppercase tracking-tighter italic">All <span className="text-[#B38B21]">Done</span></h2>
             <p className="text-xs font-black uppercase tracking-[0.4em] opacity-40 leading-relaxed">
-              No active payload detected in the transaction buffer. Return to the store to capture units.
+              Your Orders have been placed and are being processed. Thank You For Shopping at Black-Box
             </p>
           </div>
 
@@ -279,7 +279,7 @@ export const Checkout: React.FC = () => {
               onClick={() => navigate({ to: '/store' })}
               className="w-full py-5 bg-[#B38B21] text-black rounded-2xl text-[10px] font-black uppercase tracking-[0.4em] hover:bg-[#D4AF37] transition-all hover:scale-105 active:scale-95 shadow-xl shadow-[#B38B21]/10"
             >
-              Initialize Procurement
+              Continue Shopping?
             </button>
           </div>
         </div>
