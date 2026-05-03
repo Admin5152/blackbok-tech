@@ -110,6 +110,33 @@ class AuthService {
         const client = getSupabaseClient();
         console.log('✅ Supabase client obtained');
         
+        // Check for duplicate email before attempting signup
+        console.log('🔍 Checking for duplicate email:', credentials.email);
+        const { data: existingUsers, error: checkError } = await client.auth.admin.listUsers();
+        
+        if (checkError) {
+          console.warn('⚠️ Could not check for duplicate email (admin access unavailable), proceeding with signup');
+        } else {
+          const duplicateUser = existingUsers.users.find(user => user.email === credentials.email);
+          if (duplicateUser) {
+            console.log('❌ Email already exists:', credentials.email);
+            return { user: null, error: 'Email already in use. Please use a different email or try logging in.' };
+          }
+        }
+        
+        // Alternative check: try to sign in with the email to see if it exists
+        console.log('🔍 Alternative duplicate check using signIn method...');
+        const { data: signInCheck, error: signInError } = await client.auth.signInWithPassword({
+          email: credentials.email,
+          password: 'dummy-password-for-check-only'
+        });
+        
+        // If signIn succeeds with any password, the email exists
+        if (!signInError && signInCheck.user) {
+          console.log('❌ Email already exists (verified via signIn check):', credentials.email);
+          return { user: null, error: 'Email already in use. Please use a different email or try logging in.' };
+        }
+        
         // Create user with Supabase Auth
         console.log('🔄 Attempting Supabase registration...');
         const { data, error } = await client.auth.signUp({
@@ -125,6 +152,15 @@ class AuthService {
 
         if (error) {
           console.error('❌ Supabase signup error:', error);
+          
+          // Check for specific duplicate email error
+          if (error.message.includes('already registered') || 
+              error.message.includes('already been registered') ||
+              error.message.includes('user_already_exists') ||
+              error.message.includes('duplicate')) {
+            return { user: null, error: 'Email already in use. Please use a different email or try logging in.' };
+          }
+          
           return { user: null, error: error.message };
         }
 

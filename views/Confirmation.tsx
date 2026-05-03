@@ -15,6 +15,7 @@ export const Confirmation: React.FC<ConfirmationProps> = ({ theme, navigateTo, e
   const [isChecking, setIsChecking] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [monitoringActive, setMonitoringActive] = useState(false);
+  const [pollingTimedOut, setPollingTimedOut] = useState(false);
   
   const isDark = theme === 'dark';
   const bgClass = isDark ? 'bg-black' : 'bg-[#F0F0F0]';
@@ -68,6 +69,7 @@ export const Confirmation: React.FC<ConfirmationProps> = ({ theme, navigateTo, e
     const timeout = setTimeout(() => {
       clearInterval(interval);
       setMonitoringActive(false);
+      setPollingTimedOut(true);
       console.log('Stopped checking for verification link (timeout)');
     }, 5 * 60 * 1000);
     
@@ -122,6 +124,7 @@ export const Confirmation: React.FC<ConfirmationProps> = ({ theme, navigateTo, e
     setTimeout(() => {
       clearInterval(monitorInterval);
       setMonitoringActive(false);
+      setPollingTimedOut(true);
       console.log('Email confirmation monitoring stopped (timeout)');
     }, 5 * 60 * 1000);
   };
@@ -137,6 +140,7 @@ export const Confirmation: React.FC<ConfirmationProps> = ({ theme, navigateTo, e
       if (result.success) {
         console.log('Confirmation email resent successfully');
         // You could show a success notification here
+        setPollingTimedOut(false); // Reset timeout state
         startMonitoring(); // Start monitoring after resending
       } else {
         console.error('Failed to resend confirmation email:', result.error);
@@ -241,6 +245,23 @@ export const Confirmation: React.FC<ConfirmationProps> = ({ theme, navigateTo, e
           </div>
         )}
 
+        {/* Timeout Status */}
+        {pollingTimedOut && !confirmationStatus?.isEmailConfirmed && (
+          <div className={`mt-4 p-3 rounded-lg ${isDark ? 'bg-orange-500/10 border border-orange-500/20' : 'bg-orange-50 border border-orange-200'}`}>
+            <div className="flex items-center gap-2">
+              <Clock className={`w-4 h-4 ${isDark ? 'text-orange-400' : 'text-orange-600'}`} />
+              <div>
+                <p className={`text-sm font-medium ${isDark ? 'text-orange-400' : 'text-orange-600'}`}>
+                  ⏰ Monitoring stopped
+                </p>
+                <p className={`${mutedClass} text-xs mt-1`}>
+                  We've stopped checking for your confirmation after 5 minutes. Please check your email or click "Resend Confirmation Email" to try again.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Instructions */}
         <div className={`mt-6 p-4 rounded-lg ${isDark ? 'bg-white/5' : 'bg-black/5'} space-y-3`}>
           <div className="flex items-start gap-3">
@@ -270,12 +291,7 @@ export const Confirmation: React.FC<ConfirmationProps> = ({ theme, navigateTo, e
 
         {/* Action Buttons */}
         <div className="mt-8 space-y-3">
-          <button
-            onClick={() => navigateTo('auth')}
-            className={`w-full py-3 px-4 rounded-xl font-black text-sm uppercase tracking-wider transition-all ${buttonClass}`}
-          >
-            Go to Login
-          </button>
+          
           
           <button
             onClick={handleResendEmail}
