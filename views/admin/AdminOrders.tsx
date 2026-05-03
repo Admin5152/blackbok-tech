@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Eye, Package, Calendar, Clock, MapPin, CreditCard, ChevronRight, CheckCircle2, ChevronDown } from 'lucide-react';
+import { ShoppingCart, Eye, Package, Calendar, Clock, MapPin, CreditCard, ChevronRight, CheckCircle2, ChevronDown, User, Mail, Phone, Truck, Shield, DollarSign, Edit2 } from 'lucide-react';
 import { Badge, SearchInput, Modal, ModalClose, Td, Th, TableWrapper, EmptyState, DateFilterDropdown } from './adminUtils';
 import { getOrders, updateOrderStatus } from '../../lib/api';
 import type { Order } from '../../types';
+import { formatCurrency } from '../../lib/utils';
 
 export const AdminOrders: React.FC = () => {
     const [orders, setOrders] = useState<Order[]>([]);
@@ -12,7 +13,7 @@ export const AdminOrders: React.FC = () => {
     const [sel, setSel] = useState<Order | null>(null);
     const [loading, setLoading] = useState(true);
     const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
-    const ORDER_STATUS_OPTIONS = ['Pending', 'Processing', 'Ready', 'Shipped', 'Delivered', 'Cancelled', 'Refunded'] as const;
+    const ORDER_STATUS_OPTIONS = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled', 'Refunded'] as const;
     const DATE_FILTER_OPTIONS = ['All Time', 'Today', 'Past 7 Days', 'Past 30 Days', 'Past 3 Months'] as const;
 
     useEffect(() => {
@@ -99,7 +100,7 @@ export const AdminOrders: React.FC = () => {
         );
     };
 
-    const statuses = ['All', 'Pending', 'Processing', 'Ready', 'Shipped', 'Delivered', 'Cancelled', 'Refunded'];
+    const statuses = ['All', 'Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled', 'Refunded'];
 
     // Helper to check if a date is within a specific range
     const isDateInRange = (dateString: string, filterStr: string) => {

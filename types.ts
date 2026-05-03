@@ -47,6 +47,7 @@ export interface Order {
   userId: string;
   userName: string;
   userEmail?: string;
+  userPhone?: string;
   items: CartItem[];
   total: number;
   status: 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Refunded';
@@ -60,6 +61,7 @@ export interface Order {
   shipping_method?: string;
   shipping_cost?: number;
   tracking_updates?: TrackingUpdate[];
+  display_id?: string;
 }
 
 export interface TrackingUpdate {

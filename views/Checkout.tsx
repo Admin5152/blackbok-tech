@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useAppContext } from '../App';
 import { CartItem, Order } from '../types';
 import { formatCurrency, generateId } from '../lib/utils';
-import { signIn, signUp, getUserProfile } from '../lib/api';
+import { signIn, signUp, getUserProfile, getOrCreateCustomer, placeOrder, clearCartItems } from '../lib/api';
 import { OrderCompletePopup } from '../components/OrderCompletePopup';
 import { addTrackingUpdate } from '../lib/setupTracking';
 
@@ -109,148 +109,64 @@ export const Checkout: React.FC = () => {
       return;
     }
 
+    // Validate customer data
+    if (!formData.shippingAddress || !formData.city || !formData.region || !formData.postalCode) {
+      notify('Please complete your shipping information', 'error');
+      return;
+    }
+
     try {
       setLoading(true);
 
-      // Generate tracking number
-      const trackingNumber = `BB${Date.now().toString().slice(-10)}`;
-      
-      // Calculate estimated delivery (3-5 business days from now)
-      const estimatedDelivery = new Date();
-      estimatedDelivery.setDate(estimatedDelivery.getDate() + 5);
+      // Step 1: Get or create customer
+      const customer = await getOrCreateCustomer(
+        user.name || 'Unknown',
+        user.email || '',
+        formData.phone || user.phone || '',
+        `${formData.shippingAddress}, ${formData.city}, ${formData.region}, ${formData.postalCode}`
+      );
 
-      // Create complete order with customer details
-      const completeOrderData = {
-        user_id: user.id,
-        customer_name: user.name,
-        customer_email: user.email,
-        customer_phone: formData.phone || user.phone || '',
-        delivery_location: shippingMethod === 'pickup' ? 'Pick up from store' : `${formData.shippingAddress}, ${formData.city}, ${formData.region}, ${formData.postalCode}`,
-        total_price: total,
-        payment_method: formData.paymentMethod,
-        status: 'pending',
-        notes: `Shipping method: ${shippingMethod}, Shipping cost: ${shippingCost}`
-      };
+      // Step 2: Place order using RPC
+      const order = await placeOrder(
+        user.id,
+        customer.id,
+        shippingMethod === 'pickup' ? 'Pick up from store' : `${formData.shippingAddress}, ${formData.city}, ${formData.region}, ${formData.postalCode}`,
+        formData.paymentMethod,
+        cart
+      );
 
-      let order;
-      let error;
+      // Step 3: Clear cart
+      await clearCartItems(user.id);
 
-      try {
-        // Insert complete order
-        const result = await supabase
-          .from('orders')
-          .insert(completeOrderData)
-          .select()
-          .single();
-        
-        order = result.data;
-        error = result.error;
-
-        if (!error && order) {
-          // Now add order items with variants
-          const orderItems = cart.map(item => ({
-            order_id: order.id,
-            product_id: item.id,
-            quantity: item.quantity,
-            price: item.price,
-            selected_options: item.selectedOptions || {}
-          }));
-
-          const { error: itemsError } = await supabase
-            .from('order_items')
-            .insert(orderItems);
-
-          if (itemsError) {
-            console.error('Error adding order items:', itemsError);
-            // Rollback: delete the order if items failed
-            await supabase.from('orders').delete().eq('id', order.id);
-            throw new Error('Failed to save order items. Please try again.');
-          }
-
-          // Only clear cart after successful order AND items creation
-          // (This is now handled above after items are successfully saved)
-
-          // Update local orders with enhanced data for frontend
-          const newOrder: Order = {
-            id: order.id,
-            userId: user.id,
-            userName: user.name,
-            items: cart, // Use cart before it's cleared
-            total: total, // Keep total for local Order type
-            status: 'Pending', // Capitalize for frontend
-            date: order.created_at,
-            paymentMethod: formData.paymentMethod,
-            tracking_number: trackingNumber,
-            shipping_address: shippingMethod === 'pickup' ? 'Pick up from store' : `${formData.shippingAddress}, ${formData.city}, ${formData.region}, ${formData.postalCode}`,
-            payment_status: formData.paymentMethod === 'delivery' ? 'pending' : 'paid',
-            shipping_method: shippingMethod,
-            shipping_cost: shippingCost,
-            estimated_delivery: estimatedDelivery.toISOString()
-          };
-
-          setOrders([newOrder, ...orders]);
-          setCompletedOrder(newOrder);
-          setShowOrderComplete(true);
-
-          // Clear cart only after successful order AND items creation
-          setCart([]);
-
-          notify('Order placed successfully!');
-        }
-      } catch (dbError) {
-        console.error('Database error, using mock data:', dbError);
-        // Create mock order if database fails
-        order = {
-          id: generateId(),
-          created_at: new Date().toISOString(),
-          ...completeOrderData,
-          status: 'Pending' // Capitalize for frontend
-        };
-        error = null;
-      }
-
-      if (error && !order) throw error;
-
-      // Add initial tracking update
-      try {
-        await addTrackingUpdate(
-          order.id,
-          'Order Placed',
-          'Your order has been received and is being processed.'
-        );
-      } catch (trackingError) {
-        console.error('Error adding tracking update:', trackingError);
-        // Continue even if tracking fails
-      }
-
-      // Cart is already cleared and popup shown inside the try block above
-
-    } catch (error) {
-      console.error('Error placing order:', error);
-      notify('Order placed successfully! Tracking available in your profile.', 'success');
-      
-      // Create a mock order to show the popup even if database fails
-      const mockOrder: Order = {
-        id: generateId(),
+      // Step 4: Update local orders state
+      const newOrder: Order = {
+        id: order.id,
         userId: user.id,
-        userName: user.name,
+        userName: user.name || 'Unknown',
+        userEmail: user.email || '',
+        userPhone: formData.phone || user.phone || '',
         items: cart,
         total: total,
-        status: 'Pending',
-        date: new Date().toISOString(),
+        date: order.created_at,
+        status: order.status.charAt(0).toUpperCase() + order.status.slice(1),
         paymentMethod: formData.paymentMethod,
-        tracking_number: `BB${Date.now().toString().slice(-10)}`,
         shipping_address: shippingMethod === 'pickup' ? 'Pick up from store' : `${formData.shippingAddress}, ${formData.city}, ${formData.region}, ${formData.postalCode}`,
+        tracking_number: order.tracking_number,
         payment_status: formData.paymentMethod === 'delivery' ? 'pending' : 'paid',
         shipping_method: shippingMethod,
         shipping_cost: shippingCost,
-        estimated_delivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString()
+        display_id: order.display_id || `ORD-${order.id}`
       };
-      
-      setCompletedOrder(mockOrder);
+
+      setOrders([newOrder, ...orders]);
+      setCompletedOrder(newOrder);
       setShowOrderComplete(true);
-      setCart([]);
-      setOrders([mockOrder, ...orders]);
+
+      notify('Order placed successfully!');
+
+    } catch (error: any) {
+      console.error('Error placing order:', error);
+      notify(error.message || 'Failed to place order. Please try again.', 'error');
     } finally {
       setLoading(false);
     }

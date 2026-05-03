@@ -175,7 +175,58 @@ export const deleteProduct = async (id: string) => {
   if (error) throw error;
 };
 
+// Customer handling
+export const getOrCreateCustomer = async (name: string, email: string, phone: string, address: string) => {
+  // Check if customer exists
+  const { data: existingCustomer, error: checkError } = await supabase
+    .from('customers')
+    .select('*')
+    .eq('email', email)
+    .single();
+
+  if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = not found
+    throw checkError;
+  }
+
+  // If customer exists, return it
+  if (existingCustomer) {
+    return existingCustomer;
+  }
+
+  // Create new customer
+  const { data: newCustomer, error: createError } = await supabase
+    .from('customers')
+    .insert({
+      name,
+      email,
+      phone,
+      address
+    })
+    .select()
+    .single();
+
+  if (createError) throw createError;
+  return newCustomer;
+};
+
 // Orders
+export const placeOrder = async (userId: string, customerId: string, shippingAddress: string, paymentMethod: string, cartItems: CartItem[]) => {
+  const { data, error } = await supabase.rpc('place_order', {
+    user_id: userId,
+    customer_id: customerId,
+    shipping_address: shippingAddress,
+    payment_method: paymentMethod,
+    cart_items: cartItems.map(item => ({
+      product_id: item.id,
+      quantity: item.quantity,
+      selected_options: item.selectedOptions || {}
+    }))
+  });
+
+  if (error) throw error;
+  return data;
+};
+
 export const createOrder = async (items: CartItem[], userId: string) => {
   const totalPrice = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
@@ -208,24 +259,32 @@ export const createOrder = async (items: CartItem[], userId: string) => {
   return order;
 };
 
+export const clearCartItems = async (userId: string) => {
+  const { error } = await supabase
+    .from('cart_items')
+    .delete()
+    .eq('user_id', userId);
+
+  if (error) throw error;
+};
+
 export const getOrders = async (userId?: string): Promise<Order[]> => {
   let query = supabase
     .from('orders')
     .select(`
       *,
-      profiles (
+      customers (
+        id,
+        name,
         email,
-        name
+        phone,
+        address
       ),
       order_items (
-        id,
-        product_id,
-        quantity,
-        price,
+        *,
         products (
-          id,
-          name,
-          image_url
+          *,
+          product_variants (*)
         )
       )
     `)
@@ -236,34 +295,33 @@ export const getOrders = async (userId?: string): Promise<Order[]> => {
   }
 
   const { data, error } = await query;
-
   if (error) throw error;
 
   return data.map(order => ({
     id: order.id,
     userId: order.user_id,
-    userName: order.customer_name || order.profiles?.name || order.profiles?.email?.split('@')[0] || 'Unknown User',
-    userEmail: order.customer_email || order.profiles?.email || 'N/A',
-    userPhone: order.customer_phone || 'N/A',
+    userName: order.customers?.name || 'Unknown',
+    userEmail: order.customers?.email || 'N/A',
+    userPhone: order.customers?.phone || 'N/A',
     items: order.order_items.map((item: any) => ({
       id: item.product_id,
       name: item.products?.name || '',
       price: Number(item.price),
       quantity: item.quantity,
-      image: item.products?.image_url || '',
-      category: 'Other' as any,
-      stock: 100,
-      description: ''
+      selectedOptions: item.selected_options || {},
+      stock: item.products?.stock || 0,
+      description: item.products?.description || ''
     })),
     total: Number(order.total_price),
     date: order.created_at,
     status: order.status.charAt(0).toUpperCase() + order.status.slice(1),
     paymentMethod: order.payment_method || 'Not provided',
-    shipping_address: order.delivery_location || 'Not provided',
+    shipping_address: order.shipping_address || 'Not provided',
     tracking_number: order.tracking_number,
-    payment_status: 'paid' as any,
-    shipping_method: 'standard' as any,
-    shipping_cost: 0
+    payment_status: order.payment_status || 'pending',
+    shipping_method: order.shipping_method || 'standard',
+    shipping_cost: order.shipping_cost || 0,
+    display_id: order.display_id || `ORD-${order.id}`
   }));
 };
 
