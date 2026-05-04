@@ -144,7 +144,7 @@ Signed by: ${formData.clientSignature} (Agreed: ${formData.agreesToTerms ? 'Yes'
         user_name: formData.name || user.name,
         device: `${formData.brand} ${formData.model}`,
         issue: issueText,
-        image_url: formData.photos[0] || '',
+        image_urls: formData.photos.length > 0 ? formData.photos : [],
         ai_diagnosis: '',
         fulfillment_method: formData.fulfillmentMethod,
       });
