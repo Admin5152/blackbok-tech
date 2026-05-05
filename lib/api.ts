@@ -1,23 +1,39 @@
 import { supabase } from './supabase';
-import { Product, User, Order, CartItem } from '../types';
+import { 
+  Profile, 
+  UserRole, 
+  Product, 
+  ProductVariant, 
+  CartItem, 
+  Wishlist, 
+  Order, 
+  OrderItem, 
+  TrackingUpdate, 
+  Review, 
+  RepairRequest, 
+  TradeInRequest,
+  InventoryAdjustment,
+  Supplier,
+  PurchaseOrder,
+  PurchaseOrderItem,
+  Message,
+  MessageThread,
+  EmailLog,
+  EmailSendQueue
+} from '../types';
 
-// Authentication
+// ==========================================
+// AUTHENTICATION & PROFILES
+// ==========================================
+
 export const signUp = async (email: string, password: string) => {
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-  });
-
+  const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) throw error;
   return data;
 };
 
 export const signIn = async (email: string, password: string) => {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) throw error;
   return data;
 };
@@ -30,11 +46,9 @@ export const signOut = async () => {
 export const handleSignOut = async (setUser: (user: null) => void, navigateTo: (view: string) => void) => {
   try {
     await signOut();
-    setUser(null);
-    navigateTo('home');
   } catch (error: any) {
     console.error('Sign out error:', error);
-    // Still clear local session even if Supabase signOut fails
+  } finally {
     setUser(null);
     navigateTo('home');
   }
@@ -45,101 +59,62 @@ export const getCurrentUser = async () => {
   return user;
 };
 
-export const createUserProfile = async (userId: string, name: string, email: string, role: 'user' | 'admin' = 'user') => {
-  const { data, error } = await supabase
-    .from('profiles')
-    .insert({
-      id: userId,
-      name,
-      email,
-      role
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
-};
-
-export const getUserProfile = async (userId: string) => {
+export const getUserProfile = async (userId: string): Promise<Profile | null> => {
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', userId)
-    .maybeSingle(); // Use maybeSingle() instead of single() to handle no results
-
+    .maybeSingle();
   if (error) throw error;
-  return data; // Will return null if no profile exists
+  return data;
 };
 
-// Products
-export const getProducts = async (): Promise<Product[]> => {
+export const updateUserProfile = async (userId: string, updates: Partial<Profile>) => {
   const { data, error } = await supabase
-    .from('products')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
-
-  return data.map(product => ({
-    id: product.id,
-    name: product.name,
-    description: product.description || '',
-    price: Number(product.price),
-    image: product.image_url || '',
-    category: product.category || 'Other',
-    stock: 100, // Default stock - TODO: add stock field to database
-    rating: Number(product.rating),
-    reviewCount: product.review_count || 0,
-    discount: product.discount,
-    new: product.new || false,
-    specs: [] // TODO: Add specs support if needed
-  }));
-};
-
-export const getProduct = async (id: string): Promise<Product | null> => {
-  const { data, error } = await supabase
-    .from('products')
-    .select('*')
-    .eq('id', id)
+    .from('profiles')
+    .update(updates)
+    .eq('id', userId)
+    .select()
     .single();
-
   if (error) throw error;
-  if (!data) return null;
-
-  return {
-    id: data.id,
-    name: data.name,
-    description: data.description || '',
-    price: Number(data.price),
-    image: data.image_url || '',
-    category: data.category || 'Other',
-    stock: 100, // Default stock - TODO: add stock field to database
-    rating: Number(data.rating),
-    reviewCount: data.review_count || 0,
-    discount: data.discount,
-    new: data.new || false,
-    specs: [] // TODO: Add specs support if needed
-  };
+  return data;
 };
 
-export const createProduct = async (product: Omit<Product, 'id'>) => {
+export const getUserRoles = async (userId: string): Promise<UserRole[]> => {
+  const { data, error } = await supabase
+    .from('user_roles')
+    .select('*')
+    .eq('user_id', userId);
+  if (error) throw error;
+  return data || [];
+};
+
+// ==========================================
+// PRODUCTS & VARIANTS
+// ==========================================
+
+// ==========================================
+// PRODUCT MANAGEMENT (ADMIN)
+// ==========================================
+
+export const createProduct = async (product: Partial<Product>) => {
   const { data, error } = await supabase
     .from('products')
     .insert({
       name: product.name,
       description: product.description,
       price: product.price,
-      image_url: product.image,
+      image_url: product.image || product.image_url,
       category: product.category,
       rating: product.rating,
-      review_count: product.reviewCount,
+      review_count: product.review_count || product.reviewCount,
       discount: product.discount,
-      new: product.new
+      is_new: product.new || product.is_new,
+      stock: product.stock || 0,
+      featured: product.featured
     })
     .select()
     .single();
-
   if (error) throw error;
   return data;
 };
@@ -151,406 +126,399 @@ export const updateProduct = async (id: string, updates: Partial<Product>) => {
       name: updates.name,
       description: updates.description,
       price: updates.price,
-      image_url: updates.image,
+      image_url: updates.image || updates.image_url,
       category: updates.category,
       rating: updates.rating,
-      review_count: updates.reviewCount,
+      review_count: updates.review_count || updates.reviewCount,
       discount: updates.discount,
-      new: updates.new
+      is_new: updates.new || updates.is_new,
+      stock: updates.stock,
+      featured: updates.featured
     })
     .eq('id', id)
     .select()
     .single();
-
   if (error) throw error;
   return data;
 };
 
 export const deleteProduct = async (id: string) => {
-  const { error } = await supabase
+  const { error } = await supabase.from('products').delete().eq('id', id);
+  if (error) throw error;
+};
+
+export const getProducts = async (): Promise<Product[]> => {
+  const { data, error } = await supabase
     .from('products')
-    .delete()
-    .eq('id', id);
-
-  if (error) throw error;
-};
-
-// Customer handling
-export const getOrCreateCustomer = async (name: string, email: string, phone: string, address: string) => {
-  // Check if customer exists
-  const { data: existingCustomer, error: checkError } = await supabase
-    .from('customers')
-    .select('*')
-    .eq('email', email)
-    .single();
-
-  if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = not found
-    throw checkError;
-  }
-
-  // If customer exists, return it
-  if (existingCustomer) {
-    return existingCustomer;
-  }
-
-  // Create new customer
-  const { data: newCustomer, error: createError } = await supabase
-    .from('customers')
-    .insert({
-      name,
-      email,
-      phone,
-      address
-    })
-    .select()
-    .single();
-
-  if (createError) throw createError;
-  return newCustomer;
-};
-
-// Orders
-export const placeOrder = async (userId: string, customerId: string, shippingAddress: string, paymentMethod: string, cartItems: CartItem[]) => {
-  const { data, error } = await supabase.rpc('place_order', {
-    user_id: userId,
-    customer_id: customerId,
-    shipping_address: shippingAddress,
-    payment_method: paymentMethod,
-    cart_items: cartItems.map(item => ({
-      product_id: item.id,
-      quantity: item.quantity,
-      selected_options: item.selectedOptions || {}
-    }))
-  });
-
-  if (error) throw error;
-  return data;
-};
-
-export const createOrder = async (items: CartItem[], userId: string) => {
-  const totalPrice = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-
-  // Create order
-  const { data: order, error: orderError } = await supabase
-    .from('orders')
-    .insert({
-      user_id: userId,
-      total_price: totalPrice
-    })
-    .select()
-    .single();
-
-  if (orderError) throw orderError;
-
-  // Create order items
-  const orderItems = items.map(item => ({
-    order_id: order.id,
-    product_id: item.id,
-    quantity: item.quantity,
-    price: item.price
-  }));
-
-  const { error: itemsError } = await supabase
-    .from('order_items')
-    .insert(orderItems);
-
-  if (itemsError) throw itemsError;
-
-  return order;
-};
-
-export const clearCartItems = async (userId: string) => {
-  const { error } = await supabase
-    .from('cart_items')
-    .delete()
-    .eq('user_id', userId);
-
-  if (error) throw error;
-};
-
-export const getOrders = async (userId?: string): Promise<Order[]> => {
-  let query = supabase
-    .from('orders')
-    .select(`
-      *,
-      customers (
-        id,
-        name,
-        email,
-        phone,
-        address
-      ),
-      order_items (
-        *,
-        products (
-          *,
-          product_variants (*)
-        )
-      )
-    `)
+    .select('*, product_variants(*)')
     .order('created_at', { ascending: false });
-
-  if (userId) {
-    query = query.eq('user_id', userId);
-  }
-
-  const { data, error } = await query;
   if (error) throw error;
-
-  return data.map(order => ({
-    id: order.id,
-    userId: order.user_id,
-    userName: order.customers?.name || 'Unknown',
-    userEmail: order.customers?.email || 'N/A',
-    userPhone: order.customers?.phone || 'N/A',
-    items: order.order_items.map((item: any) => ({
-      id: item.product_id,
-      name: item.products?.name || '',
-      price: Number(item.price),
-      quantity: item.quantity,
-      selectedOptions: item.selected_options || {},
-      stock: item.products?.stock || 0,
-      description: item.products?.description || ''
-    })),
-    total: Number(order.total_price),
-    date: order.created_at,
-    status: order.status.charAt(0).toUpperCase() + order.status.slice(1),
-    paymentMethod: order.payment_method || 'Not provided',
-    shipping_address: order.shipping_address || 'Not provided',
-    tracking_number: order.tracking_number,
-    payment_status: order.payment_status || 'pending',
-    shipping_method: order.shipping_method || 'standard',
-    shipping_cost: order.shipping_cost || 0,
-    display_id: order.display_id || `ORD-${order.id}`
+  
+  // Map for backward compatibility
+  return data.map((p: any) => ({
+    ...p,
+    image: p.image_url,
+    new: p.is_new,
+    reviewCount: p.review_count,
+    variants: p.product_variants
   }));
 };
 
-export const updateOrderStatus = async (id: string, status: Order['status']) => {
+export const getProduct = async (id: string): Promise<Product | null> => {
   const { data, error } = await supabase
-    .from('orders')
-    .update({ status })
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
-};
-
-export const getOrder = async (id: string): Promise<Order | null> => {
-  const { data, error } = await supabase
-    .from('orders')
-    .select(`
-      *,
-      profiles (
-        email,
-        name
-      ),
-      order_items (
-        id,
-        product_id,
-        quantity,
-        price,
-        products (
-          id,
-          name,
-          image_url
-        )
-      )
-    `)
+    .from('products')
+    .select('*, product_variants(*)')
     .eq('id', id)
     .single();
-
   if (error) throw error;
   if (!data) return null;
-
   return {
-    id: data.id,
-    userId: data.user_id,
-    userName: data.profiles?.name || data.profiles?.email?.split('@')[0] || 'Unknown User',
-    userEmail: data.profiles?.email || 'N/A',
-    items: data.order_items.map((item: any) => ({
-      id: item.product_id,
-      name: item.products?.name || '',
-      price: Number(item.price),
-      quantity: item.quantity,
-      image: item.products?.image_url || '',
-      category: 'Other' as any,
-      stock: 100,
-      description: ''
-    })),
-    total: Number(data.total_price),
-    date: data.created_at,
-    status: data.status,
-    paymentMethod: 'Not provided',
-    shipping_address: 'Not provided'
+    ...data,
+    image: data.image_url,
+    new: data.is_new,
+    reviewCount: data.review_count,
+    variants: data.product_variants
   };
 };
 
-// Users (Admin functions)
-export const getUsers = async (): Promise<User[]> => {
+// ==========================================
+// CART
+// ==========================================
+
+export const getCartItems = async (userId: string): Promise<CartItem[]> => {
   const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .order('created_at', { ascending: false });
-
+    .from('cart_items')
+    .select('*, products(*), product_variants(*)')
+    .eq('user_id', userId);
   if (error) throw error;
-
-  return data.map(profile => ({
-    id: profile.id,
-    email: profile.email || '',
-    name: profile.name || (profile.email ? profile.email.split('@')[0] : 'Unknown User'),
-    role: profile.role as 'user' | 'admin'
+  return data.map((item: any) => ({
+    ...item,
+    name: item.products?.name,
+    price: item.product_variants ? (Number(item.products?.price) + Number(item.product_variants.price_modifier)) : Number(item.products?.price),
+    image: item.products?.image_url,
+    selectedOptions: item.product_variants ? { variant: item.product_variants.sku } : {}
   }));
 };
 
-export const updateUserRole = async (userId: string, role: 'user' | 'admin' | 'sales' | 'repair') => {
+export const addToCart = async (userId: string, productId: string, variantId?: string, quantity: number = 1) => {
+  const payload: any = { user_id: userId, product_id: productId, quantity };
+  if (variantId) payload.variant_id = variantId;
+
   const { data, error } = await supabase
-    .from('profiles')
-    .update({ role })
-    .eq('id', userId)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
-};
-
-// ── Trade-In Requests ────────────────────────────────────────────
-
-export const createTradeRequest = async (trade: {
-  user_id: string;
-  user_name: string;
-  user_email: string;
-  device: string;
-  target_device?: string;
-  user_description?: string;
-  preferred_date?: string;
-  preferred_time?: string;
-  contact_name?: string;
-  contact_email?: string;
-  contact_phone?: string;
-  fulfillment_method?: 'Headquarters' | 'Pickup';
-}) => {
-  const { data, error } = await supabase
-    .from('trade_requests')
-    .insert({ ...trade, status: 'Pending', estimated_value: 0 })
+    .from('cart_items')
+    .insert(payload)
     .select()
     .single();
   if (error) throw error;
   return data;
 };
 
-export const getTradeRequests = async (userId?: string) => {
-  let query = supabase
-    .from('trade_requests')
-    .select('*')
-    .order('created_at', { ascending: false });
+export const updateCartItemQuantity = async (itemId: string, quantity: number) => {
+  const { data, error } = await supabase
+    .from('cart_items')
+    .update({ quantity })
+    .eq('id', itemId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const removeFromCart = async (itemId: string) => {
+  const { error } = await supabase.from('cart_items').delete().eq('id', itemId);
+  if (error) throw error;
+};
+
+export const clearCartItems = async (userId: string) => {
+  const { error } = await supabase.from('cart_items').delete().eq('user_id', userId);
+  if (error) throw error;
+};
+
+// ==========================================
+// WISHLIST
+// ==========================================
+
+export const getWishlist = async (userId: string): Promise<Wishlist[]> => {
+  const { data, error } = await supabase.from('wishlist').select('*, products(*)').eq('user_id', userId);
+  if (error) throw error;
+  return data;
+};
+
+export const addToWishlist = async (userId: string, productId: string) => {
+  const { data, error } = await supabase.from('wishlist').insert({ user_id: userId, product_id: productId }).select().single();
+  if (error) throw error;
+  return data;
+};
+
+export const removeFromWishlist = async (id: string) => {
+  const { error } = await supabase.from('wishlist').delete().eq('id', id);
+  if (error) throw error;
+};
+
+// ==========================================
+// REVIEWS
+// ==========================================
+
+export const getReviews = async (productId: string): Promise<Review[]> => {
+  const { data, error } = await supabase.from('reviews').select('*').eq('product_id', productId).order('created_at', { ascending: false });
+  if (error) throw error;
+  return data;
+};
+
+export const addReview = async (review: Omit<Review, 'id' | 'created_at'>) => {
+  const { data, error } = await supabase.from('reviews').insert(review).select().single();
+  if (error) throw error;
+  return data;
+};
+
+// ==========================================
+// ORDERS & CHECKOUT
+// ==========================================
+
+export const placeOrder = async (
+  userId: string, 
+  customerId: string, 
+  shippingAddress: string, 
+  paymentMethod: string, 
+  shippingMethod: string = 'Standard Delivery'
+) => {
+  // Use the RPC place_order() for checkout as per the schema requirement
+  const { data, error } = await supabase.rpc('place_order', {
+    p_user_id: userId,
+    p_customer_id: customerId,
+    p_shipping_address: shippingAddress,
+    p_payment_method: paymentMethod,
+    p_shipping_method: shippingMethod
+  });
+
+  if (error) {
+    console.error("place_order RPC error:", error);
+    throw error;
+  }
+  return data;
+};
+
+export const getOrders = async (userId?: string): Promise<Order[]> => {
+  let query = supabase.from('orders').select('*, profiles(*), order_items(*, products(*, product_variants(*)))').order('created_at', { ascending: false });
+  if (userId) query = query.eq('user_id', userId);
+  
+  const { data, error } = await query;
+  if (error) throw error;
+
+  return data.map((o: any) => ({
+    ...o,
+    userId: o.user_id,
+    userName: o.profiles?.name || 'Unknown',
+    userEmail: o.profiles?.email || 'N/A',
+    items: o.order_items.map((i: any) => ({
+      ...i,
+      name: i.products?.name,
+      image: i.products?.image_url,
+      selectedOptions: i.product_variants ? { variant: i.product_variants.sku } : {}
+    })),
+    total: Number(o.total_price),
+    date: o.created_at
+  }));
+};
+
+export const getOrder = async (id: string): Promise<Order | null> => {
+  const { data, error } = await supabase.from('orders').select('*, profiles(*), order_items(*, products(*))').eq('id', id).single();
+  if (error) throw error;
+  if (!data) return null;
+  
+  return {
+    ...data,
+    userId: data.user_id,
+    userName: data.profiles?.name || 'Unknown',
+    userEmail: data.profiles?.email || 'N/A',
+    items: data.order_items.map((i: any) => ({
+      ...i,
+      name: i.products?.name,
+      image: i.products?.image_url
+    })),
+    total: Number(data.total_price),
+    date: data.created_at
+  };
+};
+
+export const updateOrderStatus = async (id: string, status: string) => {
+  const { data, error } = await supabase.from('orders').update({ status }).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+};
+
+// ==========================================
+// TRACKING UPDATES
+// ==========================================
+
+export const getTrackingUpdates = async (orderId: string): Promise<TrackingUpdate[]> => {
+  const { data, error } = await supabase.from('tracking_updates').select('*').eq('order_id', orderId).order('created_at', { ascending: true });
+  if (error) throw error;
+  return data.map((t: any) => ({ ...t, timestamp: t.created_at }));
+};
+
+export const addTrackingUpdate = async (update: Omit<TrackingUpdate, 'id' | 'created_at'>) => {
+  const { data, error } = await supabase.from('tracking_updates').insert(update).select().single();
+  if (error) throw error;
+  return data;
+};
+
+// ==========================================
+// REPAIR REQUESTS
+// ==========================================
+
+export const createRepairRequest = async (repair: Partial<RepairRequest>) => {
+  const { data, error } = await supabase.from('repair_requests').insert({ ...repair, status: 'pending' }).select().single();
+  if (error) throw error;
+  return data;
+};
+
+export const getRepairRequests = async (userId?: string): Promise<RepairRequest[]> => {
+  let query = supabase.from('repair_requests').select('*').order('created_at', { ascending: false });
   if (userId) query = query.eq('user_id', userId);
   const { data, error } = await query;
   if (error) throw error;
-  return (data || []).map((t: any) => ({
-    id: t.id,
+  return data.map((r: any) => ({
+    ...r,
+    userId: r.user_id,
+    userName: r.user_name || '',
+    device: `${r.device_brand || ''} ${r.device_model || ''}`,
+    issue: r.issue_type || '',
+    date: r.created_at,
+    imageUrl: r.image_urls?.[0] || '',
+    estimatedCost: r.estimated_cost,
+    aiDiagnosis: r.ai_diagnosis,
+    adminNote: r.admin_note,
+    fulfillmentMethod: r.fulfillment_method
+  }));
+};
+
+export const updateRepairRequest = async (id: string, updates: Partial<RepairRequest>) => {
+  const { data, error } = await supabase.from('repair_requests').update(updates).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+};
+
+// ==========================================
+// TRADE-IN REQUESTS
+// ==========================================
+
+export const createTradeRequest = async (trade: Partial<TradeInRequest>) => {
+  const { data, error } = await supabase.from('trade_in_requests').insert({ ...trade, status: 'submitted', estimated_value: trade.estimated_value || 0 }).select().single();
+  if (error) throw error;
+  return data;
+};
+
+export const getTradeRequests = async (userId?: string): Promise<TradeInRequest[]> => {
+  let query = supabase.from('trade_in_requests').select('*').order('created_at', { ascending: false });
+  if (userId) query = query.eq('user_id', userId);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data.map((t: any) => ({
+    ...t,
     userId: t.user_id,
-    userName: t.user_name || '',
-    userEmail: t.user_email || '',
-    device: t.device || '',
-    condition: t.condition || '',
-    status: t.status || 'Pending',
+    userName: t.user_name,
+    userEmail: t.user_email,
+    device: `${t.device_brand || ''} ${t.device_name || ''}`,
     date: t.created_at,
     estimatedValue: Number(t.estimated_value) || 0,
     finalValue: t.final_value ? Number(t.final_value) : undefined,
-    adminNote: t.admin_note || '',
-    targetDevice: t.target_device || '',
-    userDescription: t.user_description || '',
-    preferredDate: t.preferred_date || '',
-    preferredTime: t.preferred_time || '',
-    contactName: t.contact_name || '',
-    contactEmail: t.contact_email || '',
-    contactPhone: t.contact_phone || '',
-    fulfillmentMethod: t.fulfillment_method || 'Headquarters',
+    adminNote: t.admin_notes,
+    targetDevice: t.target_device,
+    userDescription: t.user_description,
+    preferredDate: t.preferred_date,
+    preferredTime: t.preferred_time,
+    contactName: t.contact_name,
+    contactEmail: t.contact_email,
+    contactPhone: t.contact_phone,
+    fulfillmentMethod: t.fulfillment_method
   }));
 };
 
-export const updateTradeRequest = async (
-  id: string,
-  updates: {
-    status?: string;
-    condition?: string;
-    estimated_value?: number;
-    final_value?: number;
-    admin_note?: string;
-  }
+export const updateTradeRequest = async (id: string, updates: Partial<TradeInRequest>) => {
+  const { data, error } = await supabase.from('trade_in_requests').update(updates).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+};
+
+// ==========================================
+// ADMIN / INVENTORY / MESSAGING
+// ==========================================
+
+// ==========================================
+// USER / ROLE MANAGEMENT (ADMIN)
+// ==========================================
+
+export const updateUserRole = async (userId: string, role: string) => {
+  // First delete existing role(s)
+  await supabase.from('user_roles').delete().eq('user_id', userId);
+  // Insert new role
+  const { data, error } = await supabase
+    .from('user_roles')
+    .insert({ user_id: userId, role })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+// ==========================================
+// CUSTOMER HELPER (CHECKOUT COMPAT)
+// ==========================================
+
+/**
+ * For guest / new checkouts: upserts a profile row and returns the user id.
+ * If the user is already authenticated the profile already exists.
+ */
+export const getOrCreateCustomer = async (
+  name: string,
+  email: string,
+  phone: string,
+  address: string
 ) => {
+  // Check if a profile with this email exists
+  const { data: existing, error: findError } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle();
+
+  if (existing) return existing;
+
+  // Create a bare profile (no auth user — only works with service role or relaxed RLS)
+  // In practice the user will be authenticated before reaching this point.
   const { data, error } = await supabase
-    .from('trade_requests')
-    .update(updates)
-    .eq('id', id)
+    .from('profiles')
+    .insert({ name, email, phone, address })
     .select()
     .single();
   if (error) throw error;
   return data;
 };
 
-// ── Repair Requests ──────────────────────────────────────────────
-
-export const createRepairRequest = async (repair: {
-  user_id: string;
-  user_name: string;
-  device: string;
-  issue: string;
-  image_url?: string;
-  ai_diagnosis?: string;
-  fulfillment_method?: 'Headquarters' | 'Pickup';
-}) => {
-  const { data, error } = await supabase
-    .from('repair_requests')
-    .insert({ ...repair, status: 'Received' })
-    .select()
-    .single();
+export const getInventoryAdjustments = async (productId: string) => {
+  const { data, error } = await supabase.from('inventory_adjustments').select('*').eq('product_id', productId).order('created_at', { ascending: false });
   if (error) throw error;
   return data;
 };
 
-export const getRepairRequests = async (userId?: string) => {
-  let query = supabase
-    .from('repair_requests')
-    .select('*')
-    .order('created_at', { ascending: false });
-  if (userId) query = query.eq('user_id', userId);
-  const { data, error } = await query;
+export const createInventoryAdjustment = async (adjustment: Partial<InventoryAdjustment>) => {
+  const { data, error } = await supabase.from('inventory_adjustments').insert(adjustment).select().single();
   if (error) throw error;
-  return (data || []).map((r: any) => ({
-    id: r.id,
-    userId: r.user_id,
-    userName: r.user_name || '',
-    device: r.device || '',
-    issue: r.issue || '',
-    status: r.status || 'Received',
-    date: r.created_at,
-    imageUrl: r.image_url || '',
-    estimatedCost: r.estimated_cost || '',
-    aiDiagnosis: r.ai_diagnosis || '',
-    adminNote: r.admin_note || '',
-    fulfillmentMethod: r.fulfillment_method || 'Headquarters',
+  return data;
+};
+
+export const getUsers = async (): Promise<Profile[]> => {
+  const { data, error } = await supabase.from('profiles').select('*, user_roles(*)').order('created_at', { ascending: false });
+  if (error) throw error;
+  return data.map((p: any) => ({
+    ...p,
+    role: p.user_roles?.[0]?.role || 'user'
   }));
 };
 
-export const updateRepairRequest = async (
-  id: string,
-  updates: {
-    status?: string;
-    estimated_cost?: string;
-    admin_note?: string;
-  }
-) => {
-  const { data, error } = await supabase
-    .from('repair_requests')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
+export const getMessages = async () => {
+  const { data, error } = await supabase.from('messages').select('*').order('created_at', { ascending: false });
   if (error) throw error;
   return data;
 };
-

@@ -59,7 +59,7 @@ export const Checkout: React.FC = () => {
             name: profile?.name || authUser.email?.split('@')[0] || 'User',
             email: authUser.email || '',
             password: authForm.password,
-            role: profile?.role || 'user'
+            role: 'user'
           });
           notify('Successfully signed in. You may now complete your purchase.');
         }
@@ -72,7 +72,7 @@ export const Checkout: React.FC = () => {
             name: authForm.name,
             email: authUser.email || '',
             password: authForm.password,
-            role: profile?.role || 'user'
+            role: 'user'
           });
           notify('Account created successfully. You may now complete your purchase.');
         }
@@ -149,6 +149,7 @@ export const Checkout: React.FC = () => {
         total: total,
         date: order.created_at,
         status: order.status.charAt(0).toUpperCase() + order.status.slice(1),
+        payment_method: formData.paymentMethod,
         paymentMethod: formData.paymentMethod,
         shipping_address: shippingMethod === 'pickup' ? 'Pick up from store' : `${formData.shippingAddress}, ${formData.city}, ${formData.region}, ${formData.postalCode}`,
         tracking_number: order.tracking_number,
