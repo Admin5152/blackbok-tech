@@ -16,7 +16,7 @@ interface StoreProps {
   toggleWishlist: (productId: string) => void;
   compareIds: string[];
   onToggleCompare: (productId: string) => void;
-  onAddToCart: (p: Product) => void;
+  onAddToCart: (p: Product, options?: Record<string, string>, qty?: number) => void;
   theme?: Theme;
   categoriesFromUrl?: string[];
 }

@@ -24,7 +24,7 @@ interface ProfileProps {
   setUser: (u: User | null) => void;
   navigateTo: (v: string, id?: string) => void;
   toggleWishlist: (id: string) => void;
-  onAddToCart: (p: Product) => void;
+  onAddToCart: (p: Product, options?: Record<string, string>, qty?: number) => void;
   theme: 'light' | 'dark';
 }
 

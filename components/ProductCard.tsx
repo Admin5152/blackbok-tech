@@ -25,8 +25,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onToggleCompare
 }) => {
   const { theme } = useAppContext();
-  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
-  const [visiblePickers, setVisiblePickers] = useState<Record<string, boolean>>({});
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {};
+    product.variants?.forEach(v => {
+      if (v.options.length > 0) {
+        initial[v.name] = v.options[0];
+      }
+    });
+    return initial;
+  });
 
   const handleAddToCartWithOptions = () => {
     onAddToCart(product, selectedOptions, 1);
@@ -109,27 +116,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           <div className="space-y-3">
             {product.variants?.map(variant => {
               const selectedValue = selectedOptions[variant.name] || '';
-              const isVisible = visiblePickers[variant.name];
               const isColor = variant.name.toLowerCase() === 'color';
 
               return (
                 <div key={variant.name} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[8px] text-white/50 font-medium italic">{variant.name}</span>
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setVisiblePickers(prev => ({ ...prev, [variant.name]: !prev[variant.name] }));
-                      }}
-                      className="text-[8px] text-[#CDA032] hover:text-[#CDA032]/80 transition-colors"
-                    >
-                      {isVisible ? 'Hide' : 'Choose'}
-                    </button>
                   </div>
 
-                  {isVisible && (
-                    <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-1.5">
                       {variant.options.map(opt => (
                         <button
                           key={opt}
@@ -161,7 +156,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                         </button>
                       ))}
                     </div>
-                  )}
                   {selectedValue && (
                     <div className="flex items-center gap-1.5 pt-1">
                       {isColor && (

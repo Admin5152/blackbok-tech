@@ -96,7 +96,7 @@ export interface AppContextType {
   notify: (m: string, t?: any) => void;
   navigateTo: (v: string, id?: string) => void;
   onQuickView: (p: Product) => void;
-  onAddToCart: (p: Product) => void;
+  onAddToCart: (p: Product, options?: Record<string, string>, qty?: number) => void;
   theme: Theme;
   setTheme: (t: Theme) => void;
 }
@@ -674,7 +674,7 @@ function RootComponent() {
     onToggleCompare: toggleCompare,
     updateQuantity, removeFromCart, handleCheckout, notify, navigateTo,
     onQuickView: (p: Product) => { setQuickViewProduct(p); setIsQuickViewOpen(true); },
-    onAddToCart: (p: Product) => addToCart(p),
+    onAddToCart: (p: Product, options?: Record<string, string>, qty?: number) => addToCart(p, options, qty),
     theme,
     setTheme,
   };

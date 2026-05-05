@@ -34,7 +34,7 @@ interface CartProps {
   toggleWishlist: (id: string) => void;
   onToggleCompare: (id: string) => void;
   compareIds: string[];
-  onAddToCart: (p: Product) => void;
+  onAddToCart: (p: Product, options?: Record<string, string>, qty?: number) => void;
   user: User | null;
 }
 
