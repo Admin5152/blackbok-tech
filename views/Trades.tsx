@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   RefreshCcw, Smartphone, Laptop, Tablet, Gamepad2, Watch, MonitorSmartphone,
-  ArrowRight, Check, Send, User, Phone, Mail, Calendar,
-  Package, Info, CheckCircle2, XCircle, ChevronRight, MapPin
+  ArrowLeft, ArrowRight, Check, Send, User, Phone, Mail, Calendar,
+  Package, Info, CheckCircle2, XCircle, MapPin, Clock
 } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import type { Product, TradeRequest } from '../types';
@@ -17,52 +17,68 @@ interface TradesProps {
   onQuickView?: (product: Product) => void;
 }
 
-// ── Brand catalogue ────────────────────────────────────────────────────────────
-const BRANDS = [
-  { id: 'apple', name: 'Apple', logo: '' },
-  { id: 'samsung', name: 'Samsung', logo: '𖠌' },
-  { id: 'google', name: 'Google', logo: 'G' },
-  { id: 'sony', name: 'Sony', logo: 'SONY' },
-  { id: 'microsoft', name: 'Microsoft', logo: '⊞' },
-  { id: 'nintendo', name: 'Nintendo', logo: 'Game' },
-  { id: 'dell', name: 'Dell', logo: 'Dell' },
-  { id: 'hp', name: 'HP', logo: 'HP' },
-  { id: 'lenovo', name: 'Lenovo', logo: 'Lenovo' },
-  { id: 'other', name: 'Other', logo: '📱' },
+// ── Device types (Step 1 — mirrors Repair's "What can we help you with?") ──────
+const DEVICE_TYPES = [
+  { id: 'smartphone', label: 'Smartphone', icon: Smartphone },
+  { id: 'laptop',     label: 'Laptop',     icon: Laptop     },
+  { id: 'tablet',     label: 'Tablet',     icon: Tablet     },
+  { id: 'gaming',     label: 'Console',    icon: Gamepad2   },
+  { id: 'watch',      label: 'Watch',      icon: Watch      },
+  { id: 'other',      label: 'Other',      icon: MonitorSmartphone },
 ];
 
-// ── Device catalogue (each device tagged with a brand) ────────────────────────
+// ── Brands with images (Step 2 — mirrors Repair's brand image cards) ───────────
+const BRANDS_WITH_IMGS = [
+  { id: 'Apple',     label: 'Apple',     img: '/iphone_modern.png'   },
+  { id: 'Samsung',   label: 'Samsung',   img: '/galaxy_s24.png'      },
+  { id: 'Google',    label: 'Google',    img: '/pixel_phone.png'     },
+  { id: 'Sony',      label: 'Sony',      img: '/sony_phone.png'      },
+  { id: 'Microsoft', label: 'Microsoft', img: '/surface.png'         },
+  { id: 'Nintendo',  label: 'Nintendo',  img: '/nintendo_switch.png' },
+  { id: 'Dell',      label: 'Dell',      img: '/dell_laptop.png'     },
+  { id: 'HP',        label: 'HP',        img: '/hp_laptop.png'       },
+  { id: 'Lenovo',    label: 'Lenovo',    img: '/lenovo_laptop.png'   },
+  { id: 'Other',     label: 'Other',     img: '/other_device.png'    },
+];
+
+// ── Full device/model catalogue ────────────────────────────────────────────────
 const DEFAULT_TRADE_DEVICES = [
-  { id: 'iphone', brand: 'apple', name: 'iPhone', icon: Smartphone, variants: ['iPhone 16 Pro Max', 'iPhone 16 Pro', 'iPhone 16', 'iPhone 15 Pro Max', 'iPhone 15 Pro', 'iPhone 15', 'iPhone 14 Pro Max', 'iPhone 14 Pro', 'iPhone 14', 'iPhone 13', 'iPhone 12', 'iPhone 11', 'iPhone X', 'iPhone SE', 'Other iPhone'] },
-  { id: 'macbook', brand: 'apple', name: 'MacBook', icon: Laptop, variants: ['MacBook Pro M4', 'MacBook Pro M3', 'MacBook Air M3', 'MacBook Air M2', 'MacBook Air M1', 'MacBook Pro M1', 'Older MacBook'] },
-  { id: 'ipad', brand: 'apple', name: 'iPad', icon: Tablet, variants: ['iPad Pro M4', 'iPad Pro M2', 'iPad Air M2', 'iPad Air M1', 'iPad (10th gen)', 'iPad mini', 'Older iPad'] },
-  { id: 'watch_apple', brand: 'apple', name: 'Apple Watch', icon: Watch, variants: ['Apple Watch Series 10', 'Apple Watch Ultra 2', 'Apple Watch Series 9', 'Apple Watch SE', 'Older Apple Watch'] },
-  { id: 'samsung', brand: 'samsung', name: 'Galaxy Phone', icon: Smartphone, variants: ['Galaxy S25 Ultra', 'Galaxy S24 Ultra', 'Galaxy S24+', 'Galaxy S24', 'Galaxy S23 Ultra', 'Galaxy S23', 'Galaxy Z Fold 6', 'Galaxy Z Flip 6', 'Galaxy A55', 'Galaxy A35', 'Other Samsung'] },
-  { id: 'galaxy_tab', brand: 'samsung', name: 'Galaxy Tab', icon: Tablet, variants: ['Galaxy Tab S10 Ultra', 'Galaxy Tab S9', 'Galaxy Tab S8', 'Galaxy Tab A9', 'Other Galaxy Tab'] },
-  { id: 'watch_sam', brand: 'samsung', name: 'Galaxy Watch', icon: Watch, variants: ['Galaxy Watch 7', 'Galaxy Watch Ultra', 'Galaxy Watch 6', 'Galaxy Watch 5', 'Other Galaxy Watch'] },
-  { id: 'pixel', brand: 'google', name: 'Google Pixel', icon: Smartphone, variants: ['Pixel 9 Pro XL', 'Pixel 9 Pro', 'Pixel 9', 'Pixel 8 Pro', 'Pixel 8', 'Pixel 7 Pro', 'Pixel 7', 'Pixel 6', 'Other Pixel'] },
-  { id: 'ps', brand: 'sony', name: 'PlayStation', icon: Gamepad2, variants: ['PS5 Disc Edition', 'PS5 Digital Edition', 'PS4 Pro', 'PS4 Slim', 'PS4', 'PS VR2', 'Other PlayStation'] },
-  { id: 'xbox', brand: 'microsoft', name: 'Xbox', icon: Gamepad2, variants: ['Xbox Series X', 'Xbox Series S', 'Xbox One X', 'Xbox One S', 'Xbox One', 'Other Xbox'] },
-  { id: 'surface', brand: 'microsoft', name: 'Surface', icon: Laptop, variants: ['Surface Pro 11', 'Surface Pro 10', 'Surface Laptop 6', 'Surface Laptop 5', 'Surface Book', 'Other Surface'] },
-  { id: 'switch', brand: 'nintendo', name: 'Nintendo Switch', icon: Gamepad2, variants: ['Switch OLED', 'Switch V2', 'Switch Lite', 'Original Switch'] },
-  { id: 'dell', brand: 'dell', name: 'Dell Laptop', icon: Laptop, variants: ['XPS 15', 'XPS 13', 'Inspiron 15', 'Inspiron 13', 'Latitude', 'Other Dell'] },
-  { id: 'hp', brand: 'hp', name: 'HP Laptop', icon: Laptop, variants: ['Spectre x360', 'Envy', 'Pavilion', 'EliteBook', 'ProBook', 'Other HP'] },
-  { id: 'lenovo', brand: 'lenovo', name: 'Lenovo Laptop', icon: Laptop, variants: ['ThinkPad X1', 'ThinkPad E Series', 'IdeaPad', 'Legion', 'Yoga', 'Other Lenovo'] },
-  { id: 'other', brand: 'other', name: 'Other Device', icon: MonitorSmartphone, variants: ['Headphones/Earbuds', 'Smart Speaker', 'Camera', 'Drone', 'Other'] },
+  // Smartphones
+  { id: 'iphone',      deviceType: 'smartphone', brand: 'Apple',     name: 'iPhone',          img: '/iphone_modern.png',   variants: ['iPhone 16 Pro Max','iPhone 16 Pro','iPhone 16','iPhone 15 Pro Max','iPhone 15 Pro','iPhone 15','iPhone 14 Pro Max','iPhone 14 Pro','iPhone 14','iPhone 13','iPhone 12','iPhone 11','iPhone X','iPhone SE','Other iPhone'] },
+  { id: 'galaxy',      deviceType: 'smartphone', brand: 'Samsung',   name: 'Galaxy Phone',    img: '/galaxy_s24.png',      variants: ['Galaxy S25 Ultra','Galaxy S24 Ultra','Galaxy S24+','Galaxy S24','Galaxy S23 Ultra','Galaxy S23','Galaxy Z Fold 6','Galaxy Z Flip 6','Galaxy A55','Galaxy A35','Other Samsung'] },
+  { id: 'pixel',       deviceType: 'smartphone', brand: 'Google',    name: 'Google Pixel',    img: '/pixel_phone.png',     variants: ['Pixel 9 Pro XL','Pixel 9 Pro','Pixel 9','Pixel 8 Pro','Pixel 8','Pixel 7 Pro','Pixel 7','Pixel 6','Other Pixel'] },
+  { id: 'xperia',      deviceType: 'smartphone', brand: 'Sony',      name: 'Xperia',          img: '/sony_phone.png',      variants: ['Xperia 1 VI','Xperia 5 VI','Xperia 10 VI','Other Xperia'] },
+  { id: 'phone_other', deviceType: 'smartphone', brand: 'Other',     name: 'Other Phone',     img: '/other_device.png',    variants: ['Other Smartphone'] },
+  // Laptops
+  { id: 'macbook',     deviceType: 'laptop',     brand: 'Apple',     name: 'MacBook',         img: '/iphone_modern.png',   variants: ['MacBook Pro M4','MacBook Pro M3','MacBook Air M3','MacBook Air M2','MacBook Air M1','MacBook Pro M1','Older MacBook'] },
+  { id: 'surface',     deviceType: 'laptop',     brand: 'Microsoft', name: 'Surface',         img: '/surface.png',         variants: ['Surface Pro 11','Surface Pro 10','Surface Laptop 6','Surface Laptop 5','Surface Book','Other Surface'] },
+  { id: 'dell_lap',    deviceType: 'laptop',     brand: 'Dell',      name: 'Dell Laptop',     img: '/dell_laptop.png',     variants: ['XPS 15','XPS 13','Inspiron 15','Inspiron 13','Latitude','Other Dell'] },
+  { id: 'hp_lap',      deviceType: 'laptop',     brand: 'HP',        name: 'HP Laptop',       img: '/hp_laptop.png',       variants: ['Spectre x360','Envy','Pavilion','EliteBook','ProBook','Other HP'] },
+  { id: 'lenovo',      deviceType: 'laptop',     brand: 'Lenovo',    name: 'Lenovo Laptop',   img: '/lenovo_laptop.png',   variants: ['ThinkPad X1','ThinkPad E Series','IdeaPad','Legion','Yoga','Other Lenovo'] },
+  // Tablets
+  { id: 'ipad',        deviceType: 'tablet',     brand: 'Apple',     name: 'iPad',            img: '/iphone_modern.png',   variants: ['iPad Pro M4','iPad Pro M2','iPad Air M2','iPad Air M1','iPad (10th gen)','iPad mini','Older iPad'] },
+  { id: 'galaxy_tab',  deviceType: 'tablet',     brand: 'Samsung',   name: 'Galaxy Tab',      img: '/galaxy_s24.png',      variants: ['Galaxy Tab S10 Ultra','Galaxy Tab S9','Galaxy Tab S8','Galaxy Tab A9','Other Galaxy Tab'] },
+  // Gaming
+  { id: 'ps',          deviceType: 'gaming',     brand: 'Sony',      name: 'PlayStation',     img: '/sony_phone.png',      variants: ['PS5 Disc Edition','PS5 Digital Edition','PS4 Pro','PS4 Slim','PS4','PS VR2','Other PlayStation'] },
+  { id: 'xbox',        deviceType: 'gaming',     brand: 'Microsoft', name: 'Xbox',            img: '/surface.png',         variants: ['Xbox Series X','Xbox Series S','Xbox One X','Xbox One S','Xbox One','Other Xbox'] },
+  { id: 'switch',      deviceType: 'gaming',     brand: 'Nintendo',  name: 'Nintendo Switch', img: '/nintendo_switch.png', variants: ['Switch OLED','Switch V2','Switch Lite','Original Switch'] },
+  // Watches
+  { id: 'awatch',      deviceType: 'watch',      brand: 'Apple',     name: 'Apple Watch',     img: '/iphone_modern.png',   variants: ['Apple Watch Series 10','Apple Watch Ultra 2','Apple Watch Series 9','Apple Watch SE','Older Apple Watch'] },
+  { id: 'gwatch',      deviceType: 'watch',      brand: 'Samsung',   name: 'Galaxy Watch',    img: '/galaxy_s24.png',      variants: ['Galaxy Watch 7','Galaxy Watch Ultra','Galaxy Watch 6','Galaxy Watch 5','Other Galaxy Watch'] },
+  // Other
+  { id: 'other_dev',   deviceType: 'other',      brand: 'Other',     name: 'Other Device',    img: '/other_device.png',    variants: ['Headphones / Earbuds','Smart Speaker','Camera','Drone','Other'] },
 ];
 
-const generateId = () => `trade_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-
-// ── Status badge helper ────────────────────────────────────────────────────────
+// ── Status badge ───────────────────────────────────────────────────────────────
 const StatusBadge = ({ status }: { status: TradeRequest['status'] }) => {
   const map: Record<string, string> = {
-    'Pending': 'bg-yellow-500/10 text-yellow-400',
-    'Inspecting': 'bg-blue-500/10 text-blue-400',
-    'Offer Made': 'bg-purple-500/10 text-purple-400',
+    'Pending':       'bg-yellow-500/10 text-yellow-400',
+    'Inspecting':    'bg-blue-500/10 text-blue-400',
+    'Offer Made':    'bg-purple-500/10 text-purple-400',
     'Awaiting User': 'bg-purple-500/10 text-purple-400',
-    'Accepted': 'bg-green-500/10 text-green-400',
-    'Completed': 'bg-emerald-500/10 text-emerald-400',
-    'Rejected': 'bg-red-500/10 text-red-400',
+    'Accepted':      'bg-green-500/10 text-green-400',
+    'Completed':     'bg-emerald-500/10 text-emerald-400',
+    'Rejected':      'bg-red-500/10 text-red-400',
   };
   return (
     <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${map[status] || 'bg-white/5 text-white/30'}`}>
@@ -71,151 +87,152 @@ const StatusBadge = ({ status }: { status: TradeRequest['status'] }) => {
   );
 };
 
-// ── Component ──────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
 export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
   const { user, theme } = useAppContext();
   const navigate = useNavigate();
   const isDark = theme === 'dark';
 
-  // Device list (can be overridden by admin)
   const [tradeDevices, setTradeDevices] = useState(DEFAULT_TRADE_DEVICES);
-  const [myTrades, setMyTrades] = useState<TradeRequest[]>([]);
+  const [myTrades, setMyTrades]         = useState<TradeRequest[]>([]);
   const [loadingTrades, setLoadingTrades] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting, setSubmitting]     = useState(false);
 
-  // Form steps: 1=brand, 2=category, 3=model, 4=upgrade+notes, 5=contact+schedule, 6=review, 7=success
-  const [step, setStep] = useState(1);
-  const [selectedBrand, setSelectedBrand] = useState('');
-  const [selectedDeviceType, setSelectedDeviceType] = useState<string>('');
-  const [selectedDevice, setSelectedDevice] = useState<typeof tradeDevices[0] | null>(null);
-  const [selectedVariant, setSelectedVariant] = useState('');
-  const [targetProductId, setTargetProductId] = useState('');
-  const [notes, setNotes] = useState('');
+  // ── Mirror Repair's step/subStep structure exactly ─────────────────────────
+  // step 1 = device selection (sub-stepped like Repair)
+  // step 2 = trade-in details + upgrade target
+  // step 3 = contact + schedule
+  // step 4 = review & submit
+  const [step, setStep]         = useState(1);
+  const [subStep, setSubStep]   = useState(1); // 1=deviceType, 2=brand, 3=model
+  const [transitionKey, setTransitionKey] = useState(0);
+
+  const [selectedDeviceType, setSelectedDeviceType] = useState('');
+  const [selectedBrand, setSelectedBrand]           = useState('');
+  const [selectedDevice, setSelectedDevice]         = useState<typeof tradeDevices[0] | null>(null);
+  const [selectedVariant, setSelectedVariant]       = useState('');
+  const [targetProductId, setTargetProductId]       = useState('');
+  const [notes, setNotes]                           = useState('');
+
   const [formData, setFormData] = useState({
-    name: user?.name || '',
-    email: user?.email || '',
-    phone: '',
-    address: '',
-    date: '',
-    timeSlot: '',
-    fulfillmentMethod: 'Headquarters' as 'Headquarters' | 'Pickup'
+    name: user?.name || '', email: user?.email || '',
+    phone: '', address: '', date: '', timeSlot: '',
+    fulfillmentMethod: 'Headquarters' as 'Headquarters' | 'Pickup',
   });
 
   const [deviceDetails, setDeviceDetails] = useState({
-    serialNumber: '',
-    physicalDesc: '',
-    issueDesc: '',
-    whenStarted: '',
-    previousRepairs: ''
+    serialNumber: '', physicalDesc: '', issueDesc: '',
+    whenStarted: '', previousRepairs: '',
   });
 
   const [accessories, setAccessories] = useState({
-    chargers: false,
-    caseCover: false,
-    cables: false,
-    memory: false,
-    other: false
+    chargers: false, caseCover: false, cables: false, memory: false, other: false,
   });
 
-  // Admin-managed device list
+  const formRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to active section on step/subStep change — mirrors Repair
+  useEffect(() => {
+    if (formRef.current) {
+      const active = formRef.current.querySelector('.active-form-section');
+      if (active) {
+        setTimeout(() => {
+          const offset = 140;
+          const top = active.getBoundingClientRect().top + window.pageYOffset - offset;
+          window.scrollTo({ top, behavior: 'smooth' });
+        }, 80);
+      }
+    }
+  }, [step, subStep]);
+
+  // Admin device list override
   useEffect(() => {
     try {
       const d = localStorage.getItem(TRADE_DEVICES_KEY);
       if (d) {
         const parsed = JSON.parse(d);
-        const withIcons = parsed.map((dev: any) => {
+        setTradeDevices(parsed.map((dev: any) => {
           const def = DEFAULT_TRADE_DEVICES.find(x => x.id === dev.id);
-          return { ...dev, icon: def?.icon || MonitorSmartphone, brand: dev.brand || def?.brand || 'other' };
-        });
-        setTradeDevices(withIcons);
+          return { ...def, ...dev };
+        }));
       }
-    } catch { }
+    } catch {}
   }, []);
 
-  // Load user's past trades from Supabase
+  // Load past trades
   useEffect(() => {
     if (!user) return;
     setLoadingTrades(true);
     getTradeRequests(user.id)
       .then(d => setMyTrades(d as TradeRequest[]))
-      .catch(() => { })
+      .catch(() => {})
       .finally(() => setLoadingTrades(false));
   }, [user]);
 
-  // Filtered devices based on brand
-  const devicesByBrand = useMemo(() => {
-    return tradeDevices.filter(d => d.brand === selectedBrand);
-  }, [tradeDevices, selectedBrand]);
+  // Brands that have devices of the selected type
+  const brandsForType = useMemo(() => {
+    const brandsInUse = new Set(tradeDevices.filter(d => d.deviceType === selectedDeviceType).map(d => d.brand));
+    return BRANDS_WITH_IMGS.filter(b => brandsInUse.has(b.id));
+  }, [tradeDevices, selectedDeviceType]);
 
-  // Derived: Brands that actually have devices
-  const activeBrands = useMemo(() => {
-    const brandsInUse = new Set(tradeDevices.map(d => d.brand));
-    return BRANDS.filter(b => brandsInUse.has(b.id) || b.id === 'other');
-  }, [tradeDevices]);
+  // Devices filtered by type + brand
+  const devicesForBrand = useMemo(() =>
+    tradeDevices.filter(d => d.deviceType === selectedDeviceType && d.brand === selectedBrand),
+    [tradeDevices, selectedDeviceType, selectedBrand],
+  );
 
   const upgradeProducts = useMemo(() =>
-    products.filter(p => ['iPhone', 'Laptop', 'Tablet', 'Gaming'].includes(p.category)),
-    [products]);
+    products.filter(p => ['iPhone','Laptop','Tablet','Gaming'].includes(p.category)),
+    [products],
+  );
 
   const targetProduct = useMemo(() =>
     products.find(p => p.id === targetProductId),
-    [products, targetProductId]);
+    [products, targetProductId],
+  );
 
-  // Pending offer
   const pendingOffer = myTrades.find(t => t.status === 'Awaiting User' || t.status === 'Offer Made');
 
   const timeSlots = [
-    { id: 'morning-1', time: '9:00 AM', label: 'Early Morning' },
-    { id: 'morning-2', time: '10:30 AM', label: 'Mid Morning' },
-    { id: 'afternoon-2', time: '2:00 PM', label: 'Early Afternoon' },
-    { id: 'afternoon-3', time: '3:30 PM', label: 'Mid Afternoon' },
-    { id: 'evening-1', time: '5:00 PM', label: 'Evening' },
+    { id: 'morning-1',   time: '9:00 AM',  label: 'Early Morning',   available: true  },
+    { id: 'morning-2',   time: '10:30 AM', label: 'Mid Morning',     available: true  },
+    { id: 'afternoon-2', time: '2:00 PM',  label: 'Early Afternoon', available: true  },
+    { id: 'afternoon-3', time: '3:30 PM',  label: 'Mid Afternoon',   available: true  },
+    { id: 'evening-1',   time: '5:00 PM',  label: 'Evening',         available: true  },
   ];
 
-  const go = (n: number) => { setStep(n); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  const go = (n: number) => {
+    setTransitionKey(k => k + 1);
+    setStep(n);
+    setSubStep(1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const submitRequest = async () => {
     if (!user) { navigate({ to: '/auth' }); return; }
     if (!selectedDevice || !selectedVariant) { notify('Please select your device', 'error'); return; }
-    if (!formData.name || !formData.email || !formData.phone || !formData.address) { notify('Please fill in all contact details', 'error'); return; }
-
+    if (!formData.name || !formData.email || !formData.phone) { notify('Please fill in all contact details', 'error'); return; }
     setSubmitting(true);
     try {
-      const accessoriesList = Object.entries(accessories)
-        .filter(([_, v]) => v)
-        .map(([k, _]) => k)
-        .join(', ');
-
-      const detailsText = `${notes ? notes + '\n\n' : ''}Serial/IMEI: ${deviceDetails.serialNumber || 'N/A'}\nPhysical Description: ${deviceDetails.physicalDesc || 'N/A'}\nIssues: ${deviceDetails.issueDesc || 'N/A'}\nWhen Started: ${deviceDetails.whenStarted || 'N/A'}\nPrevious Repairs: ${deviceDetails.previousRepairs || 'N/A'}\nAccessories: ${accessoriesList || 'None'}`;
-
+      const accessoriesList = Object.entries(accessories).filter(([,v]) => v).map(([k]) => k).join(', ');
+      const detailsText = `${notes ? notes + '\n\n' : ''}Serial/IMEI: ${deviceDetails.serialNumber || 'N/A'}\nPhysical: ${deviceDetails.physicalDesc || 'N/A'}\nIssues: ${deviceDetails.issueDesc || 'N/A'}\nWhen Started: ${deviceDetails.whenStarted || 'N/A'}\nPrevious Repairs: ${deviceDetails.previousRepairs || 'N/A'}\nAccessories: ${accessoriesList || 'None'}`;
       const data = await createTradeRequest({
-        user_id: user.id,
-        user_name: formData.name,
-        user_email: formData.email,
-        device: `${selectedDevice.name} — ${selectedVariant}`,
+        user_id: user.id, user_name: formData.name, user_email: formData.email,
+        device: `${selectedDevice.brand} ${selectedDevice.name} — ${selectedVariant}`,
         target_device: targetProduct?.name || '',
         user_description: detailsText,
         preferred_date: formData.date,
         preferred_time: timeSlots.find(t => t.id === formData.timeSlot)?.time || '',
-        contact_name: formData.name,
-        contact_email: formData.email,
-        contact_phone: formData.phone,
+        contact_name: formData.name, contact_email: formData.email, contact_phone: formData.phone,
         fulfillment_method: formData.fulfillmentMethod,
       });
-      // Optimistically add to local list
       setMyTrades(prev => [{
-        id: data.id,
-        userId: user.id,
-        userName: formData.name,
-        userEmail: formData.email,
-        device: `${selectedDevice.name} — ${selectedVariant}`,
-        status: 'Pending',
-        date: new Date().toISOString(),
-        estimatedValue: 0,
-        condition: undefined,
+        id: data.id, userId: user.id, userName: formData.name, userEmail: formData.email,
+        device: `${selectedDevice.brand} ${selectedDevice.name} — ${selectedVariant}`,
+        status: 'Pending', date: new Date().toISOString(), estimatedValue: 0,
       } as TradeRequest, ...prev]);
       notify("Trade-in request submitted! We'll review and send you an offer within 24 hours.", 'success');
-      go(6);
+      go(5);
     } catch (err: any) {
       notify('Submission failed: ' + (err.message || 'Please try again'), 'error');
     } finally {
@@ -234,6 +251,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen pb-32 relative" style={{ backgroundColor: 'var(--bb-bg)', color: 'var(--bb-text)' }}>
+
       {/* Background glows */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
         <div className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full opacity-10"
@@ -242,25 +260,20 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
           style={{ background: 'radial-gradient(circle, #CDA032 0%, transparent 70%)', filter: 'blur(100px)', transform: 'translate(-30%, 30%)' }} />
       </div>
 
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 md:px-10 pt-8 sm:pt-14 z-10 relative">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 md:px-10 pt-8 sm:pt-14 z-10 relative">
 
         {/* Header */}
-        <header className="mb-8 sm:mb-12">
+        <header className="mb-10 sm:mb-16">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-[#CDA032]/10 border border-[#CDA032]/30">
               <RefreshCcw size={20} className="text-[#CDA032]" />
             </div>
-            <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.3em] text-[#CDA032]">
-              BlackBox Trade-In Center
-            </span>
+            <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.3em] text-[#CDA032]">BlackBox Trade-In Center</span>
           </div>
-          <h1 className="text-3xl sm:text-5xl md:text-6xl font-black uppercase tracking-tighter leading-[1.1]">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-black uppercase tracking-tighter leading-[1.1]">
             Trade in. Upgrade<br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#CDA032] to-[#FCE69B]">without the hassle.</span>
           </h1>
-          <p className="text-sm text-white/40 mt-4 max-w-xl">
-            Submit your device details and our team will inspect and send you a personalised offer within 24 hours.
-          </p>
         </header>
 
         {/* Pending offer banner */}
@@ -270,9 +283,9 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-purple-400 mb-1">🎉 You Have a Trade-In Offer!</p>
                 <p className="text-white font-black text-lg">{pendingOffer.device}</p>
-                {pendingOffer.condition && <p className="text-xs text-white/50 mt-0.5">Condition assessed: <span className="text-white font-bold">{pendingOffer.condition}</span></p>}
-                {pendingOffer.finalValue && <p className="text-2xl font-black text-[#B38B21] mt-2">${pendingOffer.finalValue} <span className="text-xs text-white/40 font-normal">trade-in value</span></p>}
-                {pendingOffer.adminNote && <p className="text-xs text-white/50 mt-1 bg-white/5 rounded-xl p-2">{pendingOffer.adminNote}</p>}
+                {pendingOffer.condition && <p className="text-xs text-white/50 mt-0.5">Condition: <span className="text-white font-bold">{pendingOffer.condition}</span></p>}
+                {(pendingOffer as any).finalValue && <p className="text-2xl font-black text-[#B38B21] mt-2">${(pendingOffer as any).finalValue} <span className="text-xs text-white/40 font-normal">trade-in value</span></p>}
+                {(pendingOffer as any).adminNote && <p className="text-xs text-white/50 mt-1 bg-white/5 rounded-xl p-2">{(pendingOffer as any).adminNote}</p>}
               </div>
               <div className="flex gap-2">
                 <button onClick={() => handleOfferResponse(pendingOffer.id, true)}
@@ -288,156 +301,270 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
           </div>
         )}
 
-        <div className="flex flex-col lg:flex-row gap-6 lg:gap-10 items-start">
+        <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-start">
 
-          {/* ── Form ── */}
-          <div className="flex-1 w-full min-w-0 space-y-6">
+          {/* ══════════════ MAIN FORM ══════════════ */}
+          <div className="flex-1 w-full space-y-6" ref={formRef}>
 
-            {/* Step indicator */}
-            {step < 6 && (
-              <div className="flex items-center gap-1 sm:gap-2 mb-2 overflow-x-auto pb-1">
-                {[1, 2, 3, 4, 5].map(s => (
-                  <React.Fragment key={s}>
-                    <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-black shrink-0 transition-all ${step >= s ? 'bg-[#CDA032] text-black' : 'bg-white/5 text-white/20'}`}>
-                      {step > s ? <Check size={12} /> : s}
-                    </div>
-                    {s < 5 && <div className={`flex-1 h-0.5 min-w-[12px] rounded-full transition-all ${step > s ? 'bg-[#CDA032]' : 'bg-white/10'}`} />}
-                  </React.Fragment>
-                ))}
-              </div>
-            )}
+            {/* ══════════════════════════════════════
+                STEP 1 — Device selection
+                Mirrors Repair's Step 1 sub-step structure:
+                  subStep 1 = device type cards
+                  subStep 2 = brand image cards
+                  subStep 3 = model selection with preview
+            ══════════════════════════════════════ */}
 
-            {/* ── STEP 1: Brand ── */}
-            {step === 1 && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-400">
-                <div>
-                  <h2 className="text-xl sm:text-2xl font-bold tracking-tight mb-1">Select the brand</h2>
-                  <p className="text-sm text-white/40">We'll show only devices from that manufacturer.</p>
+            {/* Folded header when step 1 is done */}
+            {step > 1 ? (
+              <div className="flex justify-between items-center py-6 border-b border-[var(--bb-border)] animate-in fade-in transition-all">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032]">Trading In</p>
+                  <h3 className="text-xl font-black text-white">{selectedDevice?.brand} {selectedDevice?.name} — {selectedVariant}</h3>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-                  {BRANDS.map(b => (
-                    <button key={b.id} onClick={() => setSelectedBrand(b.id)}
-                      className={`flex flex-col items-center justify-center p-4 rounded-2xl border transition-all duration-300 ${selectedBrand === b.id
-                        ? 'bg-[#CDA032]/10 border-[#CDA032] shadow-[0_0_20px_rgba(205,160,50,0.15)] ring-1 ring-[#CDA032]'
-                        : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:bg-[var(--bb-surface-2)] hover:border-[#CDA032]/40'}`}>
-                      <span className="text-2xl mb-1.5">{b.logo}</span>
-                      <span className={`text-xs font-bold ${selectedBrand === b.id ? 'text-[#CDA032]' : 'text-white/70'}`}>{b.name}</span>
-                    </button>
-                  ))}
-                </div>
-                <button onClick={() => { if (!selectedBrand) { notify('Please select a brand', 'error'); return; } go(2); }}
-                  disabled={!selectedBrand}
-                  className="flex items-center gap-2 px-8 py-4 rounded-xl text-xs font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed">
-                  Continue <ArrowRight size={16} />
+                <button onClick={() => { setStep(1); setSubStep(1); }} className="text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors">
+                  Change
                 </button>
               </div>
-            )}
+            ) : step === 1 && (
+              <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 active-form-section">
 
-            {/* ── STEP 2: Category ── */}
-            {step === 2 && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-400">
-                <div className="flex items-center justify-between py-4 border-b border-[var(--bb-border)]">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032]">Brand</p>
-                    <h3 className="text-lg font-black capitalize">{BRANDS.find(b => b.id === selectedBrand)?.name}</h3>
+                {/* ── subStep 1a: Device Type ── */}
+                {subStep > 1 ? (
+                  <div className="flex justify-between items-center py-5 border-b border-[var(--bb-border)] animate-in fade-in">
+                    <h3 className="text-lg font-bold">{DEVICE_TYPES.find(d => d.id === selectedDeviceType)?.label}</h3>
+                    <button onClick={() => setSubStep(1)} className="text-sm font-bold text-blue-500 hover:text-blue-400">Change</button>
                   </div>
-                  <button onClick={() => go(1)} className="text-sm font-bold text-blue-500">Change</button>
-                </div>
+                ) : subStep === 1 && (
+                  <div className="space-y-4">
+                    <h2 className="text-2xl font-bold tracking-tight">What are you trading in?</h2>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+                      {DEVICE_TYPES.map(type => (
+                        <button key={type.id}
+                          onClick={() => {
+                            setSelectedDeviceType(type.id);
+                            setSelectedBrand('');
+                            setSelectedDevice(null);
+                            setSelectedVariant('');
+                            setSubStep(2);
+                          }}
+                          className={`flex flex-col items-center justify-center p-6 sm:p-8 rounded-3xl border transition-all duration-300 ${selectedDeviceType === type.id
+                            ? 'bg-[#CDA032]/10 border-[#CDA032] shadow-[0_0_30px_rgba(205,160,50,0.15)] ring-1 ring-[#CDA032]'
+                            : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:bg-[var(--bb-surface-2)] hover:border-[#CDA032]/40'}`}
+                        >
+                          <type.icon size={36} strokeWidth={1.5}
+                            className={`mb-4 transition-colors ${selectedDeviceType === type.id ? 'text-[#CDA032]' : 'opacity-60'}`} />
+                          <span className={`text-sm sm:text-base font-bold transition-colors ${selectedDeviceType === type.id ? 'text-[#CDA032]' : 'opacity-90'}`}>
+                            {type.label}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-                <div>
-                  <h2 className="text-xl sm:text-2xl font-bold tracking-tight mb-1">What type of device?</h2>
-                  <p className="text-sm text-white/40">Select the category that matches your device.</p>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {devicesByBrand.map(dev => {
-                    const Icon = dev.icon || MonitorSmartphone;
-                    const isSelected = selectedDevice?.id === dev.id;
-                    return (
-                      <button key={dev.id} onClick={() => { setSelectedDevice(dev); go(3); }}
-                        className={`flex flex-col items-center justify-center p-4 sm:p-5 rounded-2xl border transition-all duration-300 ${isSelected
-                          ? 'bg-[#CDA032]/10 border-[#CDA032] ring-1 ring-[#CDA032]'
-                          : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:border-[#CDA032]/40'}`}>
-                        <Icon size={26} strokeWidth={1.5} className={`mb-2 transition-colors ${isSelected ? 'text-[#CDA032]' : 'opacity-50'}`} />
-                        <span className={`text-xs font-bold text-center leading-tight ${isSelected ? 'text-[#CDA032]' : 'opacity-80'}`}>{dev.name}</span>
+                {/* ── subStep 1b: Brand (image cards — same as Repair) ── */}
+                {subStep > 2 ? (
+                  <div className="flex justify-between items-center py-5 border-b border-[var(--bb-border)] animate-in fade-in">
+                    <h3 className="text-lg font-bold">{selectedBrand}</h3>
+                    <button onClick={() => setSubStep(2)} className="text-sm font-bold text-blue-500 hover:text-blue-400">Change</button>
+                  </div>
+                ) : subStep === 2 && (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300 pt-4">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-2">
+                        <p className="text-xs font-black uppercase tracking-widest text-[#CDA032] opacity-70">
+                          {DEVICE_TYPES.find(d => d.id === selectedDeviceType)?.label}
+                        </p>
+                        <h2 className="text-2xl font-bold tracking-tight">Which brand?</h2>
+                      </div>
+                      <button onClick={() => setSubStep(1)} className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-white/40 hover:text-[#CDA032] transition-colors">
+                        <ArrowLeft size={14} /> Back
                       </button>
-                    );
-                  })}
-                </div>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                      {brandsForType.map(brand => (
+                        <button key={brand.id}
+                          onClick={() => {
+                            setSelectedBrand(brand.id);
+                            setSelectedDevice(null);
+                            setSelectedVariant('');
+                            setSubStep(3);
+                          }}
+                          className={`group flex flex-col items-center justify-center p-6 rounded-3xl border transition-all duration-300 ${selectedBrand === brand.id
+                            ? 'bg-[#CDA032]/10 border-[#CDA032] shadow-[0_0_30px_rgba(205,160,50,0.15)] ring-1 ring-[#CDA032]'
+                            : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:bg-[var(--bb-surface-2)] hover:border-[#CDA032]/40'}`}
+                        >
+                          <div className="h-16 mb-4 flex items-center justify-center overflow-hidden">
+                            <img src={brand.img} alt={brand.label}
+                              className={`h-full w-auto object-contain transition-all duration-500 scale-90 group-hover:scale-105 ${selectedBrand === brand.id ? 'opacity-100' : 'opacity-40 group-hover:opacity-100'}`} />
+                          </div>
+                          <span className={`text-xs font-black uppercase tracking-widest text-center ${selectedBrand === brand.id ? 'text-[#CDA032]' : 'text-white/60'}`}>
+                            {brand.label}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-                <div className="flex gap-3">
-                  <button onClick={() => go(1)} className="px-5 py-3 rounded-xl border border-[var(--bb-border)] text-sm font-bold opacity-60 hover:opacity-100 transition-all">Back</button>
-                </div>
+                {/* ── subStep 1c: Model selection with preview (same as Repair) ── */}
+                {subStep === 3 && (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300 pt-4">
+                    <div className="flex items-end justify-between gap-4 flex-wrap">
+                      <div className="space-y-1">
+                        <p className="text-xs font-black uppercase tracking-widest text-[#CDA032] opacity-70">
+                          {DEVICE_TYPES.find(d => d.id === selectedDeviceType)?.label} · {selectedBrand}
+                        </p>
+                        <h2 className="text-2xl font-bold tracking-tight">Select your device & model</h2>
+                      </div>
+                      <button onClick={() => setSubStep(2)} className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-white/40 hover:text-[#CDA032] transition-colors">
+                        <ArrowLeft size={14} /> Back
+                      </button>
+                    </div>
+
+                    <div className="flex flex-col lg:flex-row gap-6">
+                      {/* Left: preview card — mirrors Repair's iPhone preview */}
+                      <div className="lg:w-52 shrink-0">
+                        <div className={`sticky top-28 rounded-3xl border p-5 flex flex-col items-center gap-3 transition-all duration-500 ${selectedVariant
+                          ? 'border-[#CDA032]/50 bg-[#CDA032]/5 shadow-[0_0_50px_rgba(205,160,50,0.15)]'
+                          : 'border-[var(--bb-border)] bg-[var(--bb-surface)]'}`}>
+                          <div className={`transition-all duration-500 ${selectedVariant ? 'opacity-100 scale-100' : 'opacity-20 scale-90'}`} style={{ height: 160 }}>
+                            <img
+                              src={selectedDevice?.img || (BRANDS_WITH_IMGS.find(b => b.id === selectedBrand)?.img || '/other_device.png')}
+                              alt={selectedDevice?.name || 'Device'}
+                              className="h-full w-auto object-contain drop-shadow-2xl transition-all duration-500 animate-in fade-in zoom-in-95"
+                            />
+                          </div>
+                          <div className="text-center">
+                            {selectedVariant ? (
+                              <>
+                                <p className="text-[9px] font-black uppercase tracking-widest text-[#CDA032]/60 mb-0.5">Selected</p>
+                                <p className="text-sm font-black text-[#CDA032] leading-tight">{selectedVariant}</p>
+                              </>
+                            ) : (
+                              <p className="text-[10px] font-bold opacity-30 uppercase tracking-widest">Pick a model →</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: device cards then variant chips */}
+                      <div className="flex-1 flex flex-col gap-6">
+                        {/* Device model cards */}
+                        {devicesForBrand.length > 1 && (
+                          <div>
+                            <p className="text-xs font-black uppercase tracking-widest text-[#CDA032]/70 mb-3">
+                              {selectedDevice ? 'Selected Device' : 'Choose Device'}
+                            </p>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                              {devicesForBrand.map(dev => (
+                                <button key={dev.id}
+                                  onClick={() => { setSelectedDevice(dev); setSelectedVariant(''); }}
+                                  className={`relative flex flex-col items-center gap-2 p-3 pt-4 rounded-2xl border transition-all duration-200 group ${selectedDevice?.id === dev.id
+                                    ? 'border-[#CDA032] bg-[#CDA032]/10 shadow-[0_0_16px_rgba(205,160,50,0.2)] ring-1 ring-[#CDA032]'
+                                    : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:bg-[var(--bb-surface-2)] hover:border-[#CDA032]/40'}`}
+                                >
+                                  <img src={dev.img} alt={dev.name}
+                                    className={`h-10 w-auto object-contain transition-all duration-200 ${selectedDevice?.id === dev.id ? 'scale-110 drop-shadow-lg' : 'opacity-60 group-hover:opacity-90 group-hover:scale-105'}`} />
+                                  <p className={`text-[11px] font-black leading-tight text-center ${selectedDevice?.id === dev.id ? 'text-[#CDA032]' : ''}`}>
+                                    {dev.name}
+                                  </p>
+                                  {selectedDevice?.id === dev.id && (
+                                    <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-[#CDA032] flex items-center justify-center">
+                                      <Check size={9} className="text-black" strokeWidth={4} />
+                                    </div>
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Auto-select if only one device for this brand+type */}
+                        {devicesForBrand.length === 1 && !selectedDevice && (() => {
+                          setSelectedDevice(devicesForBrand[0]);
+                          return null;
+                        })()}
+
+                        {/* Variant chips — shown once a device is selected */}
+                        {selectedDevice && (
+                          <div>
+                            <p className="text-xs font-black uppercase tracking-widest text-[#CDA032]/70 mb-3">Select Model</p>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[400px] overflow-y-auto pr-1"
+                              style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(205,160,50,0.3) transparent' }}>
+                              {selectedDevice.variants.map(v => (
+                                <button key={v} onClick={() => setSelectedVariant(v)}
+                                  className={`relative py-3 px-3 rounded-xl border text-xs font-bold text-left transition-all ${selectedVariant === v
+                                    ? 'border-[#CDA032] bg-[#CDA032]/10 text-[#CDA032] ring-1 ring-[#CDA032]'
+                                    : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:border-[#CDA032]/40 opacity-70 hover:opacity-100'}`}>
+                                  {v}
+                                  {selectedVariant === v && (
+                                    <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-[#CDA032] flex items-center justify-center">
+                                      <Check size={9} className="text-black" strokeWidth={4} />
+                                    </div>
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Continue button */}
+                        <div className="pt-2 border-t border-[var(--bb-border)]/50">
+                          <button
+                            onClick={() => {
+                              if (!selectedDevice) { notify('Please select a device', 'error'); return; }
+                              if (!selectedVariant) { notify('Please select a model', 'error'); return; }
+                              go(2);
+                            }}
+                            className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] active:scale-[0.98] transition-all w-full"
+                          >
+                            Continue <ArrowRight size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
-            {/* ── STEP 3: Model ── */}
-            {step === 3 && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-400">
-                <div className="flex flex-col gap-3 py-4 border-b border-[var(--bb-border)]">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032]">Selection</p>
-                      <h3 className="text-base font-black capitalize">{BRANDS.find(b => b.id === selectedBrand)?.name} · {selectedDevice?.name}</h3>
-                    </div>
-                    <button onClick={() => go(2)} className="text-sm font-bold text-blue-500">Change</button>
-                  </div>
+            {/* ══════════════════════════════════════
+                STEP 2 — Trade-in details
+                (mirrors Repair's Step 2 "issues & condition")
+            ══════════════════════════════════════ */}
+            {step > 2 ? (
+              <div className="flex justify-between items-center py-6 border-b border-[var(--bb-border)] animate-in fade-in transition-all">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032]">Device Details</p>
+                  <h3 className="text-xl font-black text-white">{targetProduct ? `Upgrading to ${targetProduct.name}` : 'Details recorded'}</h3>
                 </div>
-
-                <div>
-                  <h2 className="text-xl sm:text-2xl font-bold tracking-tight mb-1">Select your specific model</h2>
-                  <p className="text-sm text-white/40">Choose the exact model from the list below.</p>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {selectedDevice?.variants.map(v => (
-                    <button key={v} onClick={() => setSelectedVariant(v)}
-                      className={`py-2.5 px-3 rounded-xl border text-xs font-bold text-left transition-all ${selectedVariant === v
-                        ? 'border-[#CDA032] bg-[#CDA032]/10 text-[#CDA032]'
-                        : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:border-[#CDA032]/40 opacity-70 hover:opacity-100'}`}>
-                      {v}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="flex gap-3">
-                  <button onClick={() => go(2)} className="px-5 py-3 rounded-xl border border-[var(--bb-border)] text-sm font-bold opacity-60 hover:opacity-100 transition-all">Back</button>
-                  <button onClick={() => { if (!selectedVariant) { notify('Please select your model', 'error'); return; } go(4); }}
-                    disabled={!selectedVariant}
-                    className="flex items-center gap-2 px-8 py-4 rounded-xl text-xs font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] active:scale-[0.98] transition-all disabled:opacity-40">
-                    Continue <ArrowRight size={16} />
-                  </button>
-                </div>
+                <button onClick={() => setStep(2)} className="text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors">Change</button>
               </div>
-            )}
+            ) : step === 2 && (
+              <div key={`step-2-${transitionKey}`} className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-4 active-form-section">
 
-            {/* ── STEP 4: Upgrade + Notes ── */}
-            {step === 4 && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-400">
-                {[
-                  { label: 'Brand', val: BRANDS.find(b => b.id === selectedBrand)?.name, onEdit: () => go(1) },
-                  { label: 'Trading In', val: `${selectedDevice?.name} — ${selectedVariant}`, onEdit: () => go(3) },
-                ].map(s => (
-                  <div key={s.label} className="flex items-center justify-between py-3 border-b border-[var(--bb-border)]">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032]">{s.label}</p>
-                      <h3 className="text-base font-black">{s.val}</h3>
-                    </div>
-                    <button onClick={s.onEdit} className="text-sm font-bold text-blue-500">Change</button>
-                  </div>
-                ))}
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-bold tracking-tight">Tell us about your {selectedDevice?.name}</h2>
+                  <p className="opacity-60 text-sm">The more detail you give, the better offer we can make.</p>
+                </div>
 
+                {/* Upgrade target */}
                 <div>
-                  <h2 className="text-xl sm:text-2xl font-bold tracking-tight mb-1">What would you like to upgrade to?</h2>
-                  <p className="text-xs text-white/40 mb-4">Optional — helps us tailor the offer to your upgrade goal.</p>
+                  <h3 className="text-base font-bold mb-1">What would you like to upgrade to?</h3>
+                  <p className="text-xs text-white/40 mb-4">Optional — helps us tailor the offer.</p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     <button onClick={() => setTargetProductId('')}
-                      className={`py-3 px-4 rounded-xl border text-xs font-bold text-center transition-all ${!targetProductId ? 'border-[#CDA032] bg-[#CDA032]/10 text-[#CDA032]' : 'border-[var(--bb-border)] bg-[var(--bb-surface)] opacity-60 hover:opacity-100'}`}>
+                      className={`py-3 px-4 rounded-xl border text-xs font-bold text-center transition-all ${!targetProductId
+                        ? 'border-[#CDA032] bg-[#CDA032]/10 text-[#CDA032]'
+                        : 'border-[var(--bb-border)] bg-[var(--bb-surface)] opacity-60 hover:opacity-100'}`}>
                       Not sure yet
                     </button>
                     {upgradeProducts.slice(0, 8).map(p => (
                       <button key={p.id} onClick={() => setTargetProductId(p.id)}
-                        className={`flex flex-col items-center py-3 px-3 rounded-xl border text-xs font-bold text-center transition-all ${targetProductId === p.id ? 'border-[#CDA032] bg-[#CDA032]/10 text-[#CDA032]' : 'border-[var(--bb-border)] bg-[var(--bb-surface)] opacity-60 hover:opacity-100'}`}>
+                        className={`flex flex-col items-center py-3 px-3 rounded-xl border text-xs font-bold text-center transition-all ${targetProductId === p.id
+                          ? 'border-[#CDA032] bg-[#CDA032]/10 text-[#CDA032]'
+                          : 'border-[var(--bb-border)] bg-[var(--bb-surface)] opacity-60 hover:opacity-100'}`}>
                         {p.image && <img src={p.image} alt={p.name} className="h-8 w-auto object-contain mb-1.5" />}
                         <span className="text-[10px] leading-tight">{p.name}</span>
                         <span className="text-[#CDA032] font-black mt-0.5">${p.price}</span>
@@ -446,182 +573,271 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                   </div>
                 </div>
 
-                <div>
-                  <h3 className="text-base font-bold mb-2">Device Details</h3>
-                  <div className="space-y-3">
-                    <input type="text" placeholder="Serial / IMEI Number (Optional)" value={deviceDetails.serialNumber} onChange={e => setDeviceDetails({...deviceDetails, serialNumber: e.target.value})} className="w-full border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />
-                    <textarea rows={2} placeholder="Physical description (e.g. Scratches, dents?)" value={deviceDetails.physicalDesc} onChange={e => setDeviceDetails({...deviceDetails, physicalDesc: e.target.value})} className="w-full border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50 resize-none" />
-                    <textarea rows={2} placeholder="Issues description (Describe the problem)" value={deviceDetails.issueDesc} onChange={e => setDeviceDetails({...deviceDetails, issueDesc: e.target.value})} className="w-full border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50 resize-none" />
-                    <input type="text" placeholder="When did the issue start?" value={deviceDetails.whenStarted} onChange={e => setDeviceDetails({...deviceDetails, whenStarted: e.target.value})} className="w-full border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />
-                    <input type="text" placeholder="Any previous repairs made?" value={deviceDetails.previousRepairs} onChange={e => setDeviceDetails({...deviceDetails, previousRepairs: e.target.value})} className="w-full border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />
+                {/* Device condition — mirrors Repair's "tell us more" section */}
+                <div className="space-y-4 p-5 rounded-3xl border border-[var(--bb-border)] bg-[var(--bb-surface-2)]">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xl font-bold tracking-tight">Device Condition</h3>
+                    <Info size={16} className="text-[#CDA032] opacity-50 transition-opacity hover:opacity-100" />
+                  </div>
+                  <p className="text-xs opacity-60 font-medium">Describe the current state of your device honestly — this helps us give you the best offer.</p>
+
+                  <input type="text" placeholder="Serial / IMEI Number (Optional)"
+                    value={deviceDetails.serialNumber}
+                    onChange={e => setDeviceDetails({ ...deviceDetails, serialNumber: e.target.value })}
+                    className="w-full border border-[var(--bb-border)] rounded-2xl px-5 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50 focus:ring-1 focus:ring-[#CDA032]/20" />
+
+                  <textarea rows={3} placeholder="Physical description — scratches, cracks, dents, screen condition?"
+                    value={deviceDetails.physicalDesc}
+                    onChange={e => setDeviceDetails({ ...deviceDetails, physicalDesc: e.target.value })}
+                    className="w-full border border-[var(--bb-border)] rounded-2xl px-5 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50 focus:ring-1 focus:ring-[#CDA032]/20 resize-none leading-relaxed" />
+
+                  <textarea rows={2} placeholder="Any faults or issues? (e.g. battery drains fast, camera broken)"
+                    value={deviceDetails.issueDesc}
+                    onChange={e => setDeviceDetails({ ...deviceDetails, issueDesc: e.target.value })}
+                    className="w-full border border-[var(--bb-border)] rounded-2xl px-5 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50 focus:ring-1 focus:ring-[#CDA032]/20 resize-none" />
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <input type="text" placeholder="When did issues start? (e.g. 2 months ago)"
+                      value={deviceDetails.whenStarted}
+                      onChange={e => setDeviceDetails({ ...deviceDetails, whenStarted: e.target.value })}
+                      className="w-full border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />
+                    <input type="text" placeholder="Any previous repairs?"
+                      value={deviceDetails.previousRepairs}
+                      onChange={e => setDeviceDetails({ ...deviceDetails, previousRepairs: e.target.value })}
+                      className="w-full border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />
+                  </div>
+
+                  <div className="pt-2">
+                    <p className="text-xs opacity-60 font-medium mb-3">Accessories Included</p>
+                    <div className="flex flex-wrap gap-2">
+                      {(Object.entries({ chargers: 'Charger', caseCover: 'Case / Cover', cables: 'Cables', memory: 'Memory Card', other: 'Other' }) as [keyof typeof accessories, string][]).map(([k, label]) => (
+                        <button key={k}
+                          onClick={() => setAccessories({ ...accessories, [k]: !accessories[k] })}
+                          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all border ${accessories[k]
+                            ? 'bg-[#CDA032]/10 border-[#CDA032] text-[#CDA032]'
+                            : 'bg-[var(--bb-surface)] border-[var(--bb-border)] opacity-70 hover:opacity-100'}`}>
+                          {accessories[k] && <Check size={12} />}
+                          {label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
-                <div>
-                  <h3 className="text-base font-bold mb-2">Accessories Included</h3>
-                  <div className="grid grid-cols-2 gap-2 text-sm text-[var(--bb-text)] opacity-80">
-                    {Object.entries({chargers: 'Chargers', caseCover: 'Case / Cover', cables: 'Cables', memory: 'Memory', other: 'Other'}).map(([k, label]) => (
-                      <label key={k} className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked={(accessories as any)[k]} onChange={e => setAccessories({...accessories, [k]: e.target.checked})} className="accent-[#CDA032]" />
-                        {label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-base font-bold mb-2">Additional Notes (Optional)</h3>
+                {/* Additional notes */}
+                <div className="space-y-4">
+                  <h3 className="text-xl font-bold tracking-tight">Additional Notes (Optional)</h3>
                   <textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)}
-                    placeholder="Any other details..."
-                    className="w-full border border-[var(--bb-border)] rounded-2xl px-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50 resize-none" />
+                    placeholder="Anything else we should know about the device..."
+                    className="w-full border border-[var(--bb-border)] rounded-2xl px-5 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50 resize-none leading-relaxed" />
                 </div>
 
-                <div className="flex gap-3">
-                  <button onClick={() => go(3)} className="px-5 py-3 rounded-xl border border-[var(--bb-border)] text-sm font-bold opacity-60 hover:opacity-100 transition-all">Back</button>
-                  <button onClick={() => go(5)} className="flex items-center gap-2 px-8 py-4 rounded-xl text-xs font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] active:scale-[0.98] transition-all">
-                    Continue <ArrowRight size={16} />
+                <div className="pt-8">
+                  <button onClick={() => go(3)}
+                    className="flex items-center gap-2 px-8 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] hover:scale-[1.02] active:scale-95 transition-all">
+                    Continue to Booking <ArrowRight size={16} />
                   </button>
                 </div>
               </div>
             )}
 
-            {/* ── STEP 5: Contact + Schedule ── */}
-            {step === 5 && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-400">
-                <div>
-                  <h2 className="text-xl sm:text-2xl font-bold tracking-tight mb-1">Book a drop-off or pickup</h2>
-                  <p className="text-xs text-white/40 mb-5">Choose how you'd like to get your device to our service center.</p>
+            {/* ══════════════════════════════════════
+                STEP 3 — Schedule & Contact
+                (mirrors Repair's Step 3)
+            ══════════════════════════════════════ */}
+            {step > 3 ? (
+              <div className="flex justify-between items-center py-6 border-b border-[var(--bb-border)] animate-in fade-in transition-all">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032]">Booking Details</p>
+                  <h3 className="text-xl font-black text-white">
+                    {formData.date} at {timeSlots.find(t => t.id === formData.timeSlot)?.time}
+                  </h3>
+                </div>
+                <button onClick={() => setStep(3)} className="text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors">Change</button>
+              </div>
+            ) : step === 3 && (
+              <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-4 active-form-section">
+                <div className="space-y-8">
+                  <div className="space-y-2">
+                    <h2 className="text-2xl font-bold tracking-tight">Schedule your drop-off or pickup</h2>
+                    <p className="opacity-60 text-sm">Choose how you'd like to get your device to us.</p>
+                  </div>
+
+                  {/* Fulfillment method */}
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-[#CDA032]">How will we receive your device?</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {[
+                        { id: 'Headquarters', label: 'Bring to Headquarters', desc: 'No service fee', icon: MapPin, badge: 'Recommended' },
+                        { id: 'Pickup',       label: 'Request Pickup',        desc: 'Convenient service', icon: Package, badge: null },
+                      ].map(method => (
+                        <button key={method.id}
+                          onClick={() => setFormData({ ...formData, fulfillmentMethod: method.id as any })}
+                          className={`flex flex-col p-4 rounded-2xl border transition-all ${formData.fulfillmentMethod === method.id
+                            ? 'border-[#CDA032] bg-[#CDA032]/10 ring-1 ring-[#CDA032]'
+                            : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:bg-[var(--bb-surface-2)]'}`}>
+                          <div className="flex items-center justify-between w-full mb-3">
+                            <method.icon size={18} className={formData.fulfillmentMethod === method.id ? 'text-[#CDA032]' : 'opacity-50'} />
+                            {method.badge && <span className="text-[9px] font-black uppercase tracking-widest bg-[#CDA032] text-black px-2 py-0.5 rounded-full">{method.badge}</span>}
+                          </div>
+                          <span className={`text-sm font-bold text-left ${formData.fulfillmentMethod === method.id ? 'text-[#CDA032]' : ''}`}>{method.label}</span>
+                          <span className="text-[10px] opacity-60 mt-1 text-left">{method.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Date + Time */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-bold uppercase tracking-widest opacity-80">Date</h3>
+                      <div className="relative">
+                        <input type="date" value={formData.date}
+                          onChange={e => setFormData({ ...formData, date: e.target.value })}
+                          onClick={e => (e.target as any).showPicker?.()}
+                          min={new Date().toISOString().split('T')[0]}
+                          className="w-full border border-[var(--bb-border)] rounded-xl pl-12 pr-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50 cursor-pointer h-[54px]"
+                          style={{ colorScheme: isDark ? 'dark' : 'light' }} />
+                        <Calendar size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#CDA032] pointer-events-none" />
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-bold uppercase tracking-widest opacity-80">Time Slot</h3>
+                      <div className="relative">
+                        <select value={formData.timeSlot} onChange={e => setFormData({ ...formData, timeSlot: e.target.value })}
+                          className="w-full border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50 appearance-none cursor-pointer h-[54px]">
+                          <option value="">Select an available time...</option>
+                          {timeSlots.map(t => (
+                            <option key={t.id} value={t.id} disabled={!t.available}>
+                              {t.time} — {t.available ? t.label : 'Fully Booked'}
+                            </option>
+                          ))}
+                        </select>
+                        <Clock size={18} className="absolute right-4 top-1/2 -translate-y-1/2 opacity-50 pointer-events-none" />
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="space-y-4 mb-6">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[#CDA032] block mb-2">How will we receive your device?</label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Contact details */}
+                <div className="space-y-6 pt-8 border-t border-[var(--bb-border)]">
+                  <div className="space-y-2">
+                    <h2 className="text-2xl font-bold tracking-tight">Your Details</h2>
+                    <p className="opacity-60 text-sm">We'll use this to send you your offer and keep you updated.</p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     {[
-                      { id: 'Headquarters', label: 'Bring to Headquarters', desc: 'Fastest assessment', icon: MapPin },
-                      { id: 'Pickup', label: 'Request Pickup', desc: 'Convenient service', icon: Package },
-                    ].map(method => (
-                      <button key={method.id}
-                        onClick={() => setFormData({ ...formData, fulfillmentMethod: method.id as any })}
-                        className={`flex flex-col p-4 rounded-xl border transition-all ${formData.fulfillmentMethod === method.id
-                          ? 'border-[#CDA032] bg-[#CDA032]/10 ring-1 ring-[#CDA032]'
-                          : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:bg-[var(--bb-surface-2)]'}`}
-                      >
-                        <div className="flex items-center justify-between w-full mb-3">
-                          <method.icon size={16} className={formData.fulfillmentMethod === method.id ? 'text-[#CDA032]' : 'opacity-50'} />
-                        </div>
-                        <span className={`text-xs font-bold text-left ${formData.fulfillmentMethod === method.id ? 'text-[#CDA032]' : ''}`}>{method.label}</span>
-                        <span className="text-[9px] opacity-40 mt-0.5 text-left uppercase tracking-widest">{method.desc}</span>
-                      </button>
+                      { placeholder: 'Full Name',    value: formData.name,  key: 'name',  icon: <User size={16} /> },
+                      { placeholder: 'Phone Number', value: formData.phone, key: 'phone', icon: <Phone size={16} /> },
+                    ].map(f => (
+                      <div key={f.key} className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 opacity-40 pointer-events-none">{f.icon}</span>
+                        <input placeholder={f.placeholder} value={f.value}
+                          onChange={e => setFormData({ ...formData, [f.key]: e.target.value })}
+                          className="w-full border border-[var(--bb-border)] rounded-xl pl-10 pr-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />
+                      </div>
                     ))}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-white/40 block mb-1.5">Preferred Date</label>
-                    <div className="relative">
-                      <Calendar size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#CDA032] pointer-events-none" />
-                      <input type="date" value={formData.date}
-                        onChange={e => setFormData({ ...formData, date: e.target.value })}
-                        min={new Date().toISOString().split('T')[0]}
-                        className="w-full border border-[var(--bb-border)] rounded-xl pl-10 pr-3 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50 h-[50px]"
-                        style={{ colorScheme: isDark ? 'dark' : 'light' }} />
+                    <div className="relative md:col-span-2">
+                      <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 opacity-40 pointer-events-none" />
+                      <input type="email" placeholder="Email Address" value={formData.email}
+                        onChange={e => setFormData({ ...formData, email: e.target.value })}
+                        className="w-full border border-[var(--bb-border)] rounded-xl pl-10 pr-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />
+                    </div>
+                    <div className="relative md:col-span-2">
+                      <MapPin size={16} className="absolute left-4 top-3.5 opacity-40 pointer-events-none" />
+                      <textarea placeholder="Physical Address (required for pickup service)" value={formData.address}
+                        onChange={e => setFormData({ ...formData, address: e.target.value })}
+                        rows={2}
+                        className="w-full border border-[var(--bb-border)] rounded-xl pl-10 pr-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50 resize-none" />
                     </div>
                   </div>
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-white/40 block mb-1.5">Time Slot</label>
-                    <select value={formData.timeSlot} onChange={e => setFormData({ ...formData, timeSlot: e.target.value })}
-                      className="w-full border border-[var(--bb-border)] rounded-xl px-3 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50 h-[50px] appearance-none">
-                      <option value="">Pick a time...</option>
-                      {timeSlots.map(t => <option key={t.id} value={t.id}>{t.time} — {t.label}</option>)}
-                    </select>
-                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {[
-                    { placeholder: 'Full Name', key: 'name', icon: User, type: 'text' },
-                    { placeholder: 'Phone Number', key: 'phone', icon: Phone, type: 'tel' },
-                  ].map(f => (
-                    <div key={f.key} className="relative">
-                      <f.icon size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
-                      <input type={f.type} placeholder={f.placeholder} value={(formData as any)[f.key]}
-                        onChange={e => setFormData({ ...formData, [f.key]: e.target.value })}
-                        className="w-full border border-[var(--bb-border)] rounded-xl pl-10 pr-3 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />
-                    </div>
-                  ))}
-                  <div className="relative sm:col-span-2">
-                    <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
-                    <input type="email" placeholder="Email Address" value={formData.email}
-                      onChange={e => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full border border-[var(--bb-border)] rounded-xl pl-10 pr-3 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />
-                  </div>
-                  <div className="relative sm:col-span-2">
-                    <MapPin size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
-                    <input type="text" placeholder="Physical Address" value={formData.address}
-                      onChange={e => setFormData({ ...formData, address: e.target.value })}
-                      className="w-full border border-[var(--bb-border)] rounded-xl pl-10 pr-3 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <button onClick={() => go(4)} className="px-5 py-3 rounded-xl border border-[var(--bb-border)] text-sm font-bold opacity-60 hover:opacity-100 transition-all">Back</button>
-                  <button onClick={() => {
-                    if (!formData.name || !formData.email || !formData.phone) { notify('Please fill in all contact details', 'error'); return; }
-                    go(6);
-                  }} className="flex items-center gap-2 px-8 py-4 rounded-xl text-xs font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] active:scale-[0.98] transition-all">
+                <div className="pt-8">
+                  <button
+                    onClick={() => {
+                      if (!formData.date || !formData.timeSlot) { notify('Please select a date and time slot.', 'error'); return; }
+                      if (!formData.name || !formData.phone || !formData.email) { notify('Please fill in all contact details.', 'error'); return; }
+                      go(4);
+                    }}
+                    className="flex items-center gap-2 px-8 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] hover:scale-[1.02] active:scale-95 transition-all">
                     Review Request <ArrowRight size={16} />
                   </button>
                 </div>
               </div>
             )}
 
-            {/* ── STEP 6: Review ── */}
-            {step === 6 && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-400">
-                <div>
-                  <h2 className="text-xl sm:text-2xl font-bold mb-1">Review your request</h2>
-                  <p className="text-xs text-white/40">Our team will assess the device and send you an offer within 24 hours.</p>
+            {/* ══════════════════════════════════════
+                STEP 4 — Review & Submit
+                (mirrors Repair's Step 4)
+            ══════════════════════════════════════ */}
+            {step === 4 && (
+              <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 active-form-section">
+                <div className="space-y-2">
+                  <h2 className="text-3xl font-black tracking-tight">Review your request</h2>
+                  <p className="opacity-60 text-sm">Our team will assess your device and send you an offer within 24 hours.</p>
                 </div>
-                <div className="border border-[var(--bb-border)] rounded-2xl overflow-hidden bg-[var(--bb-surface)]">
-                  <div className="p-4 sm:p-5 bg-gradient-to-r from-[#CDA032]/10 to-transparent border-b border-[var(--bb-border)]">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-[#CDA032] mb-1">Trade-In Request Summary</p>
-                    <h3 className="text-lg sm:text-xl font-black">{selectedDevice?.name} — {selectedVariant}</h3>
-                    <p className="text-xs text-white/50 mt-0.5">Brand: {BRANDS.find(b => b.id === selectedBrand)?.name}</p>
-                    {targetProduct && <p className="text-sm text-white/50 mt-0.5">Target upgrade: {targetProduct.name} (${targetProduct.price})</p>}
-                  </div>
-                  <div className="p-4 sm:p-5 space-y-3 text-xs">
-                    <div className="flex items-start gap-2 p-3 rounded-xl bg-[#CDA032]/5 border border-[#CDA032]/10">
-                      <Info size={13} className="text-[#CDA032] shrink-0 mt-0.5" />
-                      <p className="text-white/50">The condition and trade-in value will be assessed by our team. You'll receive a formal offer before any commitment is made.</p>
-                    </div>
-                    {[
-                      ['Contact Name', formData.name],
-                      ['Email', formData.email],
-                      ['Phone', formData.phone],
-                      ['Preferred Date', formData.date || '—'],
-                      ['Time Slot', timeSlots.find(t => t.id === formData.timeSlot)?.time || '—'],
-                    ].map(([k, v]) => (
-                      <div key={k} className="flex justify-between text-sm border-b border-white/[0.04] pb-2 last:border-0 last:pb-0">
-                        <span className="text-white/40">{k}</span>
-                        <span className="text-white font-bold">{v}</span>
+
+                <div className="rounded-3xl border border-[var(--bb-border)] bg-[var(--bb-surface)] overflow-hidden shadow-2xl">
+                  <div className="p-8 border-b border-[var(--bb-border)] bg-black/5 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-[#CDA032]/10 blur-3xl rounded-full" />
+                    <div className="flex items-center gap-5">
+                      {selectedDevice && (
+                        <img src={selectedDevice.img} alt={selectedDevice.name}
+                          className="h-20 w-auto object-contain opacity-90 shrink-0 drop-shadow-xl" />
+                      )}
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032] mb-2">Trade-In Device</p>
+                        <h3 className="text-2xl font-black">{selectedDevice?.brand} {selectedDevice?.name}</h3>
+                        <p className="text-lg opacity-80">{selectedVariant}</p>
+                        {targetProduct && <p className="text-sm text-white/50 mt-1">Upgrading to: <span className="text-white font-bold">{targetProduct.name}</span></p>}
                       </div>
-                    ))}
-                    {notes && <div className="pt-2"><p className="text-white/30 text-[10px] uppercase tracking-widest mb-1">Notes</p><p className="text-white/60">{notes}</p></div>}
+                    </div>
+                  </div>
+
+                  <div className="p-8 space-y-4">
+                    <div className="flex gap-3 items-start p-4 bg-[#CDA032]/10 rounded-xl">
+                      <Info size={16} className="text-[#CDA032] shrink-0 mt-0.5" />
+                      <p className="text-xs leading-relaxed text-[#CDA032] font-semibold">
+                        Trade-in value is confirmed after physical assessment. We will never commit you without your explicit approval.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t border-[var(--bb-border)]">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">Appointment</p>
+                        <p className="text-sm font-semibold">{formData.date}</p>
+                        <p className="text-sm opacity-80">{timeSlots.find(t => t.id === formData.timeSlot)?.time} · {formData.fulfillmentMethod}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">Contact</p>
+                        <p className="text-sm font-semibold">{formData.name}</p>
+                        <p className="text-sm opacity-80">{formData.phone}</p>
+                        <p className="text-sm opacity-80">{formData.email}</p>
+                      </div>
+                      {(deviceDetails.physicalDesc || deviceDetails.issueDesc) && (
+                        <div className="sm:col-span-2 pt-4 border-t border-[var(--bb-border)]/50">
+                          <p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">Device Notes</p>
+                          <p className="text-sm opacity-80">{[deviceDetails.physicalDesc, deviceDetails.issueDesc].filter(Boolean).join(' · ')}</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className="flex gap-3">
-                  <button onClick={() => go(5)} className="px-5 py-3 rounded-xl border border-[var(--bb-border)] text-sm font-bold opacity-60 hover:opacity-100 transition-all">Back</button>
+
+                <div className="pt-4 pb-12">
                   <button onClick={submitRequest} disabled={submitting}
-                    className="flex items-center gap-2 px-8 py-4 rounded-xl text-xs font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] active:scale-[0.98] transition-all disabled:opacity-50">
-                    <Send size={14} /> {submitting ? 'Submitting...' : 'Submit Request'}
+                    className="w-full sm:w-auto flex items-center justify-center gap-3 px-10 py-5 rounded-2xl text-sm font-black uppercase tracking-widest text-[#111] bg-gradient-to-r from-[#CDA032] to-[#FCE69B] hover:scale-[1.02] shadow-[0_0_30px_rgba(205,160,50,0.3)] transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                    {submitting ? 'Submitting...' : <><span>Submit Trade-In Request</span> <Send size={18} /></>}
                   </button>
                 </div>
               </div>
             )}
 
-            {/* ── STEP 7: Success ── */}
-            {step === 7 && (
+            {/* ══════════════════════════════════════
+                STEP 5 — Success
+            ══════════════════════════════════════ */}
+            {step === 5 && (
               <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500 text-center py-10 sm:py-12">
                 <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto">
                   <CheckCircle2 size={40} className="text-green-400" />
@@ -629,12 +845,13 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                 <div>
                   <h2 className="text-2xl font-black text-white mb-2">Request Submitted!</h2>
                   <p className="text-sm text-white/50 max-w-sm mx-auto">
-                    Our team will review your {selectedDevice?.name} — {selectedVariant} and send a personalised offer to <span className="text-white font-bold">{formData.email}</span>.
+                    Our team will review your {selectedDevice?.brand} {selectedDevice?.name} — {selectedVariant} and send a personalised offer to{' '}
+                    <span className="text-white font-bold">{formData.email}</span>.
                   </p>
                 </div>
                 <div className="bg-[var(--bb-surface)] border border-[var(--bb-border)] rounded-2xl p-4 text-left max-w-xs mx-auto space-y-2 text-xs text-white/50">
                   <p className="font-black text-white text-sm mb-2">What happens next?</p>
-                  {['Our team reviews your request', 'We inspect & assess the condition', 'You receive an offer within 24h', 'Accept or decline — no pressure'].map((s, i) => (
+                  {['Our team reviews your request','We inspect & assess the condition','You receive an offer within 24h','Accept or decline — no pressure'].map((s, i) => (
                     <div key={i} className="flex items-center gap-2">
                       <div className="w-4 h-4 bg-[#CDA032] rounded-full flex items-center justify-center text-[8px] text-black font-black shrink-0">{i + 1}</div>
                       {s}
@@ -642,7 +859,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                   ))}
                 </div>
                 <div className="flex flex-col sm:flex-row justify-center gap-3">
-                  <button onClick={() => { setStep(1); setSelectedBrand(''); setSelectedDevice(null); setSelectedVariant(''); setTargetProductId(''); setNotes(''); }}
+                  <button onClick={() => { setStep(1); setSubStep(1); setSelectedDeviceType(''); setSelectedBrand(''); setSelectedDevice(null); setSelectedVariant(''); setTargetProductId(''); setNotes(''); }}
                     className="px-6 py-3 border border-[var(--bb-border)] rounded-xl text-sm font-bold hover:border-[#CDA032]/40 transition-all">
                     New Request
                   </button>
@@ -655,66 +872,93 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
             )}
           </div>
 
-          {/* ── Sidebar ── */}
-          <div className="w-full lg:w-72 xl:w-80 shrink-0 space-y-4">
-            {/* How it works */}
-            <div className="border border-[var(--bb-border)] bg-[var(--bb-surface)] rounded-2xl p-5">
-              <h3 className="text-sm font-black uppercase tracking-widest mb-4">How It Works</h3>
-              <div className="space-y-4">
-                {[
-                  { icon: Send, label: 'Submit', desc: 'Select brand, device model & contact info' },
-                  { icon: Check, label: 'We Assess', desc: 'Our team inspects and grades your device' },
-                  { icon: RefreshCcw, label: 'Get Offer', desc: 'Receive a personalised offer within 24h' },
-                  { icon: Package, label: 'Trade In', desc: 'Accept and upgrade your tech' },
-                ].map((item, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-[#CDA032]/10 border border-[#CDA032]/20 flex items-center justify-center shrink-0">
-                      <item.icon size={13} className="text-[#CDA032]" />
+          {/* ══════════════ SIDEBAR ══════════════ */}
+          {step > 1 && (
+            <div className="hidden lg:block w-[350px] shrink-0 sticky top-32">
+              <div className="rounded-3xl border border-[var(--bb-border)] bg-[var(--bb-surface)] p-6 shadow-xl">
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-[#CDA032] mb-6 border-b border-[var(--bb-border)] pb-4">Trade-In Summary</h3>
+                <div className="space-y-6">
+                  {/* Device */}
+                  <div className="flex gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-[var(--bb-surface-2)] border border-[var(--bb-border)] flex items-center justify-center shrink-0">
+                      {(() => {
+                        const IconComp = DEVICE_TYPES.find(d => d.id === selectedDeviceType)?.icon as any;
+                        return IconComp ? <IconComp size={18} className="text-[#CDA032]" /> : null;
+                      })()}
                     </div>
                     <div>
-                      <p className="text-xs font-black text-white">{item.label}</p>
-                      <p className="text-[10px] text-white/40">{item.desc}</p>
+                      <p className="text-[10px] uppercase font-bold tracking-widest opacity-50 mb-0.5">Device</p>
+                      <p className="text-sm font-bold">{selectedDevice ? `${selectedDevice.brand} ${selectedDevice.name}` : selectedBrand || '—'}</p>
+                      {selectedVariant && <p className="text-xs opacity-60 mt-0.5">{selectedVariant}</p>}
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
 
-            {/* Past trade requests */}
-            {user && (
-              <div className="border border-[var(--bb-border)] bg-[var(--bb-surface)] rounded-2xl p-5">
-                <h3 className="text-sm font-black uppercase tracking-widest mb-4">My Requests</h3>
-                {loadingTrades ? (
-                  <p className="text-xs text-white/30">Loading...</p>
-                ) : myTrades.length === 0 ? (
-                  <p className="text-xs text-white/30">No trade-in requests yet.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {myTrades.slice(0, 5).map(t => (
-                      <div key={t.id} className="border border-[var(--bb-border)] rounded-xl p-3">
-                        <p className="text-xs font-black text-white truncate">{t.device}</p>
-                        <div className="flex items-center justify-between mt-1">
-                          <StatusBadge status={t.status} />
-                          {t.finalValue && <span className="text-[10px] font-black text-[#CDA032]">${t.finalValue}</span>}
-                        </div>
-                        {(t.status === 'Awaiting User' || t.status === 'Offer Made') && (
-                          <div className="flex gap-1.5 mt-2">
-                            <button onClick={() => handleOfferResponse(t.id, true)}
-                              className="flex-1 py-1.5 bg-green-500/20 text-green-400 text-[9px] font-black uppercase rounded-lg hover:bg-green-500/30 transition-all">Accept</button>
-                            <button onClick={() => handleOfferResponse(t.id, false)}
-                              className="flex-1 py-1.5 bg-red-500/10 text-red-400 text-[9px] font-black uppercase rounded-lg hover:bg-red-500/20 transition-all">Decline</button>
-                          </div>
-                        )}
-                        {t.adminNote && (
-                          <p className="text-[10px] text-white/40 mt-1.5 bg-white/[0.03] rounded-lg p-2">{t.adminNote}</p>
-                        )}
+                  {/* Upgrade target */}
+                  {step > 2 && targetProduct && (
+                    <div className="flex gap-4 animate-in fade-in">
+                      <div className="w-10 h-10 rounded-xl bg-[var(--bb-surface-2)] border border-[var(--bb-border)] flex items-center justify-center shrink-0 overflow-hidden">
+                        {targetProduct.image
+                          ? <img src={targetProduct.image} alt={targetProduct.name} className="h-full w-auto object-contain" />
+                          : <Package size={18} className="text-[#CDA032]" />}
                       </div>
-                    ))}
-                  </div>
-                )}
+                      <div>
+                        <p className="text-[10px] uppercase font-bold tracking-widest opacity-50 mb-0.5">Upgrading To</p>
+                        <p className="text-sm font-bold leading-snug">{targetProduct.name}</p>
+                        <p className="text-xs text-[#CDA032] font-black">${targetProduct.price}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Booking */}
+                  {step > 3 && formData.date && formData.timeSlot && (
+                    <div className="flex gap-4 animate-in fade-in">
+                      <div className="w-10 h-10 rounded-xl bg-[var(--bb-surface-2)] border border-[var(--bb-border)] flex items-center justify-center shrink-0">
+                        <Calendar size={18} className="text-[#CDA032]" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase font-bold tracking-widest opacity-50 mb-0.5">Schedule</p>
+                        <p className="text-sm font-bold">{formData.date}</p>
+                        <p className="text-xs opacity-70 mt-0.5">{timeSlots.find(t => t.id === formData.timeSlot)?.time}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
+
+              {/* Past trades */}
+              {user && myTrades.length > 0 && (
+                <div className="mt-4 rounded-3xl border border-[var(--bb-border)] bg-[var(--bb-surface)] p-6 shadow-xl">
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-[#CDA032] mb-4 border-b border-[var(--bb-border)] pb-4">My Requests</h3>
+                  {loadingTrades ? (
+                    <p className="text-xs text-white/30">Loading...</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {myTrades.slice(0, 5).map(t => (
+                        <div key={t.id} className="border border-[var(--bb-border)] rounded-xl p-3">
+                          <p className="text-xs font-black text-white truncate">{t.device}</p>
+                          <div className="flex items-center justify-between mt-1">
+                            <StatusBadge status={t.status} />
+                            {(t as any).finalValue && <span className="text-[10px] font-black text-[#CDA032]">${(t as any).finalValue}</span>}
+                          </div>
+                          {(t.status === 'Awaiting User' || t.status === 'Offer Made') && (
+                            <div className="flex gap-1.5 mt-2">
+                              <button onClick={() => handleOfferResponse(t.id, true)}
+                                className="flex-1 py-1.5 bg-green-500/20 text-green-400 text-[9px] font-black uppercase rounded-lg hover:bg-green-500/30 transition-all">Accept</button>
+                              <button onClick={() => handleOfferResponse(t.id, false)}
+                                className="flex-1 py-1.5 bg-red-500/10 text-red-400 text-[9px] font-black uppercase rounded-lg hover:bg-red-500/20 transition-all">Decline</button>
+                            </div>
+                          )}
+                          {(t as any).adminNote && (
+                            <p className="text-[10px] text-white/40 mt-1.5 bg-white/[0.03] rounded-lg p-2">{(t as any).adminNote}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
