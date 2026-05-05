@@ -219,7 +219,11 @@ const productDetailRoute = createRoute({
     return (
       <ProductDetail
         product={product}
-        relatedProducts={products.filter((p: Product) => p.category === product.category && p.id !== product.id).slice(0, 4)}
+        relatedProducts={products
+          .filter((p: Product) => p.category === product.category && p.id !== product.id)
+          .filter((p, index, self) => index === self.findIndex((t) => t.id === p.id))
+          .sort(() => Math.random() - 0.5)
+          .slice(0, 4)}
         addToCart={context.addToCart}
         isWishlisted={context.wishlist.includes(product.id)}
         onToggleWishlist={context.toggleWishlist}
