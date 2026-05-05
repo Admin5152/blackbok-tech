@@ -16,7 +16,7 @@ interface HomeProps {
   onQuickView: (product: Product) => void;
   wishlist: string[];
   toggleWishlist: (productId: string) => void;
-  onAddToCart: (p: Product) => void;
+  onAddToCart: (p: Product, options?: Record<string, string>, qty?: number) => void;
   compareIds: string[];
   onToggleCompare: (productId: string) => void;
   user: any;

@@ -24,7 +24,17 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
 }) => {
   const isLight = theme === 'light';
   const [quantity, setQuantity] = useState(1);
-  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {};
+    if (product?.variants) {
+      product.variants.forEach(v => {
+        if (v.options.length > 0) {
+          initial[v.name] = v.options[0];
+        }
+      });
+    }
+    return initial;
+  });
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isReviewFormOpen, setIsReviewFormOpen] = useState(false);

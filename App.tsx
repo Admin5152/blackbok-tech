@@ -96,7 +96,7 @@ export interface AppContextType {
   notify: (m: string, t?: any) => void;
   navigateTo: (v: string, id?: string) => void;
   onQuickView: (p: Product) => void;
-  onAddToCart: (p: Product) => void;
+  onAddToCart: (p: Product, options?: Record<string, string>, qty?: number) => void;
   theme: Theme;
   setTheme: (t: Theme) => void;
 }
@@ -219,7 +219,11 @@ const productDetailRoute = createRoute({
     return (
       <ProductDetail
         product={product}
-        relatedProducts={products.filter((p: Product) => p.category === product.category && p.id !== product.id).slice(0, 4)}
+        relatedProducts={products
+          .filter((p: Product) => p.category === product.category && p.id !== product.id)
+          .filter((p, index, self) => index === self.findIndex((t) => t.id === p.id))
+          .sort(() => Math.random() - 0.5)
+          .slice(0, 4)}
         addToCart={context.addToCart}
         isWishlisted={context.wishlist.includes(product.id)}
         onToggleWishlist={context.toggleWishlist}
@@ -674,7 +678,7 @@ function RootComponent() {
     onToggleCompare: toggleCompare,
     updateQuantity, removeFromCart, handleCheckout, notify, navigateTo,
     onQuickView: (p: Product) => { setQuickViewProduct(p); setIsQuickViewOpen(true); },
-    onAddToCart: (p: Product) => addToCart(p),
+    onAddToCart: (p: Product, options?: Record<string, string>, qty?: number) => addToCart(p, options, qty),
     theme,
     setTheme,
   };

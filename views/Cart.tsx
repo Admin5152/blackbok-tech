@@ -34,7 +34,7 @@ interface CartProps {
   toggleWishlist: (id: string) => void;
   onToggleCompare: (id: string) => void;
   compareIds: string[];
-  onAddToCart: (p: Product) => void;
+  onAddToCart: (p: Product, options?: Record<string, string>, qty?: number) => void;
   user: User | null;
 }
 
@@ -70,8 +70,18 @@ export const Cart: React.FC<CartProps> = ({
   const progressToFreeShipping = Math.min((subtotal / freeShippingThreshold) * 100, 100);
   const remainingForFreeShipping = Math.max(freeShippingThreshold - subtotal, 0);
 
+  const cartIds = cart.map(item => item.id);
+  const cartCategories = cart.map(item => item.category);
+
   const recommendations = products
-    .filter((p) => !cart.find((c) => c.id === p.id))
+    .filter(p => !cartIds.includes(p.id))
+    .filter((p, index, self) => index === self.findIndex((t) => t.id === p.id))
+    .sort((a, b) => {
+      const aScore = cartCategories.filter(cat => cat === a.category).length;
+      const bScore = cartCategories.filter(cat => cat === b.category).length;
+      if (aScore !== bScore) return bScore - aScore;
+      return Math.random() - 0.5;
+    })
     .slice(0, 4);
 
   return (

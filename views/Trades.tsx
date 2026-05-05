@@ -12,7 +12,7 @@ import { createTradeRequest, getTradeRequests, updateTradeRequest } from '../lib
 
 interface TradesProps {
   products: Product[];
-  onAddToCart: (p: Product) => void;
+  onAddToCart: (p: Product, options?: Record<string, string>, qty?: number) => void;
   notify: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
   onQuickView?: (product: Product) => void;
 }
