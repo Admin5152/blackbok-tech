@@ -49,10 +49,10 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
   const [section, setSection] = useState<AdminSection>('overview');
   const [sidebar, setSidebar] = useState(true);
 
-  // Role-based permissions
-  const isAdmin = role === 'admin';
-  const isSales = isAdmin || role === 'sales';
-  const isRepair = isAdmin || role === 'repair';
+  // DEV MODE: all permissions open during development
+  const isAdmin = true;
+  const isSales = true;
+  const isRepair = true;
 
   const navigate = (s: AdminSection) => { setSection(s); };
 
@@ -94,45 +94,31 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
           </button>
         </div>
 
-        {/* Nav items — Role-based access control */}
+        {/* Nav items — ALL sections always visible */}
         <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
-          {NAV_ITEMS.map(item => {
-            // Check if user has permission for this section
-            const hasPermission = 
-              item.id === 'overview' ? isAdmin :
-              item.id === 'orders' ? isAdmin :
-              item.id === 'customers' ? isAdmin :
-              item.id === 'products' ? isSales :
-              item.id === 'trades' ? isSales :
-              item.id === 'repairs' ? isRepair :
-              item.id === 'users' ? isAdmin : true;
-
-            if (!hasPermission) return null;
-
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  setSection(item.id);
-                  if (window.innerWidth < 1024) setSidebar(false);
-                }}
-                title={!sidebar ? item.label : undefined}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all
-                  ${section === item.id
-                    ? 'bg-[#B38B21] text-black shadow-sm'
-                    : isLight
-                      ? 'text-black/60 hover:text-black hover:bg-black/5'
-                      : 'text-white/30 hover:text-white hover:bg-white/5'}`}
-              >
-                <item.icon size={17} className="shrink-0" />
-                {sidebar && (
-                  <span className="text-xs font-black uppercase tracking-wider text-left flex-1">
-                    {item.label}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+          {NAV_ITEMS.map(item => (
+            <button
+              key={item.id}
+              onClick={() => {
+                setSection(item.id);
+                if (window.innerWidth < 1024) setSidebar(false);
+              }}
+              title={!sidebar ? item.label : undefined}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all
+                ${section === item.id
+                  ? 'bg-[#B38B21] text-black shadow-sm'
+                  : isLight
+                    ? 'text-black/60 hover:text-black hover:bg-black/5'
+                    : 'text-white/30 hover:text-white hover:bg-white/5'}`}
+            >
+              <item.icon size={17} className="shrink-0" />
+              {sidebar && (
+                <span className="text-xs font-black uppercase tracking-wider text-left flex-1">
+                  {item.label}
+                </span>
+              )}
+            </button>
+          ))}
         </nav>
 
         {/* User info + sign out */}
@@ -179,31 +165,14 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
 
         {/* Content */}
         <main className="flex-1 overflow-auto p-4 sm:p-5 lg:p-6">
-          {section === 'overview' && isAdmin && <AdminOverview onNavigate={navigate} />}
+          {section === 'overview' && <AdminOverview onNavigate={navigate} />}
           {/* {section === 'inbox' && <AdminInbox />} */}
-          {section === 'orders' && isAdmin && <AdminOrders />}
-          {section === 'customers' && isAdmin && <AdminCustomers />}
-          {section === 'products' && isSales && <AdminProducts canEdit={isSales} />}
-          {section === 'trades' && isSales && <AdminTrades canEdit={isSales} />}
-          {section === 'repairs' && isRepair && <AdminRepairs canEdit={isRepair} />}
-          {section === 'users' && isAdmin && <AdminUsers />}
-          
-          {/* Access denied message for unauthorized sections */}
-          {((section === 'overview' && !isAdmin) ||
-            (section === 'orders' && !isAdmin) ||
-            (section === 'customers' && !isAdmin) ||
-            (section === 'products' && !isSales) ||
-            (section === 'trades' && !isSales) ||
-            (section === 'repairs' && !isRepair) ||
-            (section === 'users' && !isAdmin)) && (
-            <div className="flex items-center justify-center h-64">
-              <div className={`text-center ${isLight ? 'text-black/60' : 'text-white/60'}`}>
-                <Shield size={48} className="mx-auto mb-4 opacity-50" />
-                <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
-                <p className="text-sm">You don't have permission to view this section.</p>
-              </div>
-            </div>
-          )}
+          {section === 'orders' && <AdminOrders />}
+          {section === 'customers' && <AdminCustomers />}
+          {section === 'products' && <AdminProducts canEdit={isSales} />}
+          {section === 'trades' && <AdminTrades canEdit={isSales} />}
+          {section === 'repairs' && <AdminRepairs canEdit={isRepair} />}
+          {section === 'users' && <AdminUsers />}
         </main>
       </div>
     </div>

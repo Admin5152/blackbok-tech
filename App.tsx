@@ -30,7 +30,6 @@ import { Store } from './views/Store';
 import { Auth } from './views/Auth';
 import { Profile } from './views/Profile';
 import { Confirmation } from './views/Confirmation';
-import { EmailConfirm } from './views/EmailConfirm';
 import { Cart } from './views/Cart';
 import { Checkout } from './views/Checkout';
 import { Trades } from './views/Trades';
@@ -295,21 +294,7 @@ const adminRoute = createRoute({
   path: '/admin',
   component: () => {
     const context = useAppContext();
-    
-    // Check if user is logged in
-    if (!context.user) {
-      context.navigateTo('auth');
-      return null;
-    }
-    
-    // Check if user has admin role
-    if (context.user.role !== 'admin') {
-      context.notify('Access denied. Admin privileges required.', 'error');
-      context.navigateTo('home');
-      return null;
-    }
-    
-    return <Admin user={context.user} setUser={context.setUser} navigateTo={context.navigateTo} theme={context.theme} />;
+    return <Admin setUser={context.setUser} navigateTo={context.navigateTo} theme={context.theme} />;
   },
 });
 
@@ -401,15 +386,6 @@ const confirmationRoute = createRoute({
   },
 });
 
-const emailConfirmRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/emailconfirm',
-  component: () => {
-    const context = useAppContext();
-    return <EmailConfirm theme={context.theme} navigateTo={context.navigateTo} />;
-  },
-});
-
 const splatRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '$',
@@ -437,7 +413,6 @@ const routeTree = rootRoute.addChildren([
   compareRoute,
   policiesRoute,
   confirmationRoute,
-  emailConfirmRoute,
   splatRoute,
 ]);
 
