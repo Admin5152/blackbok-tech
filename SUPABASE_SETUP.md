@@ -11,7 +11,7 @@
 ### 2. Authentication Configuration
 1. Navigate to **Authentication** → **Settings**
 2. Ensure **Email/Password** is enabled
-3. Set site URL: `http://localhost:5173` (or your domain)
+3. Set site URL: `http://localhost:5173` (default Vite) or whatever `npm run dev` prints (e.g. `http://localhost:3001`)
 4. Configure redirect URLs as needed
 
 ### 3. Row Level Security

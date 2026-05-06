@@ -188,10 +188,6 @@ export const Navbar: React.FC<{
                   </span>
                 )}
               </Link>
-              {/* Show Admin link for everyone */}
-              <Link to="/admin" className={navItemClass('/admin')}>
-                <UserCog size={16} /> Admin
-              </Link>
             </div>
 
             {/* Right Section: Account, Search, Theme, Mobile Menu */}
@@ -317,7 +313,6 @@ export const Navbar: React.FC<{
                       ]
                     },
                     { path: '/cart', label: 'Cart', icon: ShoppingCart, badge: cartCount },
-                    { path: '/admin', label: 'Admin', icon: UserCog },
                     { path: user ? '/profile' : '/auth', label: user ? 'Account' : 'Sign In', icon: UserIcon }
                   ].map((item) => {
                     const active = location.pathname === item.path;
