@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { DollarSign, ShoppingCart, Users, Package, RefreshCcw, Wrench, AlertTriangle, Star, ArrowUpRight } from 'lucide-react';
+import { DollarSign, ShoppingCart, Users, Package, RefreshCcw, Wrench, AlertTriangle, Star, ArrowUpRight, CalendarDays, Download } from 'lucide-react';
 import { BarChart, Sparkline, DonutChart, PROD_KEY } from './adminUtils';
 import { getOrders, getUsers, getTradeRequests, getRepairRequests } from '../../lib/api';
 import type { Order, User, Product, TradeRequest, RepairRequest } from '../../types';
@@ -175,6 +175,7 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
     const [trades, setTrades] = useState<TradeRequest[]>([]);
     const [repairs, setRepairs] = useState<RepairRequest[]>([]);
     const [products, setProducts] = useState<Product[]>(contextProducts || []);
+    const [revenueWindow, setRevenueWindow] = useState<'7D' | '30D' | '90D' | 'ALL'>('30D');
 
     // Mock data for development
     const mockOrders: Order[] = [
@@ -432,16 +433,45 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
         return () => { mounted = false; };
     }, [contextProducts]);
 
-    // Combined revenue
-    const orderRevenue = orders.reduce((s, o) => s + o.total, 0);
-    const repairRevenue = repairs.filter(r => r.status === 'Completed').reduce((s, r) => s + parseFloat((r.estimatedCost || '0').replace(/[^0-9.]/g, '')) || 0, 0);
-    const tradeRevenue = trades.filter(t => t.status === 'Completed').reduce((s, t) => s + (t.finalValue || 0), 0);
+    const parseRepairAmount = (amount: string | number | undefined) => {
+        if (typeof amount === 'number') return amount || 0;
+        if (!amount) return 0;
+        return parseFloat(String(amount).replace(/[^0-9.]/g, '')) || 0;
+    };
+
+    const getValidDate = (input?: string) => {
+        if (!input) return null;
+        const dt = new Date(input);
+        return Number.isNaN(dt.getTime()) ? null : dt;
+    };
+
+    const inSelectedWindow = (input?: string) => {
+        const dt = getValidDate(input);
+        if (!dt) return revenueWindow === 'ALL';
+        if (revenueWindow === 'ALL') return true;
+        const now = Date.now();
+        const days = revenueWindow === '7D' ? 7 : revenueWindow === '30D' ? 30 : 90;
+        return dt.getTime() >= now - days * 24 * 60 * 60 * 1000;
+    };
+
+    // Combined revenue (window segmented)
+    const filteredOrders = orders.filter(o => inSelectedWindow(o.date || o.created_at));
+    const filteredRepairs = repairs.filter(r => inSelectedWindow(r.date || r.created_at));
+    const filteredTrades = trades.filter(t => inSelectedWindow(t.date || t.created_at));
+
+    const orderRevenue = filteredOrders.reduce((s, o) => s + (o.total || 0), 0);
+    const repairRevenue = filteredRepairs
+        .filter(r => (r.status || '').toLowerCase() === 'completed')
+        .reduce((s, r) => s + parseRepairAmount(r.estimatedCost), 0);
+    const tradeRevenue = filteredTrades
+        .filter(t => (t.status || '').toLowerCase() === 'completed')
+        .reduce((s, t) => s + (t.finalValue || 0), 0);
     const totalRevenue = orderRevenue + repairRevenue + tradeRevenue;
 
     const pendingTrades = trades.filter(t => t.status === 'Pending').length;
     const activeRepairs = repairs.filter(r => !['Completed', 'Rejected'].includes(r.status)).length;
     const lowStock = products.filter(p => (p.stock ?? 0) < 5).length;
-    const avgOrder = orders.length ? Math.round(orderRevenue / orders.length) : 0;
+    const avgOrder = filteredOrders.length ? Math.round(orderRevenue / filteredOrders.length) : 0;
 
     // PERFORMANCE: Optimized calculations
     const catMap = useMemo(() => {
@@ -470,9 +500,73 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
     }, [lowStock, pendingTrades, repairs, onNavigate]);
 
     const mockOrdersByDay = [12, 19, 8, 15, 22, 18, 25];
-    const mockRevenueByDay = [2899, 4599, 1899, 3599, 5299, 4299, 5999];
+    const revenueByDay = useMemo(() => {
+        const days = 7;
+        const buckets = Array.from({ length: days }, () => 0);
+        const now = new Date();
+        const start = new Date(now);
+        start.setHours(0, 0, 0, 0);
+        start.setDate(start.getDate() - (days - 1));
+
+        const dayIndex = (value?: string) => {
+            const dt = getValidDate(value);
+            if (!dt) return -1;
+            const diff = Math.floor((new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
+            return diff >= 0 && diff < days ? diff : -1;
+        };
+
+        filteredOrders.forEach(o => {
+            const idx = dayIndex(o.date || o.created_at);
+            if (idx >= 0) buckets[idx] += (o.total || 0);
+        });
+        filteredRepairs
+            .filter(r => (r.status || '').toLowerCase() === 'completed')
+            .forEach(r => {
+                const idx = dayIndex(r.date || r.created_at);
+                if (idx >= 0) buckets[idx] += parseRepairAmount(r.estimatedCost);
+            });
+        filteredTrades
+            .filter(t => (t.status || '').toLowerCase() === 'completed')
+            .forEach(t => {
+                const idx = dayIndex(t.date || t.created_at);
+                if (idx >= 0) buckets[idx] += (t.finalValue || 0);
+            });
+
+        return buckets.map(v => Math.round(v));
+    }, [filteredOrders, filteredRepairs, filteredTrades, revenueWindow]);
+    const mockRevenueByDay = revenueByDay;
     const mockUserGrowth = [145, 148, 152, 149, 155, 161, 167];
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    const revenueStreams = [
+        { label: 'Product Sales', val: orderRevenue, color: '#6366f1', nav: 'orders' as Section },
+        { label: 'Repair Services', val: repairRevenue, color: '#f97316', nav: 'repairs' as Section },
+        { label: 'Trade-In Credit', val: tradeRevenue, color: '#a855f7', nav: 'trades' as Section },
+    ];
+
+    const exportRevenueReport = () => {
+        const rows = [
+            ['Window', revenueWindow],
+            ['Total Revenue', totalRevenue.toFixed(2)],
+            ['Orders Revenue', orderRevenue.toFixed(2)],
+            ['Repairs Revenue', repairRevenue.toFixed(2)],
+            ['Trade-In Revenue', tradeRevenue.toFixed(2)],
+            ['Orders Count', String(filteredOrders.length)],
+            ['Completed Repairs Count', String(filteredRepairs.filter(r => (r.status || '').toLowerCase() === 'completed').length)],
+            ['Completed Trades Count', String(filteredTrades.filter(t => (t.status || '').toLowerCase() === 'completed').length)],
+            [],
+            ['Stream', 'Revenue', 'Share %'],
+            ...revenueStreams.map((r) => [r.label, r.val.toFixed(2), totalRevenue > 0 ? ((r.val / totalRevenue) * 100).toFixed(2) : '0.00']),
+        ];
+        const csv = rows.map((r) => r.join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `revenue-report-${revenueWindow.toLowerCase()}-${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
 
     return (
         <div className="space-y-8 animate-in fade-in duration-700">
@@ -498,6 +592,44 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
                     <StatCard isLight={isLight} icon={ShoppingCart} value={orders.length} label="New Orders" trend={8} trendUp={true} spark={mockOrdersByDay} iconColor="#6366f1" onClick={() => onNavigate('orders')} />
                     <StatCard isLight={isLight} icon={Star} value={`$${avgOrder}`} label="Avg Order Value" trend={3} trendUp={false} iconColor={STATUS_COLORS.info} onClick={() => onNavigate('orders')} />
                     <StatCard isLight={isLight} icon={Users} value="94%" label="Customer Satisfaction" trend={1} trendUp={true} iconColor={STATUS_COLORS.success} />
+                </div>
+                <div className={`border rounded-2xl p-5 sm:p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 ${isLight ? 'bg-white border-black/5 shadow-sm' : 'bg-[#0a0a0a] border-white/5'}`}>
+                    <div className="space-y-2">
+                        <p className={`text-[10px] font-black uppercase tracking-[0.3em] flex items-center gap-2 ${isLight ? 'text-black/50' : 'text-white/50'}`}>
+                            <CalendarDays size={12} className="text-[#B38B21]" />
+                            Revenue Overview
+                        </p>
+                        <h3 className={`text-2xl sm:text-3xl font-black tracking-tight ${isLight ? 'text-black' : 'text-white'}`}>
+                            ${totalRevenue.toLocaleString()}
+                        </h3>
+                        <p className={`text-[11px] ${isLight ? 'text-black/60' : 'text-white/60'}`}>
+                            {revenueWindow} window • {filteredOrders.length} orders • {filteredRepairs.length} repairs • {filteredTrades.length} trades
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {(['7D', '30D', '90D', 'ALL'] as const).map((window) => (
+                            <button
+                                key={window}
+                                onClick={() => setRevenueWindow(window)}
+                                className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors ${
+                                    revenueWindow === window
+                                        ? 'bg-[#B38B21] text-black'
+                                        : isLight
+                                            ? 'bg-black/5 text-black/50 hover:bg-black/10'
+                                            : 'bg-white/5 text-white/50 hover:bg-white/10'
+                                }`}
+                            >
+                                {window}
+                            </button>
+                        ))}
+                        <button
+                            onClick={exportRevenueReport}
+                            className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1 transition-colors ${isLight ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'}`}
+                        >
+                            <Download size={12} />
+                            Export
+                        </button>
+                    </div>
                 </div>
             </section>
 
@@ -530,15 +662,21 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
                         <div className="flex items-center justify-between mb-6">
                             <div>
                                 <h3 className={`text-xs font-black uppercase tracking-widest ${isLight ? 'text-black' : 'text-white'}`}>Revenue Trends</h3>
-                                <p className={`text-[10px] mt-1 ${isLight ? 'text-black/50' : 'text-white/50'}`}>Order volume over the last 7 days</p>
+                                <p className={`text-[10px] mt-1 ${isLight ? 'text-black/50' : 'text-white/50'}`}>Segmented by selected revenue window</p>
                             </div>
                             <div className="flex gap-2">
-                                {['7D', '1M', '1Y'].map(t => (
-                                    <button key={t} className={`px-2.5 py-1 rounded-lg text-[9px] font-black ${t === '7D' ? 'bg-[#B38B21] text-black' : isLight ? 'bg-black/5 text-black/40 hover:bg-black/10' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>{t}</button>
+                                {(['7D', '30D', '90D', 'ALL'] as const).map(t => (
+                                    <button
+                                        key={t}
+                                        onClick={() => setRevenueWindow(t)}
+                                        className={`px-2.5 py-1 rounded-lg text-[9px] font-black ${revenueWindow === t ? 'bg-[#B38B21] text-black' : isLight ? 'bg-black/5 text-black/40 hover:bg-black/10' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
+                                    >
+                                        {t}
+                                    </button>
                                 ))}
                             </div>
                         </div>
-                        <BarChart data={mockOrdersByDay} />
+                        <BarChart data={mockRevenueByDay} />
                         <div className="flex justify-between mt-3 px-2">{days.map(d => <span key={d} className={`text-[9px] font-bold ${isLight ? 'text-black/50' : 'text-white/50'}`}>{d}</span>)}</div>
                     </div>
 
@@ -642,11 +780,7 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
                         Revenue Mix
                     </h3>
                     <div className="space-y-5">
-                        {[
-                            { label: 'Product Sales', val: orderRevenue, color: '#6366f1', nav: 'orders' as Section },
-                            { label: 'Repair Services', val: repairRevenue, color: '#f97316', nav: 'repairs' as Section },
-                            { label: 'Trade-In Credit', val: tradeRevenue, color: '#a855f7', nav: 'trades' as Section },
-                        ].map(row => {
+                        {revenueStreams.map(row => {
                             const pct = totalRevenue > 0 ? (row.val / totalRevenue) * 100 : 0;
                             return (
                                 <button key={row.label} onClick={() => onNavigate(row.nav)} className="w-full text-left group">

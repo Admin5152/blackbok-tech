@@ -123,11 +123,20 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
         } finally { setSaving(false); }
     };
 
-    /** Toggle featured flag — stored locally (Supabase column optional) */
-    const toggleFeatured = (id: string) => {
-        const updated = products.map(p => p.id === id ? { ...p, featured: !(p as any).featured } : p);
-        setProducts(updated);
-        localStorage.setItem(PROD_KEY, JSON.stringify(updated));
+    /** Toggle featured flag and persist to DB + local cache */
+    const toggleFeatured = async (id: string) => {
+        const product = products.find(p => p.id === id);
+        if (!product) return;
+        const nextFeatured = !(product as any).featured;
+
+        try {
+            await updateProduct(id, { featured: nextFeatured });
+            const updated = products.map(p => p.id === id ? { ...p, featured: nextFeatured } : p);
+            setProducts(updated);
+            localStorage.setItem(PROD_KEY, JSON.stringify(updated));
+        } catch (e: any) {
+            alert('Failed to update featured flag: ' + (e?.message || 'Unknown error'));
+        }
     };
 
     const addChip = (field: 'colors' | 'storage' | 'ram', val: string, clear: () => void) => {

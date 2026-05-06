@@ -22,6 +22,32 @@ import {
   EmailSendQueue
 } from '../types';
 
+const normalizeCategory = (category?: string): string => {
+  if (!category) return 'Accessories';
+  const value = category.trim().toLowerCase();
+
+  if (['iphone', 'iphones', 'phone', 'phones', 'mobile', 'mobile phone', 'mobile phones', 'smartphone', 'smartphones'].includes(value)) {
+    return 'iPhone';
+  }
+  if (['laptop', 'laptops', 'notebook', 'notebooks', 'macbook', 'macbooks', 'computer', 'computers'].includes(value)) {
+    return 'Laptop';
+  }
+  if (['accessory', 'accessories', 'case', 'cases', 'wearable', 'wearables'].includes(value)) {
+    return 'Accessories';
+  }
+  if (['gaming', 'game', 'games', 'console', 'consoles'].includes(value)) {
+    return 'Gaming';
+  }
+  if (['audio', 'headphone', 'headphones', 'earbuds', 'speaker', 'speakers'].includes(value)) {
+    return 'Audio';
+  }
+  if (['tablet', 'tablets', 'ipad', 'ipads'].includes(value)) {
+    return 'Tablet';
+  }
+
+  return category;
+};
+
 // ==========================================
 // AUTHENTICATION & PROFILES
 // ==========================================
@@ -157,6 +183,7 @@ export const getProducts = async (): Promise<Product[]> => {
   // Map for backward compatibility
   return data.map((p: any) => ({
     ...p,
+    category: normalizeCategory(p.category),
     image: p.image_url,
     new: p.is_new,
     reviewCount: p.review_count,
@@ -174,6 +201,7 @@ export const getProduct = async (id: string): Promise<Product | null> => {
   if (!data) return null;
   return {
     ...data,
+    category: normalizeCategory(data.category),
     image: data.image_url,
     new: data.is_new,
     reviewCount: data.review_count,
@@ -280,22 +308,75 @@ export const placeOrder = async (
   customerId: string, 
   shippingAddress: string, 
   paymentMethod: string, 
-  shippingMethod: string = 'Standard Delivery'
+  shippingMethod: string = 'Standard Delivery',
+  cartItems: CartItem[] = []
 ) => {
-  // Use the RPC place_order() for checkout as per the schema requirement
-  const { data, error } = await supabase.rpc('place_order', {
-    p_user_id: userId,
-    p_customer_id: customerId,
-    p_shipping_address: shippingAddress,
-    p_payment_method: paymentMethod,
-    p_shipping_method: shippingMethod
-  });
+  // First try RPC if available
+  try {
+    const { data, error } = await supabase.rpc('place_order', {
+      p_user_id: userId,
+      p_customer_id: customerId,
+      p_shipping_address: shippingAddress,
+      p_payment_method: paymentMethod,
+      p_shipping_method: shippingMethod
+    });
 
-  if (error) {
-    console.error("place_order RPC error:", error);
-    throw error;
+    if (!error && data) return data;
+    if (error) console.warn('place_order RPC failed, falling back to direct insert:', error.message);
+  } catch (rpcError) {
+    console.warn('place_order RPC unavailable, falling back to direct insert:', rpcError);
   }
-  return data;
+
+  // Fallback path: write directly to orders and order_items tables
+  const subtotal = cartItems.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity || 1)), 0);
+  const shippingCost = shippingMethod.toLowerCase().includes('pick') ? 0 : 50;
+  const total = subtotal + shippingCost;
+
+  const { data: latestOrder } = await supabase
+    .from('orders')
+    .select('display_id')
+    .not('display_id', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const lastDisplay = latestOrder?.display_id || 'ORD00000';
+  const lastNumber = Number(String(lastDisplay).replace(/[^0-9]/g, '')) || 0;
+  const nextDisplayId = `ORD${String(lastNumber + 1).padStart(5, '0')}`;
+
+  const { data: order, error: orderError } = await supabase
+    .from('orders')
+    .insert({
+      display_id: nextDisplayId,
+      user_id: userId,
+      customer_id: customerId,
+      status: 'pending',
+      payment_status: paymentMethod === 'delivery' ? 'pending' : 'paid',
+      payment_method: paymentMethod,
+      shipping_address: shippingAddress,
+      shipping_method: shippingMethod,
+      shipping_cost: shippingCost,
+      total_price: total
+    })
+    .select()
+    .single();
+
+  if (orderError) throw orderError;
+
+  if (cartItems.length > 0) {
+    const lineItems = cartItems.map((item) => ({
+      order_id: order.id,
+      product_id: item.product_id || item.id,
+      quantity: Number(item.quantity || 1),
+      price: Number(item.price || 0),
+      unit_price: Number(item.price || 0)
+    }));
+
+    const { error: itemsError } = await supabase.from('order_items').insert(lineItems);
+    if (itemsError) throw itemsError;
+  }
+
+  return order;
 };
 
 export const getOrders = async (userId?: string): Promise<Order[]> => {

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Product } from '../types';
 import { X, Plus, Minus, Heart, Share2, Star, Check, Truck, Shield, RefreshCw, ArrowLeft, Copy, Facebook, Twitter, MessageCircle, ChevronRight } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
@@ -24,17 +24,29 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
 }) => {
   const isLight = theme === 'light';
   const [quantity, setQuantity] = useState(1);
-  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => {
-    const initial: Record<string, string> = {};
-    if (product?.variants) {
-      product.variants.forEach(v => {
-        if (v.options.length > 0) {
-          initial[v.name] = v.options[0];
-        }
-      });
+  const normalizedVariants = useMemo(() => {
+    const asAny = product as any;
+    const groups: Array<{ name: string; options: string[] }> = [];
+
+    if (Array.isArray(product?.variants) && product.variants.length > 0) {
+      const grouped = product.variants
+        .filter((v: any) => v?.name && Array.isArray(v?.options))
+        .map((v: any) => ({ name: String(v.name), options: v.options.filter(Boolean) }));
+      if (grouped.length > 0) return grouped;
     }
-    return initial;
-  });
+
+    if (Array.isArray(asAny.colors) && asAny.colors.length > 0) {
+      groups.push({ name: 'Color', options: asAny.colors.filter(Boolean) });
+    }
+    if (Array.isArray(asAny.storage) && asAny.storage.length > 0) {
+      groups.push({ name: 'Storage', options: asAny.storage.filter(Boolean) });
+    }
+    if (Array.isArray(asAny.ram) && asAny.ram.length > 0) {
+      groups.push({ name: 'RAM', options: asAny.ram.filter(Boolean) });
+    }
+    return groups;
+  }, [product]);
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isReviewFormOpen, setIsReviewFormOpen] = useState(false);
@@ -79,6 +91,17 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
     mockReviews.reduce((sum, r) => sum + r.rating, 0) / mockReviews.length;
   const totalReviews = mockReviews.length;
 
+  useEffect(() => {
+    const initial: Record<string, string> = {};
+    normalizedVariants.forEach((variant) => {
+      if (variant.options.length > 0) {
+        initial[variant.name] = variant.options[0];
+      }
+    });
+    setSelectedOptions(initial);
+    setQuantity(1);
+  }, [normalizedVariants, product.id]);
+
   const scrollTo = (ref: React.RefObject<HTMLElement | null>) => {
     ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -92,7 +115,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
 
   const handleAddToCart = () => {
     // Validate required variants are selected
-    const requiredVariants = product.variants?.filter(v => v.name === 'Color' || v.name === 'Storage') || [];
+    const requiredVariants = normalizedVariants.filter(v => v.name === 'Color' || v.name === 'Storage');
     const missingVariants = requiredVariants.filter(variant => !selectedOptions[variant.name]);
     
     if (missingVariants.length > 0) {
@@ -245,9 +268,9 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               </p>
             </div>
 
-            {product.variants?.length > 0 && (
+            {normalizedVariants.length > 0 && (
               <div className="space-y-6">
-                {product.variants.map((variant) => (
+                {normalizedVariants.map((variant) => (
                   <div key={variant.name}>
                     <h3 className="text-lg font-bold text-white mb-4 uppercase tracking-wider">
                       {variant.name}
@@ -406,13 +429,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               <h2 className="text-2xl sm:text-3xl font-bold">Reviews</h2>
               <p className="text-sm text-white/50 mt-2">See what customers are saying about this product.</p>
             </div>
-            <button
-              onClick={() => setIsReviewFormOpen(true)}
-              className="px-6 py-3 rounded-full bg-white/10 border border-white/10 text-[10px] font-black uppercase tracking-[0.3em] hover:bg-white/20 transition"
-              type="button"
-            >
-              Write a review
-            </button>
+            {/* Review submission UI intentionally hidden until feature scope is approved */}
           </div>
 
           <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">

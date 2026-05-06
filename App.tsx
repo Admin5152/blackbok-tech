@@ -181,24 +181,31 @@ const productDetailRoute = createRoute({
     const { productId } = useParams({ from: productDetailRoute.id } as any);
     const { products, theme, ...context } = useAppContext();
     
-    // Try to find in local state first, then fallback to database
+    // Start with local state for instant render, then refresh from database
     const localProduct = products.find((p: Product) => p.id === productId);
     const [product, setProduct] = useState<Product | null>(localProduct || null);
-    const [loading, setLoading] = useState(!localProduct);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-      if (!localProduct && productId) {
-        setLoading(true);
-        setError(null);
-        getProduct(productId)
-          .then(setProduct)
-          .catch((err) => {
-            console.error('Failed to fetch product:', err);
+      if (!productId) return;
+      setLoading(true);
+      setError(null);
+      getProduct(productId)
+        .then((remoteProduct) => {
+          if (remoteProduct) {
+            setProduct(remoteProduct);
+          } else if (!localProduct) {
             setError('Product not found');
-          })
-          .finally(() => setLoading(false));
-      }
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to fetch product:', err);
+          if (!localProduct) {
+            setError('Product not found');
+          }
+        })
+        .finally(() => setLoading(false));
     }, [productId, localProduct]);
 
     if (loading) {

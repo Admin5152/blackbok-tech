@@ -132,11 +132,13 @@ export const Checkout: React.FC = () => {
         customer.id,
         shippingMethod === 'pickup' ? 'Pick up from store' : `${formData.shippingAddress}, ${formData.city}, ${formData.region}, ${formData.postalCode}`,
         formData.paymentMethod,
+        shippingMethod === 'pickup' ? 'Pick up from store' : 'Standard Delivery',
         cart
       );
 
       // Step 3: Clear cart
       await clearCartItems(user.id);
+      setCart([]);
 
       // Step 4: Update local orders state
       const newOrder: Order = {

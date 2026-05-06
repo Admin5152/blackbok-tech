@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { X, Minus, Plus, ShoppingCart, Star, ShieldCheck, ArrowLeft, Package } from 'lucide-react';
 import { Product } from '../types';
 import { formatCurrency } from '../lib/utils';
@@ -12,18 +12,47 @@ interface QuickViewModalProps {
 }
 
 export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen, onClose, onAddToCart }) => {
-  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => {
-    const initial: Record<string, string> = {};
-    if (product?.variants) {
-      product.variants.forEach(v => {
-        if (v.options.length > 0) {
-          initial[v.name] = v.options[0];
-        }
-      });
+  const groupedVariants = useMemo(() => {
+    if (!product) return [];
+
+    const groups: Array<{ name: string; options: string[] }> = [];
+    const asAny = product as any;
+
+    if (Array.isArray(product.variants) && product.variants.length > 0) {
+      const hasNamedOptions = product.variants.some((v: any) => v?.name && Array.isArray(v?.options));
+      if (hasNamedOptions) {
+        return product.variants
+          .filter((v: any) => v?.name && Array.isArray(v?.options))
+          .map((v: any) => ({ name: String(v.name), options: v.options.filter(Boolean) }));
+      }
     }
-    return initial;
-  });
+
+    if (Array.isArray(asAny.colors) && asAny.colors.length > 0) {
+      groups.push({ name: 'Color', options: asAny.colors.filter(Boolean) });
+    }
+    if (Array.isArray(asAny.storage) && asAny.storage.length > 0) {
+      groups.push({ name: 'Storage', options: asAny.storage.filter(Boolean) });
+    }
+    if (Array.isArray(asAny.ram) && asAny.ram.length > 0) {
+      groups.push({ name: 'RAM', options: asAny.ram.filter(Boolean) });
+    }
+
+    return groups;
+  }, [product]);
+
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
+
+  useEffect(() => {
+    const initial: Record<string, string> = {};
+    groupedVariants.forEach((variant) => {
+      if (variant.options.length > 0) {
+        initial[variant.name] = variant.options[0];
+      }
+    });
+    setSelectedOptions(initial);
+    setQuantity(1);
+  }, [product, groupedVariants]);
 
   if (!product || !isOpen) return null;
 
@@ -108,7 +137,7 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
 
             {/* Variants Section */}
             <div className="space-y-6">
-              {product.variants && product.variants.map(variant => (
+              {groupedVariants.map(variant => (
                 <div key={variant.name} className="space-y-4">
                   <div className="flex items-center justify-between">
                     <label className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30">

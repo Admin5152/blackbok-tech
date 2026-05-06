@@ -36,17 +36,45 @@ export const Store: React.FC<StoreProps> = ({
   theme,
   categoriesFromUrl,
 }) => {
+  const normalizeCategory = (category?: string): Category | null => {
+    if (!category) return null;
+    const value = category.trim().toLowerCase();
+
+    if (value.includes('iphone') || value.includes('apple iphone')) return 'iPhone';
+    if (['iphone', 'iphones', 'phone', 'phones', 'mobile', 'mobile phone', 'mobile phones', 'smartphone', 'smartphones'].includes(value)) return 'iPhone';
+    if (['laptop', 'laptops', 'notebook', 'notebooks', 'macbook', 'macbooks', 'computer', 'computers'].includes(value)) return 'Laptop';
+    if (['accessory', 'accessories', 'case', 'cases', 'wearable', 'wearables'].includes(value)) return 'Accessories';
+    if (['gaming', 'game', 'games', 'console', 'consoles'].includes(value)) return 'Gaming';
+    if (['audio', 'headphone', 'headphones', 'earbuds', 'speaker', 'speakers'].includes(value)) return 'Audio';
+    if (['tablet', 'tablets', 'ipad', 'ipads'].includes(value)) return 'Tablet';
+    return category as Category;
+  };
+
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [priceRange, setPriceRange] = useState({ min: 0, max: 15000 });
   const [showPromotionsOnly, setShowPromotionsOnly] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showMobileNav, setShowMobileNav] = useState(false);
+  const [mobileMinInput, setMobileMinInput] = useState('0');
+  const [mobileMaxInput, setMobileMaxInput] = useState('15000');
   const isLight = theme === 'light';
 
   React.useEffect(() => {
-    if (categoriesFromUrl && categoriesFromUrl.length > 0) {
-      setSelectedCategories(categoriesFromUrl as Category[]);
+    const urlCategories = new URLSearchParams(window.location.search).getAll('categories');
+    const singleCategory = new URLSearchParams(window.location.search).get('category');
+    const rawCategories = [
+      ...(categoriesFromUrl || []),
+      ...urlCategories,
+      ...(singleCategory ? [singleCategory] : []),
+    ];
+
+    if (rawCategories.length > 0) {
+      const normalizedCategories = rawCategories
+        .flatMap((cat) => String(cat).split(',').map((s) => s.trim()))
+        .map((cat) => normalizeCategory(cat))
+        .filter((cat): cat is Category => Boolean(cat));
+      setSelectedCategories(Array.from(new Set(normalizedCategories)));
     }
   }, [categoriesFromUrl, setSelectedCategories]);
 
@@ -56,6 +84,20 @@ export const Store: React.FC<StoreProps> = ({
       setSearchTerm(searchQuery);
     }
   }, [searchQuery]);
+
+  React.useEffect(() => {
+    setMobileMinInput(String(priceRange.min));
+    setMobileMaxInput(String(priceRange.max));
+  }, [priceRange.min, priceRange.max]);
+
+  const getDiscountValue = (discount: unknown): number => {
+    if (typeof discount === 'number') return Number.isFinite(discount) ? discount : 0;
+    if (typeof discount === 'string') {
+      const parsed = Number(discount.replace(/[^0-9.-]/g, ''));
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    return 0;
+  };
 
   const toggleCategory = (cat: Category | 'All') => {
     if (cat === 'All') {
@@ -72,25 +114,44 @@ export const Store: React.FC<StoreProps> = ({
   const filteredProducts = useMemo(() => {
     const q = searchTerm.toLowerCase().trim();
     let results = products.filter(p => {
+      const normalizedProductCategory = normalizeCategory(p.category);
       const matchesSearch = p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q);
-      const matchesCategory = selectedCategories.length === 0 || selectedCategories.includes(p.category);
+      const matchesCategory =
+        selectedCategories.length === 0 ||
+        (normalizedProductCategory ? selectedCategories.includes(normalizedProductCategory) : false);
       const matchesPrice = p.price >= priceRange.min && p.price <= priceRange.max;
-      const matchesPromotions = !showPromotionsOnly || (p.discount && p.discount > 0);
+      const matchesPromotions = !showPromotionsOnly || getDiscountValue(p.discount) > 0;
 
       return matchesSearch && matchesCategory && matchesPrice && matchesPromotions;
     });
 
     return results.sort((a, b) => b.stock - a.stock);
-  }, [products, searchTerm, selectedCategories, priceRange]);
+  }, [products, searchTerm, selectedCategories, priceRange, showPromotionsOnly]);
 
+
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      iPhone: 0,
+      Laptop: 0,
+      Accessories: 0,
+      Gaming: 0,
+    };
+    products.forEach((product) => {
+      const normalized = normalizeCategory(product.category);
+      if (normalized && counts[normalized] !== undefined) {
+        counts[normalized] += 1;
+      }
+    });
+    return counts;
+  }, [products]);
 
   const categoryOptions: { label: string; value: Category | 'All'; icon: React.ReactNode; count?: number }[] = [
     { label: 'ALL PRODUCTS', value: 'All', icon: <LayoutGrid size={14} />, count: products.length },
-    { label: 'IPHONE', value: 'iPhone', icon: <Smartphone size={14} />, count: products.filter(p => p.category === 'iPhone').length },
-    { label: 'LAPTOP', value: 'Laptop', icon: <LaptopIcon size={14} />, count: products.filter(p => p.category === 'Laptop').length },
-    { label: 'ACCESSORIES', value: 'Accessories', icon: <Watch size={14} />, count: products.filter(p => p.category === 'Accessories').length },
-    { label: 'GAMING', value: 'Gaming', icon: <Gamepad2 size={14} />, count: products.filter(p => p.category === 'Gaming').length },
-    { label: 'PROMOTIONS', value: 'All', icon: <Tag size={14} className="text-[#CDA032]" />, count: products.filter(p => p.discount && p.discount > 0).length },
+    { label: 'IPHONE', value: 'iPhone', icon: <Smartphone size={14} />, count: categoryCounts.iPhone },
+    { label: 'LAPTOP', value: 'Laptop', icon: <LaptopIcon size={14} />, count: categoryCounts.Laptop },
+    { label: 'ACCESSORIES', value: 'Accessories', icon: <Watch size={14} />, count: categoryCounts.Accessories },
+    { label: 'GAMING', value: 'Gaming', icon: <Gamepad2 size={14} />, count: categoryCounts.Gaming },
+    { label: 'PROMOTIONS', value: 'All', icon: <Tag size={14} className="text-[#CDA032]" />, count: products.filter(p => getDiscountValue(p.discount) > 0).length },
   ];
 
   const activeFiltersCount = [
@@ -454,6 +515,52 @@ export const Store: React.FC<StoreProps> = ({
                           <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider">{label}</span>
                         </button>
                       ))}
+                    </div>
+
+                    <div className="mt-3 p-3 rounded-xl bg-white/5 border border-white/10">
+                      <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider mb-2">Custom Price Range</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          value={mobileMinInput}
+                          onChange={(e) => setMobileMinInput(e.target.value)}
+                          className="w-full px-2 py-2 rounded-lg bg-black/20 border border-white/10 text-[10px] sm:text-xs text-white"
+                          placeholder="Min"
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          value={mobileMaxInput}
+                          onChange={(e) => setMobileMaxInput(e.target.value)}
+                          className="w-full px-2 py-2 rounded-lg bg-black/20 border border-white/10 text-[10px] sm:text-xs text-white"
+                          placeholder="Max"
+                        />
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => {
+                            const min = Math.max(0, Number(mobileMinInput) || 0);
+                            const maxRaw = Number(mobileMaxInput) || 15000;
+                            const max = Math.max(min, maxRaw);
+                            setPriceRange({ min, max });
+                            setShowMobileNav(false);
+                          }}
+                          className="px-3 py-2 rounded-lg bg-[#CDA032] text-black text-[9px] sm:text-[10px] font-black uppercase tracking-wider"
+                        >
+                          Apply
+                        </button>
+                        <button
+                          onClick={() => {
+                            setPriceRange({ min: 0, max: 15000 });
+                            setMobileMinInput('0');
+                            setMobileMaxInput('15000');
+                          }}
+                          className="px-3 py-2 rounded-lg border border-white/10 text-white/70 text-[9px] sm:text-[10px] font-black uppercase tracking-wider"
+                        >
+                          Reset
+                        </button>
+                      </div>
                     </div>
 
                     {activeFiltersCount > 0 && (

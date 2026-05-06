@@ -213,7 +213,7 @@ export const Home: React.FC<HomeProps> = ({
               <Link
                 key={category.name}
                 to="/store"
-                search={{ category: category.name.toLowerCase() } as any}
+                search={{ category: category.name } as any}
                 className="group relative rounded-2xl overflow-hidden border border-gray-800 hover:border-[#D4AF37]/50 transition-all duration-300 hover:transform hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]/50"
                 style={{ animationDelay: `${index * 100}ms` }}
                 aria-label={`Explore ${category.name}`}
