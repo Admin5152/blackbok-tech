@@ -37,7 +37,11 @@ class AuthService {
       
       if (!configured) {
         console.error(' Supabase is not configured');
-        return { user: null, error: 'Database connection error. Please try again later.' };
+        return {
+          user: null,
+          error:
+            'Supabase is not configured. Create a `.env` file with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY, then restart the dev server.'
+        };
       }
 
       // Get Supabase client with error handling
