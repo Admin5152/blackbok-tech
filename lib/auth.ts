@@ -74,11 +74,21 @@ class AuthService {
           const profile = await this.getUserProfile(data.user.id);
           console.log(' User profile:', profile);
           
+          // Get user role from user_roles table
+          const { data: roles } = await client
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', data.user.id)
+            .maybeSingle();
+          
+          const userRole = roles?.role || 'user';
+          console.log(' User role from user_roles:', userRole);
+          
           const authUser: AuthUser = {
             id: data.user.id,
             email: data.user.email || '',
             name: profile?.name || data.user.email?.split('@')[0] || 'User',
-            role: profile?.role || 'user'
+            role: userRole as 'user' | 'admin'
           };
           
           console.log(' Final auth user:', authUser);
@@ -236,11 +246,21 @@ class AuthService {
       
       console.log('User profile:', profile);
       
+      // Get user role from user_roles table
+      const { data: roles } = await client
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      const userRole = roles?.role || 'user';
+      console.log('User role from user_roles:', userRole);
+      
       return {
         id: user.id,
         email: user.email || '',
         name: profile?.name || user.email?.split('@')[0] || 'User',
-        role: profile?.role || 'user'
+        role: userRole as 'user' | 'admin'
       };
     } catch (error) {
       console.error('Get current user error:', error);
