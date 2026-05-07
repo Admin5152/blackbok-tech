@@ -53,7 +53,7 @@ export const Cart: React.FC<CartProps> = ({
   handleCheckout,
   user,
 }) => {
-  const [deliveryMethod, setDeliveryMethod] = useState<'deliver' | 'pickup'>('deliver');
+  const [deliveryMethod, setDeliveryMethod] = useState<'pickup'>('pickup');
   const [digitalAddress, setDigitalAddress] = useState(user?.address || '');
   const [region, setRegion] = useState(user?.region || '');
   const [town, setTown] = useState(user?.city || '');
@@ -64,7 +64,7 @@ export const Cart: React.FC<CartProps> = ({
     0
   );
   const tax = subtotal * 0.125;
-  const shipping = deliveryMethod === 'pickup' ? 0 : (subtotal >= freeShippingThreshold ? 0 : 50);
+  const shipping = 0;
   const total = subtotal + tax + shipping;
 
   const progressToFreeShipping = Math.min((subtotal / freeShippingThreshold) * 100, 100);
@@ -273,106 +273,16 @@ export const Cart: React.FC<CartProps> = ({
                 Summary
               </h2>
 
-              {/* Free Shipping Progress */}
-              {deliveryMethod === 'deliver' && subtotal < freeShippingThreshold && (
-                <div className="space-y-3 relative z-10">
-                  <div className="flex justify-between items-center text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] opacity-50">
-                    <span>Free Delivery</span>
-                    <span>{Math.round(progressToFreeShipping)}%</span>
-                  </div>
-                  <div className="h-3 sm:h-4 w-full bg-black/5 dark:bg-white/5 rounded-full overflow-hidden border border-black/5 dark:border-white/5 shadow-inner p-0.5">
-                    <div
-                      className="h-full bg-gradient-to-r from-[#B38B21] to-[#D9AB36] rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(205,160,50,0.5)]"
-                      style={{ width: `${progressToFreeShipping}%` }}
-                    />
-                  </div>
-                  <p className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.15em] leading-relaxed text-center sm:text-left opacity-70">
-                    Add <span className="text-[#CDA032] font-black">{formatCurrency(remainingForFreeShipping)}</span> for free shipping
-                  </p>
-                </div>
-              )}
-
-              {/* Delivery Options - Segmented Control */}
+              {/* Pickup Information */}
               <div className="space-y-4 relative z-10 pt-2">
-                <div className="flex bg-black-[0.02] dark:bg-white/5 p-1.5 rounded-2xl border border-black/5 dark:border-white/5 mx-auto md:mx-0 shadow-inner max-w-sm w-full">
-                  <button
-                    onClick={() => setDeliveryMethod('deliver')}
-                    className={`flex-1 py-3 text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] rounded-xl transition-all duration-300 ${deliveryMethod === 'deliver' ? 'bg-[#CDA032] text-black shadow-lg scale-[1.02]' : 'opacity-40 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5'}`}
-                  >
-                    Delivery
-                  </button>
-                  <button
-                    onClick={() => setDeliveryMethod('pickup')}
-                    className={`flex-1 py-3 text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] rounded-xl transition-all duration-300 ${deliveryMethod === 'pickup' ? 'bg-[#CDA032] text-black shadow-lg scale-[1.02]' : 'opacity-40 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5'}`}
-                  >
-                    Pickup
-                  </button>
-                </div>
-
-                {/* Form Inputs Container */}
-                <div className="min-h-[140px] pt-4 flex flex-col justify-end">
-                  {deliveryMethod === 'deliver' ? (
-                    <div className="animate-in fade-in slide-in-from-top-4 space-y-3">
-                      <div className="relative group">
-                        <input
-                          type="text"
-                          placeholder="National Digital Address *"
-                          value={digitalAddress}
-                          onChange={(e) => setDigitalAddress(e.target.value)}
-                          className="w-full bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl px-5 py-4 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#CDA032]/50 focus:border-[#CDA032] transition-all uppercase font-bold placeholder:tracking-widest placeholder:text-[10px] shadow-sm text-black dark:text-white placeholder:text-black/40 dark:placeholder:text-white/40"
-                        />
-                      </div>
-
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        <div className="relative w-full sm:w-1/2 group">
-                          <select
-                            value={region}
-                            onChange={(e) => setRegion(e.target.value)}
-                            className="w-full bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl px-5 py-4 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#CDA032]/50 focus:border-[#CDA032] transition-all uppercase font-bold placeholder:tracking-widest appearance-none shadow-sm cursor-pointer text-black dark:text-white"
-                            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'calc(100% - 1rem) center' }}
-                          >
-                            <option value="" disabled className="bg-white dark:bg-[#111] text-black dark:text-white">Region *</option>
-                            <option value="Ashanti" className="bg-white dark:bg-[#111] text-black dark:text-white">Ashanti</option>
-                            <option value="Ahafo" className="bg-white dark:bg-[#111] text-black dark:text-white">Ahafo</option>
-                            <option value="Bono" className="bg-white dark:bg-[#111] text-black dark:text-white">Bono</option>
-                            <option value="Bono East" className="bg-white dark:bg-[#111] text-black dark:text-white">Bono East</option>
-                            <option value="Central" className="bg-white dark:bg-[#111] text-black dark:text-white">Central</option>
-                            <option value="Eastern" className="bg-white dark:bg-[#111] text-black dark:text-white">Eastern</option>
-                            <option value="Greater Accra" className="bg-white dark:bg-[#111] text-black dark:text-white">Greater Accra</option>
-                            <option value="Northern" className="bg-white dark:bg-[#111] text-black dark:text-white">Northern</option>
-                            <option value="North East" className="bg-white dark:bg-[#111] text-black dark:text-white">North East</option>
-                            <option value="Oti" className="bg-white dark:bg-[#111] text-black dark:text-white">Oti</option>
-                            <option value="Savannah" className="bg-white dark:bg-[#111] text-black dark:text-white">Savannah</option>
-                            <option value="Upper East" className="bg-white dark:bg-[#111] text-black dark:text-white">Upper East</option>
-                            <option value="Upper West" className="bg-white dark:bg-[#111] text-black dark:text-white">Upper West</option>
-                            <option value="Volta" className="bg-white dark:bg-[#111] text-black dark:text-white">Volta</option>
-                            <option value="Western" className="bg-white dark:bg-[#111] text-black dark:text-white">Western</option>
-                            <option value="Western North" className="bg-white dark:bg-[#111] text-black dark:text-white">Western North</option>
-                          </select>
-                        </div>
-
-                        <div className="relative w-full sm:w-1/2 group">
-                          <input
-                            type="text"
-                            placeholder="City/Town *"
-                            value={town}
-                            onChange={(e) => setTown(e.target.value)}
-                            className="w-full bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl px-5 py-4 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#CDA032]/50 focus:border-[#CDA032] transition-all uppercase font-bold placeholder:tracking-widest placeholder:text-[10px] shadow-sm text-black dark:text-white placeholder:text-black/40 dark:placeholder:text-white/40"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="animate-in fade-in slide-in-from-top-4 flex items-center gap-5 p-5 bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl shadow-sm h-full">
-                      <div className="w-12 h-12 rounded-full bg-[#CDA032]/10 flex items-center justify-center shrink-0 border border-[#CDA032]/20 shadow-inner">
-                        <Building2 size={20} className="text-[#CDA032]" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-black uppercase tracking-tight mb-1 text-[#CDA032]">BlackBox HQ</p>
-                        <p className="text-[10px] opacity-60 uppercase tracking-widest leading-relaxed">KNUST Campus<br />Pickup within 24h</p>
-                      </div>
-                    </div>
-                  )}
+                <div className="animate-in fade-in slide-in-from-top-4 flex items-center gap-5 p-5 bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl shadow-sm h-full">
+                  <div className="w-12 h-12 rounded-full bg-[#CDA032]/10 flex items-center justify-center shrink-0 border border-[#CDA032]/20 shadow-inner">
+                    <Building2 size={20} className="text-[#CDA032]" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-black uppercase tracking-tight mb-1 text-[#CDA032]">BlackBox HQ</p>
+                    <p className="text-[10px] opacity-60 uppercase tracking-widest leading-relaxed">KNUST Campus<br />Pickup within 24h</p>
+                  </div>
                 </div>
               </div>
 
@@ -408,7 +318,7 @@ export const Cart: React.FC<CartProps> = ({
                   <span className="font-bold opacity-50 uppercase tracking-widest">Shipping</span>
                   {shipping === 0 ? (
                     <span className="text-[10px] sm:text-xs uppercase font-black tracking-[0.2em] text-[#CDA032] bg-[#CDA032]/10 px-3 py-1 rounded-full">
-                      {deliveryMethod === 'pickup' ? 'Free Pickup' : 'Complimentary'}
+  Free Pickup
                     </span>
                   ) : (
                     <span className="font-black tracking-tight">{formatCurrency(shipping)}</span>
@@ -429,15 +339,7 @@ export const Cart: React.FC<CartProps> = ({
               {/* Action Button */}
               <div className="pt-4 relative z-10">
                 <button
-                  onClick={() => {
-                    if (deliveryMethod === 'deliver') {
-                      if (!digitalAddress?.trim() || !region || !town?.trim()) {
-                        alert('Please provide your Region, City/Town, and National Digital Address for delivery.');
-                        return;
-                      }
-                    }
-                    handleCheckout(total);
-                  }}
+                  onClick={() => handleCheckout(total)}
                   disabled={cart.length === 0}
                   className="w-full py-5 sm:py-6 bg-gradient-to-r from-black to-zinc-800 text-white dark:from-white dark:to-zinc-200 dark:text-black rounded-full text-xs sm:text-sm font-black uppercase tracking-[0.2em] hover:from-[#CDA032] hover:to-[#B38B21] hover:text-black dark:hover:from-[#CDA032] dark:hover:to-[#B38B21] transition-all hover:scale-105 active:scale-95 shadow-xl hover:shadow-[0_15px_30px_rgba(205,160,50,0.3)] disabled:opacity-50 disabled:pointer-events-none group flex items-center justify-center gap-3"
                 >

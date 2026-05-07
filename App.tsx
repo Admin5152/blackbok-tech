@@ -305,7 +305,7 @@ const adminRoute = createRoute({
   path: '/admin',
   component: () => {
     const context = useAppContext();
-    return <Admin setUser={context.setUser} navigateTo={context.navigateTo} theme={context.theme} />;
+    return <Admin user={context.user} setUser={context.setUser} navigateTo={context.navigateTo} theme={context.theme} />;
   },
 });
 

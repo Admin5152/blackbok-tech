@@ -557,19 +557,18 @@ export const getOrCreateCustomer = async (
   phone: string,
   address: string
 ) => {
-  // Check if a profile with this email exists
+  // Check if a customer with this email exists
   const { data: existing, error: findError } = await supabase
-    .from('profiles')
+    .from('customers')
     .select('id')
     .eq('email', email)
     .maybeSingle();
 
   if (existing) return existing;
 
-  // Create a bare profile (no auth user — only works with service role or relaxed RLS)
-  // In practice the user will be authenticated before reaching this point.
+  // Create a new customer record
   const { data, error } = await supabase
-    .from('profiles')
+    .from('customers')
     .insert({ name, email, phone, address })
     .select()
     .single();
