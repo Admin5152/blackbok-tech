@@ -61,6 +61,23 @@ export const signUp = async (email: string, password: string) => {
 export const signIn = async (email: string, password: string) => {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) throw error;
+  
+  // Fetch user profile and role
+  if (data.user) {
+    const profile = await getUserProfile(data.user.id);
+    const roles = await getUserRoles(data.user.id);
+    const role = roles[0]?.role || 'user';
+    
+    return {
+      user: {
+        ...data.user,
+        name: profile?.name || data.user.email?.split('@')[0] || 'User',
+        role: role
+      },
+      session: data.session
+    };
+  }
+  
   return data;
 };
 
