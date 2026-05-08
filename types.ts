@@ -2,7 +2,7 @@ export type AppRole = 'admin' | 'moderator' | 'user';
 
 export interface Profile {
   id: string;
-  name?: string;
+  name: string;
   avatar_letter?: string;
   email?: string;
   phone?: string;
@@ -43,7 +43,7 @@ export interface Product {
   description?: string;
   price: number;
   discount?: number;
-  stock?: number;
+  stock: number;
   image_url?: string;
   // Fallback alias for backward compatibility
   image?: string; 
