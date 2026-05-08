@@ -39,8 +39,8 @@ export interface Product {
   brand?: string;
   model?: string;
   sku?: string;
-  category?: Category;
-  description?: string;
+  category: Category;
+  description: string;
   price: number;
   discount?: number;
   stock: number;
