@@ -276,7 +276,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                       {variant.name}
                     </h3>
                     <div className="flex flex-wrap gap-4">
-                      {variant.options.map((option) => (
+                      {variant.options.map((option: string) => (
                         <button
                           key={option}
                           onClick={() => handleOptionChange(variant.name, option)}

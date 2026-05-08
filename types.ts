@@ -160,7 +160,7 @@ export interface TrackingUpdate {
   location?: string;
   created_at?: string;
   // Backward comp:
-  timestamp?: string;
+  timestamp: string;
 }
 
 export interface Review {
