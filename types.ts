@@ -91,14 +91,15 @@ export interface CartItem {
   quantity: number;
   created_at?: string;
   updated_at?: string;
-  // Backward compatibility: the UI expects a Product-like structure in cart
-  name?: string;
-  price?: number;
+  // Backward compatibility: the UI expects a Product-like structure in cart.
+  // These default to safe values so callers don't need null checks.
+  name: string;
+  price: number;
   image?: string;
   image_url?: string;
   category?: Category;
   description?: string;
-  stock?: number;
+  stock: number;
   selectedOptions?: Record<string, string>;
 }
 
@@ -114,7 +115,7 @@ export interface Order {
   display_id?: string;
   user_id?: string;
   customer_id?: string;
-  status?: string;
+  status: string;
   payment_status?: string;
   payment_method?: string;
   shipping_address?: string;
@@ -131,9 +132,9 @@ export interface Order {
   userName?: string;
   userEmail?: string;
   userPhone?: string;
-  items?: CartItem[];
-  total?: number;
-  date?: string;
+  items: CartItem[];
+  total: number;
+  date: string;
   paymentMethod?: string;
   shipping_address_display?: string;
   tracking_updates?: TrackingUpdate[];
