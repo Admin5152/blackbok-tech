@@ -188,10 +188,6 @@ export const Navbar: React.FC<{
                   </span>
                 )}
               </Link>
-              {/* Show Admin link for everyone */}
-              <Link to="/admin" className={navItemClass('/admin')}>
-                <UserCog size={16} /> Admin
-              </Link>
             </div>
 
             {/* Right Section: Account, Search, Theme, Mobile Menu */}
@@ -317,7 +313,6 @@ export const Navbar: React.FC<{
                       ]
                     },
                     { path: '/cart', label: 'Cart', icon: ShoppingCart, badge: cartCount },
-                    { path: '/admin', label: 'Admin', icon: UserCog },
                     { path: user ? '/profile' : '/auth', label: user ? 'Account' : 'Sign In', icon: UserIcon }
                   ].map((item) => {
                     const active = location.pathname === item.path;
@@ -329,12 +324,10 @@ export const Navbar: React.FC<{
                         <div className="flex items-center">
                           <button
                             onClick={() => {
-                              if (hasSubItems) {
-                                setActiveMobileSubmenu(isSubmenuOpen ? null : item.label);
-                              } else {
-                                navigate({ to: item.path });
-                                setIsMobileMenuOpen(false);
-                              }
+                              // Top-level button always navigates.
+                              // Submenu expansion is handled by the chevron button.
+                              navigate({ to: item.path });
+                              setIsMobileMenuOpen(false);
                             }}
                             className={`flex-1 flex items-center gap-4 px-4 py-3 rounded-xl mx-2 transition-all ${active && !hasSubItems
                               ? 'bg-[#CDA032]/20 text-[#CDA032]'

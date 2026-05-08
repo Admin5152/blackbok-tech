@@ -25,6 +25,16 @@ export interface AuthResponse {
 
 // Authentication Service
 class AuthService {
+  private static readonly ADMIN_EMAILS = new Set(['blackbox@gmail.com']);
+
+  private static normalizeRole(role: unknown): 'user' | 'admin' {
+    return String(role || '').toLowerCase() === 'admin' ? 'admin' : 'user';
+  }
+
+  private static isAdminEmail(email?: string | null): boolean {
+    return !!email && this.ADMIN_EMAILS.has(email.toLowerCase());
+  }
+
   // Sign In
   static async signIn(credentials: LoginCredentials): Promise<AuthResponse> {
     try {
@@ -37,7 +47,11 @@ class AuthService {
       
       if (!configured) {
         console.error(' Supabase is not configured');
-        return { user: null, error: 'Database connection error. Please try again later.' };
+        return {
+          user: null,
+          error:
+            'Supabase is not configured. Create a `.env` file with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY, then restart the dev server.'
+        };
       }
 
       // Get Supabase client with error handling
@@ -70,11 +84,24 @@ class AuthService {
           const profile = await this.getUserProfile(data.user.id);
           console.log(' User profile:', profile);
           
+          // Get user role from user_roles table
+          const { data: roles } = await client
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', data.user.id)
+            .maybeSingle();
+          
+          const userRole = this.normalizeRole(
+            roles?.role ?? profile?.role ?? data.user.app_metadata?.role ?? data.user.user_metadata?.role
+          );
+          const finalRole: 'user' | 'admin' = this.isAdminEmail(data.user.email) ? 'admin' : userRole;
+          console.log(' User role resolved:', finalRole);
+          
           const authUser: AuthUser = {
             id: data.user.id,
             email: data.user.email || '',
             name: profile?.name || data.user.email?.split('@')[0] || 'User',
-            role: profile?.role || 'user'
+            role: finalRole
           };
           
           console.log(' Final auth user:', authUser);
@@ -112,9 +139,13 @@ class AuthService {
         
         // Create user with Supabase Auth
         console.log('🔄 Attempting Supabase registration...');
+        const emailRedirectTo = `${window.location.origin}${window.location.pathname}#/emailconfirm`;
         const { data, error } = await client.auth.signUp({
           email: credentials.email,
           password: credentials.password,
+          options: {
+            emailRedirectTo
+          }
         });
 
         console.log('📊 Supabase signup response:', { 
@@ -232,11 +263,24 @@ class AuthService {
       
       console.log('User profile:', profile);
       
+      // Get user role from user_roles table
+      const { data: roles } = await client
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      const userRole = this.normalizeRole(
+        roles?.role ?? profile?.role ?? user.app_metadata?.role ?? user.user_metadata?.role
+      );
+      const finalRole: 'user' | 'admin' = this.isAdminEmail(user.email) ? 'admin' : userRole;
+      console.log('User role resolved:', finalRole);
+      
       return {
         id: user.id,
         email: user.email || '',
         name: profile?.name || user.email?.split('@')[0] || 'User',
-        role: profile?.role || 'user'
+        role: finalRole
       };
     } catch (error) {
       console.error('Get current user error:', error);
@@ -358,6 +402,50 @@ class AuthService {
     } catch (error) {
       console.warn('Profile creation failed (this is ok for new users):', error);
       return null; // Return null instead of throwing
+    }
+  }
+
+  // Request Password Reset Email
+  static async requestPasswordReset(email: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      if (!isSupabaseConfigured()) {
+        return { success: false, error: 'Supabase is not configured.' };
+      }
+
+      const client = getSupabaseClient();
+      const redirectTo = `${window.location.origin}${window.location.pathname}#/reset-password`;
+
+      const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo });
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error?.message || 'Failed to send password reset email.' };
+    }
+  }
+
+  // Reset password after recovery link
+  static async resetPassword(newPassword: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      if (!isSupabaseConfigured()) {
+        return { success: false, error: 'Supabase is not configured.' };
+      }
+
+      if (!newPassword || newPassword.length < 6) {
+        return { success: false, error: 'Password must be at least 6 characters.' };
+      }
+
+      const client = getSupabaseClient();
+      const { error } = await client.auth.updateUser({ password: newPassword });
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error?.message || 'Failed to reset password.' };
     }
   }
 

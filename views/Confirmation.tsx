@@ -11,6 +11,7 @@ interface ConfirmationProps {
 
 export const Confirmation: React.FC<ConfirmationProps> = ({ theme, navigateTo, email }) => {
   const location = useLocation();
+  const isEmailConfirmPage = location.pathname === '/emailconfirm';
   const [confirmationStatus, setConfirmationStatus] = useState<EmailConfirmationStatus | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   const [isResending, setIsResending] = useState(false);
@@ -162,7 +163,7 @@ export const Confirmation: React.FC<ConfirmationProps> = ({ theme, navigateTo, e
   }, [email, confirmationStatus]);
 
   return (
-    <div className={`view-transition flex-1 min-h-0 flex items-center justify-center p-4 lg:p-6 overflow-auto ${bgClass}`}>
+    <div className={`view-transition min-h-screen w-full flex items-center justify-center p-4 lg:p-6 overflow-auto ${bgClass}`}>
       <div className={`w-full max-w-md mx-auto rounded-2xl border shadow-2xl p-8 ${cardClass}`}>
         {/* Success Icon */}
         <div className="flex justify-center mb-6">
@@ -174,26 +175,30 @@ export const Confirmation: React.FC<ConfirmationProps> = ({ theme, navigateTo, e
         {/* Confirmation Message */}
         <div className="text-center space-y-4">
           <h1 className={`text-2xl font-black ${textClass}`}>
-            Check Your Email
+            {isEmailConfirmPage ? 'Account Verified' : 'Check Your Email'}
           </h1>
           
           <p className={`${mutedClass} leading-relaxed`}>
-            We've sent a confirmation email to:
+            {isEmailConfirmPage
+              ? 'Your account has been verified. Please click on the Go to Login button to login again.'
+              : "We've sent a confirmation email to:"}
           </p>
           
-          {email && (
+          {!isEmailConfirmPage && email && (
             <div className={`p-3 rounded-lg ${isDark ? 'bg-white/5 border border-white/10' : 'bg-black/5 border border-black/10'}`}>
               <p className={`font-medium ${textClass}`}>{email}</p>
             </div>
           )}
           
-          <p className={`${mutedClass} text-sm leading-relaxed`}>
-            Click the confirmation link in the email to activate your account and complete your registration.
-          </p>
+          {!isEmailConfirmPage && (
+            <p className={`${mutedClass} text-sm leading-relaxed`}>
+              Click the confirmation link in the email to activate your account and complete your registration.
+            </p>
+          )}
         </div>
 
         {/* Status Display */}
-        {confirmationStatus && (
+        {!isEmailConfirmPage && confirmationStatus && (
           <div className={`mt-6 p-4 rounded-lg ${
             confirmationStatus.isEmailConfirmed 
               ? isDark ? 'bg-green-500/10 border border-green-500/20' : 'bg-green-50 border border-green-200'
@@ -230,7 +235,7 @@ export const Confirmation: React.FC<ConfirmationProps> = ({ theme, navigateTo, e
         )}
 
         {/* Monitoring Status */}
-        {monitoringActive && !confirmationStatus?.isEmailConfirmed && (
+        {!isEmailConfirmPage && monitoringActive && !confirmationStatus?.isEmailConfirmed && (
           <div className={`mt-4 p-3 rounded-lg ${isDark ? 'bg-blue-500/10 border border-blue-500/20' : 'bg-blue-50 border border-blue-200'}`}>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
@@ -242,7 +247,8 @@ export const Confirmation: React.FC<ConfirmationProps> = ({ theme, navigateTo, e
         )}
 
         {/* Instructions */}
-        <div className={`mt-6 p-4 rounded-lg ${isDark ? 'bg-white/5' : 'bg-black/5'} space-y-3`}>
+        {!isEmailConfirmPage && (
+          <div className={`mt-6 p-4 rounded-lg ${isDark ? 'bg-white/5' : 'bg-black/5'} space-y-3`}>
           <div className="flex items-start gap-3">
             <CheckCircle className={`w-5 h-5 mt-0.5 flex-shrink-0 ${isDark ? 'text-[#CDA032]' : 'text-[#CDA032]'}`} />
             <div>
@@ -266,7 +272,8 @@ export const Confirmation: React.FC<ConfirmationProps> = ({ theme, navigateTo, e
               <p className={`${mutedClass} text-xs mt-1`}>After confirmation, you can login to BlackBox</p>
             </div>
           </div>
-        </div>
+          </div>
+        )}
 
         {/* Action Buttons */}
         <div className="mt-8 space-y-3">
@@ -277,42 +284,48 @@ export const Confirmation: React.FC<ConfirmationProps> = ({ theme, navigateTo, e
             Go to Login
           </button>
           
-          <button
-            onClick={handleResendEmail}
-            disabled={isResending || !email}
-            className={`w-full py-3 px-4 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2 ${
-              isResending || !email
-                ? `${mutedClass} cursor-not-allowed`
-                : `${mutedClass} hover:${textClass}`
-            }`}
-          >
-            <RefreshCw size={16} className={isResending ? 'animate-spin' : ''} />
-            {isResending ? 'Sending...' : 'Resend Confirmation Email'}
-          </button>
-          
-          <button
-            onClick={checkConfirmationStatus}
-            disabled={isChecking || !email}
-            className={`w-full py-3 px-4 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2 ${
-              isChecking || !email
-                ? `${mutedClass} cursor-not-allowed`
-                : `${mutedClass} hover:${textClass}`
-            }`}
-          >
-            {isChecking ? 'Checking...' : 'Check Status'}
-          </button>
+          {!isEmailConfirmPage && (
+            <>
+              <button
+                onClick={handleResendEmail}
+                disabled={isResending || !email}
+                className={`w-full py-3 px-4 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2 ${
+                  isResending || !email
+                    ? `${mutedClass} cursor-not-allowed`
+                    : `${mutedClass} hover:${textClass}`
+                }`}
+              >
+                <RefreshCw size={16} className={isResending ? 'animate-spin' : ''} />
+                {isResending ? 'Sending...' : 'Resend Confirmation Email'}
+              </button>
+              
+              <button
+                onClick={checkConfirmationStatus}
+                disabled={isChecking || !email}
+                className={`w-full py-3 px-4 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2 ${
+                  isChecking || !email
+                    ? `${mutedClass} cursor-not-allowed`
+                    : `${mutedClass} hover:${textClass}`
+                }`}
+              >
+                {isChecking ? 'Checking...' : 'Check Status'}
+              </button>
+            </>
+          )}
         </div>
 
         {/* Back to Home */}
-        <div className="mt-6 text-center">
-          <button
-            onClick={() => navigateTo('home')}
-            className={`inline-flex items-center gap-2 ${mutedClass} hover:${textClass} transition-colors text-sm`}
-          >
-            <ArrowLeft size={16} />
-            Back to Home
-          </button>
-        </div>
+        {!isEmailConfirmPage && (
+          <div className="mt-6 text-center">
+            <button
+              onClick={() => navigateTo('home')}
+              className={`inline-flex items-center gap-2 ${mutedClass} hover:${textClass} transition-colors text-sm`}
+            >
+              <ArrowLeft size={16} />
+              Back to Home
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

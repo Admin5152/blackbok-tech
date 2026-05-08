@@ -214,16 +214,23 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     if (!formData.name || !formData.email || !formData.phone) { notify('Please fill in all contact details', 'error'); return; }
     setSubmitting(true);
     try {
-      const accessoriesList = Object.entries(accessories).filter(([,v]) => v).map(([k]) => k).join(', ');
-      const detailsText = `${notes ? notes + '\n\n' : ''}Serial/IMEI: ${deviceDetails.serialNumber || 'N/A'}\nPhysical: ${deviceDetails.physicalDesc || 'N/A'}\nIssues: ${deviceDetails.issueDesc || 'N/A'}\nWhen Started: ${deviceDetails.whenStarted || 'N/A'}\nPrevious Repairs: ${deviceDetails.previousRepairs || 'N/A'}\nAccessories: ${accessoriesList || 'None'}`;
+      const accessoriesList = Object.entries(accessories).filter(([,v]) => v).map(([k]) => k);
+      const detailsText = `${notes ? notes + '\n\n' : ''}Serial/IMEI: ${deviceDetails.serialNumber || 'N/A'}\nPhysical: ${deviceDetails.physicalDesc || 'N/A'}\nIssues: ${deviceDetails.issueDesc || 'N/A'}\nWhen Started: ${deviceDetails.whenStarted || 'N/A'}\nPrevious Repairs: ${deviceDetails.previousRepairs || 'N/A'}\nAccessories: ${accessoriesList.length ? accessoriesList.join(', ') : 'None'}`;
       const data = await createTradeRequest({
-        user_id: user.id, user_name: formData.name, user_email: formData.email,
-        device: `${selectedDevice.brand} ${selectedDevice.name} — ${selectedVariant}`,
-        target_device: targetProduct?.name || '',
+        user_id: user.id,
+        user_name: formData.name,
+        user_email: formData.email,
+        device_brand: selectedDevice.brand,
+        device_name: `${selectedDevice.name} — ${selectedVariant}`,
         user_description: detailsText,
+        accessories: accessoriesList,
+        target_device: targetProduct?.name || '',
+        target_product_id: targetProduct?.id || undefined,
         preferred_date: formData.date,
         preferred_time: timeSlots.find(t => t.id === formData.timeSlot)?.time || '',
-        contact_name: formData.name, contact_email: formData.email, contact_phone: formData.phone,
+        contact_name: formData.name,
+        contact_email: formData.email,
+        contact_phone: formData.phone,
         fulfillment_method: formData.fulfillmentMethod,
       });
       setMyTrades(prev => [{

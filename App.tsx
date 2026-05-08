@@ -35,6 +35,8 @@ import { Checkout } from './views/Checkout';
 import { Trades } from './views/Trades';
 import { Promotions } from './views/Promotions';
 import { Admin } from './views/Admin';
+import { ForgotPassword } from './views/ForgotPassword';
+import { ResetPassword } from './views/ResetPassword';
 import { AboutUs } from './views/AboutUs';
 import { Contact } from './views/Contact';
 import { FAQ } from './views/FAQ';
@@ -299,12 +301,24 @@ const authRoute = createRoute({
   },
 });
 
+const forgotPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/forgot-password',
+  component: () => <ForgotPassword />,
+});
+
+const resetPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/reset-password',
+  component: () => <ResetPassword />,
+});
+
 const adminRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/admin',
   component: () => {
     const context = useAppContext();
-    return <Admin setUser={context.setUser} navigateTo={context.navigateTo} theme={context.theme} />;
+    return <Admin user={context.user} setUser={context.setUser} navigateTo={context.navigateTo} theme={context.theme} />;
   },
 });
 
@@ -396,6 +410,21 @@ const confirmationRoute = createRoute({
   },
 });
 
+const emailConfirmRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/emailconfirm',
+  component: () => {
+    const context = useAppContext();
+    const { email } = emailConfirmRoute.useSearch();
+    return <Confirmation theme={context.theme} navigateTo={context.navigateTo} email={email} />;
+  },
+  validateSearch: (search: Record<string, unknown>) => {
+    return {
+      email: (search.email as string) || ''
+    };
+  },
+});
+
 const splatRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '$',
@@ -412,6 +441,8 @@ const routeTree = rootRoute.addChildren([
   tradesRoute,
   profileRoute,
   authRoute,
+  forgotPasswordRoute,
+  resetPasswordRoute,
   adminRoute,
   aboutRoute,
   faqRoute,
@@ -423,6 +454,7 @@ const routeTree = rootRoute.addChildren([
   compareRoute,
   policiesRoute,
   confirmationRoute,
+  emailConfirmRoute,
   splatRoute,
 ]);
 
@@ -460,6 +492,12 @@ function RootComponent() {
 
   const navigate = useNavigate();
   const location = useLocation();
+  const isAdminRoute = location.pathname === '/admin';
+  const isForgotPasswordRoute = location.pathname === '/forgot-password';
+  const isResetPasswordRoute = location.pathname === '/reset-password';
+  const isConfirmationRoute = location.pathname === '/confirmation';
+  const isEmailConfirmRoute = location.pathname === '/emailconfirm';
+  const isStandaloneRoute = isAdminRoute || isForgotPasswordRoute || isResetPasswordRoute || isConfirmationRoute || isEmailConfirmRoute;
 
   // Setup mobile navigation
   useEffect(() => {
@@ -549,6 +587,13 @@ function RootComponent() {
 
     fetchProducts();
   }, []);
+
+  // If an admin is logged in, keep them in the standalone admin area.
+  useEffect(() => {
+    if (user?.role === 'admin' && location.pathname !== '/admin') {
+      navigate({ to: '/admin' as any });
+    }
+  }, [user, location.pathname, navigate]);
 
   useEffect(() => {
     if (user) localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
@@ -702,25 +747,31 @@ function RootComponent() {
         }} />
       )}
 
-      <div className={`flex flex-col min-h-screen selection:bg-[#B38B21] selection:text-black ${showWelcomeScreen ? 'opacity-0 pointer-events-none' : 'opacity-100'} ${isLight ? 'bg-[#F0F0F0] text-black' : 'bg-black text-white'}`}>
-        <Navbar
-          cart={cart}
-          navigateTo={navigateTo}
-          user={user}
-          products={products}
-          theme={theme}
-          setTheme={setTheme}
-          setSearchQuery={setSearchQuery}
-          setUser={setUser}
-        />
-
-        <FloatingWhatsApp phoneNumber="233000000000" theme={theme} hasNotification={notifications.length > 0 || !!notification} />
-
-        <main className="flex-1">
+      {isStandaloneRoute ? (
+        // Standalone admin layout (no site navbar/footer/whatsapp/etc.)
+        <div className={`min-h-screen ${isLight ? 'bg-[#FAFAFA] text-black' : 'bg-[#060606] text-white'}`}>
           <Outlet />
-        </main>
+        </div>
+      ) : (
+        <div className={`flex flex-col min-h-screen selection:bg-[#B38B21] selection:text-black ${showWelcomeScreen ? 'opacity-0 pointer-events-none' : 'opacity-100'} ${isLight ? 'bg-[#F0F0F0] text-black' : 'bg-black text-white'}`}>
+          <Navbar
+            cart={cart}
+            navigateTo={navigateTo}
+            user={user}
+            products={products}
+            theme={theme}
+            setTheme={setTheme}
+            setSearchQuery={setSearchQuery}
+            setUser={setUser}
+          />
 
-        {compareIds.length > 0 && (
+          <FloatingWhatsApp phoneNumber="233000000000" theme={theme} hasNotification={notifications.length > 0 || !!notification} />
+
+          <main className="flex-1">
+            <Outlet />
+          </main>
+
+          {compareIds.length > 0 && (
           <div className="fixed top-24 right-5 z-[100] flex items-center bg-[#B38B21] rounded-full shadow-[0_10px_40px_rgba(179,139,33,0.4)] transition-transform hover:scale-[1.02] overflow-hidden">
             <button
               onClick={() => setIsCompareOpen(true)}
@@ -736,7 +787,7 @@ function RootComponent() {
               <X size={16} />
             </button>
           </div>
-        )}
+          )}
 
         <QuickViewModal
           isOpen={isQuickViewOpen}
@@ -956,8 +1007,9 @@ function RootComponent() {
           </div>
         )}
 
-        <Footer theme={theme} />
+          <Footer theme={theme} />
       </div>
+      )}
 
       {/* Notification Container */}
       <NotificationContainer
@@ -969,5 +1021,56 @@ function RootComponent() {
 }
 
 export default function App() {
-  return <RouterProvider router={router} />;
+  // Some components (notably error/edge states) can render before `RootComponent`
+  // mounts, which would make `useAppContext()` throw. Provide a lightweight
+  // fallback context at the app root; `RootComponent` still provides the real
+  // context during normal operation (nested provider overrides this one).
+  const [theme, setTheme] = useState<Theme>(() => {
+    const t = localStorage.getItem(STORAGE_KEYS.THEME);
+    return t === 'light' || t === 'dark' ? t : 'dark';
+  });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState<Category[]>([]);
+
+  const noop = () => {};
+  const noopNotify = () => {};
+
+  const fallbackContext: AppContextType = {
+    products: [],
+    cart: [],
+    wishlist: [],
+    compareIds: [],
+    user: null,
+    orders: [],
+    repairs: [],
+    trades: [],
+    searchQuery,
+    setSearchQuery,
+    selectedCategories,
+    setSelectedCategories,
+    setUser: noop as any,
+    setCart: noop as any,
+    setOrders: noop as any,
+    setRepairs: noop as any,
+    setTrades: noop as any,
+    addToCart: noop as any,
+    toggleWishlist: noop as any,
+    toggleCompare: noop as any,
+    onToggleCompare: noop as any,
+    updateQuantity: noop as any,
+    removeFromCart: noop as any,
+    handleCheckout: noop as any,
+    notify: noopNotify as any,
+    navigateTo: noop as any,
+    onQuickView: noop as any,
+    onAddToCart: noop as any,
+    theme,
+    setTheme,
+  };
+
+  return (
+    <AppContext.Provider value={fallbackContext}>
+      <RouterProvider router={router} />
+    </AppContext.Provider>
+  );
 }

@@ -137,9 +137,13 @@ export class EmailConfirmationService {
       const client = getSupabaseClient();
       
       // Resend confirmation email
+      const emailRedirectTo = `${window.location.origin}${window.location.pathname}#/emailconfirm`;
       const { error } = await client.auth.resend({
         type: 'signup',
         email: email,
+        options: {
+          emailRedirectTo
+        }
       });
       
       if (error) {

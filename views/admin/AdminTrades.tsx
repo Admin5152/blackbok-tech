@@ -17,6 +17,34 @@ const DEFAULT_TRADE_DEVICES = [
 ];
 
 const CONDITION_OPTIONS = ['Like New', 'Excellent', 'Good', 'Fair', 'Poor'];
+const TRADE_STATUS_LABELS: Record<string, string> = {
+    submitted: 'Pending',
+    inspecting: 'Inspecting',
+    offer_made: 'Offer Made',
+    awaiting_user: 'Awaiting User',
+    accepted: 'Accepted',
+    completed: 'Completed',
+    rejected: 'Rejected',
+};
+
+const toDbTradeStatus = (status?: string) => {
+    const value = String(status || '').trim();
+    const lower = value.toLowerCase();
+    if (TRADE_STATUS_LABELS[lower]) return lower;
+    if (value === 'Pending') return 'submitted';
+    if (value === 'Inspecting') return 'inspecting';
+    if (value === 'Offer Made') return 'offer_made';
+    if (value === 'Awaiting User') return 'awaiting_user';
+    if (value === 'Accepted') return 'accepted';
+    if (value === 'Completed') return 'completed';
+    if (value === 'Rejected') return 'rejected';
+    return lower || 'submitted';
+};
+
+const toTradeStatusLabel = (status?: string) => {
+    const dbStatus = toDbTradeStatus(status);
+    return TRADE_STATUS_LABELS[dbStatus] || status || 'Pending';
+};
 
 interface Props { canEdit?: boolean; }
 
@@ -56,9 +84,10 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
     const patchTrade = async (id: string, updates: Record<string, any>) => {
         setSaving(true);
         try {
-            await updateTradeRequest(id, updates);
-            setTrades(prev => prev.map(t => t.id === id ? { ...t, ...updates, status: updates.status ?? t.status } : t));
-            setSel(prev => prev?.id === id ? { ...prev, ...updates } : prev);
+            const payload = { ...updates, ...(updates.status ? { status: toDbTradeStatus(updates.status) } : {}) };
+            await updateTradeRequest(id, payload);
+            setTrades(prev => prev.map(t => t.id === id ? { ...t, ...updates, status: payload.status ?? t.status } : t));
+            setSel(prev => prev?.id === id ? { ...prev, ...updates, status: payload.status ?? prev.status } : prev);
         } catch (e) { console.error(e); }
         finally { setSaving(false); }
     };
@@ -66,7 +95,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
     const sendOffer = async () => {
         if (!sel || !offer || !condition) return;
         await patchTrade(sel.id, {
-            status: 'Awaiting User',
+            status: 'awaiting_user',
             condition,
             final_value: parseFloat(offer),
             admin_note: offerNote,
@@ -74,12 +103,12 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
         setOffer(''); setOfferNote(''); setCondition('');
     };
 
-    const statuses = ['All', 'Pending', 'Inspecting', 'Offer Made', 'Awaiting User', 'Accepted', 'Completed', 'Rejected'];
+    const statuses = ['All', 'submitted', 'inspecting', 'offer_made', 'awaiting_user', 'accepted', 'completed', 'rejected'];
 
     const filtered = trades.filter(t => {
         const matchQ = (t.device || '').toLowerCase().includes(q.toLowerCase())
             || (t.userName || '').toLowerCase().includes(q.toLowerCase());
-        const matchS = statusF === 'All' || t.status === statusF;
+        const matchS = statusF === 'All' || toDbTradeStatus(t.status) === statusF;
         return matchQ && matchS;
     });
 
@@ -94,9 +123,9 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
                     { label: 'Total', val: trades.length, col: '#B38B21' },
-                    { label: 'Pending', val: trades.filter(t => t.status === 'Pending').length, col: '#f59e0b' },
-                    { label: 'Awaiting', val: trades.filter(t => t.status === 'Awaiting User').length, col: '#6366f1' },
-                    { label: 'Completed', val: trades.filter(t => t.status === 'Completed').length, col: '#10b981' },
+                    { label: 'Pending', val: trades.filter(t => toDbTradeStatus(t.status) === 'submitted').length, col: '#f59e0b' },
+                    { label: 'Awaiting', val: trades.filter(t => toDbTradeStatus(t.status) === 'awaiting_user').length, col: '#6366f1' },
+                    { label: 'Completed', val: trades.filter(t => toDbTradeStatus(t.status) === 'completed').length, col: '#10b981' },
                 ].map(s => (
                     <div key={s.label} className="bg-[#0a0a0a] border border-white/5 rounded-xl p-4">
                         <p className="text-[9px] text-white/30 uppercase tracking-widest mb-1">{s.label}</p>
@@ -111,7 +140,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                     {statuses.map(s => (
                         <button key={s} onClick={() => setStatusF(s)}
                             className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${statusF === s ? 'bg-[#B38B21] text-black' : 'bg-white/5 text-white/40 hover:text-white'}`}>
-                            {s}
+                            {s === 'All' ? 'All' : (TRADE_STATUS_LABELS[s] || s)}
                         </button>
                     ))}
                 </div>
@@ -148,7 +177,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                 <Td><p className="text-xs font-black text-[#B38B21]">{t.finalValue ? `$${t.finalValue}` : 'TBD'}</p></Td>
                                 <Td><p className="text-xs text-white/50">{t.condition || <span className="text-white/20 italic">Pending</span>}</p></Td>
                                 <Td><p className="text-[10px] text-white/30">{new Date(t.date).toLocaleDateString()}</p></Td>
-                                <Td><Badge status={t.status} /></Td>
+                                <Td><Badge status={toTradeStatusLabel(t.status)} /></Td>
                                 <Td>
                                     <button onClick={() => setSel(t)} className="text-[10px] font-black text-[#B38B21] hover:text-[#D4AF37] uppercase">Review</button>
                                 </Td>
@@ -170,7 +199,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                             <div>
                                 <h3 className="text-base font-black text-white">{sel.device}</h3>
                                 <p className="text-[10px] text-white/30">{sel.userName} · {sel.userEmail}</p>
-                                <div className="mt-1"><Badge status={sel.status} /></div>
+                                <div className="mt-1"><Badge status={toTradeStatusLabel(sel.status)} /></div>
                             </div>
                         </div>
 
@@ -207,10 +236,10 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                 <div>
                                     <p className="text-[9px] text-white/30 uppercase tracking-widest mb-2">Quick Status</p>
                                     <div className="flex flex-wrap gap-2">
-                                        {(['Pending', 'Inspecting', 'Completed', 'Rejected'] as TradeRequest['status'][]).map(s => (
+                                        {(['submitted', 'inspecting', 'completed', 'rejected'] as const).map(s => (
                                             <button key={s} onClick={() => patchTrade(sel.id, { status: s })} disabled={saving}
-                                                className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${sel.status === s ? 'bg-[#B38B21] text-black' : 'bg-white/5 text-white/40 hover:text-white border border-white/10'}`}>
-                                                {s}
+                                                className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${toDbTradeStatus(sel.status) === s ? 'bg-[#B38B21] text-black' : 'bg-white/5 text-white/40 hover:text-white border border-white/10'}`}>
+                                                {TRADE_STATUS_LABELS[s]}
                                             </button>
                                         ))}
                                     </div>

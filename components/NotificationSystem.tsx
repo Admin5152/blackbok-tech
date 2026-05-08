@@ -18,9 +18,10 @@ export const NotificationSystem: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isTableAvailable, setIsTableAvailable] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !supabase || !isTableAvailable) return;
 
     const fetchNotifications = async () => {
       try {
@@ -36,6 +37,12 @@ export const NotificationSystem: React.FC = () => {
         setNotifications(data || []);
         setUnreadCount(data?.filter(n => !n.is_read).length || 0);
       } catch (error) {
+        const err = error as any;
+        // If the table doesn't exist in the project yet, stop spamming the console.
+        if (err?.code === 'PGRST205' || String(err?.message || '').includes("Could not find the table 'public.notifications'")) {
+          setIsTableAvailable(false);
+          return;
+        }
         console.error('Error fetching notifications:', error);
       }
     };
@@ -67,7 +74,7 @@ export const NotificationSystem: React.FC = () => {
     return () => {
       subscription.unsubscribe();
     };
-  }, [user, notify]);
+  }, [user, notify, isTableAvailable]);
 
   const markAsRead = async (notificationId: string) => {
     try {
@@ -130,7 +137,7 @@ export const NotificationSystem: React.FC = () => {
     }
   };
 
-  if (!user) return null;
+  if (!user || !supabase || !isTableAvailable) return null;
 
   return (
     <div className="relative">
