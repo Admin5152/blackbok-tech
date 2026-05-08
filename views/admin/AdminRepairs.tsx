@@ -36,14 +36,14 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
     const sendEstimate = async () => {
         if (!sel || !estimate) return;
         await patchRepair(sel.id, {
-            status: 'Estimate Sent',
-            estimated_cost: `$${estimate}`,
+            status: 'estimate_sent',
+            estimated_cost: Number(estimate),
             admin_note: estimateNote,
         });
         setEstimate(''); setEstimateNote('');
     };
 
-    const statuses = ['All', 'Received', 'Diagnosing', 'Estimate Sent', 'In Repair', 'Ready', 'Completed', 'Rejected'];
+    const statuses = ['All', 'Pending', 'Diagnosing', 'Estimate Sent', 'In Repair', 'Ready', 'Completed', 'Rejected'];
 
     const filtered = repairs.filter(r => {
         const matchQ = (r.device || '').toLowerCase().includes(q.toLowerCase())
@@ -173,7 +173,7 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
                                 <div>
                                     <p className="text-[9px] text-white/30 uppercase tracking-widest mb-2">Update Status</p>
                                     <div className="flex flex-wrap gap-2">
-                                        {(['Received', 'Diagnosing', 'In Repair', 'Ready', 'Completed', 'Rejected'] as RepairRequest['status'][]).map(s => (
+                                        {(['Pending', 'Diagnosing', 'In Repair', 'Ready', 'Completed', 'Rejected'] as RepairRequest['status'][]).map(s => (
                                             <button key={s} onClick={() => patchRepair(sel.id, { status: s })} disabled={saving}
                                                 className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${sel.status === s ? 'bg-[#B38B21] text-black' : 'bg-white/5 text-white/40 hover:text-white border border-white/10'}`}>
                                                 {s}

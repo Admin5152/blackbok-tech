@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     ShoppingBag,
     ArrowLeftRight,
@@ -17,6 +17,8 @@ import { Link, useSearch } from '@tanstack/react-router';
 import { useAppContext } from '../App';
 import { Order, RepairRequest, TradeRequest } from '../types';
 import { formatCurrency } from '../lib/utils';
+import { getUserOrdersFromItems } from '../lib/api';
+import { supabase } from '../lib/supabase';
 
 type HistoryTab = 'orders' | 'trades' | 'repairs';
 
@@ -26,6 +28,47 @@ export const History: React.FC = () => {
     const { tab } = useSearch({ from: '/history' } as any);
     const [activeTab, setActiveTab] = useState<HistoryTab>((tab as any) || 'orders');
     const [searchQuery, setSearchQuery] = useState('');
+    const [historyOrders, setHistoryOrders] = useState<Order[]>([]);
+
+    useEffect(() => {
+        if (!user?.id) {
+            setHistoryOrders([]);
+            return;
+        }
+
+        const loadDeliveredOrders = async () => {
+            try {
+                const data = await getUserOrdersFromItems(user.id);
+                setHistoryOrders(data || []);
+            } catch (err) {
+                console.error('Failed to load order history:', err);
+                setHistoryOrders([]);
+            }
+        };
+
+        loadDeliveredOrders();
+
+        const channel = supabase
+            ? supabase
+                .channel(`history-orders-${user.id}`)
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'orders', filter: `user_id=eq.${user.id}` },
+                    () => {
+                        loadDeliveredOrders();
+                    }
+                )
+                .subscribe()
+            : null;
+
+        const onFocus = () => loadDeliveredOrders();
+        window.addEventListener('focus', onFocus);
+
+        return () => {
+            window.removeEventListener('focus', onFocus);
+            if (supabase && channel) supabase.removeChannel(channel);
+        };
+    }, [user?.id]);
 
     // Mock Trades data (since it might not be in context yet)
     const mockTrades: TradeRequest[] = [
@@ -53,7 +96,7 @@ export const History: React.FC = () => {
     ];
 
     const tabs = [
-        { id: 'orders', label: 'Orders', icon: ShoppingBag, count: orders.length },
+        { id: 'orders', label: 'Orders', icon: ShoppingBag, count: historyOrders.length },
         { id: 'trades', label: 'Trade-ins', icon: ArrowLeftRight, count: trades.length },
         { id: 'repairs', label: 'Repairs', icon: Wrench, count: repairs.length }
     ];
@@ -64,6 +107,10 @@ export const History: React.FC = () => {
         if (['processing', 'shipped', 'inspecting', 'diagnosing', 'in repair', 'offer made'].includes(s)) return 'text-amber-500 bg-amber-500/10';
         if (['cancelled', 'rejected', 'failed'].includes(s)) return 'text-red-500 bg-red-500/10';
         return 'text-blue-500 bg-blue-500/10';
+    };
+
+    const displayOrderStatus = (status: string) => {
+        return status.toLowerCase() === 'shipped' ? 'Ready' : status;
     };
 
     return (
@@ -121,8 +168,8 @@ export const History: React.FC = () => {
                 {/* Content Area */}
                 <div className="grid gap-6">
                     {activeTab === 'orders' && (
-                        orders.length > 0 ? (
-                            orders.map(order => (
+                        historyOrders.length > 0 ? (
+                            historyOrders.map(order => (
                                 <div
                                     key={order.id}
                                     className={`group p-6 md:p-8 rounded-[2.5rem] border transition-all duration-500 flex flex-col md:flex-row md:items-center justify-between gap-8 ${isLight ? 'bg-white border-black/5 hover:border-black' : 'bg-white/5 border-white/5 hover:border-[#CDA032]/30 hover:bg-white/[0.07] shadow-2xl shadow-black'}`}
@@ -140,20 +187,14 @@ export const History: React.FC = () => {
                                         </div>
                                     </div>
                                     <div className="flex items-center justify-between md:justify-end gap-3 border-t md:border-0 pt-6 md:pt-0 border-white/5">
-                                        <span className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest ${getStatusColor(order.status.toLowerCase() === 'shipped' ? 'ready' : order.status)}`}>
-                                            {order.status.toLowerCase() === 'shipped' ? 'Ready' : order.status}
+                                        <span className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest ${getStatusColor(displayOrderStatus(order.status))}`}>
+                                            {displayOrderStatus(order.status)}
                                         </span>
                                         <Link
                                             to={`/receipt/${order.id}` as any}
                                             className="px-4 py-2 rounded-xl bg-[#CDA032]/10 text-[#CDA032] border border-[#CDA032]/20 text-[9px] font-black uppercase tracking-widest hover:bg-[#CDA032]/20 transition-colors whitespace-nowrap"
                                         >
                                             View Receipt
-                                        </Link>
-                                        <Link
-                                            to={`/tracking/order/${order.id}` as any}
-                                            className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-white/30 hover:text-[#CDA032] hover:border-[#CDA032] transition-all"
-                                        >
-                                            <ChevronRight size={20} />
                                         </Link>
                                     </div>
                                 </div>

@@ -9,21 +9,32 @@ export const TRADE_DEVICES_KEY = 'bb_v4_trade_devices';
 
 export const statusColors: Record<string, string> = {
     Pending: 'bg-yellow-500/20 text-yellow-400',
+    pending: 'bg-yellow-500/20 text-yellow-400',
     Inspecting: 'bg-blue-500/20 text-blue-400',
+    inspecting: 'bg-blue-500/20 text-blue-400',
     'Offer Made': 'bg-purple-500/20 text-purple-400',
+    offer_made: 'bg-purple-500/20 text-purple-400',
     'Awaiting User': 'bg-indigo-500/20 text-indigo-400',
+    awaiting_user: 'bg-indigo-500/20 text-indigo-400',
     Accepted: 'bg-green-500/20 text-green-400',
+    accepted: 'bg-green-500/20 text-green-400',
     Completed: 'bg-emerald-500/20 text-emerald-400',
+    completed: 'bg-emerald-500/20 text-emerald-400',
     Rejected: 'bg-red-500/20 text-red-400',
+    rejected: 'bg-red-500/20 text-red-400',
     Received: 'bg-yellow-500/20 text-yellow-400',
     Diagnosing: 'bg-blue-500/20 text-blue-400',
+    diagnosing: 'bg-blue-500/20 text-blue-400',
     'In Repair': 'bg-orange-500/20 text-orange-400',
+    in_repair: 'bg-orange-500/20 text-orange-400',
     Ready: 'bg-purple-500/20 text-purple-400',
+    ready: 'bg-purple-500/20 text-purple-400',
     Shipped: 'bg-purple-500/20 text-purple-400',
     Delivered: 'bg-green-500/20 text-green-400',
     Processing: 'bg-blue-500/20 text-blue-400',
     Cancelled: 'bg-red-500/20 text-red-400',
     'Estimate Sent': 'bg-indigo-500/20 text-indigo-400',
+    estimate_sent: 'bg-indigo-500/20 text-indigo-400',
 };
 
 export const Badge = ({ status }: { status: string }) => {

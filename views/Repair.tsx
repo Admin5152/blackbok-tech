@@ -119,6 +119,7 @@ export const Repair: React.FC = () => {
     if (submitting) return;
     const selectedLabels = Array.from(selectedIssueKeys).map(k => repairServicesMap[k as keyof typeof repairServicesMap].label);
     const accessoriesList = Object.entries(formData.accessories).filter(([_, v]) => v).map(([k]) => k).join(', ');
+    const effectiveSignature = (formData.clientSignature || formData.name || user.name || '').trim();
     const issueText = `
 Diagnostics: ${selectedLabels.join(', ') || 'N/A'}
 Description: ${formData.description || 'N/A'}
@@ -135,18 +136,33 @@ Device Password: ${formData.devicePassword || 'None provided'}
 Diagnostic Fee: ${formData.diagnosticFee === 'accepted' ? 'Accepted (GHC ' + formData.diagnosticFeeAmount + ')' : 'Waived'}
 Repair Cost Auth: ${formData.repairApproval === 'authorize' ? 'Authorized up to GHC ' + formData.repairApprovalLimit : 'Require Quote'}
 Data Backup: ${formData.dataBackup === 'requests' ? 'Client Requests Backup' : 'Client acknowledges data loss'}
-Signed by: ${formData.clientSignature} (Agreed: ${formData.agreesToTerms ? 'Yes' : 'No'})
+Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Yes' : 'No'})
     `.trim();
     setSubmitting(true);
     try {
       const created = await createRepairRequest({
         user_id: user.id,
         user_name: formData.name || user.name,
-        device: `${formData.brand} ${formData.model}`,
-        issue: issueText,
+        device_brand: formData.brand,
+        device_model: formData.model,
+        issue_type: Array.from(selectedIssueKeys).map(k => repairServicesMap[k as keyof typeof repairServicesMap].label).join(', ') || 'General Diagnostics',
+        issue_description: issueText,
         image_urls: formData.photos.length > 0 ? formData.photos : [],
+        accessories: Object.entries(formData.accessories).filter(([, v]) => v).map(([k]) => k),
+        urgency: formData.urgency,
         ai_diagnosis: '',
         fulfillment_method: formData.fulfillmentMethod,
+        preferred_date: formData.date || null,
+        preferred_time: timeSlots.find(t => t.id === formData.timeSlot)?.time || null,
+        contact_name: formData.name || user.name,
+        contact_phone: formData.phone || null,
+        contact_email: formData.email || user.email || null,
+        repair_approval: formData.repairApproval,
+        data_backup: formData.dataBackup,
+        diagnostic_fee: formData.diagnosticFee,
+        agrees_to_terms: formData.agreesToTerms,
+        client_signature: effectiveSignature || null,
+        estimated_cost: getTotalRepairCost() > 0 ? getTotalRepairCost() : null,
       });
       const newRepair: RepairRequest = {
         id: created?.id || generateId(),
@@ -154,7 +170,7 @@ Signed by: ${formData.clientSignature} (Agreed: ${formData.agreesToTerms ? 'Yes'
         userName: formData.name || user.name,
         device: `${formData.brand} ${formData.model}`,
         issue: issueText,
-        status: 'Received',
+        status: 'Pending',
         date: new Date().toISOString(),
         imageUrl: formData.photos[0],
         fulfillmentMethod: formData.fulfillmentMethod,
@@ -1116,22 +1132,14 @@ Signed by: ${formData.clientSignature} (Agreed: ${formData.agreesToTerms ? 'Yes'
                   </div>
                 </div>
 
-                {/* Digital Signature */}
-                <div className="space-y-3 pt-6">
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-[#CDA032]">Client Digital Signature</h3>
-                  <input
-                    placeholder="Type your full legal name to sign"
-                    value={formData.clientSignature}
-                    onChange={e => setFormData({ ...formData, clientSignature: e.target.value })}
-                    className="w-full sm:w-1/2 border-b-2 border-[#CDA032] px-2 py-3 text-lg font-['Dancing_Script',cursive,sans-serif] bg-transparent outline-none transition-all placeholder:font-sans placeholder:text-sm placeholder:opacity-40"
-                  />
-                </div>
-
                 <div className="pt-4 pb-12">
                   <button
                     onClick={() => {
                       if (!formData.agreesToTerms) { notify('You must agree to the Terms & Conditions.', 'error'); return; }
-                      if (!formData.clientSignature.trim()) { notify('Please provide your digital signature.', 'error'); return; }
+                      // Use full name as fallback signature to avoid blocking submission.
+                      if (!formData.clientSignature.trim() && formData.name.trim()) {
+                        setFormData(prev => ({ ...prev, clientSignature: prev.name.trim() }));
+                      }
                       submitRepairRequest();
                     }}
                     disabled={submitting}

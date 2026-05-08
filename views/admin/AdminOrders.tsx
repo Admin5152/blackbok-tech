@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingCart, Eye, Package, Calendar, Clock, MapPin, CreditCard, ChevronRight, CheckCircle2, ChevronDown, User, Mail, Phone, Truck, Shield, DollarSign, Edit2 } from 'lucide-react';
 import { Badge, SearchInput, Modal, ModalClose, Td, Th, TableWrapper, EmptyState, DateFilterDropdown } from './adminUtils';
-import { getOrders, updateOrderStatus } from '../../lib/api';
+import { getAdminOrdersFromItems, updateOrderStatus } from '../../lib/api';
 import type { Order } from '../../types';
 import { formatCurrency } from '../../lib/utils';
 
@@ -13,11 +13,12 @@ export const AdminOrders: React.FC = () => {
     const [sel, setSel] = useState<Order | null>(null);
     const [loading, setLoading] = useState(true);
     const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+    const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
     const ORDER_STATUS_OPTIONS = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled', 'Refunded'] as const;
     const DATE_FILTER_OPTIONS = ['All Time', 'Today', 'Past 7 Days', 'Past 30 Days', 'Past 3 Months'] as const;
 
     useEffect(() => {
-        getOrders().then(d => {
+        getAdminOrdersFromItems().then(d => {
             setOrders(d || []);
             setLoading(false);
         }).catch((err) => {
@@ -32,18 +33,28 @@ export const AdminOrders: React.FC = () => {
 
         setUpdatingOrderId(orderId);
         try {
-            // If it's a real order from DB (doesn't start with ord_), update via API
-            if (!orderId.startsWith('ord_')) {
-                await updateOrderStatus(orderId, newStatus);
-            }
+            // Always persist status changes to Supabase.
+            await updateOrderStatus(orderId, newStatus);
 
             // Update local state
-            setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+            setOrders(prev => prev.map(o => o.id === orderId ? {
+                ...o,
+                status: newStatus,
+                ...(String(newStatus).toLowerCase() === 'delivered' ? { payment_status: 'paid' } : {})
+            } : o));
             if (sel && sel.id === orderId) {
-                setSel(prev => prev ? { ...prev, status: newStatus } : null);
+                setSel(prev => prev ? {
+                    ...prev,
+                    status: newStatus,
+                    ...(String(newStatus).toLowerCase() === 'delivered' ? { payment_status: 'paid' } : {})
+                } : null);
             }
+            setToast({ type: 'success', message: 'Order status updated and saved to Supabase.' });
+            setTimeout(() => setToast(null), 3000);
         } catch (error) {
             console.error('Failed to update status:', error);
+            setToast({ type: 'error', message: 'Failed to update order status in Supabase.' });
+            setTimeout(() => setToast(null), 3500);
             alert('Failed to update order status.');
         } finally {
             setUpdatingOrderId(null);
@@ -149,6 +160,15 @@ export const AdminOrders: React.FC = () => {
 
     return (
         <div className="space-y-5">
+            {toast && (
+                <div className={`rounded-xl border px-4 py-3 text-xs font-black uppercase tracking-wider ${
+                    toast.type === 'success'
+                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                        : 'bg-red-500/10 border-red-500/30 text-red-400'
+                }`}>
+                    {toast.message}
+                </div>
+            )}
             {/* Stats Overview */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
@@ -316,7 +336,7 @@ export const AdminOrders: React.FC = () => {
                                         </div>
                                         <div className="flex justify-between">
                                             <span className="text-white/50 font-bold">Method</span>
-                                            <span className="text-white font-bold">{sel.paymentMethod || 'Credit Card'}</span>
+                                            <span className="text-white font-bold">{sel.paymentMethod || sel.payment_method || 'N/A'}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -351,17 +371,17 @@ export const AdminOrders: React.FC = () => {
                             {/* Financial Totals */}
                             <div className="flex justify-end">
                                 <div className="w-full md:w-1/2 lg:w-1/3 space-y-3 bg-white/[0.02] border border-white/5 rounded-xl p-4">
-                                    <div className="flex justify-between text-xs">
+                                    <div className="flex justify-between items-start gap-3 text-xs">
                                         <span className="text-white/50 font-bold">Subtotal</span>
-                                        <span className="text-white font-bold">GH₵{(sel.total - (sel.shipping_cost || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                        <span className="text-white font-bold text-right break-all">GH₵{(sel.total - (sel.shipping_cost || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                     </div>
-                                    <div className="flex justify-between text-xs">
+                                    <div className="flex justify-between items-start gap-3 text-xs">
                                         <span className="text-white/50 font-bold">Shipping</span>
-                                        <span className="text-white font-bold">GH₵{(sel.shipping_cost || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                        <span className="text-white font-bold text-right break-all">GH₵{(sel.shipping_cost || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                     </div>
-                                    <div className="pt-3 border-t border-white/10 flex justify-between items-center">
+                                    <div className="pt-3 border-t border-white/10 flex justify-between items-start gap-3">
                                         <span className="text-xs font-black uppercase text-white/70">Total Paid</span>
-                                        <span className="text-lg font-black text-[#B38B21]">GH₵{sel.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                        <span className="text-base sm:text-lg font-black text-[#B38B21] text-right break-all leading-tight">GH₵{sel.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                     </div>
                                 </div>
                             </div>

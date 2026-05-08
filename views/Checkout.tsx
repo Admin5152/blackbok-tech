@@ -4,7 +4,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { useAppContext } from '../App';
 import { Order } from '../types';
 import { formatCurrency } from '../lib/utils';
-import { getOrCreateCustomer, placeOrder, clearCartItems } from '../lib/api';
+import { placeOrder, clearCartItems, updateProfilePhone } from '../lib/api';
 import { OrderCompletePopup } from '../components/OrderCompletePopup';
 
 export const Checkout: React.FC = () => {
@@ -39,35 +39,33 @@ export const Checkout: React.FC = () => {
     try {
       setLoading(true);
 
-      // Step 1: Get or create customer
-      const customer = await getOrCreateCustomer(
-        user.name || 'Unknown',
-        user.email || '',
-        formData.phone || user.phone || '',
-        'Pick up from store'
-      );
+      // Save latest phone number to profile for admin/order visibility.
+      const checkoutPhone = (formData.phone || user.phone || '').trim();
+      if (checkoutPhone) {
+        await updateProfilePhone(user.id, checkoutPhone);
+      }
 
-      // Step 2: Place order using RPC
+      // Step 1: Place order (customer_id is optional in schema)
       const order = await placeOrder(
         user.id,
-        customer.id,
+        null,
         'Pick up from store',
         'in_person',
         'Pick up from store',
         cart
       );
 
-      // Step 3: Clear cart
+      // Step 2: Clear cart
       await clearCartItems(user.id);
       setCart([]);
 
-      // Step 4: Update local orders state
+      // Step 3: Update local orders state
       const newOrder: Order = {
         id: order.id,
         userId: user.id,
         userName: user.name || 'Unknown',
         userEmail: user.email || '',
-        userPhone: formData.phone || user.phone || '',
+        userPhone: checkoutPhone,
         items: cart,
         total: total,
         date: order.created_at,
@@ -76,7 +74,7 @@ export const Checkout: React.FC = () => {
         paymentMethod: 'in_person',
         shipping_address: 'Pick up from store',
         tracking_number: order.tracking_number,
-        payment_status: 'paid',
+        payment_status: 'pending',
         shipping_method: 'pickup',
         shipping_cost: 0,
         display_id: order.display_id || `ORD-${order.id}`

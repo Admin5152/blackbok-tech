@@ -322,29 +322,38 @@ export const addReview = async (review: Omit<Review, 'id' | 'created_at'>) => {
 
 export const placeOrder = async (
   userId: string, 
-  customerId: string, 
+  customerId: string | null, 
   shippingAddress: string, 
   paymentMethod: string, 
   shippingMethod: string = 'Standard Delivery',
   cartItems: CartItem[] = []
 ) => {
-  // First try RPC if available
-  try {
-    const { data, error } = await supabase.rpc('place_order', {
-      p_user_id: userId,
-      p_customer_id: customerId,
-      p_shipping_address: shippingAddress,
-      p_payment_method: paymentMethod,
-      p_shipping_method: shippingMethod
-    });
+  const buildLineItems = (orderId: string) =>
+    cartItems.map((item) => ({
+      order_id: orderId,
+      product_id: item.product_id || item.id,
+      quantity: Number(item.quantity || 1),
+      price: Number(item.price || 0),
+      unit_price: Number(item.price || 0)
+    }));
 
-    if (!error && data) return data;
-    if (error) console.warn('place_order RPC failed, falling back to direct insert:', error.message);
-  } catch (rpcError) {
-    console.warn('place_order RPC unavailable, falling back to direct insert:', rpcError);
-  }
+  const ensureOrderItems = async (orderId: string) => {
+    if (cartItems.length === 0) return;
 
-  // Fallback path: write directly to orders and order_items tables
+    const { data: existingItems, error: existingError } = await supabase
+      .from('order_items')
+      .select('id')
+      .eq('order_id', orderId)
+      .limit(1);
+
+    if (existingError) throw existingError;
+    if (existingItems && existingItems.length > 0) return;
+
+    const { error: itemsError } = await supabase.from('order_items').insert(buildLineItems(orderId));
+    if (itemsError) throw itemsError;
+  };
+
+  // Use direct insert so payment status starts as pending until admin confirmation.
   const subtotal = cartItems.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity || 1)), 0);
   const shippingCost = shippingMethod.toLowerCase().includes('pick') ? 0 : 50;
   const total = subtotal + shippingCost;
@@ -366,9 +375,9 @@ export const placeOrder = async (
     .insert({
       display_id: nextDisplayId,
       user_id: userId,
-      customer_id: customerId,
+      customer_id: customerId || null,
       status: 'pending',
-      payment_status: paymentMethod === 'delivery' ? 'pending' : 'paid',
+      payment_status: 'pending',
       payment_method: paymentMethod,
       shipping_address: shippingAddress,
       shipping_method: shippingMethod,
@@ -380,34 +389,35 @@ export const placeOrder = async (
 
   if (orderError) throw orderError;
 
-  if (cartItems.length > 0) {
-    const lineItems = cartItems.map((item) => ({
-      order_id: order.id,
-      product_id: item.product_id || item.id,
-      quantity: Number(item.quantity || 1),
-      price: Number(item.price || 0),
-      unit_price: Number(item.price || 0)
-    }));
-
-    const { error: itemsError } = await supabase.from('order_items').insert(lineItems);
-    if (itemsError) throw itemsError;
-  }
+  await ensureOrderItems(order.id);
 
   return order;
 };
 
 export const getOrders = async (userId?: string): Promise<Order[]> => {
-  let query = supabase.from('orders').select('*, profiles(*), order_items(*, products(*, product_variants(*)))').order('created_at', { ascending: false });
+  let query = supabase.from('orders').select('*, order_items(*, products(*, product_variants(*)))').order('created_at', { ascending: false });
   if (userId) query = query.eq('user_id', userId);
   
   const { data, error } = await query;
   if (error) throw error;
 
+  const userIds = Array.from(new Set((data || []).map((o: any) => o.user_id).filter(Boolean)));
+  let profileMap = new Map<string, any>();
+  if (userIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id,name,email,phone')
+      .in('id', userIds);
+    profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
+  }
+
   return data.map((o: any) => ({
     ...o,
     userId: o.user_id,
-    userName: o.profiles?.name || 'Unknown',
-    userEmail: o.profiles?.email || 'N/A',
+    userName: profileMap.get(o.user_id)?.name || (profileMap.get(o.user_id)?.email ? String(profileMap.get(o.user_id).email).split('@')[0] : 'Unknown'),
+    userEmail: profileMap.get(o.user_id)?.email || 'N/A',
+    userPhone: profileMap.get(o.user_id)?.phone || '',
+    paymentMethod: o.payment_method,
     items: o.order_items.map((i: any) => ({
       ...i,
       name: i.products?.name,
@@ -419,16 +429,154 @@ export const getOrders = async (userId?: string): Promise<Order[]> => {
   }));
 };
 
+// Admin-focused order feed sourced from order_items
+export const getAdminOrdersFromItems = async (): Promise<Order[]> => {
+  const { data, error } = await supabase
+    .from('order_items')
+    .select('*, orders(*), products(*, product_variants(*))');
+
+  if (error) throw error;
+  if (!data) return [];
+
+  const grouped = new Map<string, any>();
+  const userIds = new Set<string>();
+
+  for (const row of data as any[]) {
+    const ord = row.orders;
+    if (!ord?.id) continue;
+    if (ord.user_id) userIds.add(ord.user_id);
+
+    if (!grouped.has(ord.id)) {
+      grouped.set(ord.id, {
+        ...ord,
+        userId: ord.user_id,
+        userName: 'Unknown',
+        userEmail: 'N/A',
+        userPhone: '',
+        paymentMethod: ord.payment_method,
+        items: [],
+        total: Number(ord.total_price || 0),
+        date: ord.created_at
+      });
+    }
+
+    grouped.get(ord.id).items.push({
+      ...row,
+      name: row.products?.name,
+      image: row.products?.image_url,
+      selectedOptions: row.product_variants ? { variant: row.product_variants.sku } : {}
+    });
+  }
+
+  if (userIds.size > 0) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id,name,email,phone')
+      .in('id', Array.from(userIds));
+
+    const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
+    for (const order of grouped.values()) {
+      const profile = profileMap.get(order.userId);
+      if (profile) {
+        order.userName = profile.name || (profile.email ? String(profile.email).split('@')[0] : 'Unknown');
+        order.userEmail = profile.email || 'N/A';
+        order.userPhone = profile.phone || '';
+      }
+    }
+  }
+
+  return Array.from(grouped.values()).sort((a, b) => {
+    const aTime = new Date(a.date || 0).getTime();
+    const bTime = new Date(b.date || 0).getTime();
+    return bTime - aTime;
+  });
+};
+
+export const getUserOrdersFromItems = async (userId: string): Promise<Order[]> => {
+  const { data: ordersData, error: ordersError } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (ordersError) throw ordersError;
+  if (!ordersData || ordersData.length === 0) return [];
+
+  const orderMap = new Map<string, any>();
+  for (const ord of ordersData as any[]) {
+    orderMap.set(ord.id, {
+      ...ord,
+      userId: ord.user_id,
+      userName: 'Unknown',
+      userEmail: 'N/A',
+      userPhone: '',
+      paymentMethod: ord.payment_method,
+      items: [],
+      total: Number(ord.total_price || 0),
+      date: ord.created_at
+    });
+  }
+
+  const orderIds = Array.from(orderMap.keys());
+  const { data, error } = await supabase
+    .from('order_items')
+    .select('*, products(*, product_variants(*))')
+    .in('order_id', orderIds);
+
+  if (error) throw error;
+
+  for (const row of (data || []) as any[]) {
+    const target = orderMap.get(row.order_id);
+    if (!target) continue;
+    target.items.push({
+      ...row,
+      name: row.products?.name,
+      image: row.products?.image_url,
+      selectedOptions: row.product_variants ? { variant: row.product_variants.sku } : {}
+    });
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id,name,email,phone')
+    .eq('id', userId)
+    .maybeSingle();
+
+  for (const order of orderMap.values()) {
+    order.userName = profile?.name || (profile?.email ? String(profile.email).split('@')[0] : 'Unknown');
+    order.userEmail = profile?.email || 'N/A';
+    order.userPhone = profile?.phone || '';
+  }
+
+  return Array.from(orderMap.values()).sort((a, b) => {
+    const aTime = new Date(a.date || 0).getTime();
+    const bTime = new Date(b.date || 0).getTime();
+    return bTime - aTime;
+  });
+};
+
 export const getOrder = async (id: string): Promise<Order | null> => {
-  const { data, error } = await supabase.from('orders').select('*, profiles(*), order_items(*, products(*))').eq('id', id).single();
+  const { data, error } = await supabase.from('orders').select('*, order_items(*, products(*))').eq('id', id).single();
   if (error) throw error;
   if (!data) return null;
+
+  let profile: any = null;
+  if (data.user_id) {
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('id,name,email,phone')
+      .eq('id', data.user_id)
+      .maybeSingle();
+    profile = profileData;
+  }
   
   return {
     ...data,
     userId: data.user_id,
-    userName: data.profiles?.name || 'Unknown',
-    userEmail: data.profiles?.email || 'N/A',
+    userName: profile?.name || (profile?.email ? String(profile.email).split('@')[0] : 'Unknown'),
+    userEmail: profile?.email || 'N/A',
+    userPhone: profile?.phone || '',
+    paymentMethod: data.payment_method,
     items: data.order_items.map((i: any) => ({
       ...i,
       name: i.products?.name,
@@ -440,9 +588,18 @@ export const getOrder = async (id: string): Promise<Order | null> => {
 };
 
 export const updateOrderStatus = async (id: string, status: string) => {
-  const { data, error } = await supabase.from('orders').update({ status }).eq('id', id).select().single();
+  const normalized = String(status || '').toLowerCase();
+  const payload: Record<string, any> = { status: normalized };
+  if (normalized === 'delivered') {
+    payload.payment_status = 'paid';
+  }
+
+  const { error } = await supabase
+    .from('orders')
+    .update(payload)
+    .eq('id', id);
   if (error) throw error;
-  return data;
+  return { id, ...payload };
 };
 
 // ==========================================
@@ -465,8 +622,63 @@ export const addTrackingUpdate = async (update: Omit<TrackingUpdate, 'id' | 'cre
 // REPAIR REQUESTS
 // ==========================================
 
+const REPAIR_STATUS_TO_DB: Record<string, string> = {
+  Pending: 'pending',
+  Received: 'pending',
+  Diagnosing: 'diagnosing',
+  'Estimate Sent': 'estimate_sent',
+  'In Repair': 'in_repair',
+  Ready: 'ready',
+  Completed: 'completed',
+  Rejected: 'rejected',
+};
+
+const REPAIR_STATUS_FROM_DB: Record<string, string> = {
+  pending: 'Pending',
+  diagnosing: 'Diagnosing',
+  estimate_sent: 'Estimate Sent',
+  in_repair: 'In Repair',
+  ready: 'Ready',
+  completed: 'Completed',
+  rejected: 'Rejected',
+};
+
+const normalizeRepairPayload = (repair: Partial<RepairRequest>) => {
+  const normalized: Record<string, any> = { ...repair };
+
+  // Backward compatibility mappings
+  if ((normalized as any).device && (!normalized.device_brand || !normalized.device_model)) {
+    const parts = String((normalized as any).device).trim().split(' ');
+    normalized.device_brand = normalized.device_brand || parts[0] || null;
+    normalized.device_model = normalized.device_model || parts.slice(1).join(' ') || null;
+  }
+  if ((normalized as any).issue && !normalized.issue_description) {
+    normalized.issue_description = (normalized as any).issue;
+  }
+  if ((normalized as any).adminNote !== undefined && normalized.admin_note === undefined) {
+    normalized.admin_note = (normalized as any).adminNote;
+  }
+  if (normalized.status) {
+    normalized.status = REPAIR_STATUS_TO_DB[String(normalized.status)] || String(normalized.status).toLowerCase();
+  }
+  if (typeof normalized.estimated_cost === 'string') {
+    const parsed = Number(String(normalized.estimated_cost).replace(/[^0-9.]/g, ''));
+    normalized.estimated_cost = Number.isFinite(parsed) ? parsed : null;
+  }
+
+  delete normalized.device;
+  delete normalized.issue;
+  delete (normalized as any).adminNote;
+  return normalized;
+};
+
 export const createRepairRequest = async (repair: Partial<RepairRequest>) => {
-  const { data, error } = await supabase.from('repair_requests').insert({ ...repair, status: 'pending' }).select().single();
+  const payload = normalizeRepairPayload({ ...repair, status: repair.status || 'pending' });
+  const { data, error } = await supabase
+    .from('repair_requests')
+    .insert(payload)
+    .select()
+    .single();
   if (error) throw error;
   return data;
 };
@@ -480,8 +692,9 @@ export const getRepairRequests = async (userId?: string): Promise<RepairRequest[
     ...r,
     userId: r.user_id,
     userName: r.user_name || '',
+    status: REPAIR_STATUS_FROM_DB[r.status] || r.status,
     device: `${r.device_brand || ''} ${r.device_model || ''}`,
-    issue: r.issue_type || '',
+    issue: r.issue_description || r.issue_type || '',
     date: r.created_at,
     imageUrl: r.image_urls?.[0] || '',
     estimatedCost: r.estimated_cost,
@@ -492,7 +705,13 @@ export const getRepairRequests = async (userId?: string): Promise<RepairRequest[
 };
 
 export const updateRepairRequest = async (id: string, updates: Partial<RepairRequest>) => {
-  const { data, error } = await supabase.from('repair_requests').update(updates).eq('id', id).select().single();
+  const payload = normalizeRepairPayload(updates);
+  const { data, error } = await supabase
+    .from('repair_requests')
+    .update(payload)
+    .eq('id', id)
+    .select()
+    .single();
   if (error) throw error;
   return data;
 };
@@ -501,8 +720,54 @@ export const updateRepairRequest = async (id: string, updates: Partial<RepairReq
 // TRADE-IN REQUESTS
 // ==========================================
 
+const TRADE_STATUS_TO_DB: Record<string, string> = {
+  Pending: 'submitted',
+  Inspecting: 'inspecting',
+  'Offer Made': 'offer_made',
+  'Awaiting User': 'awaiting_user',
+  Accepted: 'accepted',
+  Completed: 'completed',
+  Rejected: 'rejected',
+};
+
+const TRADE_STATUS_FROM_DB: Record<string, string> = {
+  submitted: 'Pending',
+  inspecting: 'Inspecting',
+  offer_made: 'Offer Made',
+  awaiting_user: 'Awaiting User',
+  accepted: 'Accepted',
+  completed: 'Completed',
+  rejected: 'Rejected',
+};
+
+const normalizeTradeUpdatePayload = (updates: Partial<TradeInRequest>) => {
+  const normalized: Record<string, any> = { ...updates };
+
+  // Map legacy keys to actual DB columns
+  if ((normalized as any).admin_note !== undefined && normalized.admin_notes === undefined) {
+    normalized.admin_notes = (normalized as any).admin_note;
+  }
+
+  if (normalized.status) {
+    normalized.status = TRADE_STATUS_TO_DB[String(normalized.status)] || String(normalized.status).toLowerCase();
+  }
+
+  delete (normalized as any).admin_note;
+  return normalized;
+};
+
 export const createTradeRequest = async (trade: Partial<TradeInRequest>) => {
-  const { data, error } = await supabase.from('trade_in_requests').insert({ ...trade, status: 'submitted', estimated_value: trade.estimated_value || 0 }).select().single();
+  const payload = normalizeTradeUpdatePayload({
+    ...trade,
+    status: trade.status || 'submitted',
+    estimated_value: trade.estimated_value || 0
+  });
+
+  const { data, error } = await supabase
+    .from('trade_in_requests')
+    .insert(payload)
+    .select()
+    .single();
   if (error) throw error;
   return data;
 };
@@ -517,6 +782,7 @@ export const getTradeRequests = async (userId?: string): Promise<TradeInRequest[
     userId: t.user_id,
     userName: t.user_name,
     userEmail: t.user_email,
+    status: TRADE_STATUS_FROM_DB[t.status] || t.status,
     device: `${t.device_brand || ''} ${t.device_name || ''}`,
     date: t.created_at,
     estimatedValue: Number(t.estimated_value) || 0,
@@ -534,7 +800,13 @@ export const getTradeRequests = async (userId?: string): Promise<TradeInRequest[
 };
 
 export const updateTradeRequest = async (id: string, updates: Partial<TradeInRequest>) => {
-  const { data, error } = await supabase.from('trade_in_requests').update(updates).eq('id', id).select().single();
+  const payload = normalizeTradeUpdatePayload(updates);
+  const { data, error } = await supabase
+    .from('trade_in_requests')
+    .update(payload)
+    .eq('id', id)
+    .select()
+    .single();
   if (error) throw error;
   return data;
 };
@@ -572,10 +844,30 @@ export const getOrCreateCustomer = async (
   name: string,
   email: string,
   phone: string,
-  address: string
+  address: string,
+  userId?: string
 ) => {
-  // Check if a customer with this email exists
-  const { data: existing, error: findError } = await supabase
+  // For authenticated checkout, RLS expects customer id to match auth user id.
+  if (userId) {
+    const { data: existingById } = await supabase
+      .from('customers')
+      .select('id')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (existingById) return existingById;
+
+    const { data, error } = await supabase
+      .from('customers')
+      .insert({ id: userId, name, email, phone, address })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  // Guest/legacy fallback
+  const { data: existing } = await supabase
     .from('customers')
     .select('id')
     .eq('email', email)
@@ -583,7 +875,6 @@ export const getOrCreateCustomer = async (
 
   if (existing) return existing;
 
-  // Create a new customer record
   const { data, error } = await supabase
     .from('customers')
     .insert({ name, email, phone, address })
@@ -618,4 +909,12 @@ export const getMessages = async () => {
   const { data, error } = await supabase.from('messages').select('*').order('created_at', { ascending: false });
   if (error) throw error;
   return data;
+};
+
+export const updateProfilePhone = async (userId: string, phone: string) => {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ phone })
+    .eq('id', userId);
+  if (error) throw error;
 };
