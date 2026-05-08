@@ -899,7 +899,7 @@ export const Home: React.FC<HomeProps> = ({
       </section>
 
       {/* Custom Styles */}
-      <style jsx>{`
+      <style>{`
         @keyframes scroll {
           0% {
             transform: translateX(0);

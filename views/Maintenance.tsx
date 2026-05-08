@@ -90,7 +90,7 @@ export const Maintenance: React.FC<MaintenanceProps> = ({ theme = 'dark' }) => {
                 </div>
             </div>
 
-            <style jsx>{`
+            <style>{`
         @keyframes spin-slow {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
