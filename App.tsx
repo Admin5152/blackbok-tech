@@ -35,6 +35,8 @@ import { Checkout } from './views/Checkout';
 import { Trades } from './views/Trades';
 import { Promotions } from './views/Promotions';
 import { Admin } from './views/Admin';
+import { ForgotPassword } from './views/ForgotPassword';
+import { ResetPassword } from './views/ResetPassword';
 import { AboutUs } from './views/AboutUs';
 import { Contact } from './views/Contact';
 import { FAQ } from './views/FAQ';
@@ -300,6 +302,18 @@ const authRoute = createRoute({
   },
 });
 
+const forgotPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/forgot-password',
+  component: () => <ForgotPassword />,
+});
+
+const resetPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/reset-password',
+  component: () => <ResetPassword />,
+});
+
 const adminRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/admin',
@@ -397,6 +411,21 @@ const confirmationRoute = createRoute({
   },
 });
 
+const emailConfirmRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/emailconfirm',
+  component: () => {
+    const context = useAppContext();
+    const { email } = emailConfirmRoute.useSearch();
+    return <Confirmation theme={context.theme} navigateTo={context.navigateTo} email={email} />;
+  },
+  validateSearch: (search: Record<string, unknown>) => {
+    return {
+      email: (search.email as string) || ''
+    };
+  },
+});
+
 const splatRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '$',
@@ -413,6 +442,8 @@ const routeTree = rootRoute.addChildren([
   tradesRoute,
   profileRoute,
   authRoute,
+  forgotPasswordRoute,
+  resetPasswordRoute,
   adminRoute,
   aboutRoute,
   faqRoute,
@@ -424,6 +455,7 @@ const routeTree = rootRoute.addChildren([
   compareRoute,
   policiesRoute,
   confirmationRoute,
+  emailConfirmRoute,
   splatRoute,
 ]);
 
@@ -462,6 +494,11 @@ function RootComponent() {
   const navigate = useNavigate();
   const location = useLocation();
   const isAdminRoute = location.pathname === '/admin';
+  const isForgotPasswordRoute = location.pathname === '/forgot-password';
+  const isResetPasswordRoute = location.pathname === '/reset-password';
+  const isConfirmationRoute = location.pathname === '/confirmation';
+  const isEmailConfirmRoute = location.pathname === '/emailconfirm';
+  const isStandaloneRoute = isAdminRoute || isForgotPasswordRoute || isResetPasswordRoute || isConfirmationRoute || isEmailConfirmRoute;
 
   // Setup mobile navigation
   useEffect(() => {
@@ -711,7 +748,7 @@ function RootComponent() {
         }} />
       )}
 
-      {isAdminRoute ? (
+      {isStandaloneRoute ? (
         // Standalone admin layout (no site navbar/footer/whatsapp/etc.)
         <div className={`min-h-screen ${isLight ? 'bg-[#FAFAFA] text-black' : 'bg-[#060606] text-white'}`}>
           <Outlet />

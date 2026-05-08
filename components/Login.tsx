@@ -12,9 +12,11 @@ interface LoginProps {
 }
 
 export const Login: React.FC<LoginProps> = ({ setUser, navigateTo, theme, notify }) => {
+  const ADMIN_EMAILS = new Set(['blackbox@gmail.com']);
   const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [formData, setFormData] = useState<LoginCredentials>({
     email: '',
     password: '',
@@ -34,6 +36,32 @@ export const Login: React.FC<LoginProps> = ({ setUser, navigateTo, theme, notify
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleForgotPasswordClick = async () => {
+    const email = formData.email.trim();
+
+    // If no email is provided yet, take user to the dedicated reset page.
+    if (!email) {
+      navigateTo('/forgot-password');
+      return;
+    }
+
+    if (!email.includes('@')) {
+      notify('Enter a valid email to reset your password.', 'error');
+      return;
+    }
+
+    setIsResettingPassword(true);
+    const result = await AuthService.requestPasswordReset(email);
+    setIsResettingPassword(false);
+
+    if (!result.success) {
+      notify(result.error || 'Failed to send reset email.', 'error');
+      return;
+    }
+
+    notify('Password reset email sent. Check your inbox.', 'success');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -58,6 +86,8 @@ export const Login: React.FC<LoginProps> = ({ setUser, navigateTo, theme, notify
 
       if (response.user) {
         console.log('Authentication successful, user:', response.user);
+        const isAdminByEmail = ADMIN_EMAILS.has((response.user.email || '').toLowerCase());
+        const resolvedRole: 'user' | 'admin' = (response.user.role === 'admin' || isAdminByEmail) ? 'admin' : 'user';
 
         // Convert AuthUser to User format for compatibility
         const user: User = {
@@ -65,7 +95,7 @@ export const Login: React.FC<LoginProps> = ({ setUser, navigateTo, theme, notify
           name: response.user.name || 'User',
           email: response.user.email,
           password: formData.password, // Keep password for compatibility
-          role: response.user.role || 'user'
+          role: resolvedRole
         };
 
         console.log('Final user object:', user);
@@ -73,9 +103,9 @@ export const Login: React.FC<LoginProps> = ({ setUser, navigateTo, theme, notify
         notify(`Login successful! Welcome back, ${user.name}!`, 'success');
 
         // Navigate based on role
-        if (user.role === 'admin') {
+        if (resolvedRole === 'admin') {
           console.log('Navigating to admin panel');
-          navigateTo('admin');
+          navigateTo('/admin');
         } else {
           console.log('Navigating to home');
           navigateTo('home');
@@ -157,6 +187,16 @@ export const Login: React.FC<LoginProps> = ({ setUser, navigateTo, theme, notify
             aria-label={showPassword ? 'Hide password' : 'Show password'}
           >
             {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        </div>
+        <div className="flex justify-end pt-1">
+          <button
+            type="button"
+            onClick={handleForgotPasswordClick}
+            disabled={isLoading || isResettingPassword}
+            className={`text-[11px] font-bold uppercase tracking-wider transition-colors hover:text-[#CDA032] disabled:opacity-50 disabled:cursor-not-allowed ${cardMuted}`}
+          >
+            {isResettingPassword ? 'Sending...' : 'Forgot Password?'}
           </button>
         </div>
       </div>
