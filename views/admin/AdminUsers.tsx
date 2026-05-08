@@ -173,7 +173,7 @@ export const AdminUsers: React.FC = () => {
 
     if (selectedUser) {
         const stats = getUserStats(selectedUser.id);
-        const roleInfo = getRoleInfo(selectedUser.role);
+        const roleInfo = getRoleInfo(selectedUser.role ?? 'user');
         const isCurrentUser = selectedUser.id === '1';
 
         return (
@@ -400,13 +400,13 @@ export const AdminUsers: React.FC = () => {
                             </thead>
                             <tbody>
                                 {sorted.map(u => {
-                                    const roleInfo = getRoleInfo(u.role);
+                                    const roleInfo = getRoleInfo(u.role ?? 'user');
                                     const isCurrentUser = u.id === '1'; // Prevent self-role change
                                     return (
                                         <tr key={u.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                                             <td className="p-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-black text-xs" style={{ background: `${getRoleInfo(u.role).color}` }}>
+                                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-black text-xs" style={{ background: `${getRoleInfo(u.role ?? 'user').color}` }}>
                                                         {u.avatarLetter || u.name.charAt(0).toUpperCase()}
                                                     </div>
                                                     <span className="text-white font-medium">{u.name}</span>

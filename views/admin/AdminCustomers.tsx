@@ -145,7 +145,7 @@ export const AdminCustomers: React.FC = () => {
                                     </div>
                                 )}
                                 <div className="flex items-center gap-3">
-                                    <span className="text-[10px] font-black uppercase px-3 py-1 rounded-full" style={{ background: `${roleColors[selectedCustomer.role]}20`, color: roleColors[selectedCustomer.role] }}>
+                                    <span className="text-[10px] font-black uppercase px-3 py-1 rounded-full" style={{ background: `${roleColors[selectedCustomer.role ?? 'user']}20`, color: roleColors[selectedCustomer.role ?? 'user'] }}>
                                         {selectedCustomer.role}
                                     </span>
                                 </div>
@@ -286,7 +286,7 @@ export const AdminCustomers: React.FC = () => {
                                             </td>
                                             <td className="p-4 text-white/70">{customer.email}</td>
                                             <td className="p-4">
-                                                <span className="text-[10px] font-black uppercase px-2 py-1 rounded-full" style={{ background: `${roleColors[customer.role]}20`, color: roleColors[customer.role] }}>
+                                                <span className="text-[10px] font-black uppercase px-2 py-1 rounded-full" style={{ background: `${roleColors[customer.role ?? 'user']}20`, color: roleColors[customer.role ?? 'user'] }}>
                                                     {customer.role}
                                                 </span>
                                             </td>
@@ -316,14 +316,14 @@ export const AdminCustomers: React.FC = () => {
                         return (
                             <div key={customer.id} className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-all">
                                 <div className="flex items-center gap-3 mb-4">
-                                    <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-black text-sm shrink-0" style={{ background: roleColors[customer.role] || '#6b7280' }}>
+                                    <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-black text-sm shrink-0" style={{ background: roleColors[customer.role ?? 'user'] || '#6b7280' }}>
                                         {customer.name.charAt(0).toUpperCase()}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-black text-white truncate">{customer.name}</p>
                                         <p className="text-[10px] text-white/30 truncate">{customer.email}</p>
                                     </div>
-                                    <span className="text-[8px] font-black uppercase px-2 py-1 rounded-full shrink-0" style={{ background: `${roleColors[customer.role]}20`, color: roleColors[customer.role] }}>
+                                    <span className="text-[8px] font-black uppercase px-2 py-1 rounded-full shrink-0" style={{ background: `${roleColors[customer.role ?? 'user']}20`, color: roleColors[customer.role ?? 'user'] }}>
                                         {customer.role}
                                     </span>
                                 </div>
