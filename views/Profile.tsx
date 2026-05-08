@@ -341,7 +341,7 @@ export const Profile: React.FC<ProfileProps> = ({
                       <Truck size={20} className="text-[#B38B21]" />
                       Order Tracking
                     </h3>
-                    <p className="text-[9px] font-bold text-white/30 uppercase tracking-wider">Order #{selectedOrder.id}</p>
+                    <p className="text-[9px] font-bold text-white/30 uppercase tracking-wider">Order #{selectedOrder!.id}</p>
                   </div>
                   <button
                     onClick={() => setSelectedOrder(null)}
@@ -353,7 +353,7 @@ export const Profile: React.FC<ProfileProps> = ({
 
                 <div className="p-6">
                   <OrderTracker
-                    order={selectedOrder}
+                    order={selectedOrder!}
                     isExpanded={true}
                   />
                 </div>
@@ -821,7 +821,7 @@ export const Profile: React.FC<ProfileProps> = ({
         theme={theme}
       />
 
-      <style jsx>{`
+      <style>{`
         @keyframes spin-slow {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }

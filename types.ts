@@ -2,9 +2,9 @@ export type AppRole = 'admin' | 'moderator' | 'user';
 
 export interface Profile {
   id: string;
-  name?: string;
+  name: string;
   avatar_letter?: string;
-  email?: string;
+  email: string;
   phone?: string;
   address?: string;
   city?: string;
@@ -39,11 +39,11 @@ export interface Product {
   brand?: string;
   model?: string;
   sku?: string;
-  category?: Category;
-  description?: string;
+  category: Category;
+  description: string;
   price: number;
   discount?: number;
-  stock?: number;
+  stock: number;
   image_url?: string;
   // Fallback alias for backward compatibility
   image?: string; 
@@ -79,8 +79,8 @@ export interface ProductVariant {
   created_at?: string;
   updated_at?: string;
   // Backward comp (used in constants.ts seed data & UI)
-  name?: string;
-  options?: string[];
+  name: string;
+  options: string[];
 }
 
 export interface CartItem {
@@ -91,14 +91,15 @@ export interface CartItem {
   quantity: number;
   created_at?: string;
   updated_at?: string;
-  // Backward compatibility: the UI expects a Product-like structure in cart
-  name?: string;
-  price?: number;
+  // Backward compatibility: the UI expects a Product-like structure in cart.
+  // These default to safe values so callers don't need null checks.
+  name: string;
+  price: number;
   image?: string;
   image_url?: string;
   category?: Category;
   description?: string;
-  stock?: number;
+  stock: number;
   selectedOptions?: Record<string, string>;
 }
 
@@ -114,7 +115,7 @@ export interface Order {
   display_id?: string;
   user_id?: string;
   customer_id?: string;
-  status?: string;
+  status: string;
   payment_status?: string;
   payment_method?: string;
   shipping_address?: string;
@@ -131,9 +132,9 @@ export interface Order {
   userName?: string;
   userEmail?: string;
   userPhone?: string;
-  items?: CartItem[];
-  total?: number;
-  date?: string;
+  items: CartItem[];
+  total: number;
+  date: string;
   paymentMethod?: string;
   shipping_address_display?: string;
   tracking_updates?: TrackingUpdate[];
@@ -159,7 +160,7 @@ export interface TrackingUpdate {
   location?: string;
   created_at?: string;
   // Backward comp:
-  timestamp?: string;
+  timestamp: string;
 }
 
 export interface Review {
@@ -202,7 +203,7 @@ export interface RepairRequest {
   final_cost?: number;
   technician_notes?: string;
   admin_note?: string;
-  status?: string;
+  status: string;
   created_at?: string;
   updated_at?: string;
   // Backward comp:
@@ -210,9 +211,9 @@ export interface RepairRequest {
   userName?: string;
   device?: string;
   issue?: string;
-  date?: string;
+  date: string;
   aiDiagnosis?: string;
-  estimatedCost?: string | number;
+  estimatedCost: string;
   adminNote?: string;
   imageUrl?: string;
   fulfillmentMethod?: string;
@@ -242,7 +243,7 @@ export interface TradeInRequest {
   contact_phone?: string;
   contact_email?: string;
   admin_notes?: string;
-  status?: string;
+  status: string;
   created_at?: string;
   updated_at?: string;
   // Backward comp:
@@ -250,8 +251,8 @@ export interface TradeInRequest {
   userName?: string;
   userEmail?: string;
   device?: string;
-  date?: string;
-  estimatedValue?: number;
+  date: string;
+  estimatedValue: number;
   finalValue?: number;
   adminNote?: string;
   imageUrl?: string;

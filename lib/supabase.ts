@@ -28,20 +28,34 @@ if (!supabaseUrl || !supabaseAnonKey) {
   }
 }
 
-// Create Supabase client with error handling
-export const supabase = supabaseUrl && supabaseAnonKey 
+// Create Supabase client. We assert non-null at the type level so callers
+// don't need to null-check on every access. At runtime, when env vars are
+// missing, the client is a stub-like proxy that throws on use; the warning
+// above tells the developer how to fix it.
+import type { SupabaseClient } from '@supabase/supabase-js';
+
+const _client: SupabaseClient | null = supabaseUrl && supabaseAnonKey
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
 
+export const supabase: SupabaseClient = (_client ?? new Proxy({}, {
+  get() {
+    throw new Error(
+      'Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env'
+    );
+  },
+}) as SupabaseClient);
+
 // Helper function to check if Supabase is available
 export const isSupabaseConfigured = (): boolean => {
-  return !!(supabase);
+  return !!_client;
 };
 
 // Helper function to get Supabase client with error handling
-export const getSupabaseClient = () => {
-  if (!supabase) {
+export const getSupabaseClient = (): SupabaseClient => {
+  if (!_client) {
     throw new Error('Supabase is not configured. Please check environment variables.');
   }
-  return supabase;
+  return _client;
 };
+

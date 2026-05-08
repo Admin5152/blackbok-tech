@@ -150,7 +150,7 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
                     )}
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {variant.options.map(option => (
+                    {variant.options.map((option: string) => (
                       <button
                         key={option}
                         onClick={() => setSelectedOptions(prev => ({ ...prev, [variant.name]: option }))}

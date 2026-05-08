@@ -6,7 +6,7 @@ import { Sun, Moon } from 'lucide-react';
 import { useAppContext } from '../App';
 
 interface AuthProps {
-  setUser: (user: User) => void;
+  setUser: (user: User | null) => void;
   navigateTo: (view: string) => void;
   notify: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
 }

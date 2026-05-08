@@ -298,7 +298,7 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
                     </div>
                 </div>
             </section>
-            <style jsx>{`
+            <style>{`
                 .reveal-on-scroll {
                     opacity: 0;
                     transform: translateY(30px) scale(0.95);

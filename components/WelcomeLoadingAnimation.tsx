@@ -95,7 +95,7 @@ export const WelcomeLoadingAnimation: React.FC<{ size?: 'small' | 'medium' | 'la
           rx="16"
           ry="16"
           className="fill-white opacity-90 animate-pill origin-center"
-          transformOrigin="100 100"
+          style={{ transformOrigin: '100px 100px' }}
         />
       </svg>
 
