@@ -79,8 +79,8 @@ export interface ProductVariant {
   created_at?: string;
   updated_at?: string;
   // Backward comp (used in constants.ts seed data & UI)
-  name?: string;
-  options?: string[];
+  name: string;
+  options: string[];
 }
 
 export interface CartItem {
@@ -203,7 +203,7 @@ export interface RepairRequest {
   final_cost?: number;
   technician_notes?: string;
   admin_note?: string;
-  status?: string;
+  status: string;
   created_at?: string;
   updated_at?: string;
   // Backward comp:
@@ -211,9 +211,9 @@ export interface RepairRequest {
   userName?: string;
   device?: string;
   issue?: string;
-  date?: string;
+  date: string;
   aiDiagnosis?: string;
-  estimatedCost?: string | number;
+  estimatedCost: string;
   adminNote?: string;
   imageUrl?: string;
   fulfillmentMethod?: string;
@@ -243,7 +243,7 @@ export interface TradeInRequest {
   contact_phone?: string;
   contact_email?: string;
   admin_notes?: string;
-  status?: string;
+  status: string;
   created_at?: string;
   updated_at?: string;
   // Backward comp:
@@ -251,8 +251,8 @@ export interface TradeInRequest {
   userName?: string;
   userEmail?: string;
   device?: string;
-  date?: string;
-  estimatedValue?: number;
+  date: string;
+  estimatedValue: number;
   finalValue?: number;
   adminNote?: string;
   imageUrl?: string;
