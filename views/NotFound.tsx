@@ -63,7 +63,7 @@ export const NotFound: React.FC<NotFoundProps> = ({ theme = 'dark' }) => {
                 </div>
             </div>
 
-            <style jsx>{`
+            <style>{`
                 .animate-in {
                     animation-fill-mode: forwards;
                 }

@@ -4,6 +4,7 @@ import { Phone } from 'lucide-react';
 interface FloatingShareMenuProps {
   phoneNumber?: string;
   theme?: 'light' | 'dark';
+  hasNotification?: boolean;
 }
 
 // 5 socials spread 90°→270° (upper-left arc) so nothing clips off the right/bottom edge

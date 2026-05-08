@@ -169,6 +169,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
         userId: user.id,
         userName: formData.name || user.name,
         device: `${formData.brand} ${formData.model}`,
+        estimatedCost: '',
         issue: issueText,
         status: 'Pending',
         date: new Date().toISOString(),
@@ -601,7 +602,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                     let costNum = 0;
                     if (isApple && formData.model && repairPricing[formData.model as keyof typeof repairPricing]) {
                       if (service.serviceKey !== 'UNKNOWN') {
-                        costStr = repairPricing[formData.model as keyof typeof repairPricing][service.serviceKey as any];
+                        costStr = (repairPricing[formData.model as keyof typeof repairPricing] as Record<string, string>)[service.serviceKey];
                         if (costStr && costStr !== 'N/A' && costStr !== 'Consult' && !costStr.includes('xxxxx')) {
                           costNum = parseInt(costStr.split('-')[0].replace(/\D/g, ''));
                         }

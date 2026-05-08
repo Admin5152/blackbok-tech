@@ -12,7 +12,7 @@ import { ShoppingCart } from 'lucide-react';
 
 interface HomeProps {
   products: Product[];
-  setSelectedCategory: (cat: Category | 'All') => void;
+  setSelectedCategory?: (cat: Category | 'All') => void;
   onQuickView: (product: Product) => void;
   wishlist: string[];
   toggleWishlist: (productId: string) => void;
@@ -291,7 +291,7 @@ export const Home: React.FC<HomeProps> = ({
                   onToggleWishlist={toggleWishlist}
                   onQuickView={onQuickView}
                   onAddToCart={onAddToCart}
-                  isCompareSelected={compareIds.includes(p.id)}
+                  isCompared={compareIds.includes(p.id)}
                   onToggleCompare={onToggleCompare}
                   theme={theme}
                 />
@@ -810,7 +810,7 @@ export const Home: React.FC<HomeProps> = ({
                   </div>
                 </div>
                 <button
-                  onClick={() => navigateTo('store')}
+                  onClick={() => navigateTo?.('store')}
                   className={`w-full py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-colors ${theme === 'light' ? 'bg-gray-100 text-black hover:bg-[#CDA032]' : 'bg-white/5 text-white hover:bg-white/10'}`}
                 >
                   See All

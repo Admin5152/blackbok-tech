@@ -13,6 +13,7 @@ interface ProductCardProps {
   onAddToCart: (product: Product, options?: Record<string, string>, quantity?: number) => void;
   isCompared: boolean;
   onToggleCompare: (productId: string) => void;
+  theme?: 'light' | 'dark';
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({

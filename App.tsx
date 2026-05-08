@@ -237,7 +237,7 @@ const productDetailRoute = createRoute({
         isWishlisted={context.wishlist.includes(product.id)}
         onToggleWishlist={context.toggleWishlist}
         navigateTo={context.navigateTo}
-        theme={context.theme}
+        theme={theme}
       />
     );
   },
@@ -275,11 +275,10 @@ const tradesRoute = createRoute({
   component: () => {
     const context = useAppContext();
     return <Trades
-      {...context}
-      trades={context.trades}
-      setTrades={context.setTrades}
-      user={context.user}
-      navigateTo={context.navigateTo}
+      products={context.products}
+      onAddToCart={context.onAddToCart}
+      notify={context.notify}
+      onQuickView={context.onQuickView}
     />;
   },
 });
