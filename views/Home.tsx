@@ -12,7 +12,7 @@ import { ShoppingCart } from 'lucide-react';
 
 interface HomeProps {
   products: Product[];
-  setSelectedCategory: (cat: Category | 'All') => void;
+  setSelectedCategory?: (cat: Category | 'All') => void;
   onQuickView: (product: Product) => void;
   wishlist: string[];
   toggleWishlist: (productId: string) => void;
