@@ -436,11 +436,13 @@ export const getOrders = async (userId?: string): Promise<Order[]> => {
     userEmail: profileMap.get(o.user_id)?.email || 'N/A',
     userPhone: profileMap.get(o.user_id)?.phone || '',
     paymentMethod: o.payment_method,
-    items: o.order_items.map((i: any) => ({
+    items: (o.order_items || []).map((i: any) => ({
       ...i,
-      name: i.products?.name,
-      image: i.products?.image_url,
-      selectedOptions: i.product_variants ? { variant: i.product_variants.sku } : {}
+      name: i.products?.name || i.product_name || 'Item',
+      image: i.products?.image_url || i.product_image || null,
+      selectedOptions: i.product_options || (i.product_variants ? { variant: i.product_variants.sku } : {}),
+      quantity: Number(i.quantity || 1),
+      price: Number(i.price ?? i.unit_price ?? 0),
     })),
     total: Number(o.total_price),
     date: o.created_at
