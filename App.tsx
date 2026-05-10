@@ -14,7 +14,7 @@ import { X, CheckCircle2, Activity, Scale, RefreshCcw, Home as HomeIcon, Shoppin
 import { supabase } from './lib/supabase';
 import { WhatsAppIcon } from './components/Icons';
 import { Product, User, CartItem, Category, RepairRequest, Order, TradeRequest } from './types';
-import { getProducts } from './lib/api';
+import { getProducts, getOrders, getTradeRequests, getRepairRequests } from './lib/api';
 import { handleSignOut } from './lib/signOut';
 import AuthService from './lib/auth';
 import { setupMobileBackButton, preventAppClose } from './lib/mobileNavigation';
