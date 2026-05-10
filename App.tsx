@@ -607,29 +607,50 @@ function RootComponent() {
     localStorage.setItem(STORAGE_KEYS.THEME, theme);
   }, [user, cart, orders, repairs, trades, wishlist, compareIds, theme]);
 
-  // Supabase Realtime subscription for Order "Ready" notifications
+  // Supabase Realtime: customer subscribes to status changes pushed by admin
+  // for their orders, trade-ins and repairs. Refetches on every change so
+  // the user sees admin updates instantly without a refresh.
   useEffect(() => {
-    if (!user || !supabase) return;
+    if (!user?.id || !supabase) return;
 
-    const channel = supabase.channel('customer-order-updates')
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'orders', filter: `user_id=eq.${user.id}` },
-        (payload) => {
-          if (payload.new.status === 'shipped' && payload.old.status !== 'shipped') {
-             notify('✅ Your order is ready for pickup/delivery!', 'success');
-             
-             // Update local order state mapping "shipped" to visually trigger "Ready" tracking
-             setOrders(prev => prev.map(o => o.id === payload.new.id ? { ...o, status: 'Shipped' } : o));
+    const refetchOrders  = () => getOrders(user.id).then((d) => setOrders(d as any)).catch(() => {});
+    const refetchTrades  = () => getTradeRequests(user.id).then((d) => setTrades(d as any)).catch(() => {});
+    const refetchRepairs = () => getRepairRequests(user.id).then((d) => setRepairs(d as any)).catch(() => {});
+
+    const channel = supabase
+      .channel(`customer-live-${user.id}`)
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'orders', filter: `user_id=eq.${user.id}` },
+        (payload: any) => {
+          const newStatus = payload?.new?.status;
+          const oldStatus = payload?.old?.status;
+          if (newStatus && newStatus !== oldStatus) {
+            notify(`Order status updated: ${newStatus}`, 'success');
           }
-        }
-      )
+          refetchOrders();
+        })
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'trade_in_requests', filter: `user_id=eq.${user.id}` },
+        (payload: any) => {
+          if (payload?.new?.status && payload.new.status !== payload?.old?.status) {
+            notify(`Trade-in update: ${payload.new.status}`, 'info');
+          }
+          refetchTrades();
+        })
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'repair_requests', filter: `user_id=eq.${user.id}` },
+        (payload: any) => {
+          if (payload?.new?.status && payload.new.status !== payload?.old?.status) {
+            notify(`Repair update: ${payload.new.status}`, 'info');
+          }
+          refetchRepairs();
+        })
       .subscribe();
 
     return () => {
       if (supabase) supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user?.id]);
 
   // Hydrate per-user orders / trades / repairs from Supabase so admin
   // dashboard changes are reflected on the customer side and vice versa.

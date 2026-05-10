@@ -328,14 +328,25 @@ export const placeOrder = async (
   shippingMethod: string = 'Standard Delivery',
   cartItems: CartItem[] = []
 ) => {
+  const isUuid = (v: any) =>
+    typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+
   const buildLineItems = (orderId: string) =>
-    cartItems.map((item) => ({
-      order_id: orderId,
-      product_id: item.product_id || item.id,
-      quantity: Number(item.quantity || 1),
-      price: Number(item.price || 0),
-      unit_price: Number(item.price || 0)
-    }));
+    cartItems.map((item: any) => {
+      const rawId = item.product_id || item.id;
+      return {
+        order_id: orderId,
+        product_id: isUuid(rawId) ? rawId : null,
+        quantity: Number(item.quantity || 1),
+        price: Number(item.price || 0),
+        unit_price: Number(item.price || 0),
+        // Snapshot so order detail survives product edits/deletes and
+        // works for cart items coming from seed/local products.
+        product_name: item.name || item.title || null,
+        product_image: item.image || item.image_url || null,
+        product_options: item.selectedOptions || {},
+      };
+    });
 
   const ensureOrderItems = async (orderId: string) => {
     if (cartItems.length === 0) return;
@@ -349,8 +360,15 @@ export const placeOrder = async (
     if (existingError) throw existingError;
     if (existingItems && existingItems.length > 0) return;
 
-    const { error: itemsError } = await supabase.from('order_items').insert(buildLineItems(orderId));
-    if (itemsError) throw itemsError;
+    const rows = buildLineItems(orderId);
+    const { error: itemsError } = await supabase.from('order_items').insert(rows);
+    if (itemsError) {
+      // Fallback: retry without product_id (in case of FK violation).
+      console.warn('order_items insert failed, retrying without product_id:', itemsError);
+      const fallback = rows.map((r) => ({ ...r, product_id: null }));
+      const { error: retryError } = await supabase.from('order_items').insert(fallback);
+      if (retryError) throw retryError;
+    }
   };
 
   // Use direct insert so payment status starts as pending until admin confirmation.
@@ -418,11 +436,13 @@ export const getOrders = async (userId?: string): Promise<Order[]> => {
     userEmail: profileMap.get(o.user_id)?.email || 'N/A',
     userPhone: profileMap.get(o.user_id)?.phone || '',
     paymentMethod: o.payment_method,
-    items: o.order_items.map((i: any) => ({
+    items: (o.order_items || []).map((i: any) => ({
       ...i,
-      name: i.products?.name,
-      image: i.products?.image_url,
-      selectedOptions: i.product_variants ? { variant: i.product_variants.sku } : {}
+      name: i.products?.name || i.product_name || 'Item',
+      image: i.products?.image_url || i.product_image || null,
+      selectedOptions: i.product_options || (i.product_variants ? { variant: i.product_variants.sku } : {}),
+      quantity: Number(i.quantity || 1),
+      price: Number(i.price ?? i.unit_price ?? 0),
     })),
     total: Number(o.total_price),
     date: o.created_at
