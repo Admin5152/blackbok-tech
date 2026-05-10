@@ -631,6 +631,29 @@ function RootComponent() {
     };
   }, [user]);
 
+  // Hydrate per-user orders / trades / repairs from Supabase so admin
+  // dashboard changes are reflected on the customer side and vice versa.
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [ord, tr, rp] = await Promise.all([
+          getOrders(user.id).catch(() => []),
+          getTradeRequests(user.id).catch(() => []),
+          getRepairRequests(user.id).catch(() => []),
+        ]);
+        if (cancelled) return;
+        if (Array.isArray(ord) && ord.length) setOrders(ord as any);
+        if (Array.isArray(tr) && tr.length) setTrades(tr as any);
+        if (Array.isArray(rp) && rp.length) setRepairs(rp as any);
+      } catch (e) {
+        console.warn('User data hydration failed:', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
   // Apply theme globally (CSS reads html[data-theme]).
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
