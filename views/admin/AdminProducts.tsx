@@ -22,6 +22,19 @@ const EMPTY: ProductDraft = {
     colors: [], storage: [], ram: [], featured: false,
 };
 
+export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
+    const [products, setProducts] = useState<Product[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [q, setQ] = useState('');
+    const [catFilter, setCatFilter] = useState('All');
+    const [showForm, setShowForm] = useState(false);
+    const [draft, setDraft] = useState<ProductDraft>(EMPTY);
+    const [colorIn, setColorIn] = useState('');
+    const [storageIn, setStorageIn] = useState('');
+    const [ramIn, setRamIn] = useState('');
+    const [error, setError] = useState('');
+
     const load = async () => {
         setLoading(true);
         try {
