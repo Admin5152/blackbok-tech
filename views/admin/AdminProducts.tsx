@@ -4,7 +4,7 @@ import { SearchInput, Modal, ModalClose, Td, Th, TableWrapper, PROD_KEY } from '
 import {
     getProducts, createProduct, updateProduct, deleteProduct
 } from '../../lib/api';
-import { INITIAL_PRODUCTS } from '../../constants';
+// Products are sourced exclusively from Supabase.
 import type { Product } from '../../types';
 
 interface Props { canEdit?: boolean; }
@@ -20,14 +20,6 @@ const EMPTY: ProductDraft = {
     name: '', price: 0, category: 'iPhone', description: '', image: '',
     stock: 10, rating: 4.5, discount: undefined, new: false,
     colors: [], storage: [], ram: [], featured: false,
-};
-
-/** Merge Supabase products + INITIAL_PRODUCTS (local fallback).
- *  Supabase rows take precedence by name. */
-const mergeProducts = (remote: Product[], local: Product[]): Product[] => {
-    const names = new Set(remote.map(p => p.name.toLowerCase()));
-    const extras = local.filter(p => !names.has(p.name.toLowerCase()));
-    return [...remote, ...extras];
 };
 
 export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
@@ -47,17 +39,11 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
         setLoading(true);
         try {
             const remote = await getProducts();
-            // Merge with INITIAL_PRODUCTS so existing homepage content stays
-            const merged = mergeProducts(remote, INITIAL_PRODUCTS as any);
-            setProducts(merged);
-            // Persist merged list for homepage sliders (featured flag)
-            localStorage.setItem(PROD_KEY, JSON.stringify(merged));
-        } catch {
-            // Fallback to localStorage / INITIAL_PRODUCTS
-            try {
-                const cached = localStorage.getItem(PROD_KEY);
-                setProducts(cached ? JSON.parse(cached) : INITIAL_PRODUCTS as any);
-            } catch { setProducts(INITIAL_PRODUCTS as any); }
+            setProducts(remote);
+            localStorage.setItem(PROD_KEY, JSON.stringify(remote));
+        } catch (e) {
+            console.error('Failed to load products from Supabase:', e);
+            setProducts([]);
         } finally { setLoading(false); }
     };
 

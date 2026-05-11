@@ -18,7 +18,7 @@ import { getProducts, getOrders, getTradeRequests, getRepairRequests } from './l
 import { handleSignOut } from './lib/signOut';
 import AuthService from './lib/auth';
 import { setupMobileBackButton, preventAppClose } from './lib/mobileNavigation';
-import { INITIAL_PRODUCTS } from './constants';
+// INITIAL_PRODUCTS removed — products now load exclusively from Supabase.
 import { Navbar } from './components/Navbar';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { Footer } from './components/Footer';
@@ -572,16 +572,14 @@ function RootComponent() {
       console.error('Error loading from localStorage:', e);
     }
 
-    // Fetch products from Supabase
+    // Fetch products from Supabase (single source of truth)
     const fetchProducts = async () => {
       try {
         const productsData = await getProducts();
-        // Use Supabase data if available, otherwise fallback to local data
-        setProducts(productsData.length > 0 ? productsData : INITIAL_PRODUCTS);
+        setProducts(productsData);
       } catch (error) {
-        console.error('Failed to fetch products from Supabase, using local data:', error);
-        // Fallback to local products if Supabase fails
-        setProducts(INITIAL_PRODUCTS);
+        console.error('Failed to fetch products from Supabase:', error);
+        setProducts([]);
       }
     };
 

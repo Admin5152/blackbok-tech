@@ -177,228 +177,6 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
     const [products, setProducts] = useState<Product[]>(contextProducts || []);
     const [revenueWindow, setRevenueWindow] = useState<'7D' | '30D' | '90D' | 'ALL'>('30D');
 
-    // Mock data for development
-    const mockOrders: Order[] = [
-        {
-            id: '1',
-            userId: '1',
-            userName: 'John Smith',
-            items: [],
-            total: 1299,
-            status: 'Delivered',
-            date: '2024-03-15',
-            paymentMethod: 'Credit Card'
-        },
-        {
-            id: '2',
-            userId: '2',
-            userName: 'Sarah Johnson',
-            items: [],
-            total: 2499,
-            status: 'Processing',
-            date: '2024-03-14',
-            paymentMethod: 'PayPal'
-        },
-        {
-            id: '3',
-            userId: '3',
-            userName: 'Mike Davis',
-            items: [],
-            total: 899,
-            status: 'Shipped',
-            date: '2024-03-13',
-            paymentMethod: 'Credit Card'
-        }
-    ];
-
-    const mockUsers: User[] = [
-        {
-            id: '1',
-            name: 'John Smith',
-            email: 'john.smith@email.com',
-            phone: '+1 (555) 123-4567',
-            role: 'user',
-            address: '123 Main St, New York, NY 10001',
-            wishlist: ['prod1', 'prod2'],
-            avatarLetter: 'J'
-        },
-        {
-            id: '2',
-            name: 'Sarah Johnson',
-            email: 'sarah.j@email.com',
-            phone: '+1 (555) 987-6543',
-            role: 'admin',
-            address: '456 Oak Ave, Los Angeles, CA 90001',
-            wishlist: ['prod3'],
-            avatarLetter: 'S'
-        },
-        {
-            id: '3',
-            name: 'Mike Davis',
-            email: 'mike.davis@email.com',
-            phone: '+1 (555) 456-7890',
-            role: 'user',
-            address: '789 Pine Rd, Chicago, IL 60001',
-            wishlist: [],
-            avatarLetter: 'M'
-        },
-        {
-            id: '4',
-            name: 'Emily Wilson',
-            email: 'emily.w@email.com',
-            phone: '+1 (555) 234-5678',
-            role: 'user',
-            address: '321 Elm St, Houston, TX 77001',
-            wishlist: ['prod4', 'prod5'],
-            avatarLetter: 'E'
-        },
-        {
-            id: '5',
-            name: 'David Brown',
-            email: 'david.brown@email.com',
-            phone: '+1 (555) 876-5432',
-            role: 'sales',
-            address: '654 Maple Dr, Phoenix, AZ 85001',
-            wishlist: ['prod6'],
-            avatarLetter: 'D'
-        }
-    ];
-
-    const mockTrades: TradeRequest[] = [
-        {
-            id: '1',
-            userId: '1',
-            userName: 'John Smith',
-            userEmail: 'john.smith@email.com',
-            device: 'iPhone 13 Pro',
-            condition: 'Good',
-            status: 'Pending',
-            date: '2024-03-15',
-            estimatedValue: 450,
-            finalValue: 380,
-            targetDevice: 'iPhone 15 Pro',
-            userDescription: 'Screen has minor cracks, battery health 85%',
-            preferredDate: '2024-03-20',
-            preferredTime: '10:00 AM',
-            contactName: 'John Smith',
-            contactEmail: 'john.smith@email.com',
-            contactPhone: '+1 (555) 123-4567',
-            fulfillmentMethod: 'Headquarters'
-        },
-        {
-            id: '2',
-            userId: '2',
-            userName: 'Sarah Johnson',
-            userEmail: 'sarah.j@email.com',
-            device: 'MacBook Pro M2',
-            condition: 'Excellent',
-            status: 'Completed',
-            date: '2024-03-14',
-            estimatedValue: 1200,
-            finalValue: 1100,
-            targetDevice: 'MacBook Air M3',
-            userDescription: 'Excellent condition, always used with case',
-            preferredDate: '2024-03-18',
-            preferredTime: '2:00 PM',
-            contactName: 'Sarah Johnson',
-            contactEmail: 'sarah.j@email.com',
-            contactPhone: '+1 (555) 987-6543',
-            fulfillmentMethod: 'Pickup'
-        }
-    ];
-
-    const mockRepairs: RepairRequest[] = [
-        {
-            id: '1',
-            userId: '1',
-            userName: 'John Smith',
-            device: 'iPhone 12',
-            issue: 'Screen replacement needed',
-            status: 'In Repair',
-            date: '2024-03-15',
-            aiDiagnosis: 'Screen damage detected - replacement recommended',
-            estimatedCost: '$180',
-            adminNote: 'Customer approved estimate',
-            imageUrl: '',
-            fulfillmentMethod: 'Headquarters'
-        },
-        {
-            id: '2',
-            userId: '3',
-            userName: 'Mike Davis',
-            device: 'Samsung Galaxy S23',
-            issue: 'Battery not holding charge',
-            status: 'Completed',
-            date: '2024-03-14',
-            aiDiagnosis: 'Battery degradation - replacement completed',
-            estimatedCost: '$120',
-            adminNote: 'Battery replaced successfully',
-            imageUrl: '',
-            fulfillmentMethod: 'Pickup'
-        }
-    ];
-
-    const mockProducts: Product[] = [
-        {
-            id: '1',
-            name: 'iPhone 15 Pro',
-            category: 'iPhone',
-            price: 1199,
-            description: 'Latest iPhone with A17 Pro chip',
-            image: '/images/iphone15pro.jpg',
-            stock: 15,
-            featured: true,
-            new: true,
-            rating: 4.8,
-            reviewCount: 234
-        },
-        {
-            id: '2',
-            name: 'MacBook Air M2',
-            category: 'Laptop',
-            price: 999,
-            description: 'Ultra-thin laptop with M2 chip',
-            image: '/images/macbook-air-m2.jpg',
-            stock: 8,
-            featured: true,
-            rating: 4.7,
-            reviewCount: 156
-        },
-        {
-            id: '3',
-            name: 'AirPods Pro',
-            category: 'Accessories',
-            price: 249,
-            description: 'Wireless earbuds with active noise cancellation',
-            image: '/images/airpods-pro.jpg',
-            stock: 25,
-            rating: 4.6,
-            reviewCount: 89
-        },
-        {
-            id: '4',
-            name: 'PlayStation 5',
-            category: 'Gaming',
-            price: 499,
-            description: 'Next-gen gaming console',
-            image: '/images/ps5.jpg',
-            stock: 3,
-            rating: 4.9,
-            reviewCount: 412
-        },
-        {
-            id: '5',
-            name: 'iPad Air',
-            category: 'Tablet',
-            price: 599,
-            description: 'Thin and light tablet',
-            image: '/images/ipad-air.jpg',
-            stock: 12,
-            rating: 4.5,
-            reviewCount: 178
-        }
-    ];
-
     useEffect(() => {
         let mounted = true;
         const fetchAdminData = async () => {
@@ -409,27 +187,23 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
                     getTradeRequests(),
                     getRepairRequests()
                 ]);
-                
                 if (mounted) {
-                    setOrders(dbOrders.length > 0 ? dbOrders : mockOrders);
-                    setUsers(dbUsers.length > 0 ? dbUsers : mockUsers);
-                    setTrades(dbTrades.length > 0 ? dbTrades : mockTrades);
-                    setRepairs(dbRepairs.length > 0 ? dbRepairs : mockRepairs);
+                    setOrders(dbOrders as any);
+                    setUsers(dbUsers as any);
+                    setTrades(dbTrades as any);
+                    setRepairs(dbRepairs as any);
                 }
             } catch (err) {
                 console.error("Failed to fetch admin data from Supabase:", err);
                 if (mounted) {
-                    setOrders(mockOrders);
-                    setUsers(mockUsers);
-                    setTrades(mockTrades);
-                    setRepairs(mockRepairs);
+                    setOrders([]); setUsers([]); setTrades([]); setRepairs([]);
                 }
             }
         };
 
         fetchAdminData();
-        setProducts(contextProducts.length > 0 ? contextProducts : mockProducts);
-        
+        setProducts(contextProducts || []);
+
         return () => { mounted = false; };
     }, [contextProducts]);
 
@@ -499,44 +273,46 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
         return list;
     }, [lowStock, pendingTrades, repairs, onNavigate]);
 
-    const mockOrdersByDay = [12, 19, 8, 15, 22, 18, 25];
-    const revenueByDay = useMemo(() => {
+    // 7-day buckets derived from real orders/repairs/trades
+    const buildDailyBuckets = (entries: { date?: string; created_at?: string }[], valueOf: (e: any) => number) => {
         const days = 7;
         const buckets = Array.from({ length: days }, () => 0);
-        const now = new Date();
-        const start = new Date(now);
-        start.setHours(0, 0, 0, 0);
+        const start = new Date(); start.setHours(0, 0, 0, 0);
         start.setDate(start.getDate() - (days - 1));
-
-        const dayIndex = (value?: string) => {
-            const dt = getValidDate(value);
-            if (!dt) return -1;
-            const diff = Math.floor((new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
-            return diff >= 0 && diff < days ? diff : -1;
-        };
-
-        filteredOrders.forEach(o => {
-            const idx = dayIndex(o.date || o.created_at);
-            if (idx >= 0) buckets[idx] += (o.total || 0);
+        entries.forEach(e => {
+            const dt = getValidDate(e.date || e.created_at);
+            if (!dt) return;
+            const idx = Math.floor((new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime() - start.getTime()) / 86400000);
+            if (idx >= 0 && idx < days) buckets[idx] += valueOf(e);
         });
-        filteredRepairs
-            .filter(r => (r.status || '').toLowerCase() === 'completed')
-            .forEach(r => {
-                const idx = dayIndex(r.date || r.created_at);
-                if (idx >= 0) buckets[idx] += parseRepairAmount(r.estimatedCost);
-            });
-        filteredTrades
-            .filter(t => (t.status || '').toLowerCase() === 'completed')
-            .forEach(t => {
-                const idx = dayIndex(t.date || t.created_at);
-                if (idx >= 0) buckets[idx] += (t.finalValue || 0);
-            });
+        return buckets;
+    };
 
-        return buckets.map(v => Math.round(v));
-    }, [filteredOrders, filteredRepairs, filteredTrades, revenueWindow]);
-    const mockRevenueByDay = revenueByDay;
-    const mockUserGrowth = [145, 148, 152, 149, 155, 161, 167];
+    const ordersByDay = useMemo(
+        () => buildDailyBuckets(filteredOrders as any, () => 1),
+        [filteredOrders]
+    );
+    const revenueByDay = useMemo(() => {
+        const a = buildDailyBuckets(filteredOrders as any, (o) => o.total || 0);
+        const b = buildDailyBuckets(
+            (filteredRepairs as any).filter((r: any) => (r.status || '').toLowerCase() === 'completed'),
+            (r) => parseRepairAmount(r.estimatedCost)
+        );
+        const c = buildDailyBuckets(
+            (filteredTrades as any).filter((t: any) => (t.status || '').toLowerCase() === 'completed'),
+            (t) => t.finalValue || 0
+        );
+        return a.map((v, i) => Math.round(v + b[i] + c[i]));
+    }, [filteredOrders, filteredRepairs, filteredTrades]);
+    const userGrowthByDay = useMemo(
+        () => buildDailyBuckets(users as any, () => 1).reduce<number[]>((acc, v) => {
+            acc.push((acc[acc.length - 1] || 0) + v);
+            return acc;
+        }, []),
+        [users]
+    );
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
 
     const revenueStreams = [
         { label: 'Product Sales', val: orderRevenue, color: '#6366f1', nav: 'orders' as Section },
@@ -588,8 +364,8 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
                     <h2 className="text-[10px] font-black uppercase tracking-[0.2em]">Business Health</h2>
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <StatCard isLight={isLight} icon={DollarSign} value={`$${totalRevenue.toLocaleString()}`} label="Total Revenue" trend={12} trendUp={true} spark={mockRevenueByDay} iconColor={STATUS_COLORS.info} onClick={() => onNavigate('orders')} />
-                    <StatCard isLight={isLight} icon={ShoppingCart} value={orders.length} label="New Orders" trend={8} trendUp={true} spark={mockOrdersByDay} iconColor="#6366f1" onClick={() => onNavigate('orders')} />
+                    <StatCard isLight={isLight} icon={DollarSign} value={`$${totalRevenue.toLocaleString()}`} label="Total Revenue" trend={12} trendUp={true} spark={revenueByDay} iconColor={STATUS_COLORS.info} onClick={() => onNavigate('orders')} />
+                    <StatCard isLight={isLight} icon={ShoppingCart} value={orders.length} label="New Orders" trend={8} trendUp={true} spark={ordersByDay} iconColor="#6366f1" onClick={() => onNavigate('orders')} />
                     <StatCard isLight={isLight} icon={Star} value={`$${avgOrder}`} label="Avg Order Value" trend={3} trendUp={false} iconColor={STATUS_COLORS.info} onClick={() => onNavigate('orders')} />
                     <StatCard isLight={isLight} icon={Users} value="94%" label="Customer Satisfaction" trend={1} trendUp={true} iconColor={STATUS_COLORS.success} />
                 </div>
@@ -676,7 +452,7 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
                                 ))}
                             </div>
                         </div>
-                        <BarChart data={mockRevenueByDay} />
+                        <BarChart data={revenueByDay} />
                         <div className="flex justify-between mt-3 px-2">{days.map(d => <span key={d} className={`text-[9px] font-bold ${isLight ? 'text-black/50' : 'text-white/50'}`}>{d}</span>)}</div>
                     </div>
 
@@ -691,7 +467,7 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
                                 <Users size={14} className="text-[#B38B21]" />
                             </div>
                             <div className="h-16 mb-4">
-                                <Sparkline data={mockUserGrowth} color="#B38B21" />
+                                <Sparkline data={userGrowthByDay} color="#B38B21" />
                             </div>
                             <div className={`flex justify-between items-end border-t pt-4 ${isLight ? 'border-black/5' : 'border-white/5'}`}>
                                 <span className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-black/50' : 'text-white/50'}`}>Net Profit</span>

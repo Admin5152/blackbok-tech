@@ -70,30 +70,7 @@ export const History: React.FC = () => {
         };
     }, [user?.id]);
 
-    // Mock Trades data (since it might not be in context yet)
-    const mockTrades: TradeRequest[] = [
-        {
-            id: 'TRD-9021',
-            userId: user?.id || 'guest',
-            userName: user?.name || 'Guest User',
-            device: 'iPhone 13 Pro',
-            condition: 'Good',
-            status: 'Offer Made',
-            date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-            estimatedValue: 2400,
-        },
-        {
-            id: 'TRD-8842',
-            userId: user?.id || 'guest',
-            userName: user?.name || 'Guest User',
-            device: 'MacBook Air M1',
-            condition: 'Like New',
-            status: 'Completed',
-            date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-            estimatedValue: 4500,
-            finalValue: 4650
-        }
-    ];
+    // Trades and repairs come from real Supabase data via App.tsx context.
 
     const tabs = [
         { id: 'orders', label: 'Orders', icon: ShoppingBag, count: historyOrders.length },

@@ -14,65 +14,17 @@ export const AdminCustomers: React.FC = () => {
     const [sortField, setSortField] = useState<keyof User>('name');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
-    // Mock data for development
-    const mockUsers: User[] = [
-        {
-            id: '1',
-            name: 'John Smith',
-            email: 'john.smith@email.com',
-            phone: '+1 (555) 123-4567',
-            role: 'user',
-            address: '123 Main St, New York, NY 10001',
-            wishlist: ['prod1', 'prod2'],
-            avatarLetter: 'J'
-        },
-        {
-            id: '2',
-            name: 'Sarah Johnson',
-            email: 'sarah.j@email.com',
-            phone: '+1 (555) 987-6543',
-            role: 'user',
-            address: '456 Oak Ave, Los Angeles, CA 90001',
-            wishlist: ['prod3'],
-            avatarLetter: 'S'
-        },
-        {
-            id: '3',
-            name: 'Mike Davis',
-            email: 'mike.davis@email.com',
-            phone: '+1 (555) 456-7890',
-            role: 'admin',
-            address: '789 Pine Rd, Chicago, IL 60001',
-            wishlist: [],
-            avatarLetter: 'M'
-        },
-        {
-            id: '4',
-            name: 'Emily Wilson',
-            email: 'emily.w@email.com',
-            phone: '+1 (555) 234-5678',
-            role: 'user',
-            address: '321 Elm St, Houston, TX 77001',
-            wishlist: ['prod4', 'prod5'],
-            avatarLetter: 'E'
-        },
-        {
-            id: '5',
-            name: 'David Brown',
-            email: 'david.brown@email.com',
-            phone: '+1 (555) 876-5432',
-            role: 'sales',
-            address: '654 Maple Dr, Phoenix, AZ 85001',
-            wishlist: ['prod6'],
-            avatarLetter: 'D'
-        }
-    ];
-
     useEffect(() => {
-        // Use mock data for now
-        setUsers(mockUsers);
-        // getOrders().then(o => setOrders(o));
-        setLoading(false);
+        let mounted = true;
+        Promise.all([getUsers(), getOrders()])
+            .then(([u, o]) => {
+                if (!mounted) return;
+                setUsers(u as any);
+                setOrders(o as any);
+            })
+            .catch(err => console.error('AdminCustomers load failed:', err))
+            .finally(() => { if (mounted) setLoading(false); });
+        return () => { mounted = false; };
     }, []);
 
     const filtered = users.filter(u =>

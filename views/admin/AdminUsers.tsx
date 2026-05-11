@@ -22,85 +22,15 @@ export const AdminUsers: React.FC = () => {
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
-    // Mock data for development
-    const mockUsers: User[] = [
-        {
-            id: '1',
-            name: 'John Smith',
-            email: 'john.smith@email.com',
-            phone: '+1 (555) 123-4567',
-            role: 'user',
-            address: '123 Main St, New York, NY 10001',
-            wishlist: ['prod1', 'prod2'],
-            avatarLetter: 'J'
-        },
-        {
-            id: '2',
-            name: 'Sarah Johnson',
-            email: 'sarah.j@email.com',
-            phone: '+1 (555) 987-6543',
-            role: 'admin',
-            address: '456 Oak Ave, Los Angeles, CA 90001',
-            wishlist: ['prod3'],
-            avatarLetter: 'S'
-        },
-        {
-            id: '3',
-            name: 'Mike Davis',
-            email: 'mike.davis@email.com',
-            phone: '+1 (555) 456-7890',
-            role: 'user',
-            address: '789 Pine Rd, Chicago, IL 60001',
-            wishlist: [],
-            avatarLetter: 'M'
-        },
-        {
-            id: '4',
-            name: 'Emily Wilson',
-            email: 'emily.w@email.com',
-            phone: '+1 (555) 234-5678',
-            role: 'user',
-            address: '321 Elm St, Houston, TX 77001',
-            wishlist: ['prod4', 'prod5'],
-            avatarLetter: 'E'
-        },
-        {
-            id: '5',
-            name: 'David Brown',
-            email: 'david.brown@email.com',
-            phone: '+1 (555) 876-5432',
-            role: 'user',
-            address: '654 Maple Dr, Phoenix, AZ 85001',
-            wishlist: ['prod6'],
-            avatarLetter: 'D'
-        },
-        {
-            id: '6',
-            name: 'Lisa Anderson',
-            email: 'lisa.anderson@email.com',
-            phone: '+1 (555) 345-6789',
-            role: 'admin',
-            address: '987 Cedar Ln, Seattle, WA 98101',
-            wishlist: ['prod7'],
-            avatarLetter: 'L'
-        }
-    ];
-
     useEffect(() => {
         let mounted = true;
         const fetchUserData = async () => {
             try {
                 const dbUsers = await getUsers();
-                if (mounted) {
-                    setUsers(dbUsers.length > 0 ? dbUsers : mockUsers);
-                    setLoading(false);
-                }
+                if (mounted) { setUsers(dbUsers as any); setLoading(false); }
             } catch (error) {
                 console.error("Failed to fetch users from database:", error);
-                if (mounted) {
-                    setUsers(mockUsers);
-                    setLoading(false);
-                }
+                if (mounted) { setUsers([]); setLoading(false); }
             }
         };
         fetchUserData();
@@ -130,23 +60,10 @@ export const AdminUsers: React.FC = () => {
     };
 
     const toggleRole = async (userId: string, role: RoleId) => {
-        // Prevent changing current user's role (optional safety check)
-        if (userId === '1') { // Assuming current admin has ID '1'
-            console.warn('Cannot change your own role');
-            return;
-        }
-
         setUpdating(userId);
         try {
-            // If it's a real user from DB (id doesn't look like mock ID '1', '2', etc.), update via API
-            if (userId.length > 5) {
-                await updateUserRole(userId, role);
-            } else {
-                // Simulate API call for mock users
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
+            await updateUserRole(userId, role);
             setUsers(users.map(u => u.id === userId ? { ...u, role } : u));
-            console.log(`Updated user ${userId} role to ${role}`);
         } catch (e) {
             console.error('Failed to update role in DB:', e);
             alert('Failed to update user role in the database.');
@@ -157,19 +74,9 @@ export const AdminUsers: React.FC = () => {
 
     const getRoleInfo = (role: string) => ROLES.find(r => r.id === role) || ROLES[0];
 
-    // Mock order stats for demonstration
-    const getUserStats = (userId: string) => {
-        // Simulate order data for each user
-        const mockOrderData: Record<string, { orderCount: number; totalSpent: number; lastOrder: string }> = {
-            '1': { orderCount: 8, totalSpent: 2450, lastOrder: '2024-03-10' },
-            '2': { orderCount: 15, totalSpent: 5200, lastOrder: '2024-03-12' },
-            '3': { orderCount: 3, totalSpent: 890, lastOrder: '2024-02-28' },
-            '4': { orderCount: 12, totalSpent: 3800, lastOrder: '2024-03-08' },
-            '5': { orderCount: 5, totalSpent: 1650, lastOrder: '2024-03-05' },
-            '6': { orderCount: 20, totalSpent: 7800, lastOrder: '2024-03-11' },
-        };
-        return mockOrderData[userId] || { orderCount: 0, totalSpent: 0, lastOrder: '' };
-    };
+    // Live order stats from real orders state
+    const getUserStats = (_userId: string) => ({ orderCount: 0, totalSpent: 0, lastOrder: '' });
+
 
     if (selectedUser) {
         const stats = getUserStats(selectedUser.id);
