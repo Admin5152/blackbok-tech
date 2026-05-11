@@ -364,8 +364,8 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
                     <h2 className="text-[10px] font-black uppercase tracking-[0.2em]">Business Health</h2>
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <StatCard isLight={isLight} icon={DollarSign} value={`$${totalRevenue.toLocaleString()}`} label="Total Revenue" trend={12} trendUp={true} spark={mockRevenueByDay} iconColor={STATUS_COLORS.info} onClick={() => onNavigate('orders')} />
-                    <StatCard isLight={isLight} icon={ShoppingCart} value={orders.length} label="New Orders" trend={8} trendUp={true} spark={mockOrdersByDay} iconColor="#6366f1" onClick={() => onNavigate('orders')} />
+                    <StatCard isLight={isLight} icon={DollarSign} value={`$${totalRevenue.toLocaleString()}`} label="Total Revenue" trend={12} trendUp={true} spark={revenueByDay} iconColor={STATUS_COLORS.info} onClick={() => onNavigate('orders')} />
+                    <StatCard isLight={isLight} icon={ShoppingCart} value={orders.length} label="New Orders" trend={8} trendUp={true} spark={ordersByDay} iconColor="#6366f1" onClick={() => onNavigate('orders')} />
                     <StatCard isLight={isLight} icon={Star} value={`$${avgOrder}`} label="Avg Order Value" trend={3} trendUp={false} iconColor={STATUS_COLORS.info} onClick={() => onNavigate('orders')} />
                     <StatCard isLight={isLight} icon={Users} value="94%" label="Customer Satisfaction" trend={1} trendUp={true} iconColor={STATUS_COLORS.success} />
                 </div>
@@ -452,7 +452,7 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
                                 ))}
                             </div>
                         </div>
-                        <BarChart data={mockRevenueByDay} />
+                        <BarChart data={revenueByDay} />
                         <div className="flex justify-between mt-3 px-2">{days.map(d => <span key={d} className={`text-[9px] font-bold ${isLight ? 'text-black/50' : 'text-white/50'}`}>{d}</span>)}</div>
                     </div>
 
@@ -467,7 +467,7 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
                                 <Users size={14} className="text-[#B38B21]" />
                             </div>
                             <div className="h-16 mb-4">
-                                <Sparkline data={mockUserGrowth} color="#B38B21" />
+                                <Sparkline data={userGrowthByDay} color="#B38B21" />
                             </div>
                             <div className={`flex justify-between items-end border-t pt-4 ${isLight ? 'border-black/5' : 'border-white/5'}`}>
                                 <span className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-black/50' : 'text-white/50'}`}>Net Profit</span>
