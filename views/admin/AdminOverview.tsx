@@ -273,44 +273,46 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
         return list;
     }, [lowStock, pendingTrades, repairs, onNavigate]);
 
-    const mockOrdersByDay = [12, 19, 8, 15, 22, 18, 25];
-    const revenueByDay = useMemo(() => {
+    // 7-day buckets derived from real orders/repairs/trades
+    const buildDailyBuckets = (entries: { date?: string; created_at?: string }[], valueOf: (e: any) => number) => {
         const days = 7;
         const buckets = Array.from({ length: days }, () => 0);
-        const now = new Date();
-        const start = new Date(now);
-        start.setHours(0, 0, 0, 0);
+        const start = new Date(); start.setHours(0, 0, 0, 0);
         start.setDate(start.getDate() - (days - 1));
-
-        const dayIndex = (value?: string) => {
-            const dt = getValidDate(value);
-            if (!dt) return -1;
-            const diff = Math.floor((new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
-            return diff >= 0 && diff < days ? diff : -1;
-        };
-
-        filteredOrders.forEach(o => {
-            const idx = dayIndex(o.date || o.created_at);
-            if (idx >= 0) buckets[idx] += (o.total || 0);
+        entries.forEach(e => {
+            const dt = getValidDate(e.date || e.created_at);
+            if (!dt) return;
+            const idx = Math.floor((new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime() - start.getTime()) / 86400000);
+            if (idx >= 0 && idx < days) buckets[idx] += valueOf(e);
         });
-        filteredRepairs
-            .filter(r => (r.status || '').toLowerCase() === 'completed')
-            .forEach(r => {
-                const idx = dayIndex(r.date || r.created_at);
-                if (idx >= 0) buckets[idx] += parseRepairAmount(r.estimatedCost);
-            });
-        filteredTrades
-            .filter(t => (t.status || '').toLowerCase() === 'completed')
-            .forEach(t => {
-                const idx = dayIndex(t.date || t.created_at);
-                if (idx >= 0) buckets[idx] += (t.finalValue || 0);
-            });
+        return buckets;
+    };
 
-        return buckets.map(v => Math.round(v));
-    }, [filteredOrders, filteredRepairs, filteredTrades, revenueWindow]);
-    const mockRevenueByDay = revenueByDay;
-    const mockUserGrowth = [145, 148, 152, 149, 155, 161, 167];
+    const ordersByDay = useMemo(
+        () => buildDailyBuckets(filteredOrders as any, () => 1),
+        [filteredOrders]
+    );
+    const revenueByDay = useMemo(() => {
+        const a = buildDailyBuckets(filteredOrders as any, (o) => o.total || 0);
+        const b = buildDailyBuckets(
+            (filteredRepairs as any).filter((r: any) => (r.status || '').toLowerCase() === 'completed'),
+            (r) => parseRepairAmount(r.estimatedCost)
+        );
+        const c = buildDailyBuckets(
+            (filteredTrades as any).filter((t: any) => (t.status || '').toLowerCase() === 'completed'),
+            (t) => t.finalValue || 0
+        );
+        return a.map((v, i) => Math.round(v + b[i] + c[i]));
+    }, [filteredOrders, filteredRepairs, filteredTrades]);
+    const userGrowthByDay = useMemo(
+        () => buildDailyBuckets(users as any, () => 1).reduce<number[]>((acc, v) => {
+            acc.push((acc[acc.length - 1] || 0) + v);
+            return acc;
+        }, []),
+        [users]
+    );
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
 
     const revenueStreams = [
         { label: 'Product Sales', val: orderRevenue, color: '#6366f1', nav: 'orders' as Section },
