@@ -409,6 +409,22 @@ export const placeOrder = async (
 
   await ensureOrderItems(order.id);
 
+  // Atomically decrement stock for each line item that maps to a real product row.
+  for (const item of cartItems as any[]) {
+    const pid = item.product_id || item.id;
+    const qty = Number(item.quantity || 1);
+    if (typeof pid === 'string' && qty > 0) {
+      try {
+        await supabase.rpc('decrement_product_stock', {
+          _product_id: pid,
+          _quantity: qty,
+        });
+      } catch (e) {
+        console.warn('decrement_product_stock failed for', pid, e);
+      }
+    }
+  }
+
   return order;
 };
 
