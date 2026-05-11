@@ -177,228 +177,6 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
     const [products, setProducts] = useState<Product[]>(contextProducts || []);
     const [revenueWindow, setRevenueWindow] = useState<'7D' | '30D' | '90D' | 'ALL'>('30D');
 
-    // Mock data for development
-    const mockOrders: Order[] = [
-        {
-            id: '1',
-            userId: '1',
-            userName: 'John Smith',
-            items: [],
-            total: 1299,
-            status: 'Delivered',
-            date: '2024-03-15',
-            paymentMethod: 'Credit Card'
-        },
-        {
-            id: '2',
-            userId: '2',
-            userName: 'Sarah Johnson',
-            items: [],
-            total: 2499,
-            status: 'Processing',
-            date: '2024-03-14',
-            paymentMethod: 'PayPal'
-        },
-        {
-            id: '3',
-            userId: '3',
-            userName: 'Mike Davis',
-            items: [],
-            total: 899,
-            status: 'Shipped',
-            date: '2024-03-13',
-            paymentMethod: 'Credit Card'
-        }
-    ];
-
-    const mockUsers: User[] = [
-        {
-            id: '1',
-            name: 'John Smith',
-            email: 'john.smith@email.com',
-            phone: '+1 (555) 123-4567',
-            role: 'user',
-            address: '123 Main St, New York, NY 10001',
-            wishlist: ['prod1', 'prod2'],
-            avatarLetter: 'J'
-        },
-        {
-            id: '2',
-            name: 'Sarah Johnson',
-            email: 'sarah.j@email.com',
-            phone: '+1 (555) 987-6543',
-            role: 'admin',
-            address: '456 Oak Ave, Los Angeles, CA 90001',
-            wishlist: ['prod3'],
-            avatarLetter: 'S'
-        },
-        {
-            id: '3',
-            name: 'Mike Davis',
-            email: 'mike.davis@email.com',
-            phone: '+1 (555) 456-7890',
-            role: 'user',
-            address: '789 Pine Rd, Chicago, IL 60001',
-            wishlist: [],
-            avatarLetter: 'M'
-        },
-        {
-            id: '4',
-            name: 'Emily Wilson',
-            email: 'emily.w@email.com',
-            phone: '+1 (555) 234-5678',
-            role: 'user',
-            address: '321 Elm St, Houston, TX 77001',
-            wishlist: ['prod4', 'prod5'],
-            avatarLetter: 'E'
-        },
-        {
-            id: '5',
-            name: 'David Brown',
-            email: 'david.brown@email.com',
-            phone: '+1 (555) 876-5432',
-            role: 'sales',
-            address: '654 Maple Dr, Phoenix, AZ 85001',
-            wishlist: ['prod6'],
-            avatarLetter: 'D'
-        }
-    ];
-
-    const mockTrades: TradeRequest[] = [
-        {
-            id: '1',
-            userId: '1',
-            userName: 'John Smith',
-            userEmail: 'john.smith@email.com',
-            device: 'iPhone 13 Pro',
-            condition: 'Good',
-            status: 'Pending',
-            date: '2024-03-15',
-            estimatedValue: 450,
-            finalValue: 380,
-            targetDevice: 'iPhone 15 Pro',
-            userDescription: 'Screen has minor cracks, battery health 85%',
-            preferredDate: '2024-03-20',
-            preferredTime: '10:00 AM',
-            contactName: 'John Smith',
-            contactEmail: 'john.smith@email.com',
-            contactPhone: '+1 (555) 123-4567',
-            fulfillmentMethod: 'Headquarters'
-        },
-        {
-            id: '2',
-            userId: '2',
-            userName: 'Sarah Johnson',
-            userEmail: 'sarah.j@email.com',
-            device: 'MacBook Pro M2',
-            condition: 'Excellent',
-            status: 'Completed',
-            date: '2024-03-14',
-            estimatedValue: 1200,
-            finalValue: 1100,
-            targetDevice: 'MacBook Air M3',
-            userDescription: 'Excellent condition, always used with case',
-            preferredDate: '2024-03-18',
-            preferredTime: '2:00 PM',
-            contactName: 'Sarah Johnson',
-            contactEmail: 'sarah.j@email.com',
-            contactPhone: '+1 (555) 987-6543',
-            fulfillmentMethod: 'Pickup'
-        }
-    ];
-
-    const mockRepairs: RepairRequest[] = [
-        {
-            id: '1',
-            userId: '1',
-            userName: 'John Smith',
-            device: 'iPhone 12',
-            issue: 'Screen replacement needed',
-            status: 'In Repair',
-            date: '2024-03-15',
-            aiDiagnosis: 'Screen damage detected - replacement recommended',
-            estimatedCost: '$180',
-            adminNote: 'Customer approved estimate',
-            imageUrl: '',
-            fulfillmentMethod: 'Headquarters'
-        },
-        {
-            id: '2',
-            userId: '3',
-            userName: 'Mike Davis',
-            device: 'Samsung Galaxy S23',
-            issue: 'Battery not holding charge',
-            status: 'Completed',
-            date: '2024-03-14',
-            aiDiagnosis: 'Battery degradation - replacement completed',
-            estimatedCost: '$120',
-            adminNote: 'Battery replaced successfully',
-            imageUrl: '',
-            fulfillmentMethod: 'Pickup'
-        }
-    ];
-
-    const mockProducts: Product[] = [
-        {
-            id: '1',
-            name: 'iPhone 15 Pro',
-            category: 'iPhone',
-            price: 1199,
-            description: 'Latest iPhone with A17 Pro chip',
-            image: '/images/iphone15pro.jpg',
-            stock: 15,
-            featured: true,
-            new: true,
-            rating: 4.8,
-            reviewCount: 234
-        },
-        {
-            id: '2',
-            name: 'MacBook Air M2',
-            category: 'Laptop',
-            price: 999,
-            description: 'Ultra-thin laptop with M2 chip',
-            image: '/images/macbook-air-m2.jpg',
-            stock: 8,
-            featured: true,
-            rating: 4.7,
-            reviewCount: 156
-        },
-        {
-            id: '3',
-            name: 'AirPods Pro',
-            category: 'Accessories',
-            price: 249,
-            description: 'Wireless earbuds with active noise cancellation',
-            image: '/images/airpods-pro.jpg',
-            stock: 25,
-            rating: 4.6,
-            reviewCount: 89
-        },
-        {
-            id: '4',
-            name: 'PlayStation 5',
-            category: 'Gaming',
-            price: 499,
-            description: 'Next-gen gaming console',
-            image: '/images/ps5.jpg',
-            stock: 3,
-            rating: 4.9,
-            reviewCount: 412
-        },
-        {
-            id: '5',
-            name: 'iPad Air',
-            category: 'Tablet',
-            price: 599,
-            description: 'Thin and light tablet',
-            image: '/images/ipad-air.jpg',
-            stock: 12,
-            rating: 4.5,
-            reviewCount: 178
-        }
-    ];
-
     useEffect(() => {
         let mounted = true;
         const fetchAdminData = async () => {
@@ -409,27 +187,23 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
                     getTradeRequests(),
                     getRepairRequests()
                 ]);
-                
                 if (mounted) {
-                    setOrders(dbOrders.length > 0 ? dbOrders : mockOrders);
-                    setUsers(dbUsers.length > 0 ? dbUsers : mockUsers);
-                    setTrades(dbTrades.length > 0 ? dbTrades : mockTrades);
-                    setRepairs(dbRepairs.length > 0 ? dbRepairs : mockRepairs);
+                    setOrders(dbOrders as any);
+                    setUsers(dbUsers as any);
+                    setTrades(dbTrades as any);
+                    setRepairs(dbRepairs as any);
                 }
             } catch (err) {
                 console.error("Failed to fetch admin data from Supabase:", err);
                 if (mounted) {
-                    setOrders(mockOrders);
-                    setUsers(mockUsers);
-                    setTrades(mockTrades);
-                    setRepairs(mockRepairs);
+                    setOrders([]); setUsers([]); setTrades([]); setRepairs([]);
                 }
             }
         };
 
         fetchAdminData();
-        setProducts(contextProducts.length > 0 ? contextProducts : mockProducts);
-        
+        setProducts(contextProducts || []);
+
         return () => { mounted = false; };
     }, [contextProducts]);
 
