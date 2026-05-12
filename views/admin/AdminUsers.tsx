@@ -104,11 +104,11 @@ export const AdminUsers: React.FC = () => {
                 <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-6">
                     <div className="flex items-start gap-6 mb-6">
                         <div className="w-20 h-20 rounded-2xl flex items-center justify-center font-black text-black text-2xl italic" style={{ background: roleInfo.color }}>
-                            {selectedUser.avatarLetter || selectedUser.name.charAt(0)}
+                            {(selectedUser.avatarLetter || (selectedUser.name ?? selectedUser.email ?? '?').toString().charAt(0) || '?').toUpperCase()}
                         </div>
                         <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
-                                <h3 className="text-xl font-black text-white">{selectedUser.name}</h3>
+                                <h3 className="text-xl font-black text-white">{selectedUser.name || selectedUser.email || 'Unnamed user'}</h3>
                                 {isCurrentUser && (
                                     <span className="text-[8px] px-2 py-0.5 bg-yellow-500/20 text-yellow-500 rounded-full font-black uppercase">
                                         You
