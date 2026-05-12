@@ -114,15 +114,11 @@ export const useAppContext = () => {
   return context;
 };
 
-// --- SCROLL TO TOP ---
-// HOME-01: the browser's default `history.scrollRestoration` will try to
-// restore the previous scroll position on initial load — that's why the
-// landing page sometimes opens scrolled near the footer. We disable that
-// restoration explicitly and scroll to the top on every navigation. The
-// rAF lets the new route render first so the scroll lands on the new
-// content rather than the old layout.
+// HOME-01 / NAV-01: disable browser scroll restoration and force top-of-page
+// after route changes and after late layout (images). Hash-router pathname
+// alone can miss updates; include search + hash in the dependency key.
 const ScrollToTop = () => {
-  const { pathname } = useLocation();
+  const location = useLocation();
 
   useEffect(() => {
     try {
@@ -134,12 +130,33 @@ const ScrollToTop = () => {
     }
   }, []);
 
+  const scrollKey = `${location.pathname}${location.search}${location.hash ?? ''}`;
+
   useEffect(() => {
-    const id = window.requestAnimationFrame(() => {
+    const scrollTopNow = () => {
       window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    };
+
+    scrollTopNow();
+    let raf2 = 0;
+    const raf1 = window.requestAnimationFrame(() => {
+      scrollTopNow();
+      raf2 = window.requestAnimationFrame(scrollTopNow);
     });
-    return () => window.cancelAnimationFrame(id);
-  }, [pathname]);
+    const t0 = window.setTimeout(scrollTopNow, 0);
+    const t1 = window.setTimeout(scrollTopNow, 120);
+    const t2 = window.setTimeout(scrollTopNow, 400);
+
+    return () => {
+      window.cancelAnimationFrame(raf1);
+      if (raf2) window.cancelAnimationFrame(raf2);
+      window.clearTimeout(t0);
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, [scrollKey]);
 
   return null;
 };

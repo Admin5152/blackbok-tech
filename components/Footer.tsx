@@ -84,7 +84,7 @@ export const Footer: React.FC<FooterProps> = ({ theme }) => {
               <li><Link to="/trades" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Trade-In Program</Link></li>
               <li><Link to="/policies" search={{ tab: 'returns' } as any} className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Returns & Exchanges</Link></li>
               <li><Link to="/policies" search={{ tab: 'privacy' } as any} className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Privacy Policy</Link></li>
-              <li><a href="#" className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Terms of Service</a></li>
+              <li><Link to="/policies" search={{ tab: 'terms' } as any} className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}>Terms of Service</Link></li>
             </ul>
           </div>
 

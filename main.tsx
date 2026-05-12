@@ -4,6 +4,17 @@ import App from './App';
 import './global.css';
 
 const rootElement = document.getElementById('root');
+
+try {
+  if ('scrollRestoration' in window.history) {
+    window.history.scrollRestoration = 'manual';
+  }
+} catch {
+  /* ignore */
+}
+window.scrollTo(0, 0);
+document.documentElement.scrollTop = 0;
+document.body.scrollTop = 0;
 const debugBanner = document.createElement('div');
 
 debugBanner.id = 'blackbox-debug-banner';
