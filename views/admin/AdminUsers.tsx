@@ -39,19 +39,20 @@ export const AdminUsers: React.FC = () => {
         return () => { mounted = false; };
     }, []);
 
-    const filtered = users.filter(u => {
+    const filtered = (users || []).filter(u => {
+        if (!u) return false;
         const name = String(u.name ?? '').toLowerCase();
         const email = String(u.email ?? '').toLowerCase();
         const ql = q.toLowerCase();
         const matchQ = name.includes(ql) || email.includes(ql);
-        const matchR = roleFilter === 'all' || u.role === roleFilter;
+        const matchR = roleFilter === 'all' || (u.role ?? 'user') === roleFilter;
         return matchQ && matchR;
     });
 
     const sorted = [...filtered].sort((a, b) => {
-        const aVal = a[sortField] || '';
-        const bVal = b[sortField] || '';
-        const comparison = aVal.toString().localeCompare(bVal.toString());
+        const aVal = (a as any)?.[sortField] ?? '';
+        const bVal = (b as any)?.[sortField] ?? '';
+        const comparison = String(aVal).localeCompare(String(bVal));
         return sortDirection === 'asc' ? comparison : -comparison;
     });
 
@@ -103,11 +104,11 @@ export const AdminUsers: React.FC = () => {
                 <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-6">
                     <div className="flex items-start gap-6 mb-6">
                         <div className="w-20 h-20 rounded-2xl flex items-center justify-center font-black text-black text-2xl italic" style={{ background: roleInfo.color }}>
-                            {selectedUser.avatarLetter || selectedUser.name.charAt(0)}
+                            {(selectedUser.avatarLetter || (selectedUser.name ?? selectedUser.email ?? '?').toString().charAt(0) || '?').toUpperCase()}
                         </div>
                         <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
-                                <h3 className="text-xl font-black text-white">{selectedUser.name}</h3>
+                                <h3 className="text-xl font-black text-white">{selectedUser.name || selectedUser.email || 'Unnamed user'}</h3>
                                 {isCurrentUser && (
                                     <span className="text-[8px] px-2 py-0.5 bg-yellow-500/20 text-yellow-500 rounded-full font-black uppercase">
                                         You
@@ -319,9 +320,9 @@ export const AdminUsers: React.FC = () => {
                                             <td className="p-4">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-black text-xs" style={{ background: `${getRoleInfo(u.role ?? 'user').color}` }}>
-                                                        {u.avatarLetter || u.name.charAt(0).toUpperCase()}
+                                                        {(u.avatarLetter || (u.name ?? u.email ?? '?').toString().charAt(0) || '?').toUpperCase()}
                                                     </div>
-                                                    <span className="text-white font-medium">{u.name}</span>
+                                                    <span className="text-white font-medium">{u.name || u.email || 'Unnamed user'}</span>
                                                     {isCurrentUser && (
                                                         <span className="text-[8px] px-2 py-0.5 bg-yellow-500/20 text-yellow-500 rounded-full font-black uppercase">
                                                             You

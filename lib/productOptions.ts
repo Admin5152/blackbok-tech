@@ -64,7 +64,7 @@ function uniqFromRows(rows: any[], key: 'color' | 'storage' | 'ram'): string[] {
  */
 export function getProductOptionGroups(product: Product | null | undefined): ProductOptionGroup[] {
   if (!product) return [];
-  const asAny = product as Record<string, unknown>;
+  const asAny = product as unknown as Record<string, unknown>;
 
   if (Array.isArray(product.variants) && product.variants.length > 0) {
     const named = product.variants.filter(

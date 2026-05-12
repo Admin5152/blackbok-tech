@@ -10,6 +10,9 @@ export interface Profile {
   address?: string;
   city?: string;
   region?: string;
+  country?: string;
+  customer_id?: string | null;
+  role?: AppRole;
   is_suspended?: boolean;
   suspended_at?: string;
   suspension_reason?: string;
