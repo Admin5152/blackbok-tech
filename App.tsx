@@ -11,7 +11,7 @@ import {
   createHashHistory
 } from '@tanstack/react-router';
 import { X, Activity, Scale, RefreshCcw, Home as HomeIcon, ShoppingBag, Wrench, ShoppingCart, User as UserIcon, LogOut, ChevronRight, ChevronDown, Settings, Sparkles, Eye, Clock } from 'lucide-react';
-import { supabase } from './lib/supabase';
+import { supabase, getSupabaseClient, isSupabaseConfigured } from './lib/supabase';
 import { WhatsAppIcon } from './components/Icons';
 import { Product, User, CartItem, Category, RepairRequest, Order, TradeRequest } from './types';
 import { getProducts, getOrders, getTradeRequests, getRepairRequests } from './lib/api';
@@ -104,6 +104,8 @@ export interface AppContextType {
   theme: Theme;
   setTheme: (t: Theme) => void;
   refreshProducts: () => Promise<void>;
+  /** False until first auth/session restore from storage + Supabase finishes. */
+  authReady: boolean;
 }
 
 export const AppContext = createContext<AppContextType | null>(null);
@@ -297,6 +299,10 @@ const checkoutRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/checkout',
   component: () => {
+    const { authReady, theme } = useAppContext();
+    if (!authReady) {
+      return <RouteSessionSpinner theme={theme} label="Loading session…" />;
+    }
     return <Checkout />;
   },
 });
@@ -328,7 +334,10 @@ const profileRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/profile',
   component: () => {
-    const { trades, ...context } = useAppContext();
+    const { authReady, trades, ...context } = useAppContext();
+    if (!authReady) {
+      return <RouteSessionSpinner theme={context.theme} label="Loading session…" />;
+    }
     return <Profile {...context} trades={trades} />;
   },
 });
@@ -353,6 +362,137 @@ const resetPasswordRoute = createRoute({
   path: '/reset-password',
   component: () => <ResetPassword />,
 });
+
+/**
+ * Full-page spinner while session is restored or privileged routes re-check Supabase.
+ */
+const RouteSessionSpinner: React.FC<{
+  theme: 'light' | 'dark';
+  label?: string;
+}> = ({ theme, label = 'Verifying access…' }) => {
+  const isLight = theme === 'light';
+  return (
+    <div className={`min-h-screen flex flex-col items-center justify-center gap-4 p-8 ${isLight ? 'bg-[#F0F0F0] text-black' : 'bg-black text-white'}`}>
+      <Activity className={`h-10 w-10 animate-pulse ${isLight ? 'text-black/30' : 'text-[#CDA032]'}`} />
+      <p className={`text-xs font-black uppercase tracking-[0.25em] ${isLight ? 'text-black/50' : 'text-white/40'}`}>
+        {label}
+      </p>
+    </div>
+  );
+};
+
+/** Signed-out wall for routes that require an authenticated customer session. */
+const SignInRequiredWall: React.FC<{
+  theme: 'light' | 'dark';
+  navigateTo: (path: string) => void;
+}> = ({ theme, navigateTo }) => {
+  const isLight = theme === 'light';
+  return (
+    <div className={`min-h-screen flex items-center justify-center p-6 ${isLight ? 'bg-white' : 'bg-black'}`}>
+      <div className="text-center space-y-6 max-w-sm">
+        <h2 className={`text-xl font-black uppercase tracking-tight italic ${isLight ? 'text-black' : 'text-white'}`}>
+          Sign in required
+        </h2>
+        <p className={`text-[10px] font-bold uppercase tracking-widest ${isLight ? 'text-gray-400' : 'text-white/30'}`}>
+          Sign in to view this page.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigateTo('/auth')}
+          className="px-10 py-4 bg-gradient-to-r from-[#B38B21] to-[#D4AF37] text-black font-black rounded-full text-[10px] uppercase tracking-[0.3em] hover:scale-105 transition-all shadow-[0_10px_40px_rgba(179,139,33,0.3)]"
+        >
+          Sign In
+        </button>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Admin dashboard: require Supabase-validated session + live admin/staff role.
+ * Blocks forged localStorage roles and expired sessions.
+ */
+const AdminRouteShell: React.FC = () => {
+  const { user, authReady, theme, navigateTo, setUser } = useAppContext();
+  const [verified, setVerified] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!authReady) {
+      setVerified(null);
+      return;
+    }
+    if (!user || !canAccessAdminDashboard(user.role)) {
+      setVerified(false);
+      return;
+    }
+
+    let cancelled = false;
+    setVerified(null);
+
+    (async () => {
+      const live = await AuthService.verifyLiveAdminOrStaffSession();
+      if (cancelled) return;
+
+      if (!live) {
+        try {
+          if (isSupabaseConfigured()) {
+            const { data: { session } } = await getSupabaseClient().auth.getSession();
+            if (!session) {
+              localStorage.removeItem(STORAGE_KEYS.USER);
+              setUser(null);
+            }
+          } else {
+            localStorage.removeItem(STORAGE_KEYS.USER);
+            setUser(null);
+          }
+        } catch {
+          /* ignore */
+        }
+        setVerified(false);
+        return;
+      }
+
+      if (live.id !== user.id) {
+        setVerified(false);
+        return;
+      }
+
+      setUser((prev) =>
+        prev && prev.id === live.id
+          ? {
+              ...prev,
+              email: live.email,
+              name: live.name ?? prev.name,
+              role: normalizeCanonicalRole(live.role) as User['role'],
+            }
+          : prev
+      );
+      setVerified(true);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authReady, user?.id, user?.role, user?.email, setUser]);
+
+  if (!authReady) {
+    return <RouteSessionSpinner theme={theme} label="Loading session…" />;
+  }
+  if (!user) {
+    return <AdminAccessDenied reason="not-logged-in" navigateTo={navigateTo} theme={theme} />;
+  }
+  if (!canAccessAdminDashboard(user.role)) {
+    return <AdminAccessDenied reason="not-admin" navigateTo={navigateTo} theme={theme} />;
+  }
+  if (verified === null) {
+    return <RouteSessionSpinner theme={theme} label="Verifying admin access…" />;
+  }
+  if (!verified) {
+    return <AdminAccessDenied reason="not-admin" navigateTo={navigateTo} theme={theme} />;
+  }
+
+  return <Admin user={user} setUser={setUser} navigateTo={navigateTo} theme={theme} />;
+};
 
 /**
  * Inline access gate for the /admin route. Renders a friendly denial
@@ -405,35 +545,7 @@ const AdminAccessDenied: React.FC<{
 const adminRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/admin',
-  component: () => {
-    const context = useAppContext();
-    const user = context.user;
-
-    // Role guard. Before this gate, anyone with the URL could load the
-    // admin dashboard. Now:
-    //   - no user → "please sign in" screen
-    //   - not admin/staff (per app_role / has_role) → "access restricted" screen
-    if (!user) {
-      return (
-        <AdminAccessDenied
-          reason="not-logged-in"
-          navigateTo={context.navigateTo}
-          theme={context.theme}
-        />
-      );
-    }
-    if (!canAccessAdminDashboard(user.role)) {
-      return (
-        <AdminAccessDenied
-          reason="not-admin"
-          navigateTo={context.navigateTo}
-          theme={context.theme}
-        />
-      );
-    }
-
-    return <Admin user={user} setUser={context.setUser} navigateTo={context.navigateTo} theme={context.theme} />;
-  },
+  component: AdminRouteShell,
 });
 
 const aboutRoute = createRoute({
@@ -471,6 +583,13 @@ const historyRoute = createRoute({
     }
   },
   component: () => {
+    const ctx = useAppContext();
+    if (!ctx.authReady) {
+      return <RouteSessionSpinner theme={ctx.theme} label="Loading session…" />;
+    }
+    if (!ctx.user) {
+      return <SignInRequiredWall theme={ctx.theme} navigateTo={ctx.navigateTo} />;
+    }
     return <History />;
   },
 });
@@ -611,6 +730,7 @@ function RootComponent() {
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [user, setUser] = useState<User | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [repairs, setRepairs] = useState<RepairRequest[]>([]);
   const [trades, setTrades] = useState<TradeRequest[]>([]);
@@ -699,6 +819,11 @@ function RootComponent() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    const markAuthReady = () => {
+      if (!cancelled) setAuthReady(true);
+    };
+
     try {
       const localUser = localStorage.getItem(STORAGE_KEYS.USER);
       const localCart = localStorage.getItem(STORAGE_KEYS.CART);
@@ -710,40 +835,54 @@ function RootComponent() {
       const localTheme = localStorage.getItem(STORAGE_KEYS.THEME);
 
       if (localUser) {
-        const parsedUser = JSON.parse(localUser);
-        console.log('Found local user:', parsedUser);
+        let parsedUser: User | null = null;
+        let parseOk = false;
+        try {
+          parsedUser = JSON.parse(localUser);
+          parseOk = true;
+        } catch {
+          localStorage.removeItem(STORAGE_KEYS.USER);
+        }
 
-        // Validate if user session is still valid
-        const validateUserSession = async () => {
-          try {
-            const currentUser = await AuthService.getCurrentUser();
-            console.log('Current Supabase user:', currentUser);
+        if (parseOk && parsedUser) {
+          console.log('Found local user:', parsedUser);
 
-            if (currentUser && currentUser.id === parsedUser.id) {
-              // Session is valid; merge stored user with canonical role from Supabase
-              console.log('User session is valid, restoring user');
-              setUser({
-                ...parsedUser,
-                id: currentUser.id,
-                email: currentUser.email,
-                name: currentUser.name ?? parsedUser.name,
-                role: normalizeCanonicalRole(currentUser.role ?? parsedUser.role),
-              });
-            } else {
-              // Session is invalid, clear user
-              console.log('User session is invalid, clearing user');
+          const validateUserSession = async () => {
+            try {
+              const currentUser = await AuthService.getCurrentUser();
+              console.log('Current Supabase user:', currentUser);
+
+              if (cancelled) return;
+
+              if (currentUser && currentUser.id === parsedUser!.id) {
+                console.log('User session is valid, restoring user');
+                setUser({
+                  ...parsedUser!,
+                  id: currentUser.id,
+                  email: currentUser.email,
+                  name: currentUser.name ?? parsedUser!.name,
+                  role: normalizeCanonicalRole(currentUser.role ?? parsedUser!.role),
+                });
+              } else {
+                console.log('User session is invalid, clearing user');
+                localStorage.removeItem(STORAGE_KEYS.USER);
+                setUser(null);
+              }
+            } catch (error) {
+              console.error('Error validating user session:', error);
               localStorage.removeItem(STORAGE_KEYS.USER);
               setUser(null);
+            } finally {
+              markAuthReady();
             }
-          } catch (error) {
-            console.error('Error validating user session:', error);
-            // On error, clear user to be safe
-            localStorage.removeItem(STORAGE_KEYS.USER);
-            setUser(null);
-          }
-        };
+          };
 
-        validateUserSession();
+          void validateUserSession();
+        } else {
+          markAuthReady();
+        }
+      } else {
+        markAuthReady();
       }
 
       if (localCart) setCart(JSON.parse(localCart));
@@ -755,9 +894,13 @@ function RootComponent() {
       if (localTheme === 'light' || localTheme === 'dark') setTheme(localTheme);
     } catch (e) {
       console.error('Error loading from localStorage:', e);
+      markAuthReady();
     }
 
     refreshProducts();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Email-flow routing. Supabase's redirect after a "forgot password" or
@@ -988,6 +1131,7 @@ function RootComponent() {
     theme,
     setTheme,
     refreshProducts,
+    authReady,
   };
 
   const isLight = theme === 'light';
@@ -1291,6 +1435,7 @@ export default function App() {
     theme,
     setTheme,
     refreshProducts: (async () => {}) as any,
+    authReady: true,
   };
 
   return (

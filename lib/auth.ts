@@ -1,6 +1,6 @@
 import { supabase, getSupabaseClient, isSupabaseConfigured } from './supabase';
 import type { User } from '../interface/interface';
-import { normalizeCanonicalRole, type CanonicalAppRole } from './roles';
+import { normalizeCanonicalRole, type CanonicalAppRole, canAccessAdminDashboard } from './roles';
 import { resolveUserDisplayName } from './userDisplayName';
 
 // Authentication Types
@@ -29,6 +29,19 @@ export interface AuthResponse {
 class AuthService {
   private static resolveAppRole(role: unknown): CanonicalAppRole {
     return normalizeCanonicalRole(role);
+  }
+
+  /** User-facing copy for Supabase auth errors (anti-enumeration keeps some cases generic). */
+  static formatLoginError(message: string | undefined): string {
+    const m = (message || '').trim();
+    if (!m) return 'Sign in failed. Try again or create an account.';
+    if (/invalid login credentials/i.test(m)) {
+      return 'No account matches this email and password, or the password is wrong. New here or your account was removed? Use Sign up to create a new account.';
+    }
+    if (/email not confirmed|confirm your email|email_not_confirmed/i.test(m)) {
+      return 'Confirm your email using the link we sent you, then try signing in again.';
+    }
+    return m;
   }
 
   // Sign In
@@ -70,7 +83,7 @@ class AuthService {
         
         if (error) {
           console.error(' Supabase auth error:', error);
-          return { user: null, error: error.message };
+          return { user: null, error: this.formatLoginError(error.message) };
         }
         
         if (data.user) {
@@ -79,23 +92,47 @@ class AuthService {
           // Get user profile from Supabase
           const profile = await this.getUserProfile(data.user.id);
           console.log(' User profile:', profile);
+
+          // Must have a real app account row (handle_new_user). No profile =
+          // deleted / never provisioned — do not treat as logged in.
+          // Brief retries cover the rare race where the profile trigger lags behind auth.
+          let profileRow = profile;
+          if (!profileRow) {
+            for (let i = 0; i < 5 && !profileRow; i++) {
+              await new Promise((r) => setTimeout(r, 280));
+              profileRow = await this.getUserProfile(data.user.id);
+            }
+          }
+
+          if (!profileRow) {
+            console.warn('Sign-in rejected: no profiles row for auth user', data.user.id);
+            await client.auth.signOut();
+            return {
+              user: null,
+              error:
+                'No active account was found for this sign-in. If you never registered, use Sign up. If your account was deleted, create a new account with Sign up.',
+            };
+          }
           
-          // Get user role from user_roles table
-          const { data: roles } = await client
+          const { data: roleRows, error: rolesErr } = await client
             .from('user_roles')
             .select('role')
-            .eq('user_id', data.user.id)
-            .maybeSingle();
-          
-          const finalRole = this.resolveAppRole(
-            roles?.role ?? profile?.role ?? data.user.app_metadata?.role ?? data.user.user_metadata?.role
+            .eq('user_id', data.user.id);
+          if (rolesErr) {
+            console.warn('user_roles read on sign-in:', rolesErr.message);
+          }
+          const finalRole = this.resolveRoleFromUserRolesRows(
+            roleRows as { role: string }[] | undefined,
+            profileRow?.role,
+            data.user.user_metadata?.role,
+            data.user.app_metadata?.role
           );
           console.log(' User role resolved:', finalRole);
           
           const authUser: AuthUser = {
             id: data.user.id,
             email: data.user.email || '',
-            name: resolveUserDisplayName(profile?.name, data.user),
+            name: resolveUserDisplayName(profileRow?.name, data.user),
             role: finalRole
           };
           
@@ -260,6 +297,37 @@ class AuthService {
     }
   }
 
+  /**
+   * Resolve canonical role from user_roles rows (admin > staff > user).
+   * Avoids maybeSingle() failing when multiple rows exist.
+   */
+  private static resolveRoleFromUserRolesRows(
+    rows: { role: string }[] | null | undefined,
+    profileRole: unknown,
+    userMetaRole: unknown,
+    appMetaRole: unknown
+  ): CanonicalAppRole {
+    const list = (rows ?? [])
+      .map((r) => String(r.role ?? '').toLowerCase())
+      .filter(Boolean);
+    if (list.includes('admin')) return 'admin';
+    if (list.includes('staff')) return 'staff';
+    if (list.length > 0) return this.resolveAppRole(list[0]);
+    return this.resolveAppRole(
+      profileRole ?? userMetaRole ?? appMetaRole
+    );
+  }
+
+  /**
+   * True only when Supabase has validated the JWT and the user is allowed
+   * to open the admin dashboard (admin or staff).
+   */
+  static async verifyLiveAdminOrStaffSession(): Promise<AuthUser | null> {
+    const u = await this.getCurrentUser();
+    if (!u || !canAccessAdminDashboard(u.role)) return null;
+    return u;
+  }
+
   // Get Current User
   static async getCurrentUser(): Promise<AuthUser | null> {
     try {
@@ -274,40 +342,37 @@ class AuthService {
       // Get Supabase client with error handling
       const client = getSupabaseClient();
       
-      const { data: { user } } = await client.auth.getUser();
-      console.log('Current user from Supabase:', user);
-      
-      if (!user) {
-        console.log('No current user found');
+      const { data, error } = await client.auth.getUser();
+      if (error || !data?.user) {
+        console.warn('auth.getUser() failed or empty:', error?.message ?? 'no user');
         return null;
       }
+      const user = data.user;
+      console.log('Current user from Supabase:', user);
 
-      // Try to get user profile
-      let profile = await this.getUserProfile(user.id);
-      
-      // If profile doesn't exist, create it
+      const profile = await this.getUserProfile(user.id);
       if (!profile) {
-        console.log('Profile not found, creating one for user:', user.id);
-        const seedName = resolveUserDisplayName(undefined, user);
-        profile = await this.createUserProfileSafe(
-          user.id,
-          user.email || '',
-          'user',
-          seedName
-        );
+        console.warn('Session cleared: auth user has no profiles row (deleted or invalid).', user.id);
+        await client.auth.signOut();
+        return null;
       }
       
       console.log('User profile:', profile);
       
-      // Get user role from user_roles table
-      const { data: roles } = await client
+      const { data: roleRows, error: rolesErr } = await client
         .from('user_roles')
         .select('role')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      
-      const finalRole = this.resolveAppRole(
-        roles?.role ?? profile?.role ?? user.app_metadata?.role ?? user.user_metadata?.role
+        .eq('user_id', user.id);
+
+      if (rolesErr) {
+        console.warn('user_roles read error (falling back to profile):', rolesErr.message);
+      }
+
+      const finalRole = this.resolveRoleFromUserRolesRows(
+        roleRows as { role: string }[] | undefined,
+        profile?.role,
+        user.user_metadata?.role,
+        user.app_metadata?.role
       );
       console.log('User role resolved:', finalRole);
       

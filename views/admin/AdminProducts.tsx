@@ -149,13 +149,13 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
 
     const cats = ['All', ...CATEGORIES];
     const filtered = products.filter(p => {
-        const mQ = p.name.toLowerCase().includes(q.toLowerCase());
+        const mQ = String(p.name ?? '').toLowerCase().includes(q.toLowerCase());
         const mC = catFilter === 'All' || p.category === catFilter;
         return mQ && mC;
     });
 
     const catMap: Record<string, number> = {};
-    products.forEach(p => { catMap[p.category] = (catMap[p.category] || 0) + 1; });
+    products.forEach(p => { const c = p.category ?? ''; catMap[c] = (catMap[c] || 0) + 1; });
     const lowStock = products.filter(p => (p.stock ?? 0) < 5);
     const featured = products.filter(p => Boolean(p.featured));
 
@@ -181,7 +181,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
                 <div className="bg-red-500/5 border border-red-500/10 rounded-xl p-4">
                     <p className="text-xs font-black text-red-400 flex items-center gap-2 mb-2"><AlertTriangle size={13} /> Low Stock Alert</p>
                     <div className="flex flex-wrap gap-2">
-                        {lowStock.map(p => <span key={p.id} className="text-[10px] bg-red-500/10 text-red-400 px-2 py-1 rounded-lg font-bold">{p.name} ({p.stock} left)</span>)}
+                        {lowStock.map(p => <span key={p.id} className="text-[10px] bg-red-500/10 text-red-400 px-2 py-1 rounded-lg font-bold">{p.name ?? '(unnamed)'} ({p.stock} left)</span>)}
                     </div>
                 </div>
             )}

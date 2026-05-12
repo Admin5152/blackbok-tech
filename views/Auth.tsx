@@ -15,6 +15,7 @@ interface AuthProps {
 export const Auth: React.FC<AuthProps> = ({ setUser, navigateTo, notify }) => {
   const { theme, setTheme } = useAppContext();
   const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [signUpPrefillEmail, setSignUpPrefillEmail] = useState<string | undefined>(undefined);
 
   
 
@@ -68,7 +69,7 @@ export const Auth: React.FC<AuthProps> = ({ setUser, navigateTo, notify }) => {
               </h1>
               <p className={`text-sm font-light italic leading-snug max-w-xs ${leftMuted}`}>
                 {mode === 'login'
-                  ? 'Start your journey now with us and access the elite hardware repository.'
+                  ? 'You need a registered account to sign in. New users and removed accounts must use Sign up first.'
                   : 'Create your account and join the elite hardware repository.'}
               </p>
             </div>
@@ -93,16 +94,34 @@ export const Auth: React.FC<AuthProps> = ({ setUser, navigateTo, notify }) => {
 
             <div className="space-y-2.5 flex-1 min-h-0 flex flex-col">
               {mode === 'login' ? (
-                <Login setUser={setUser} navigateTo={navigateTo} theme={theme} notify={notify} />
+                <Login
+                  setUser={setUser}
+                  navigateTo={navigateTo}
+                  theme={theme}
+                  notify={notify}
+                  onSwitchToSignUp={(email) => {
+                    setSignUpPrefillEmail(email || undefined);
+                    setMode('signup');
+                  }}
+                />
               ) : (
-                <SignUp setUser={setUser} navigateTo={navigateTo} theme={theme} notify={notify} />
+                <SignUp
+                  setUser={setUser}
+                  navigateTo={navigateTo}
+                  theme={theme}
+                  notify={notify}
+                  prefillEmail={signUpPrefillEmail}
+                />
               )}
             </div>
 
             <div className="pt-4 mt-auto border-t flex-shrink-0" style={{ borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }}>
               <button
                 type="button"
-                onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
+                onClick={() => {
+                  setSignUpPrefillEmail(undefined);
+                  setMode(mode === 'login' ? 'signup' : 'login');
+                }}
                 className={`text-[10px] font-black uppercase tracking-widest ${cardMuted} hover:opacity-100 hover:text-[#CDA032] transition-all italic focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032] rounded px-1 py-0.5`}
               >
                 {mode === 'login' ? (

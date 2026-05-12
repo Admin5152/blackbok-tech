@@ -110,7 +110,7 @@ const InlineAuthForm: React.FC<InlineAuthFormProps> = ({ onAuthenticated, notify
           password: form.password,
         });
         if (!res.user) {
-          notify(res.error || 'Login failed.', 'error');
+          notify(AuthService.formatLoginError(res.error) || 'Login failed.', 'error');
           return;
         }
         const user: User = {
@@ -170,7 +170,7 @@ const InlineAuthForm: React.FC<InlineAuthFormProps> = ({ onAuthenticated, notify
         </h2>
       </div>
       <p className="text-sm text-white/60">
-        You need an account to place an order. Your cart will be saved.
+        You need a registered BlackBox account to place an order. New or deleted accounts: use Create an account first, then sign in.
       </p>
 
       <form onSubmit={submit} className="space-y-4">

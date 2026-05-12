@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Mail, Lock, User as UserIcon, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import AuthService, { type LoginCredentials, type AuthResponse } from '../lib/auth';
 import type { User } from '../interface/interface';
@@ -8,9 +8,11 @@ interface SignUpProps {
   navigateTo: (view: string) => void;
   theme: 'light' | 'dark';
   notify: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
+  /** When switching from Login after a failed attempt, pre-fill the email field. */
+  prefillEmail?: string;
 }
 
-export const SignUp: React.FC<SignUpProps> = ({ setUser, navigateTo, theme, notify }) => {
+export const SignUp: React.FC<SignUpProps> = ({ setUser, navigateTo, theme, notify, prefillEmail }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -18,6 +20,12 @@ export const SignUp: React.FC<SignUpProps> = ({ setUser, navigateTo, theme, noti
     email: '',
     password: '',
   });
+
+  useEffect(() => {
+    const e = prefillEmail?.trim();
+    if (!e) return;
+    setFormData((prev) => ({ ...prev, email: e }));
+  }, [prefillEmail]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });

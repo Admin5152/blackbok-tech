@@ -6,6 +6,25 @@ import type { Order, User } from '../../types';
 import { formatCurrency } from '../../lib/utils';
 import { normalizeCanonicalRole } from '../../lib/roles';
 
+/** Avatar / initial when `profiles.name` may be null (use email fallback). */
+function customerInitialGlyph(u: { avatarLetter?: string; name?: string | null; email?: string | null }): string {
+  const letter = u.avatarLetter?.trim();
+  if (letter) return letter.slice(0, 1).toUpperCase();
+  const name = u.name?.trim();
+  if (name) return name.charAt(0).toUpperCase();
+  const email = u.email?.trim();
+  if (email) return email.charAt(0).toUpperCase();
+  return '?';
+}
+
+function customerDisplayName(u: { name?: string | null; email?: string | null }): string {
+  const n = u.name?.trim();
+  if (n) return n;
+  const e = u.email?.trim();
+  if (e) return e;
+  return 'Unknown';
+}
+
 export const AdminCustomers: React.FC = () => {
     const [users, setUsers] = useState<User[]>([]);
     const [orders, setOrders] = useState<Order[]>([]);
@@ -100,10 +119,10 @@ export const AdminCustomers: React.FC = () => {
                 <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-6">
                     <div className="flex items-start gap-6 mb-6">
                         <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#B38B21] to-[#D4AF37] flex items-center justify-center text-black font-black text-2xl italic">
-                            {selectedCustomer.avatarLetter || selectedCustomer.name.charAt(0)}
+                            {customerInitialGlyph(selectedCustomer)}
                         </div>
                         <div className="flex-1">
-                            <h3 className="text-xl font-black text-white mb-2">{selectedCustomer.name}</h3>
+                            <h3 className="text-xl font-black text-white mb-2">{customerDisplayName(selectedCustomer)}</h3>
                             <div className="space-y-2">
                                 <div className="flex items-center gap-3 text-white/70">
                                     <Mail size={16} />
@@ -256,9 +275,9 @@ export const AdminCustomers: React.FC = () => {
                                             <td className="p-4">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#B38B21] to-[#D4AF37] flex items-center justify-center text-black font-black text-xs italic">
-                                                        {customer.avatarLetter || customer.name.charAt(0)}
+                                                        {customerInitialGlyph(customer)}
                                                     </div>
-                                                    <span className="text-white font-medium">{customer.name}</span>
+                                                    <span className="text-white font-medium">{customerDisplayName(customer)}</span>
                                                 </div>
                                             </td>
                                             <td className="p-4 text-white/70">{customer.email}</td>
@@ -294,10 +313,10 @@ export const AdminCustomers: React.FC = () => {
                             <div key={customer.id} className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-all">
                                 <div className="flex items-center gap-3 mb-4">
                                     <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-black text-sm shrink-0" style={{ background: roleColor(customer.role) }}>
-                                        {customer.name.charAt(0).toUpperCase()}
+                                        {customerInitialGlyph(customer)}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-black text-white truncate">{customer.name}</p>
+                                        <p className="text-sm font-black text-white truncate">{customerDisplayName(customer)}</p>
                                         <p className="text-[10px] text-white/30 truncate">{customer.email}</p>
                                     </div>
                                     <span className="text-[8px] font-black uppercase px-2 py-1 rounded-full shrink-0" style={{ background: `${roleColor(customer.role)}20`, color: roleColor(customer.role) }}>

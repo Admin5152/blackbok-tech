@@ -134,7 +134,7 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
           {sidebar && user && (
             <div className={`px-3 py-2 rounded-xl mb-1 ${isLight ? 'bg-black/5' : 'bg-white/[0.03]'}`}>
               <p className={`text-[9px] uppercase tracking-widest ${isLight ? 'text-black/40' : 'text-white/20'}`}>Signed in as</p>
-              <p className={`text-xs font-black truncate ${isLight ? 'text-black' : 'text-white'}`}>{user.name || user.email}</p>
+              <p className={`text-xs font-black truncate ${isLight ? 'text-black' : 'text-white'}`}>{user?.name?.trim() || user?.email || 'User'}</p>
               <p className="text-[8px] text-[#B38B21] font-black uppercase">{role}</p>
             </div>
           )}

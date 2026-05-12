@@ -10,9 +10,11 @@ interface LoginProps {
   navigateTo: (view: string) => void;
   theme: 'light' | 'dark';
   notify: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
+  /** Switches parent Auth to Sign up and can pre-fill email after a failed login. */
+  onSwitchToSignUp?: (email: string) => void;
 }
 
-export const Login: React.FC<LoginProps> = ({ setUser, navigateTo, theme, notify }) => {
+export const Login: React.FC<LoginProps> = ({ setUser, navigateTo, theme, notify, onSwitchToSignUp }) => {
   const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -146,7 +148,7 @@ export const Login: React.FC<LoginProps> = ({ setUser, navigateTo, theme, notify
         }
       } else {
         console.error('Authentication failed:', response.error);
-        notify(response.error || 'Login failed. Please try again.', 'error');
+        notify(AuthService.formatLoginError(response.error) || 'Login failed. Please try again.', 'error');
       }
     } catch (error: any) {
       console.error('Login component error:', error);
@@ -234,6 +236,22 @@ export const Login: React.FC<LoginProps> = ({ setUser, navigateTo, theme, notify
           </button>
         </div>
       </div>
+
+      <p className={`text-[11px] leading-relaxed ${cardMuted}`}>
+        You need an active BlackBox account to sign in. If you are new or your account was deleted, use{' '}
+        {onSwitchToSignUp ? (
+          <button
+            type="button"
+            onClick={() => onSwitchToSignUp(formData.email.trim())}
+            className="text-[#CDA032] font-bold underline-offset-2 hover:underline"
+          >
+            Sign up
+          </button>
+        ) : (
+          <span className="text-[#CDA032] font-bold">Sign up</span>
+        )}{' '}
+        to create one first.
+      </p>
 
       {/* Submit Button */}
       <button
