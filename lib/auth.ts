@@ -27,15 +27,8 @@ export interface AuthResponse {
 
 // Authentication Service
 class AuthService {
-  private static readonly ADMIN_EMAILS = new Set(['blackbox@gmail.com']);
-
-  private static resolveAppRole(role: unknown, email?: string | null): CanonicalAppRole {
-    const fromDb = normalizeCanonicalRole(role);
-    return this.isAdminEmail(email) ? 'admin' : fromDb;
-  }
-
-  private static isAdminEmail(email?: string | null): boolean {
-    return !!email && this.ADMIN_EMAILS.has(email.toLowerCase());
+  private static resolveAppRole(role: unknown): CanonicalAppRole {
+    return normalizeCanonicalRole(role);
   }
 
   // Sign In
