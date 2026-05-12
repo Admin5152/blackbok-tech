@@ -50,6 +50,14 @@ export const Profile: React.FC<ProfileProps> = ({
   const [resetSending, setResetSending] = useState(false);
   const [settingsErr, setSettingsErr] = useState('');
   const [emailVerified, setEmailVerified] = useState<boolean | null>(null);
+  const [userDataForDeletion, setUserDataForDeletion] = useState<{
+    email: string;
+    name: string;
+    createdAt: string;
+    orderCount: number;
+    repairCount: number;
+    tradeCount: number;
+  } | null>(null);
 
   useEffect(() => {
     if (activeTab !== 'settings' || !user) return;
@@ -992,6 +1000,7 @@ export const Profile: React.FC<ProfileProps> = ({
           setShowDeleteModal(false);
           setDeletePassword('');
           setDeleteError('');
+          setUserDataForDeletion(null);
         }}
         onConfirm={handleDeleteAccount}
         isDeleting={isDeleting}

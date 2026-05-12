@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "promote-admin": "node scripts/promote-admin.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.38.0",
