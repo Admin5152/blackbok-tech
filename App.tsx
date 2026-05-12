@@ -764,20 +764,6 @@ function RootComponent() {
     refreshProducts();
   }, []);
 
-  // If an admin is logged in, keep them in the standalone admin area —
-  // but let auth-flow routes through so admins can recover their own
-  // password / confirm email without being yanked back to the dashboard.
-  useEffect(() => {
-    const authFlowPaths = ['/reset-password', '/forgot-password', '/emailconfirm', '/confirmation', '/auth'];
-    if (
-      canAccessAdminDashboard(user?.role) &&
-      location.pathname !== '/admin' &&
-      !authFlowPaths.includes(location.pathname)
-    ) {
-      navigate({ to: '/admin' as any });
-    }
-  }, [user, location.pathname, navigate]);
-
   // Email-flow routing. Supabase's redirect after a "forgot password" or
   // "confirm email" click is unreliable when the redirectTo URL uses a
   // hash fragment (fragments can be stripped, recovery tokens can land in

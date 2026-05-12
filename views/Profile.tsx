@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   LogOut, Package, Wrench, Clock, CheckCircle2,
   MapPin, Mail, ChevronRight, Activity, Shield, CreditCard as CardIcon,
@@ -11,8 +11,11 @@ import { formatDate, formatCurrency } from '../lib/utils';
 import { ProductCard } from '../components/ProductCard';
 import { OrderTracker } from '../components/OrderTracker';
 import { handleSignOut } from '../lib/signOut';
-import { DeleteAccountService, type DeleteAccountResult } from '../lib/deleteAccount';
+import { DeleteAccountService } from '../lib/deleteAccount';
 import { DeleteAccountModal } from '../components/DeleteAccountModal';
+import AuthService from '../lib/auth';
+import { updateUserProfile } from '../lib/api';
+import { getSupabaseClient } from '../lib/supabase';
 
 interface ProfileProps {
   user: User | null;
@@ -26,10 +29,11 @@ interface ProfileProps {
   toggleWishlist: (id: string) => void;
   onAddToCart: (p: Product, options?: Record<string, string>, qty?: number) => void;
   theme: 'light' | 'dark';
+  notify?: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
 }
 
 export const Profile: React.FC<ProfileProps> = ({
-  user, repairs, orders, trades = [], wishlist, products, setUser, navigateTo, toggleWishlist, onAddToCart, theme
+  user, repairs, orders, trades = [], wishlist, products, setUser, navigateTo, toggleWishlist, onAddToCart, theme, notify
 }) => {
   const isLight = theme === 'light';
   const [activeTab, setActiveTab] = useState<'overview' | 'settings' | 'orders' | 'repairs' | 'address' | 'payment' | 'wishlist' | 'purchases' | 'trades'>('overview');
@@ -39,7 +43,32 @@ export const Profile: React.FC<ProfileProps> = ({
   const [deletePassword, setDeletePassword] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
-  const [userDataForDeletion, setUserDataForDeletion] = useState<any>(null);
+  const [deleteRequiresPassword, setDeleteRequiresPassword] = useState(true);
+  const [nameDraft, setNameDraft] = useState('');
+  const [nameSaving, setNameSaving] = useState(false);
+  const [verifySending, setVerifySending] = useState(false);
+  const [resetSending, setResetSending] = useState(false);
+  const [settingsErr, setSettingsErr] = useState('');
+  const [emailVerified, setEmailVerified] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (activeTab !== 'settings' || !user) return;
+    setNameDraft(user.name || '');
+    setSettingsErr('');
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await getSupabaseClient().auth.getUser();
+        if (cancelled || error) return;
+        setEmailVerified(!!data.user?.email_confirmed_at);
+      } catch {
+        if (!cancelled) setEmailVerified(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, user?.id, user?.name]);
 
   if (!user) return (
     <div className={`min-h-screen flex items-center justify-center p-6 ${isLight ? 'bg-white' : 'bg-black'}`}>
@@ -73,19 +102,75 @@ export const Profile: React.FC<ProfileProps> = ({
     return orderTotal + repairTotal;
   }, [orders, repairs]);
 
+  const saveDisplayName = async () => {
+    if (!user) return;
+    const trimmed = nameDraft.trim();
+    if (!trimmed) {
+      setSettingsErr('Enter a display name.');
+      return;
+    }
+    setNameSaving(true);
+    setSettingsErr('');
+    try {
+      const letter = trimmed.charAt(0).toUpperCase() || 'U';
+      await updateUserProfile(user.id, { name: trimmed, avatar_letter: letter });
+      setUser({
+        ...user,
+        name: trimmed,
+        avatarLetter: letter,
+      });
+      notify?.('Display name saved.', 'success');
+    } catch (e: any) {
+      setSettingsErr(e?.message || 'Could not save name.');
+    } finally {
+      setNameSaving(false);
+    }
+  };
+
+  const sendVerificationEmail = async () => {
+    if (!user?.email) return;
+    setVerifySending(true);
+    setSettingsErr('');
+    try {
+      const r = await AuthService.resendEmailConfirmation(user.email);
+      if (r.success) notify?.('Verification email sent. Check your inbox.', 'success');
+      else setSettingsErr(r.error || 'Could not resend verification email.');
+    } finally {
+      setVerifySending(false);
+    }
+  };
+
+  const sendPasswordResetEmail = async () => {
+    if (!user?.email) return;
+    setResetSending(true);
+    setSettingsErr('');
+    try {
+      const r = await AuthService.requestPasswordReset(user.email);
+      if (r.success) notify?.('Password reset link sent to your email.', 'success');
+      else setSettingsErr(r.error || 'Could not send reset email.');
+    } finally {
+      setResetSending(false);
+    }
+  };
+
   // Delete account functions
   const handleDeleteAccount = async () => {
+    if (deleteRequiresPassword && !deletePassword.trim()) {
+      setDeleteError('Enter your password to confirm deletion.');
+      return;
+    }
     setIsDeleting(true);
     setDeleteError('');
 
     try {
-      const result = await DeleteAccountService.deleteAccount(deletePassword);
+      const result = await DeleteAccountService.deleteAccount(
+        deleteRequiresPassword ? deletePassword : undefined
+      );
 
       if (result.success) {
-        console.log('Account deleted successfully');
-        // Sign out and redirect to home
         await handleSignOut(setUser, navigateTo);
         setShowDeleteModal(false);
+        notify?.('Your account has been deleted.', 'info');
       } else {
         setDeleteError(result.error || 'Failed to delete account');
       }
@@ -97,16 +182,25 @@ export const Profile: React.FC<ProfileProps> = ({
   };
 
   const openDeleteModal = async () => {
+    setDeleteError('');
     try {
       const userData = await DeleteAccountService.getUserDataForDeletion();
+      if (!userData) {
+        notify?.('Could not load account data. Try again.', 'error');
+        return;
+      }
       setUserDataForDeletion(userData);
 
       const passwordCheck = await DeleteAccountService.checkPasswordRequirement();
-      if (passwordCheck.success) {
-        setShowDeleteModal(true);
+      if (!passwordCheck.success) {
+        notify?.(passwordCheck.error || 'Cannot start account deletion.', 'error');
+        return;
       }
+      setDeleteRequiresPassword(!!passwordCheck.requiresPassword);
+      setShowDeleteModal(true);
     } catch (error) {
       console.error('Error preparing delete account:', error);
+      notify?.('Something went wrong. Try again.', 'error');
     }
   };
 
@@ -637,29 +731,92 @@ export const Profile: React.FC<ProfileProps> = ({
           <div className="max-w-3xl space-y-8 animate-in slide-in-from-bottom-4 duration-500">
             <div className={`p-8 md:p-12 rounded-[2.5rem] border ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-[#050505] border-white/5 shadow-2xl'}`}>
               <div className="flex items-center justify-between mb-10">
-                <h3 className="text-2xl font-black italic uppercase tracking-tighter flex items-center gap-3">
+                <h3 className={`text-2xl font-black italic uppercase tracking-tighter flex items-center gap-3 ${isLight ? 'text-black' : 'text-white'}`}>
                   <UserIcon size={28} className="text-[#B38B21]" />
                   Repository Access
                 </h3>
               </div>
+
+              {settingsErr && (
+                <div className={`mb-6 flex items-start gap-3 rounded-2xl border px-4 py-3 ${isLight ? 'bg-red-50 border-red-200 text-red-800' : 'bg-red-500/10 border-red-500/30 text-red-300'}`}>
+                  <AlertCircle size={18} className="shrink-0 mt-0.5" />
+                  <p className="text-sm font-medium">{settingsErr}</p>
+                </div>
+              )}
+
               <div className="space-y-8">
-                {[
-                  { label: 'Identity Label', value: user.name, action: 'RENAME' },
-                  { label: 'Comms Stream', value: user.email, action: 'VERIFY' },
-                  { label: 'Security Key', value: '••••••••••••', action: 'RESET' },
-                ].map((field, i) => (
-                  <div key={i} className="flex flex-col md:flex-row md:items-end justify-between gap-6 py-4 border-b border-white/5 group">
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-30">{field.label}</p>
-                      <p className={`text-lg font-bold group-hover:text-[#B38B21] transition-colors ${isLight ? 'text-black' : 'text-white'}`}>{field.value}</p>
-                    </div>
-                    <button className="px-6 py-2 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-[#B38B21] hover:text-black transition-all">
-                      {field.action}
+                {/* Display name */}
+                <div className="flex flex-col gap-4 py-4 border-b border-white/5">
+                  <div className="space-y-1">
+                    <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${isLight ? 'text-gray-500' : 'opacity-30'}`}>Display name</p>
+                    <p className={`text-xs ${isLight ? 'text-gray-600' : 'text-white/50'}`}>Shown on orders, receipts, and your profile.</p>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+                    <input
+                      type="text"
+                      value={nameDraft}
+                      onChange={(e) => setNameDraft(e.target.value)}
+                      maxLength={120}
+                      className={`flex-1 rounded-xl border px-4 py-3 text-sm font-medium outline-none transition-colors ${isLight ? 'bg-white border-gray-200 text-black focus:border-black' : 'bg-white/5 border-white/10 text-white focus:border-[#B38B21]'}`}
+                      autoComplete="name"
+                    />
+                    <button
+                      type="button"
+                      onClick={saveDisplayName}
+                      disabled={nameSaving || !nameDraft.trim()}
+                      className="px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest bg-[#B38B21] text-black hover:opacity-90 disabled:opacity-40 transition-all shrink-0"
+                    >
+                      {nameSaving ? 'Saving…' : 'Save name'}
                     </button>
                   </div>
-                ))}
-              </div>
+                </div>
 
+                {/* Email + verification */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 py-4 border-b border-white/5">
+                  <div className="space-y-1 min-w-0">
+                    <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${isLight ? 'text-gray-500' : 'opacity-30'}`}>Email</p>
+                    <p className={`text-lg font-bold truncate ${isLight ? 'text-black' : 'text-white'}`}>{user.email}</p>
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      {emailVerified === true && (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 text-emerald-400 px-3 py-1 text-[10px] font-black uppercase tracking-widest">
+                          <CheckCircle2 size={12} /> Verified
+                        </span>
+                      )}
+                      {emailVerified === false && (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 text-amber-400 px-3 py-1 text-[10px] font-black uppercase tracking-widest">
+                          <AlertTriangle size={12} /> Not verified
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {emailVerified === false && (
+                    <button
+                      type="button"
+                      onClick={sendVerificationEmail}
+                      disabled={verifySending}
+                      className={`px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all shrink-0 ${isLight ? 'border-black/15 bg-white hover:bg-gray-50 text-black' : 'border-white/15 bg-white/5 hover:bg-white/10 text-white'}`}
+                    >
+                      {verifySending ? 'Sending…' : 'Resend verification'}
+                    </button>
+                  )}
+                </div>
+
+                {/* Password reset */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 py-4 border-b border-white/5">
+                  <div className="space-y-1">
+                    <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${isLight ? 'text-gray-500' : 'opacity-30'}`}>Password</p>
+                    <p className={`text-sm ${isLight ? 'text-gray-600' : 'text-white/50'}`}>We will email you a secure link to set a new password.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={sendPasswordResetEmail}
+                    disabled={resetSending}
+                    className="px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-[#B38B21] hover:text-black hover:border-[#B38B21] transition-all shrink-0 disabled:opacity-40"
+                  >
+                    {resetSending ? 'Sending…' : 'Email reset link'}
+                  </button>
+                </div>
+              </div>
 
               {/* Delete Account Section */}
               <div className="mt-8 flex items-center justify-center p-8 bg-red-600/5 border border-dashed border-red-600/20 rounded-3xl">
@@ -668,8 +825,8 @@ export const Profile: React.FC<ProfileProps> = ({
                     <Trash2 className="w-5 h-5 text-red-500" />
                     <h4 className="text-sm font-black uppercase tracking-widest text-red-500">DANGER ZONE</h4>
                   </div>
-                  <p className="text-xs text-red-400/60 font-medium">
-                    Permanently delete your account and all associated data. This action cannot be undone.
+                  <p className={`text-xs font-medium ${isLight ? 'text-red-700/80' : 'text-red-400/60'}`}>
+                    Permanently delete your account and associated data where allowed. This cannot be undone.
                   </p>
                   <button
                     onClick={openDeleteModal}
@@ -842,7 +999,7 @@ export const Profile: React.FC<ProfileProps> = ({
         password={deletePassword}
         setPassword={setDeletePassword}
         userData={userDataForDeletion}
-        requiresPassword={true}
+        requiresPassword={deleteRequiresPassword}
         theme={theme}
       />
 

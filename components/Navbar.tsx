@@ -3,13 +3,14 @@ import {
   X, CheckCircle2, Activity, Scale, RefreshCcw, RotateCcw, Home as HomeIcon,
   ShoppingBag, Wrench, ShoppingCart, User as UserIcon, LogOut,
   ChevronRight, ChevronDown, Settings, AlertTriangle,
-  Sparkles, Eye, Clock, Menu, Sun, Moon, Search, TrendingUp, Box, Laptop, Smartphone, Gamepad2, History, Calendar, Info, Heart, UserCog, Headphones
+  Sparkles, Eye, Clock, Menu, Sun, Moon, Search, TrendingUp, Box, Laptop, Smartphone, Gamepad2, History, Calendar, Info, Heart, UserCog, Headphones, LayoutDashboard
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from '@tanstack/react-router';
 import { User, CartItem, Product } from '../types';
 import { formatCurrency } from '../lib/utils';
 import { handleSignOut } from '../lib/signOut';
 import { NotificationBell } from './NotificationBell';
+import { canAccessAdminDashboard } from '../lib/roles';
 
 const ViewfinderLogo = () => (
   <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-8 h-8">
@@ -50,6 +51,7 @@ export const Navbar: React.FC<{
 
     const cartCount = cart.reduce((a, c) => a + c.quantity, 0);
     const isLight = theme === 'light';
+    const showAdminLink = Boolean(user && canAccessAdminDashboard(user.role));
 
     useEffect(() => {
       const handleScroll = () => {
@@ -195,6 +197,12 @@ export const Navbar: React.FC<{
                   </span>
                 )}
               </Link>
+
+              {showAdminLink && (
+                <Link to="/admin" className={navItemClass('/admin')}>
+                  <LayoutDashboard size={16} /> Admin
+                </Link>
+              )}
             </div>
 
             {/* Right Section: Account, Search, Theme, Mobile Menu */}
@@ -202,6 +210,19 @@ export const Navbar: React.FC<{
 
               {/* Notification System */}
               {user && <NotificationBell theme={theme} />}
+
+              {showAdminLink && (
+                <Link
+                  to="/admin"
+                  title="Admin dashboard"
+                  className={`
+                  hidden sm:flex items-center justify-center w-11 h-11 rounded-xl border transition-all text-[11px] font-black uppercase tracking-widest
+                  ${isLight ? 'border-[#B38B21]/40 bg-[#B38B21]/10 text-black hover:bg-[#B38B21]/20' : 'border-[#B38B21]/30 bg-[#B38B21]/10 text-[#CDA032] hover:bg-[#B38B21]/20'}
+                `}
+                >
+                  <LayoutDashboard size={18} strokeWidth={2.25} />
+                </Link>
+              )}
 
               {/* Account Button */}
               <Link
@@ -276,10 +297,12 @@ export const Navbar: React.FC<{
           />
 
           {/* Mobile Navigation Drawer */}
-          <div className={`absolute right-0 top-0 h-full w-80 bg-black border-l border-white/10 shadow-2xl transform transition-transform duration-500 ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+          <div
+            className={`absolute right-0 top-0 flex h-full max-h-[100dvh] min-h-0 w-80 flex-col bg-black border-l border-white/10 shadow-2xl transform transition-transform duration-500 ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}
+          >
 
             {/* Header — cart shortcut so users always see cart without scrolling the drawer */}
-            <div className="flex items-center justify-between gap-3 p-6 border-b border-white/10">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 p-6">
               <span className="text-white text-sm font-black uppercase tracking-widest shrink-0">Menu</span>
               <div className="flex items-center gap-2">
                 <Link
@@ -307,8 +330,8 @@ export const Navbar: React.FC<{
               </div>
             </div>
 
-            {/* User Profile Section */}
-            <div className="p-6 border-b border-white/10">
+            {/* User summary — fixed; links scroll below */}
+            <div className="shrink-0 border-b border-white/10 p-6">
               <div className="flex items-center gap-4">
                 {/* Avatar */}
                 <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#CDA032] to-[#B38B21] flex items-center justify-center">
@@ -318,20 +341,20 @@ export const Navbar: React.FC<{
                 </div>
 
                 {/* User Info */}
-                <div className="flex-1">
-                  <h3 className="text-white text-lg font-bold">
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate text-lg font-bold text-white">
                     {user ? user.name : 'Guest User'}
                   </h3>
-                  <p className="text-white/60 text-sm">
+                  <p className="truncate text-sm text-white/60">
                     {user ? user.email : 'Not logged in'}
                   </p>
                 </div>
               </div>
+            </div>
 
-              {/* Navigation Items */}
-              <div className="flex-1 overflow-y-auto">
-                <div className="p-2">
-                  {[
+            {/* Navigation — scrollable so Sign out stays reachable on short viewports */}
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-2 py-2 [-webkit-overflow-scrolling:touch]">
+              {[
                     {
                       path: '/', label: 'Home', icon: HomeIcon, subItems: [
                         { path: '/about', label: 'About BlackBox', icon: Info },
@@ -364,109 +387,107 @@ export const Navbar: React.FC<{
                     },
                     { path: '/returns', label: 'Returns', icon: RotateCcw },
                     { path: '/cart', label: 'Cart', icon: ShoppingCart, badge: cartCount },
+                    ...(showAdminLink ? [{ path: '/admin' as const, label: 'Admin', icon: LayoutDashboard }] : []),
                     { path: user ? '/profile' : '/auth', label: user ? 'Account' : 'Sign In', icon: UserIcon }
-                  ].map((item) => {
+              ].map((item) => {
                     const active = location.pathname === item.path;
                     const hasSubItems = item.subItems && item.subItems.length > 0;
                     const isSubmenuOpen = activeMobileSubmenu === item.label;
 
-                    return (
-                      <div key={item.label} className="mb-1">
-                        <div className="flex items-center">
-                          <button
-                            onClick={() => {
-                              // Top-level button always navigates.
-                              // Submenu expansion is handled by the chevron button.
-                              navigate({ to: item.path });
-                              setIsMobileMenuOpen(false);
-                            }}
-                            className={`flex-1 flex items-center gap-4 px-4 py-3 rounded-xl mx-2 transition-all ${active && !hasSubItems
-                              ? 'bg-[#CDA032]/20 text-[#CDA032]'
-                              : 'text-white/70 hover:text-white hover:bg-white/5'
-                              }`}
-                          >
-                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${active && !hasSubItems ? 'bg-[#CDA032] text-black' : 'bg-white/10 text-white/70'
-                              }`}>
-                              <item.icon size={18} />
-                            </div>
-                            <span className="flex-1 text-sm font-black uppercase tracking-widest text-left">
-                              {item.label}
-                            </span>
-                            {item.badge && item.badge > 0 && (
-                              <span className="px-2 py-1 bg-[#CDA032] text-black text-xs font-black rounded-full">
-                                {item.badge}
-                              </span>
-                            )}
-                          </button>
-                          {hasSubItems && (
-                            <button
-                              onClick={() => setActiveMobileSubmenu(isSubmenuOpen ? null : item.label)}
-                              className="p-3 mr-2 rounded-xl hover:bg-white/5 text-white/40"
-                            >
-                              <ChevronDown size={16} className={`transition-transform duration-300 ${isSubmenuOpen ? 'rotate-180' : ''}`} />
-                            </button>
-                          )}
+                return (
+                  <div key={item.label} className="mb-1">
+                    <div className="flex items-center">
+                      <button
+                        onClick={() => {
+                          // Top-level button always navigates.
+                          // Submenu expansion is handled by the chevron button.
+                          navigate({ to: item.path });
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className={`mx-2 flex flex-1 items-center gap-4 rounded-xl px-4 py-3 transition-all ${active && !hasSubItems
+                          ? 'bg-[#CDA032]/20 text-[#CDA032]'
+                          : 'text-white/70 hover:bg-white/5 hover:text-white'
+                          }`}
+                      >
+                        <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${active && !hasSubItems ? 'bg-[#CDA032] text-black' : 'bg-white/10 text-white/70'
+                          }`}>
+                          <item.icon size={18} />
                         </div>
-
-                        {hasSubItems && (
-                          <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isSubmenuOpen ? 'max-h-[min(90vh,880px)] opacity-100 mt-2 mb-6' : 'max-h-0 opacity-0'}`}>
-                            <div className="ml-12 mr-6 space-y-2">
-                              {item.subItems?.map((sub: any, idx: number) => {
-                                if (sub.type === 'info') {
-                                  return (
-                                    <div key={idx} className="bg-white/5 p-4 rounded-xl mb-2 border border-white/5">
-                                      <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032] mb-1">{sub.label}</p>
-                                      <p className="text-[11px] text-white/40 leading-relaxed">{sub.content}</p>
-                                    </div>
-                                  );
-                                }
-                                return (
-                                  <Link
-                                    key={sub.label}
-                                    to={sub.path}
-                                    search={sub.search as any}
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                    className="flex items-center gap-4 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-white/40 hover:text-[#CDA032] hover:bg-white/5 transition-all border border-transparent hover:border-white/5"
-                                  >
-                                    <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
-                                      <sub.icon size={14} className="opacity-40" />
-                                    </div>
-                                    {sub.label}
-                                  </Link>
-                                );
-                              })}
-                            </div>
-                          </div>
+                        <span className="flex-1 text-left text-sm font-black uppercase tracking-widest">
+                          {item.label}
+                        </span>
+                        {item.badge && item.badge > 0 && (
+                          <span className="rounded-full bg-[#CDA032] px-2 py-1 text-xs font-black text-black">
+                            {item.badge}
+                          </span>
                         )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+                      </button>
+                      {hasSubItems && (
+                        <button
+                          type="button"
+                          onClick={() => setActiveMobileSubmenu(isSubmenuOpen ? null : item.label)}
+                          className="mr-2 rounded-xl p-3 text-white/40 hover:bg-white/5"
+                        >
+                          <ChevronDown size={16} className={`transition-transform duration-300 ${isSubmenuOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                      )}
+                    </div>
 
-              {/* Footer */}
-              {/* Version Info */}
-              <div className="mb-4 text-center">
-                <p className="text-white/30 text-xs font-black uppercase tracking-widest">
+                    {hasSubItems && (
+                      <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isSubmenuOpen ? 'mb-6 mt-2 max-h-[min(90vh,880px)] opacity-100' : 'max-h-0 opacity-0'}`}>
+                        <div className="ml-12 mr-6 space-y-2">
+                          {item.subItems?.map((sub: any, idx: number) => {
+                            if (sub.type === 'info') {
+                              return (
+                                <div key={idx} className="mb-2 rounded-xl border border-white/5 bg-white/5 p-4">
+                                  <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-[#CDA032]">{sub.label}</p>
+                                  <p className="text-[11px] leading-relaxed text-white/40">{sub.content}</p>
+                                </div>
+                              );
+                            }
+                            return (
+                              <Link
+                                key={sub.label}
+                                to={sub.path}
+                                search={sub.search as any}
+                                onClick={() => setIsMobileMenuOpen(false)}
+                                className="flex items-center gap-4 rounded-xl border border-transparent px-4 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-white/40 transition-all hover:border-white/5 hover:bg-white/5 hover:text-[#CDA032]"
+                              >
+                                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5">
+                                  <sub.icon size={14} className="opacity-40" />
+                                </div>
+                                {sub.label}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer + Sign out — pinned to bottom of drawer */}
+            <div className="shrink-0 space-y-4 border-t border-white/10 bg-black p-6 pt-4">
+              <div className="text-center">
+                <p className="text-xs font-black uppercase tracking-widest text-white/30">
                   BLACKBOX TERMINAL V4.0
                 </p>
               </div>
-
-              {/* Sign Out Button */}
               {user && (
                 <button
+                  type="button"
                   onClick={async () => {
                     if (setUser) {
                       await handleSignOut(setUser, navigateTo);
                     }
                     setIsMobileMenuOpen(false);
                   }}
-                  className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 hover:bg-red-500/20 transition-all"
+                  className="flex w-full items-center justify-center gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-6 py-3 text-red-500 transition-all hover:bg-red-500/20"
                 >
                   <LogOut size={18} />
-                  <span className="text-sm font-black uppercase tracking-wider">
-                    Sign Out
-                  </span>
+                  <span className="text-sm font-black uppercase tracking-wider">Sign Out</span>
                 </button>
               )}
             </div>

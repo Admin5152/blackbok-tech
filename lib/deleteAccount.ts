@@ -1,5 +1,10 @@
-import { supabase, getSupabaseClient, isSupabaseConfigured } from './supabase';
-import type { AuthUser } from './auth';
+import { getSupabaseClient, isSupabaseConfigured } from './supabase';
+
+function edgeFunctionsBaseUrl(): string {
+  const env = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+  const fallback = 'https://crkmhpfgrvcnmqgiekjb.supabase.co';
+  return (env && env.trim()) || fallback;
+}
 
 export interface DeleteAccountResult {
   success: boolean;
@@ -35,6 +40,16 @@ export class DeleteAccountService {
 
       console.log('Deleting account for user:', user.email);
 
+      if (password && user.email) {
+        const { error: reauthError } = await client.auth.signInWithPassword({
+          email: user.email,
+          password,
+        });
+        if (reauthError) {
+          return { success: false, error: 'Incorrect password. Try again or use “Forgot password” first.' };
+        }
+      }
+
       // Delete user profile from profiles table
       const { error: profileError } = await client
         .from('profiles')
@@ -57,26 +72,27 @@ export class DeleteAccountService {
         // Continue even if orders deletion fails
       }
 
-      // Delete user's repair requests
       const { error: repairsError } = await client
-        .from('repairs')
+        .from('repair_requests')
         .delete()
         .eq('user_id', user.id);
 
       if (repairsError) {
-        console.warn('Error deleting repairs:', repairsError);
-        // Continue even if repairs deletion fails
+        console.warn('Error deleting repair_requests:', repairsError);
       }
 
-      // Delete user's trade requests
       const { error: tradesError } = await client
-        .from('trades')
+        .from('trade_in_requests')
         .delete()
         .eq('user_id', user.id);
 
       if (tradesError) {
-        console.warn('Error deleting trades:', tradesError);
-        // Continue even if trades deletion fails
+        console.warn('Error deleting trade_in_requests:', tradesError);
+      }
+
+      for (const tbl of ['cart_items', 'wishlist_items'] as const) {
+        const { error: delErr } = await client.from(tbl).delete().eq('user_id', user.id);
+        if (delErr) console.warn(`delete ${tbl}:`, delErr);
       }
 
       // Call the Supabase Edge Function to delete the user's authentication account
@@ -86,7 +102,8 @@ export class DeleteAccountService {
         return { success: false, error: 'No active session found for deletion' };
       }
 
-      const response = await fetch('https://crkmhpfgrvcnmqgiekjb.supabase.co/functions/v1/delete-account', {
+      const fnUrl = `${edgeFunctionsBaseUrl().replace(/\/$/, '')}/functions/v1/delete-account`;
+      const response = await fetch(fnUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
@@ -135,11 +152,16 @@ export class DeleteAccountService {
       }
 
       // Check if user has email/password authentication (vs OAuth)
-      const { data: identities } = await client.auth.getUserIdentities();
-      
-      const hasEmailAuth = identities?.identities?.some(identity => 
-        identity.provider === 'email'
-      );
+      const { data: idData, error: idError } = await client.auth.getUserIdentities();
+
+      if (idError || !idData?.identities) {
+        return {
+          success: true,
+          requiresPassword: true,
+        };
+      }
+
+      const hasEmailAuth = idData.identities.some((identity) => identity.provider === 'email');
 
       console.log('User has email authentication:', hasEmailAuth);
 
@@ -195,12 +217,12 @@ export class DeleteAccountService {
         .eq('user_id', user.id);
 
       const { count: repairCount } = await client
-        .from('repairs')
+        .from('repair_requests')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id);
 
       const { count: tradeCount } = await client
-        .from('trades')
+        .from('trade_in_requests')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id);
 

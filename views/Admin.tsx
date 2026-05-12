@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import { handleSignOut } from '../lib/signOut';
 import { AdminOverview } from './admin/AdminOverview';
 import { AdminOrders } from './admin/AdminOrders';
@@ -11,7 +12,7 @@ import { AdminUsers } from './admin/AdminUsers';
 // import { AdminInbox } from './admin/AdminInbox';
 import {
   Home, Users, Package, ShoppingCart, RefreshCcw,
-  Wrench, LogOut, Menu, X, Shield, MessageSquare
+  Wrench, LogOut, Menu, X, Shield, Store
 } from 'lucide-react';
 
 interface AdminProps {
@@ -47,6 +48,7 @@ const SECTION_TITLES: Record<AdminSection, string> = {
 };
 
 export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme = 'dark' }) => {
+  const routerNavigate = useNavigate();
   const role: string = (user?.role || 'user').toString().toLowerCase();
   const [section, setSection] = useState<AdminSection>('overview');
   const [sidebar, setSidebar] = useState(true);
@@ -174,6 +176,19 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
             collapsed (the default state on mobile), so admins were getting
             stuck. This one stays visible on every viewport.
           */}
+          <button
+            type="button"
+            onClick={() => routerNavigate({ to: '/' })}
+            className={`shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-xl border transition-all
+              ${isLight
+                ? 'border-black/10 text-black/70 hover:text-black hover:bg-black/5'
+                : 'border-white/10 text-white/70 hover:text-white hover:bg-white/5'
+              }`}
+            title="Open storefront"
+          >
+            <Store size={15} />
+            <span className="hidden sm:inline text-[10px] font-black uppercase tracking-widest">Store</span>
+          </button>
           <button
             onClick={handleLogout}
             className={`shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-xl border transition-all

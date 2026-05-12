@@ -449,6 +449,26 @@ class AuthService {
     }
   }
 
+  /** Resend signup / email confirmation (for users with unconfirmed email). */
+  static async resendEmailConfirmation(email: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      if (!isSupabaseConfigured()) {
+        return { success: false, error: 'Supabase is not configured.' };
+      }
+      if (!email?.trim()) {
+        return { success: false, error: 'No email address on file.' };
+      }
+      const client = getSupabaseClient();
+      const { error } = await client.auth.resend({ type: 'signup', email: email.trim() });
+      if (error) {
+        return { success: false, error: error.message };
+      }
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error?.message || 'Failed to send verification email.' };
+    }
+  }
+
   // Request Password Reset Email
   static async requestPasswordReset(email: string): Promise<{ success: boolean; error?: string }> {
     try {
