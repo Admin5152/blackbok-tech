@@ -9,6 +9,7 @@
 --
 -- Run AFTER: production_ready / production ready2, qa_sprint, section25
 --   (handle_new_user is replaced here).
+-- Normalizes legacy profiles.role values (e.g. customer) to user before CHECK.
 -- ============================================================
 BEGIN;
 
@@ -33,7 +34,14 @@ $$;
 COMMENT ON COLUMN public.profiles.role IS
   'Deprecated mirror for display and legacy code. Source of truth for access control is public.user_roles; kept in sync by trg_profiles_mirror_user_roles.';
 
+-- Normalize legacy values (e.g. customer, member) before the new CHECK runs.
 ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
+
+UPDATE public.profiles
+SET role = 'user'
+WHERE role IS NOT NULL
+  AND lower(trim(role::TEXT)) NOT IN ('user', 'admin', 'staff');
+
 ALTER TABLE public.profiles
   ADD CONSTRAINT profiles_role_check
   CHECK (role IS NULL OR lower(role::TEXT) IN ('user', 'admin', 'staff'));
