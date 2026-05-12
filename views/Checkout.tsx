@@ -1,25 +1,55 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Truck, Shield, MapPin, ShoppingBag } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import { useAppContext } from '../App';
-import { Order } from '../types';
+import { CartItem, Order } from '../types';
 import { formatCurrency } from '../lib/utils';
-import { placeOrder, clearCartItems, updateProfilePhone } from '../lib/api';
+import { clearCartItems, updateProfilePhone } from '../lib/api';
 import { OrderCompletePopup } from '../components/OrderCompletePopup';
+import { CouponInput } from '../components/checkout/CouponInput';
+import type { AppliedCoupon } from '../hooks/useCoupons';
+import { useCheckout, type CheckoutCartItem } from '../hooks/useCheckout';
+
+/** Reduce a UI CartItem down to the snake_case payload the RPC expects. */
+function toCheckoutCartItem(item: CartItem): CheckoutCartItem {
+  return {
+    product_id: (item.product_id || item.id) as string,
+    variant_id: item.variant_id ?? null,
+    quantity: Number(item.quantity || 1),
+    unit_price: Number(item.price || 0),
+    product_name: item.name ?? null,
+    product_image: item.image ?? item.image_url ?? null,
+    product_options: item.selectedOptions ?? null,
+  };
+}
 
 export const Checkout: React.FC = () => {
   const { user, cart, setCart, orders, setOrders, notify } = useAppContext();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
+  const { placeOrder: rpcPlaceOrder, loading: checkoutLoading } = useCheckout();
+  const [submitting, setSubmitting] = useState(false);
+  const loading = submitting || checkoutLoading;
   const [showOrderComplete, setShowOrderComplete] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
   const [formData, setFormData] = useState({
     phone: user?.phone || ''
   });
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const shippingCost = 0;
-  const total = subtotal + shippingCost;
+  // Cap the displayed discount at the current subtotal in case the cart shrank
+  // after the coupon was validated.
+  const discount = Math.min(appliedCoupon?.discountAmount ?? 0, subtotal);
+  const total = Math.max(0, subtotal + shippingCost - discount);
+
+  // If the cart empties out, drop any applied coupon so the next visit starts
+  // clean.
+  useEffect(() => {
+    if (cart.length === 0 && appliedCoupon) {
+      setAppliedCoupon(null);
+    }
+  }, [cart.length, appliedCoupon]);
 
   const submitOrder = async () => {
     if (!user) {
@@ -37,7 +67,7 @@ export const Checkout: React.FC = () => {
 
 
     try {
-      setLoading(true);
+      setSubmitting(true);
 
       // Save latest phone number to profile for admin/order visibility.
       const checkoutPhone = (formData.phone || user.phone || '').trim();
@@ -45,39 +75,39 @@ export const Checkout: React.FC = () => {
         await updateProfilePhone(user.id, checkoutPhone);
       }
 
-      // Step 1: Place order (customer_id is optional in schema)
-      const order = await placeOrder(
-        user.id,
-        null,
-        'Pick up from store',
-        'in_person',
-        'Pick up from store',
-        cart
-      );
+      // Step 1: Place order via the place_order RPC. The hook handles
+      //   - server-side coupon revalidation
+      //   - coupon_uses reservation + linking
+      //   - rollback on failure
+      const items = cart.map(toCheckoutCartItem);
+      const result = await rpcPlaceOrder(items, appliedCoupon);
 
       // Step 2: Clear cart
       await clearCartItems(user.id);
       setCart([]);
 
-      // Step 3: Update local orders state
+      // Step 3: Update local orders state. Total comes from the RPC so it
+      //   reflects the server-side discount/shipping calculation.
+      const serverTotal =
+        typeof result.total === 'number' ? result.total : total;
+      const nowIso = new Date().toISOString();
       const newOrder: Order = {
-        id: order.id,
+        id: result.order_id,
         userId: user.id,
         userName: user.name || 'Unknown',
         userEmail: user.email || '',
         userPhone: checkoutPhone,
         items: cart,
-        total: total,
-        date: order.created_at,
-        status: order.status.charAt(0).toUpperCase() + order.status.slice(1),
+        total: serverTotal,
+        date: nowIso,
+        status: 'Pending',
         payment_method: 'in_person',
         paymentMethod: 'in_person',
         shipping_address: 'Pick up from store',
-        tracking_number: order.tracking_number,
         payment_status: 'pending',
         shipping_method: 'pickup',
         shipping_cost: 0,
-        display_id: order.display_id || `ORD-${order.id}`
+        display_id: result.display_id || `ORD-${result.order_id}`
       };
 
       setOrders([newOrder, ...orders]);
@@ -86,11 +116,15 @@ export const Checkout: React.FC = () => {
 
       notify('Order placed successfully!');
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error placing order:', error);
-      notify(error.message || 'Failed to place order. Please try again.', 'error');
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Failed to place order. Please try again.';
+      notify(message, 'error');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -207,11 +241,25 @@ export const Checkout: React.FC = () => {
                 ))}
               </div>
 
+              <div className="border-t border-white/10 pt-4 mb-4">
+                <CouponInput
+                  orderTotal={subtotal}
+                  onCouponApplied={setAppliedCoupon}
+                  theme="dark"
+                />
+              </div>
+
               <div className="border-t border-white/10 pt-4 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>Subtotal</span>
                   <span>{formatCurrency(subtotal)}</span>
                 </div>
+                {discount > 0 && appliedCoupon && (
+                  <div className="flex justify-between text-sm text-emerald-400">
+                    <span>Discount ({appliedCoupon.code})</span>
+                    <span>−{formatCurrency(discount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
                   <span>Shipping</span>
                   <span>{shippingCost === 0 ? 'Free' : formatCurrency(shippingCost)}</span>

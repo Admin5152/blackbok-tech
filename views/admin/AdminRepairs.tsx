@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Wrench, Send, DollarSign } from 'lucide-react';
+import { Wrench, Send, DollarSign, UserCheck } from 'lucide-react';
 import { Badge, SearchInput, Modal, ModalClose, EmptyState, Td, Th, TableWrapper } from './adminUtils';
 import { getRepairRequests, updateRepairRequest } from '../../lib/api';
+import { useAdminRepairs } from '../../hooks/useAdminRepairs';
 import type { RepairRequest } from '../../types';
 
 interface Props { canEdit?: boolean; }
@@ -15,6 +16,13 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
     const [estimate, setEstimate] = useState('');
     const [estimateNote, setEstimateNote] = useState('');
     const [saving, setSaving] = useState(false);
+    const [assigning, setAssigning] = useState(false);
+
+    // We only consume `technicians` + `assignTechnician` from the hook.
+    // The legacy `getRepairRequests` fetch below still drives the table
+    // because it produces the camelCase-aliased shape the existing UI
+    // (sel.device / sel.userName / sel.estimatedCost as string) depends on.
+    const { technicians, assignTechnician } = useAdminRepairs();
 
     useEffect(() => {
         getRepairRequests()
@@ -31,6 +39,36 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
             setSel(prev => prev?.id === id ? { ...prev, ...updates } : prev);
         } catch (e) { console.error(e); }
         finally { setSaving(false); }
+    };
+
+    /**
+     * Calls the hook's assignTechnician and then mirrors the result into
+     * the legacy local state so the table + modal stay in sync without a
+     * full refetch.
+     */
+    const handleAssignTechnician = async (technicianId: string | null) => {
+        if (!sel) return;
+        setAssigning(true);
+        try {
+            const result = await assignTechnician(sel.id, technicianId);
+            if (result) {
+                setRepairs(prev => prev.map(r =>
+                    r.id === sel.id ? { ...r, assigned_technician: result.assigned_technician } : r,
+                ));
+                setSel(prev => prev ? { ...prev, assigned_technician: result.assigned_technician } : prev);
+            }
+        } catch (e) {
+            console.error('Assign technician failed:', e);
+        } finally {
+            setAssigning(false);
+        }
+    };
+
+    const technicianLabel = (id: string | null | undefined) => {
+        if (!id) return null;
+        const tech = technicians.find(t => t.user_id === id);
+        if (!tech) return id.slice(0, 8);
+        return tech.name || tech.email || id.slice(0, 8);
     };
 
     const sendEstimate = async () => {
@@ -180,6 +218,48 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
                                             </button>
                                         ))}
                                     </div>
+                                </div>
+
+                                {/* Assigned technician */}
+                                <div className="bg-black/40 rounded-xl p-4 space-y-3">
+                                    <p className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2">
+                                        <UserCheck size={12} className="text-orange-400" /> Assigned Technician
+                                    </p>
+                                    {sel.assigned_technician ? (
+                                        <div className="flex items-center justify-between gap-3 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
+                                            <div className="min-w-0">
+                                                <p className="text-xs font-black text-white truncate">
+                                                    {technicianLabel(sel.assigned_technician) || 'Unknown technician'}
+                                                </p>
+                                                <p className="text-[9px] text-white/30 uppercase tracking-widest">Currently assigned</p>
+                                            </div>
+                                            <button
+                                                onClick={() => handleAssignTechnician(null)}
+                                                disabled={assigning}
+                                                className="shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-red-300/80 hover:text-red-200 hover:bg-red-500/10 transition-colors disabled:opacity-40"
+                                            >
+                                                {assigning ? '…' : 'Unassign'}
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <p className="text-[10px] text-white/30 uppercase tracking-widest">Not assigned</p>
+                                    )}
+
+                                    <select
+                                        value={sel.assigned_technician ?? ''}
+                                        onChange={(e) => handleAssignTechnician(e.target.value || null)}
+                                        disabled={assigning || technicians.length === 0}
+                                        className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none disabled:opacity-50"
+                                    >
+                                        <option value="">
+                                            {technicians.length === 0 ? 'No technicians available' : 'Select a technician…'}
+                                        </option>
+                                        {technicians.map((t) => (
+                                            <option key={t.user_id} value={t.user_id}>
+                                                {t.name || t.email || t.user_id.slice(0, 8)}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
 
                                 {/* Send estimate */}

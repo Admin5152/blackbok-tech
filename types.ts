@@ -65,6 +65,19 @@ export interface Product {
   variants?: ProductVariant[];
   storage?: string[];
   ram?: string[];
+  // Multi-image gallery (joined from public.product_images). Falls back to
+  // `image_url` / `image` when the gallery hasn't been populated yet.
+  images?: ProductImage[];
+}
+
+export interface ProductImage {
+  id: string;
+  product_id?: string;
+  url: string;
+  alt_text?: string | null;
+  sort_order: number;
+  is_primary: boolean;
+  created_at?: string;
 }
 
 export interface ProductVariant {
@@ -203,6 +216,7 @@ export interface RepairRequest {
   final_cost?: number;
   technician_notes?: string;
   admin_note?: string;
+  assigned_technician?: string | null;
   status: string;
   created_at?: string;
   updated_at?: string;

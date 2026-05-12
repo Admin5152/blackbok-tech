@@ -190,10 +190,21 @@ export const deleteProduct = async (id: string) => {
   if (error) throw error;
 };
 
+// Sort embedded product_images by `sort_order` ascending so consumers get a
+// stable order. Primary images are surfaced first by the gallery component
+// itself, not here, so list views with simple "first image" rendering still
+// work via the existing `image_url` fallback.
+const normalizeProductImages = (raw: any): any[] => {
+  if (!Array.isArray(raw)) return [];
+  return [...raw].sort(
+    (a: any, b: any) => Number(a?.sort_order ?? 0) - Number(b?.sort_order ?? 0)
+  );
+};
+
 export const getProducts = async (): Promise<Product[]> => {
   const { data, error } = await supabase
     .from('products')
-    .select('*, product_variants(*)')
+    .select('*, product_variants(*), product_images(*)')
     .order('created_at', { ascending: false });
   if (error) throw error;
   
@@ -204,14 +215,15 @@ export const getProducts = async (): Promise<Product[]> => {
     image: p.image_url,
     new: p.is_new,
     reviewCount: p.review_count,
-    variants: p.product_variants
+    variants: p.product_variants,
+    images: normalizeProductImages(p.product_images)
   }));
 };
 
 export const getProduct = async (id: string): Promise<Product | null> => {
   const { data, error } = await supabase
     .from('products')
-    .select('*, product_variants(*)')
+    .select('*, product_variants(*), product_images(*)')
     .eq('id', id)
     .single();
   if (error) throw error;
@@ -222,7 +234,8 @@ export const getProduct = async (id: string): Promise<Product | null> => {
     image: data.image_url,
     new: data.is_new,
     reviewCount: data.review_count,
-    variants: data.product_variants
+    variants: data.product_variants,
+    images: normalizeProductImages(data.product_images)
   };
 };
 

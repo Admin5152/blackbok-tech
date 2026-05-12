@@ -6,11 +6,12 @@ import { AdminCustomers } from './admin/AdminCustomers';
 import { AdminProducts } from './admin/AdminProducts';
 import { AdminTrades } from './admin/AdminTrades';
 import { AdminRepairs } from './admin/AdminRepairs';
+import { AdminReturns } from './admin/AdminReturns';
 import { AdminUsers } from './admin/AdminUsers';
 // import { AdminInbox } from './admin/AdminInbox';
 import {
   Home, Users, Package, ShoppingCart, RefreshCcw,
-  Wrench, LogOut, Menu, X, Shield, MessageSquare
+  Wrench, LogOut, Menu, X, Shield, MessageSquare, RotateCcw
 } from 'lucide-react';
 
 interface AdminProps {
@@ -20,7 +21,7 @@ interface AdminProps {
   theme?: 'light' | 'dark';
 }
 
-export type AdminSection = 'overview' | 'inbox' | 'orders' | 'customers' | 'products' | 'trades' | 'repairs' | 'users';
+export type AdminSection = 'overview' | 'inbox' | 'orders' | 'customers' | 'products' | 'trades' | 'returns' | 'repairs' | 'users';
 
 const NAV_ITEMS: { id: AdminSection; label: string; icon: any }[] = [
   { id: 'overview', label: 'Overview', icon: Home },
@@ -29,6 +30,7 @@ const NAV_ITEMS: { id: AdminSection; label: string; icon: any }[] = [
   { id: 'customers', label: 'Customers', icon: Users },
   { id: 'products', label: 'Products', icon: Package },
   { id: 'trades', label: 'Trade-Ins', icon: RefreshCcw },
+  { id: 'returns', label: 'Returns', icon: RotateCcw },
   { id: 'repairs', label: 'Repairs', icon: Wrench },
   { id: 'users', label: 'User Roles', icon: Shield },
 ];
@@ -40,6 +42,7 @@ const SECTION_TITLES: Record<AdminSection, string> = {
   customers: 'Customer Directory',
   products: 'Product Catalogue',
   trades: 'Trade-In Requests',
+  returns: 'Return Requests',
   repairs: 'Repair Requests',
   users: 'Users',
 };
@@ -171,6 +174,7 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
           {section === 'customers' && <AdminCustomers />}
           {section === 'products' && <AdminProducts canEdit={isSales} />}
           {section === 'trades' && <AdminTrades canEdit={isSales} />}
+          {section === 'returns' && <AdminReturns canEdit={isAdmin} />}
           {section === 'repairs' && <AdminRepairs canEdit={isRepair} />}
           {section === 'users' && <AdminUsers />}
         </main>

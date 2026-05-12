@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  X, CheckCircle2, Activity, Scale, RefreshCcw, Home as HomeIcon,
+  X, CheckCircle2, Activity, Scale, RefreshCcw, RotateCcw, Home as HomeIcon,
   ShoppingBag, Wrench, ShoppingCart, User as UserIcon, LogOut,
   ChevronRight, ChevronDown, Settings, AlertTriangle,
   Sparkles, Eye, Clock, Menu, Sun, Moon, Search, TrendingUp, Box, Laptop, Smartphone, Gamepad2, History, Calendar, Info, Heart, UserCog
@@ -9,7 +9,7 @@ import { Link, useLocation, useNavigate } from '@tanstack/react-router';
 import { User, CartItem, Product } from '../types';
 import { formatCurrency } from '../lib/utils';
 import { handleSignOut } from '../lib/signOut';
-import { NotificationSystem } from './NotificationSystem';
+import { NotificationBell } from './NotificationBell';
 
 const ViewfinderLogo = () => (
   <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-8 h-8">
@@ -194,7 +194,7 @@ export const Navbar: React.FC<{
             <div className="flex items-center gap-2 sm:gap-4">
 
               {/* Notification System */}
-              {user && <NotificationSystem />}
+              {user && <NotificationBell theme={theme} />}
 
               {/* Account Button */}
               <Link
@@ -312,6 +312,7 @@ export const Navbar: React.FC<{
                         { path: '/history', label: 'Repair History', icon: History, search: { tab: 'repairs' } }
                       ]
                     },
+                    { path: '/returns', label: 'Returns', icon: RotateCcw },
                     { path: '/cart', label: 'Cart', icon: ShoppingCart, badge: cartCount },
                     { path: user ? '/profile' : '/auth', label: user ? 'Account' : 'Sign In', icon: UserIcon }
                   ].map((item) => {

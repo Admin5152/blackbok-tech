@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Product } from '../types';
+import { Product, ProductImage } from '../types';
 import { X, Plus, Minus, Heart, Share2, Star, Check, Truck, Shield, RefreshCw, ArrowLeft, Copy, Facebook, Twitter, MessageCircle, ChevronRight } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
+import { ProductImageGallery } from '../components/product/ProductImageGallery';
 
 interface ProductDetailProps {
   product: Product;
@@ -205,16 +206,15 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
 
           {/* Image Section */}
           <div className="relative">
-            <div className="rounded-3xl overflow-hidden bg-black/30 backdrop-blur-sm border border-white/10 shadow-2xl">
-              <img
-                src={product.image}
-                alt={product.name}
-                className="w-full h-full object-cover hover:scale-105 transition duration-700"
-              />
-            </div>
+            <ProductImageGallery
+              images={(product.images ?? []) as ProductImage[]}
+              fallbackUrl={product.image ?? product.image_url ?? null}
+              productName={product.name}
+              theme={theme}
+            />
 
             {product.discount && (
-              <div className="absolute top-6 left-6 bg-[#B38B21] text-black px-4 py-1 rounded-full text-sm font-bold shadow-lg">
+              <div className="absolute top-6 left-6 z-10 bg-[#B38B21] text-black px-4 py-1 rounded-full text-sm font-bold shadow-lg pointer-events-none">
                 -{product.discount}%
               </div>
             )}

@@ -16,6 +16,7 @@ dist-ssr
 .vscode/*
 !.vscode/extensions.json
 .idea
+.cursor/
 .DS_Store
 *.suo
 *.ntvs*
@@ -23,3 +24,6 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# This project uses bun.lock; npm-generated lockfiles should not be committed
+package-lock.json

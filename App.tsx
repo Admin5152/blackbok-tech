@@ -48,6 +48,7 @@ import { History } from './views/History';
 import { Tracking } from './views/Tracking';
 import { OrderReceipt } from './views/OrderReceipt';
 import { Receipt } from './views/Receipt';
+import { ReturnsPage } from './views/ReturnsPage';
 // import { orders } from './data/orders'; 
 import { QuickViewModal } from './components/QuickViewModal';
 import { CompareModal } from './components/CompareModal';
@@ -377,6 +378,12 @@ const receiptRoute = createRoute({
   },
 });
 
+const returnsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/returns',
+  component: () => <ReturnsPage />,
+});
+
 const promotionsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/promotions",
@@ -450,6 +457,7 @@ const routeTree = rootRoute.addChildren([
   historyRoute,
   trackingRoute,
   receiptRoute,
+  returnsRoute,
   promotionsRoute,
   compareRoute,
   policiesRoute,

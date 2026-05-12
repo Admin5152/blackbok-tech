@@ -3,7 +3,7 @@ import {
   LogOut, Package, Wrench, Clock, CheckCircle2,
   MapPin, Mail, ChevronRight, Activity, Shield, CreditCard as CardIcon,
   Truck, XCircle, User as UserIcon, Settings, Heart, Sliders, HelpCircle,
-  Eye, RefreshCw, Smartphone, Trash2, Download, FileText, AlertCircle, Menu, X, Zap,
+  Eye, RefreshCw, RotateCcw, Smartphone, Trash2, Download, FileText, AlertCircle, Menu, X, Zap,
   Calendar, ShoppingBag, AlertTriangle
 } from 'lucide-react';
 import { User, RepairRequest, Order, Product, TradeRequest } from '../types';
@@ -110,11 +110,21 @@ export const Profile: React.FC<ProfileProps> = ({
     }
   };
 
-  const menuItems = [
+  // Some menu items navigate to a separate route instead of switching the
+  // internal `activeTab`. The `navigate` field, when present, is passed to
+  // navigateTo() and bypasses setActiveTab.
+  const menuItems: Array<{
+    id: string;
+    icon: any;
+    label: string;
+    badge?: number | null;
+    navigate?: string;
+  }> = [
     { id: 'overview', icon: Sliders, label: 'Overview' },
     { id: 'orders', icon: Package, label: 'Order History', badge: orders.length > 0 ? orders.length : null },
     { id: 'repairs', icon: Wrench, label: 'Repairs & Fixes', badge: activeRepairsCount > 0 ? activeRepairsCount : null },
     { id: 'trades', icon: RefreshCw, label: 'Trade-ins', badge: trades.length > 0 ? trades.length : null },
+    { id: 'returns', icon: RotateCcw, label: 'Returns', navigate: '/returns' },
     { id: 'purchases', icon: CardIcon, label: 'All Purchases' },
     { id: 'wishlist', icon: Heart, label: 'Wishlist', badge: wishlist.length > 0 ? wishlist.length : null },
     { id: 'settings', icon: UserIcon, label: 'Settings' },
@@ -758,7 +768,15 @@ export const Profile: React.FC<ProfileProps> = ({
             {menuItems.map((item) => (
               <button
                 key={item.id}
-                onClick={() => { setActiveTab(item.id as any); setIsMobileNavOpen(false); if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                onClick={() => {
+                  if (item.navigate) {
+                    navigateTo(item.navigate);
+                  } else {
+                    setActiveTab(item.id as any);
+                  }
+                  setIsMobileNavOpen(false);
+                  if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
                 className={`flex items-center justify-between px-6 py-4 rounded-2xl transition-all group ${activeTab === item.id
                   ? (isLight ? 'bg-black text-white shadow-xl scale-[1.02]' : 'bg-gradient-to-r from-[#B38B21] to-[#D4AF37] text-black font-black shadow-[0_15px_40px_rgba(179,139,33,0.3)] scale-[1.02]')
                   : (isLight ? 'text-gray-500 hover:bg-black/5 hover:text-black' : 'text-white/50 hover:bg-white/5 hover:text-white')
