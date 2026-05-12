@@ -1,29 +1,21 @@
-// Service Worker for better mobile navigation handling
-const CACHE_NAME = 'blackbox-v1';
-const urlsToCache = [
-  '/',
-  '/index.html',
-  '/static/js/bundle.js',
-  '/static/css/main.css'
-];
-
-// Install service worker
+// Production cache reset service worker.
+// Older builds installed a cache-first worker that could pin stale published UI.
+// This worker clears those caches and then unregisters itself.
 self.addEventListener('install', (event) => {
+  event.waitUntil(self.skipWaiting());
+});
+
+self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(urlsToCache))
+    caches.keys()
+      .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
+      .then(() => self.clients.claim())
+      .then(() => self.registration.unregister())
   );
 });
 
-// Fetch requests
-self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Return cached version or fetch from network
-        return response || fetch(event.request);
-      })
-  );
+self.addEventListener('fetch', () => {
+  // Intentionally do not intercept requests. Always use the network.
 });
 
 // Handle background sync for offline functionality
