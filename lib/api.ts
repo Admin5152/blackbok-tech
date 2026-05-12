@@ -1289,11 +1289,16 @@ export const createInventoryAdjustment = async (adjustment: Partial<InventoryAdj
 };
 
 export const getUsers = async (): Promise<Profile[]> => {
-  const { data, error } = await supabase.from('profiles').select('*, user_roles(*)').order('created_at', { ascending: false });
+  // Single-table select: RLS-friendly and avoids PostgREST embed quirks.
+  // `profiles.role` is kept in sync with `user_roles` by trg_profiles_mirror_user_roles.
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .order('created_at', { ascending: false });
   if (error) throw error;
-  return data.map((p: any) => ({
+  return (data || []).map((p: any) => ({
     ...p,
-    role: normalizeCanonicalRole(p.user_roles?.[0]?.role ?? p.role ?? 'user'),
+    role: normalizeCanonicalRole(p.role ?? 'user'),
   }));
 };
 

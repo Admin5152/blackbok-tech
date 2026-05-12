@@ -40,7 +40,10 @@ export const AdminUsers: React.FC = () => {
     }, []);
 
     const filtered = users.filter(u => {
-        const matchQ = u.name.toLowerCase().includes(q.toLowerCase()) || u.email.toLowerCase().includes(q.toLowerCase());
+        const name = String(u.name ?? '').toLowerCase();
+        const email = String(u.email ?? '').toLowerCase();
+        const ql = q.toLowerCase();
+        const matchQ = name.includes(ql) || email.includes(ql);
         const matchR = roleFilter === 'all' || u.role === roleFilter;
         return matchQ && matchR;
     });

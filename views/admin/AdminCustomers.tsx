@@ -29,9 +29,12 @@ export const AdminCustomers: React.FC = () => {
         return () => { mounted = false; };
     }, []);
 
-    const filtered = users.filter(u =>
-        u.name.toLowerCase().includes(q.toLowerCase()) || u.email.toLowerCase().includes(q.toLowerCase())
-    );
+    const filtered = users.filter(u => {
+        const name = String(u.name ?? '').toLowerCase();
+        const email = String(u.email ?? '').toLowerCase();
+        const ql = q.toLowerCase();
+        return name.includes(ql) || email.includes(ql);
+    });
 
     const sorted = [...filtered].sort((a, b) => {
         const aVal = a[sortField] || '';
