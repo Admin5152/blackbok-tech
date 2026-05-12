@@ -320,9 +320,9 @@ export const AdminUsers: React.FC = () => {
                                             <td className="p-4">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-black text-xs" style={{ background: `${getRoleInfo(u.role ?? 'user').color}` }}>
-                                                        {u.avatarLetter || u.name.charAt(0).toUpperCase()}
+                                                        {(u.avatarLetter || (u.name ?? u.email ?? '?').toString().charAt(0) || '?').toUpperCase()}
                                                     </div>
-                                                    <span className="text-white font-medium">{u.name}</span>
+                                                    <span className="text-white font-medium">{u.name || u.email || 'Unnamed user'}</span>
                                                     {isCurrentUser && (
                                                         <span className="text-[8px] px-2 py-0.5 bg-yellow-500/20 text-yellow-500 rounded-full font-black uppercase">
                                                             You
