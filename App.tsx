@@ -687,15 +687,11 @@ function RootComponent() {
     const cleanup = setupMobileBackButton();
     preventAppClose();
 
-    // Register service worker for better mobile experience
     if ('serviceWorker' in navigator) {
-      const swPath = import.meta.env.BASE_URL + 'sw.js';
-      navigator.serviceWorker.register(swPath)
-        .then((registration) => {
-          console.log('Service Worker registered:', registration);
-        })
+      navigator.serviceWorker.getRegistrations()
+        .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
         .catch((error) => {
-          console.log('Service Worker registration failed:', error);
+          console.log('Service Worker cleanup failed:', error);
         });
     }
 
