@@ -36,17 +36,21 @@ export const Store: React.FC<StoreProps> = ({
   theme,
   categoriesFromUrl,
 }) => {
+  // Keep this in sync with the matching helper in `lib/api.ts`. Uses
+  // substring matching so admin-entered category strings like
+  // "Mobile Phones", "Laptops & Notebooks", or "Apple iPhones" all map
+  // to a canonical bucket. Order matters — more-specific matches first.
   const normalizeCategory = (category?: string): Category | null => {
     if (!category) return null;
     const value = category.trim().toLowerCase();
 
-    if (value.includes('iphone') || value.includes('apple iphone')) return 'iPhone';
-    if (['iphone', 'iphones', 'phone', 'phones', 'mobile', 'mobile phone', 'mobile phones', 'smartphone', 'smartphones'].includes(value)) return 'iPhone';
-    if (['laptop', 'laptops', 'notebook', 'notebooks', 'macbook', 'macbooks', 'computer', 'computers'].includes(value)) return 'Laptop';
-    if (['accessory', 'accessories', 'case', 'cases', 'wearable', 'wearables'].includes(value)) return 'Accessories';
-    if (['gaming', 'game', 'games', 'console', 'consoles'].includes(value)) return 'Gaming';
-    if (['audio', 'headphone', 'headphones', 'earbuds', 'speaker', 'speakers'].includes(value)) return 'Audio';
-    if (['tablet', 'tablets', 'ipad', 'ipads'].includes(value)) return 'Tablet';
+    if (value.includes('iphone')) return 'iPhone';
+    if (value.includes('tablet') || value.includes('ipad')) return 'Tablet';
+    if (value.includes('laptop') || value.includes('notebook') || value.includes('macbook') || value.includes('computer')) return 'Laptop';
+    if (value.includes('phone') || value.includes('mobile') || value.includes('smartphone')) return 'iPhone';
+    if (value.includes('gam') || value.includes('console')) return 'Gaming';
+    if (value.includes('audio') || value.includes('headphone') || value.includes('earbud') || value.includes('speaker')) return 'Audio';
+    if (value.includes('accessor') || value.includes('case') || value.includes('wearable') || value.includes('charger') || value.includes('cable')) return 'Accessories';
     return category as Category;
   };
 
@@ -56,9 +60,26 @@ export const Store: React.FC<StoreProps> = ({
   const [showPromotionsOnly, setShowPromotionsOnly] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showMobileNav, setShowMobileNav] = useState(false);
+  // Buffer state for the price inputs (desktop + mobile). Lets the user
+  // clear the field without it snapping back to a default value (STR-07).
+  // The real `priceRange` only updates on blur / Enter / Apply, so the
+  // grid doesn't churn while the user is mid-edit either.
+  const [desktopMinInput, setDesktopMinInput] = useState('0');
+  const [desktopMaxInput, setDesktopMaxInput] = useState('15000');
   const [mobileMinInput, setMobileMinInput] = useState('0');
   const [mobileMaxInput, setMobileMaxInput] = useState('15000');
   const isLight = theme === 'light';
+
+  const commitDesktopPrice = () => {
+    const minRaw = desktopMinInput.trim() === '' ? 0 : Number(desktopMinInput);
+    const maxRaw = desktopMaxInput.trim() === '' ? 15000 : Number(desktopMaxInput);
+    const min = Number.isFinite(minRaw) ? Math.max(0, minRaw) : 0;
+    const max = Number.isFinite(maxRaw) ? Math.min(15000, Math.max(min, maxRaw)) : 15000;
+    setPriceRange({ min, max });
+    // Reflect normalized values back into the inputs.
+    setDesktopMinInput(String(min));
+    setDesktopMaxInput(String(max));
+  };
 
   React.useEffect(() => {
     const urlCategories = new URLSearchParams(window.location.search).getAll('categories');
@@ -88,6 +109,8 @@ export const Store: React.FC<StoreProps> = ({
   React.useEffect(() => {
     setMobileMinInput(String(priceRange.min));
     setMobileMaxInput(String(priceRange.max));
+    setDesktopMinInput(String(priceRange.min));
+    setDesktopMaxInput(String(priceRange.max));
   }, [priceRange.min, priceRange.max]);
 
   const getDiscountValue = (discount: unknown): number => {
@@ -217,15 +240,16 @@ export const Store: React.FC<StoreProps> = ({
                   <span className="text-sm font-medium">Categories</span>
                 </button>
 
-                {/* Filter Button - Desktop Only */}
+                {/* Filter Button — works on mobile + desktop. */}
                 <button
                   onClick={() => setShowFilters(!showFilters)}
-                  className={`hidden lg:flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${activeFiltersCount > 0 ? 'bg-[#CDA032] text-black border-transparent' : 'border border-white/10 hover:border-white/20'}`}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${activeFiltersCount > 0 ? 'bg-[#CDA032] text-black border-transparent' : 'border border-white/10 hover:border-white/20'}`}
                   style={{
                     backgroundColor: activeFiltersCount > 0 ? '#CDA032' : panelBg,
                     borderColor: activeFiltersCount > 0 ? 'transparent' : borderSubtle,
                     color: activeFiltersCount > 0 ? '#000' : isLight ? '#000' : '#fff'
                   }}
+                  aria-label="Open filters"
                 >
                   <Filter size={14} />
                   <span className="hidden sm:inline">Filters</span>
@@ -298,15 +322,15 @@ export const Store: React.FC<StoreProps> = ({
       <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
         <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
 
-          {/* Filters Sidebar Drawer - Desktop Only */}
+          {/* Filters Sidebar Drawer — backdrop (mobile + desktop) */}
           <div
-            className={`hidden lg:block fixed inset-0 bg-black/60 z-50 backdrop-blur-sm transition-opacity duration-300 ${showFilters ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+            className={`fixed inset-0 bg-black/60 z-[60] backdrop-blur-sm transition-opacity duration-300 ${showFilters ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
             onClick={() => setShowFilters(false)}
           />
 
-          {/* Filters Sidebar Drawer - Desktop Only */}
+          {/* Filters Sidebar Drawer — panel (mobile + desktop) */}
           <div
-            className={`hidden lg:block fixed top-0 left-0 h-full w-[320px] sm:w-[400px] z-50 transform transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)] ${showFilters ? 'translate-x-0' : '-translate-x-full'}`}
+            className={`fixed top-0 left-0 h-full w-[88vw] max-w-[400px] sm:w-[400px] z-[70] transform transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)] ${showFilters ? 'translate-x-0' : '-translate-x-full'}`}
             style={{ backgroundColor: panelBg, borderRight: `1px solid ${borderSubtle}` }}
           >
             <div className="h-full overflow-y-auto p-6 sm:p-8 space-y-8 no-scrollbar">
@@ -379,11 +403,14 @@ export const Store: React.FC<StoreProps> = ({
                       </button>
                       <input
                         type="number"
+                        inputMode="numeric"
                         min="0"
                         max="15000"
                         step="100"
-                        value={priceRange.min}
-                        onChange={(e) => setPriceRange(prev => ({ ...prev, min: parseInt(e.target.value) || 0 }))}
+                        value={desktopMinInput}
+                        onChange={(e) => setDesktopMinInput(e.target.value)}
+                        onBlur={commitDesktopPrice}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commitDesktopPrice(); } }}
                         className="flex-1 w-full px-4 py-3 border rounded-xl text-center text-sm font-medium focus:outline-none focus:border-[#CDA032] focus:ring-1 focus:ring-[#CDA032] transition-colors"
                         style={{
                           backgroundColor: isLight ? '#fff' : '#000',
@@ -410,11 +437,14 @@ export const Store: React.FC<StoreProps> = ({
                       </button>
                       <input
                         type="number"
+                        inputMode="numeric"
                         min="0"
                         max="15000"
                         step="100"
-                        value={priceRange.max}
-                        onChange={(e) => setPriceRange(prev => ({ ...prev, max: parseInt(e.target.value) || 15000 }))}
+                        value={desktopMaxInput}
+                        onChange={(e) => setDesktopMaxInput(e.target.value)}
+                        onBlur={commitDesktopPrice}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commitDesktopPrice(); } }}
                         className="flex-1 w-full px-4 py-3 border rounded-xl text-center text-sm font-medium focus:outline-none focus:border-[#CDA032] focus:ring-1 focus:ring-[#CDA032] transition-colors"
                         style={{
                           backgroundColor: isLight ? '#fff' : '#000',
@@ -517,36 +547,66 @@ export const Store: React.FC<StoreProps> = ({
                       ))}
                     </div>
 
-                    <div className="mt-3 p-3 rounded-xl bg-white/5 border border-white/10">
-                      <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider mb-2">Custom Price Range</p>
+                    <div
+                      className="mt-3 p-3 rounded-xl border"
+                      style={{
+                        backgroundColor: isLight ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.05)',
+                        borderColor: borderSubtle,
+                      }}
+                    >
+                      <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider mb-3" style={{ color: isLight ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.7)' }}>
+                        Custom Price Range
+                      </p>
                       <div className="grid grid-cols-2 gap-2">
-                        <input
-                          type="number"
-                          min="0"
-                          value={mobileMinInput}
-                          onChange={(e) => setMobileMinInput(e.target.value)}
-                          className="w-full px-2 py-2 rounded-lg bg-black/20 border border-white/10 text-[10px] sm:text-xs text-white"
-                          placeholder="Min"
-                        />
-                        <input
-                          type="number"
-                          min="0"
-                          value={mobileMaxInput}
-                          onChange={(e) => setMobileMaxInput(e.target.value)}
-                          className="w-full px-2 py-2 rounded-lg bg-black/20 border border-white/10 text-[10px] sm:text-xs text-white"
-                          placeholder="Max"
-                        />
+                        <div>
+                          <label className="text-[9px] font-bold uppercase tracking-wider opacity-50 mb-1 block">Min</label>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min="0"
+                            value={mobileMinInput}
+                            onChange={(e) => setMobileMinInput(e.target.value)}
+                            className="w-full px-3 py-2.5 rounded-lg border text-sm font-medium focus:outline-none focus:border-[#CDA032] focus:ring-1 focus:ring-[#CDA032]"
+                            style={{
+                              backgroundColor: isLight ? '#fff' : '#000',
+                              borderColor: borderSubtle,
+                              color: isLight ? '#000' : '#fff',
+                            }}
+                            placeholder="0"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold uppercase tracking-wider opacity-50 mb-1 block">Max</label>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min="0"
+                            value={mobileMaxInput}
+                            onChange={(e) => setMobileMaxInput(e.target.value)}
+                            className="w-full px-3 py-2.5 rounded-lg border text-sm font-medium focus:outline-none focus:border-[#CDA032] focus:ring-1 focus:ring-[#CDA032]"
+                            style={{
+                              backgroundColor: isLight ? '#fff' : '#000',
+                              borderColor: borderSubtle,
+                              color: isLight ? '#000' : '#fff',
+                            }}
+                            placeholder="15000"
+                          />
+                        </div>
                       </div>
-                      <div className="mt-2 grid grid-cols-2 gap-2">
+                      <div className="mt-3 grid grid-cols-2 gap-2">
                         <button
                           onClick={() => {
-                            const min = Math.max(0, Number(mobileMinInput) || 0);
-                            const maxRaw = Number(mobileMaxInput) || 15000;
-                            const max = Math.max(min, maxRaw);
+                            // Allow empty inputs to mean "no bound" — they
+                            // collapse to the default extremes here without
+                            // forcing the user to type during edit.
+                            const minRaw = mobileMinInput.trim() === '' ? 0 : Number(mobileMinInput);
+                            const maxRaw = mobileMaxInput.trim() === '' ? 15000 : Number(mobileMaxInput);
+                            const min = Number.isFinite(minRaw) ? Math.max(0, minRaw) : 0;
+                            const max = Number.isFinite(maxRaw) ? Math.min(15000, Math.max(min, maxRaw)) : 15000;
                             setPriceRange({ min, max });
                             setShowMobileNav(false);
                           }}
-                          className="px-3 py-2 rounded-lg bg-[#CDA032] text-black text-[9px] sm:text-[10px] font-black uppercase tracking-wider"
+                          className="px-3 py-2.5 rounded-lg bg-[#CDA032] text-black text-[10px] sm:text-[11px] font-black uppercase tracking-wider hover:brightness-110 active:scale-[0.98] transition-all"
                         >
                           Apply
                         </button>
@@ -556,7 +616,11 @@ export const Store: React.FC<StoreProps> = ({
                             setMobileMinInput('0');
                             setMobileMaxInput('15000');
                           }}
-                          className="px-3 py-2 rounded-lg border border-white/10 text-white/70 text-[9px] sm:text-[10px] font-black uppercase tracking-wider"
+                          className="px-3 py-2.5 rounded-lg border text-[10px] sm:text-[11px] font-black uppercase tracking-wider hover:bg-black/5 dark:hover:bg-white/5 transition-all"
+                          style={{
+                            borderColor: borderSubtle,
+                            color: isLight ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.7)',
+                          }}
                         >
                           Reset
                         </button>

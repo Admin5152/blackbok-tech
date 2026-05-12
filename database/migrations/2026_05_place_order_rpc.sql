@@ -175,16 +175,17 @@ BEGIN
   INSERT INTO public.orders (
     user_id, customer_id, status, payment_status, payment_method,
     shipping_address, shipping_method, shipping_cost,
-    total_price, display_id, notes
+    total_price, display_id, notes, discount_amount
   ) VALUES (
     v_user_id, p_customer_id, 'pending', 'pending', p_payment_method,
     p_shipping_address, p_shipping_method, COALESCE(p_shipping_cost, 0),
-    v_total, v_display, p_notes
+    v_total, v_display, p_notes, v_discount
   )
   RETURNING id INTO v_order_id;
 
   -- ------------------------------------------------------------
-  -- 5. Insert order_items and decrement stock for resolvable products.
+  -- 5. Insert order_items (stock decrement + total recalculation
+  --    are handled by DB triggers — Section 25 / DB-07, DB-08.)
   --    Non-UUID product ids (e.g. legacy 'BB-101' display ids or seed
   --    data) are tolerated — we just null out the FK reference and
   --    keep the product_name / product_image snapshot.
@@ -213,12 +214,6 @@ BEGIN
       NULLIF(v_item->>'product_image', ''),
       COALESCE(v_item->'product_options', '{}'::JSONB)
     );
-
-    IF v_pid_uuid IS NOT NULL THEN
-      UPDATE public.products
-         SET stock = GREATEST(0, COALESCE(stock, 0) - v_qty)
-       WHERE id = v_pid_uuid;
-    END IF;
   END LOOP;
 
   -- ------------------------------------------------------------

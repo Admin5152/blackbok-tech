@@ -21,32 +21,55 @@ import {
   EmailLog,
   EmailSendQueue
 } from '../types';
+import { formatCurrency } from './utils';
 
+// Normalizes admin-entered category strings (e.g. "Mobile Phones",
+// "Laptops & Notebooks", "Apple iPhones") to one of the canonical
+// values used by the UI (`iPhone`, `Laptop`, `Accessories`, `Gaming`,
+// `Audio`, `Tablet`). Uses substring matching rather than strict
+// equality so that minor variations and combined names still map to
+// the right canonical bucket. This is what fixes the home-page sliders
+// returning empty when the DB has e.g. "Mobile Devices" or "Laptops".
 const normalizeCategory = (category?: string): string => {
   if (!category) return 'Accessories';
   const value = category.trim().toLowerCase();
 
-  if (['iphone', 'iphones', 'phone', 'phones', 'mobile', 'mobile phone', 'mobile phones', 'smartphone', 'smartphones'].includes(value)) {
-    return 'iPhone';
-  }
-  if (['laptop', 'laptops', 'notebook', 'notebooks', 'macbook', 'macbooks', 'computer', 'computers'].includes(value)) {
+  // Order matters: more specific matches first.
+  if (value.includes('iphone')) return 'iPhone';
+  if (value.includes('tablet') || value.includes('ipad')) return 'Tablet';
+  if (value.includes('laptop') || value.includes('notebook') || value.includes('macbook') || value.includes('computer')) {
     return 'Laptop';
   }
-  if (['accessory', 'accessories', 'case', 'cases', 'wearable', 'wearables'].includes(value)) {
-    return 'Accessories';
+  if (value.includes('phone') || value.includes('mobile') || value.includes('smartphone')) {
+    return 'iPhone';
   }
-  if (['gaming', 'game', 'games', 'console', 'consoles'].includes(value)) {
-    return 'Gaming';
-  }
-  if (['audio', 'headphone', 'headphones', 'earbuds', 'speaker', 'speakers'].includes(value)) {
+  if (value.includes('gam') || value.includes('console')) return 'Gaming';
+  if (value.includes('audio') || value.includes('headphone') || value.includes('earbud') || value.includes('speaker')) {
     return 'Audio';
   }
-  if (['tablet', 'tablets', 'ipad', 'ipads'].includes(value)) {
-    return 'Tablet';
+  if (value.includes('accessor') || value.includes('case') || value.includes('wearable') || value.includes('charger') || value.includes('cable')) {
+    return 'Accessories';
   }
 
   return category;
 };
+
+/** Maps `orders.status` from Postgres (usually lowercase) to UI labels (Pascal Case). */
+export function normalizeOrderStatusForUi(status?: string | null): string {
+  if (!status || !String(status).trim()) return 'Pending';
+  const key = String(status).trim().toLowerCase();
+  const map: Record<string, string> = {
+    pending: 'Pending',
+    processing: 'Processing',
+    shipped: 'Shipped',
+    ready: 'Shipped',
+    delivered: 'Delivered',
+    cancelled: 'Cancelled',
+    canceled: 'Cancelled',
+    refunded: 'Refunded',
+  };
+  return map[key] ?? `${status.charAt(0).toUpperCase()}${status.slice(1).toLowerCase()}`;
+}
 
 // ==========================================
 // AUTHENTICATION & PROFILES
@@ -140,49 +163,88 @@ export const getUserRoles = async (userId: string): Promise<UserRole[]> => {
 // PRODUCT MANAGEMENT (ADMIN)
 // ==========================================
 
+// Helper: filter out undefined values from an update payload so we
+// don't accidentally null-out columns the caller didn't intend to
+// touch (Supabase-js already does this, but being explicit keeps the
+// intent obvious for the variant-column work below).
+const stripUndefined = <T extends Record<string, unknown>>(obj: T): Partial<T> => {
+  const out: Partial<T> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v !== undefined) (out as any)[k] = v;
+  }
+  return out;
+};
+
+// Coerce mixed-shape inputs (the legacy UI may pass `string[]` or a
+// single string) to a clean `string[]`. Empty arrays are fine — they
+// signal "no chips" rather than "leave alone".
+const toStringArray = (value: unknown): string[] | undefined => {
+  if (value === undefined) return undefined;
+  if (value === null) return [];
+  if (Array.isArray(value)) return value.map(v => String(v)).filter(Boolean);
+  if (typeof value === 'string') return value.split(',').map(s => s.trim()).filter(Boolean);
+  return [];
+};
+
 export const createProduct = async (product: Partial<Product>) => {
+  const priceNum = product.price != null ? Number(product.price) : NaN;
+  const payload = stripUndefined({
+    name: product.name,
+    description: product.description,
+    price: Number.isFinite(priceNum) ? priceNum : undefined,
+    image_url: product.image || product.image_url,
+    category: product.category,
+    rating: product.rating != null ? Number(product.rating) : undefined,
+    review_count: product.review_count ?? product.reviewCount,
+    discount: product.discount != null ? Number(product.discount) : undefined,
+    is_new: Boolean(product.new ?? product.is_new),
+    stock: product.stock != null ? Number(product.stock) : 0,
+    featured: Boolean(product.featured),
+    colors: toStringArray((product as any).colors),
+    storage: toStringArray((product as any).storage),
+    ram: toStringArray((product as any).ram),
+    specs: toStringArray((product as any).specs),
+  });
+
   const { data, error } = await supabase
     .from('products')
-    .insert({
-      name: product.name,
-      description: product.description,
-      price: product.price,
-      image_url: product.image || product.image_url,
-      category: product.category,
-      rating: product.rating,
-      review_count: product.review_count || product.reviewCount,
-      discount: product.discount,
-      is_new: product.new || product.is_new,
-      stock: product.stock || 0,
-      featured: product.featured
-    })
-    .select()
+    .insert(payload)
+    .select('*, product_variants(*), product_images(*)')
     .single();
   if (error) throw error;
-  return data;
+  return mapProductFromDb(data);
 };
 
 export const updateProduct = async (id: string, updates: Partial<Product>) => {
+  const priceNum = updates.price !== undefined && updates.price !== null ? Number(updates.price) : undefined;
+  const payload = stripUndefined({
+    name: updates.name,
+    description: updates.description,
+    price: priceNum !== undefined && Number.isFinite(priceNum) ? priceNum : undefined,
+    image_url: updates.image || updates.image_url,
+    category: updates.category,
+    rating: updates.rating != null ? Number(updates.rating) : undefined,
+    review_count: updates.review_count ?? updates.reviewCount,
+    discount: updates.discount !== undefined && updates.discount !== null ? Number(updates.discount) : undefined,
+    is_new: updates.new !== undefined || updates.is_new !== undefined
+      ? Boolean(updates.new ?? updates.is_new)
+      : undefined,
+    stock: updates.stock !== undefined && updates.stock !== null ? Number(updates.stock) : undefined,
+    featured: updates.featured !== undefined ? Boolean(updates.featured) : undefined,
+    colors: toStringArray((updates as any).colors),
+    storage: toStringArray((updates as any).storage),
+    ram: toStringArray((updates as any).ram),
+    specs: toStringArray((updates as any).specs),
+  });
+
   const { data, error } = await supabase
     .from('products')
-    .update({
-      name: updates.name,
-      description: updates.description,
-      price: updates.price,
-      image_url: updates.image || updates.image_url,
-      category: updates.category,
-      rating: updates.rating,
-      review_count: updates.review_count || updates.reviewCount,
-      discount: updates.discount,
-      is_new: updates.new || updates.is_new,
-      stock: updates.stock,
-      featured: updates.featured
-    })
+    .update(payload)
     .eq('id', id)
-    .select()
+    .select('*, product_variants(*), product_images(*)')
     .single();
   if (error) throw error;
-  return data;
+  return mapProductFromDb(data);
 };
 
 export const deleteProduct = async (id: string) => {
@@ -201,23 +263,36 @@ const normalizeProductImages = (raw: any): any[] => {
   );
 };
 
+/** Maps a Supabase `products` row (+ joined relations) to the UI `Product` shape. */
+export function mapProductFromDb(p: any): Product {
+  if (!p) return p;
+  const isNew = p.is_new != null ? Boolean(p.is_new) : Boolean(p.new);
+  return {
+    ...p,
+    category: normalizeCategory(p.category),
+    image: p.image_url,
+    new: isNew,
+    is_new: isNew,
+    featured: Boolean(p.featured),
+    reviewCount: p.review_count,
+    variants: p.product_variants,
+    images: normalizeProductImages(p.product_images),
+    price: Number(p.price ?? 0),
+    stock: Number(p.stock ?? 0),
+    discount: p.discount != null && p.discount !== '' ? Number(p.discount) : undefined,
+    rating: p.rating != null && p.rating !== '' ? Number(p.rating) : undefined,
+  } as Product;
+}
+
 export const getProducts = async (): Promise<Product[]> => {
   const { data, error } = await supabase
     .from('products')
     .select('*, product_variants(*), product_images(*)')
     .order('created_at', { ascending: false });
   if (error) throw error;
-  
-  // Map for backward compatibility
-  return data.map((p: any) => ({
-    ...p,
-    category: normalizeCategory(p.category),
-    image: p.image_url,
-    new: p.is_new,
-    reviewCount: p.review_count,
-    variants: p.product_variants,
-    images: normalizeProductImages(p.product_images)
-  }));
+
+  const rows = Array.isArray(data) ? data : [];
+  return rows.map((p: any) => mapProductFromDb(p));
 };
 
 export const getProduct = async (id: string): Promise<Product | null> => {
@@ -228,15 +303,7 @@ export const getProduct = async (id: string): Promise<Product | null> => {
     .single();
   if (error) throw error;
   if (!data) return null;
-  return {
-    ...data,
-    category: normalizeCategory(data.category),
-    image: data.image_url,
-    new: data.is_new,
-    reviewCount: data.review_count,
-    variants: data.product_variants,
-    images: normalizeProductImages(data.product_images)
-  };
+  return mapProductFromDb(data);
 };
 
 // ==========================================
@@ -297,19 +364,26 @@ export const clearCartItems = async (userId: string) => {
 // ==========================================
 
 export const getWishlist = async (userId: string): Promise<Wishlist[]> => {
-  const { data, error } = await supabase.from('wishlist').select('*, products(*)').eq('user_id', userId);
+  const { data, error } = await supabase
+    .from('wishlist_items')
+    .select('*, products(*)')
+    .eq('user_id', userId);
   if (error) throw error;
   return data;
 };
 
 export const addToWishlist = async (userId: string, productId: string) => {
-  const { data, error } = await supabase.from('wishlist').insert({ user_id: userId, product_id: productId }).select().single();
+  const { data, error } = await supabase
+    .from('wishlist_items')
+    .insert({ user_id: userId, product_id: productId })
+    .select()
+    .single();
   if (error) throw error;
   return data;
 };
 
 export const removeFromWishlist = async (id: string) => {
-  const { error } = await supabase.from('wishlist').delete().eq('id', id);
+  const { error } = await supabase.from('wishlist_items').delete().eq('id', id);
   if (error) throw error;
 };
 
@@ -460,6 +534,7 @@ export const getOrders = async (userId?: string): Promise<Order[]> => {
 
   return data.map((o: any) => ({
     ...o,
+    status: normalizeOrderStatusForUi(o.status),
     userId: o.user_id,
     userName: profileMap.get(o.user_id)?.name || (profileMap.get(o.user_id)?.email ? String(profileMap.get(o.user_id).email).split('@')[0] : 'Unknown'),
     userEmail: profileMap.get(o.user_id)?.email || 'N/A',
@@ -498,11 +573,16 @@ export const getAdminOrdersFromItems = async (): Promise<Order[]> => {
     if (!grouped.has(ord.id)) {
       grouped.set(ord.id, {
         ...ord,
+        status: normalizeOrderStatusForUi(ord.status),
+        display_id: ord.display_id,
         userId: ord.user_id,
         userName: 'Unknown',
         userEmail: 'N/A',
         userPhone: '',
         paymentMethod: ord.payment_method,
+        payment_status: ord.payment_status,
+        shipping_method: ord.shipping_method,
+        shipping_cost: Number(ord.shipping_cost ?? 0),
         items: [],
         total: Number(ord.total_price || 0),
         date: ord.created_at
@@ -511,8 +591,10 @@ export const getAdminOrdersFromItems = async (): Promise<Order[]> => {
 
     grouped.get(ord.id).items.push({
       ...row,
-      name: row.products?.name,
-      image: row.products?.image_url,
+      name: row.products?.name || row.product_name || 'Item',
+      image: row.products?.image_url || row.product_image || null,
+      quantity: Number(row.quantity ?? 1),
+      price: Number(row.unit_price ?? row.price ?? 0),
       selectedOptions: row.product_variants ? { variant: row.product_variants.sku } : {}
     });
   }
@@ -555,11 +637,15 @@ export const getUserOrdersFromItems = async (userId: string): Promise<Order[]> =
   for (const ord of ordersData as any[]) {
     orderMap.set(ord.id, {
       ...ord,
+      status: normalizeOrderStatusForUi(ord.status),
+      display_id: ord.display_id,
       userId: ord.user_id,
       userName: 'Unknown',
       userEmail: 'N/A',
       userPhone: '',
       paymentMethod: ord.payment_method,
+      shipping_method: ord.shipping_method,
+      shipping_cost: Number(ord.shipping_cost ?? 0),
       items: [],
       total: Number(ord.total_price || 0),
       date: ord.created_at
@@ -579,8 +665,10 @@ export const getUserOrdersFromItems = async (userId: string): Promise<Order[]> =
     if (!target) continue;
     target.items.push({
       ...row,
-      name: row.products?.name,
-      image: row.products?.image_url,
+      name: row.products?.name || row.product_name || 'Item',
+      image: row.products?.image_url || row.product_image || null,
+      quantity: Number(row.quantity ?? 1),
+      price: Number(row.unit_price ?? row.price ?? 0),
       selectedOptions: row.product_variants ? { variant: row.product_variants.sku } : {}
     });
   }
@@ -621,6 +709,7 @@ export const getOrder = async (id: string): Promise<Order | null> => {
   
   return {
     ...data,
+    status: normalizeOrderStatusForUi(data.status),
     userId: data.user_id,
     userName: profile?.name || (profile?.email ? String(profile.email).split('@')[0] : 'Unknown'),
     userEmail: profile?.email || 'N/A',
@@ -628,8 +717,10 @@ export const getOrder = async (id: string): Promise<Order | null> => {
     paymentMethod: data.payment_method,
     items: data.order_items.map((i: any) => ({
       ...i,
-      name: i.products?.name,
-      image: i.products?.image_url
+      name: i.products?.name || i.product_name || 'Item',
+      image: i.products?.image_url || i.product_image || null,
+      quantity: Number(i.quantity ?? 1),
+      price: Number(i.price ?? i.unit_price ?? 0),
     })),
     total: Number(data.total_price),
     date: data.created_at
@@ -692,32 +783,144 @@ const REPAIR_STATUS_FROM_DB: Record<string, string> = {
   rejected: 'Rejected',
 };
 
+/** Maps a `repair_requests` row to the UI `RepairRequest` shape (camelCase + display strings). */
+export function mapRepairFromDb(r: any): RepairRequest {
+  if (!r) return r;
+  const uiStatus = REPAIR_STATUS_FROM_DB[String(r.status || '').toLowerCase()]
+    || (r.status ? String(r.status).replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : 'Pending');
+  const costNum = r.estimated_cost != null && r.estimated_cost !== ''
+    ? Number(r.estimated_cost)
+    : 0;
+  const costFinite = Number.isFinite(costNum) && costNum > 0;
+  return {
+    ...r,
+    userId: r.user_id,
+    userName: r.user_name || '',
+    status: uiStatus,
+    device: `${r.device_brand || ''} ${r.device_model || ''}`.trim() || '—',
+    issue: r.issue_description || r.issue_type || '',
+    date: r.created_at,
+    imageUrl: Array.isArray(r.image_urls) ? r.image_urls[0] : '',
+    estimated_cost: costFinite ? costNum : undefined,
+    estimatedCost: costFinite ? formatCurrency(costNum) : '',
+    aiDiagnosis: r.ai_diagnosis,
+    adminNote: r.admin_note,
+    fulfillmentMethod: r.fulfillment_method,
+  } as RepairRequest;
+}
+
+/**
+ * The columns that actually exist on `public.repair_requests` after
+ * the `2026_05_repair_requests.sql` migration. Anything not in this
+ * allow-list is stripped before the insert/update is sent to
+ * PostgREST — that protects us from stale bundles or future UI
+ * additions that haven't been migrated yet (e.g. the legacy `device`
+ * key that triggered REP-24).
+ */
+const REPAIR_DB_COLUMNS = new Set<string>([
+  'id',
+  'display_id',
+  'user_id',
+  'customer_id',
+  'user_name',
+  'device_brand',
+  'device_model',
+  'issue_type',
+  'issue_description',
+  'ai_diagnosis',
+  'image_urls',
+  'accessories',
+  'urgency',
+  'fulfillment_method',
+  'preferred_date',
+  'preferred_time',
+  'contact_name',
+  'contact_phone',
+  'contact_email',
+  'repair_approval',
+  'data_backup',
+  'diagnostic_fee',
+  'agrees_to_terms',
+  'client_signature',
+  'estimated_cost',
+  'final_cost',
+  'technician_notes',
+  'admin_note',
+  'assigned_technician',
+  'status',
+  'created_at',
+  'updated_at',
+]);
+
 const normalizeRepairPayload = (repair: Partial<RepairRequest>) => {
   const normalized: Record<string, any> = { ...repair };
 
-  // Backward compatibility mappings
+  // ---- Backward compatibility mappings ----
+  // Legacy `device` (space-separated) -> device_brand / device_model
   if ((normalized as any).device && (!normalized.device_brand || !normalized.device_model)) {
     const parts = String((normalized as any).device).trim().split(' ');
     normalized.device_brand = normalized.device_brand || parts[0] || null;
     normalized.device_model = normalized.device_model || parts.slice(1).join(' ') || null;
   }
+  // Legacy `issue` -> issue_description
   if ((normalized as any).issue && !normalized.issue_description) {
     normalized.issue_description = (normalized as any).issue;
   }
+  // camelCase aliases -> snake_case
   if ((normalized as any).adminNote !== undefined && normalized.admin_note === undefined) {
     normalized.admin_note = (normalized as any).adminNote;
   }
+  if ((normalized as any).userId !== undefined && normalized.user_id === undefined) {
+    normalized.user_id = (normalized as any).userId;
+  }
+  if ((normalized as any).userName !== undefined && normalized.user_name === undefined) {
+    normalized.user_name = (normalized as any).userName;
+  }
+  if ((normalized as any).fulfillmentMethod !== undefined && normalized.fulfillment_method === undefined) {
+    normalized.fulfillment_method = (normalized as any).fulfillmentMethod;
+  }
+  if ((normalized as any).aiDiagnosis !== undefined && normalized.ai_diagnosis === undefined) {
+    normalized.ai_diagnosis = (normalized as any).aiDiagnosis;
+  }
+  if ((normalized as any).imageUrl && (!normalized.image_urls || normalized.image_urls.length === 0)) {
+    normalized.image_urls = [String((normalized as any).imageUrl)];
+  }
+  if ((normalized as any).estimatedCost !== undefined && normalized.estimated_cost === undefined) {
+    normalized.estimated_cost = (normalized as any).estimatedCost;
+  }
+
+  // Status normalization
   if (normalized.status) {
     normalized.status = REPAIR_STATUS_TO_DB[String(normalized.status)] || String(normalized.status).toLowerCase();
   }
+
+  // estimated_cost may arrive as "GHC 250" or "250.00" — coerce.
   if (typeof normalized.estimated_cost === 'string') {
     const parsed = Number(String(normalized.estimated_cost).replace(/[^0-9.]/g, ''));
     normalized.estimated_cost = Number.isFinite(parsed) ? parsed : null;
   }
 
-  delete normalized.device;
-  delete normalized.issue;
-  delete (normalized as any).adminNote;
+  // DATE / TEXT fields: empty strings break inserts (invalid date).
+  if (normalized.preferred_date === '' || normalized.preferred_date === null || normalized.preferred_date === undefined) {
+    delete normalized.preferred_date;
+  } else if (typeof normalized.preferred_date === 'string') {
+    const d = new Date(normalized.preferred_date);
+    if (Number.isNaN(d.getTime())) delete normalized.preferred_date;
+    else normalized.preferred_date = d.toISOString().slice(0, 10);
+  }
+  if (normalized.preferred_time === '' || normalized.preferred_time === null) {
+    delete normalized.preferred_time;
+  }
+
+  // Drop anything that's not a real DB column. This is the safety
+  // net that prevents PostgREST "could not find the 'foo' column"
+  // errors when a stale bundle (or future UI) sends extra keys.
+  for (const k of Object.keys(normalized)) {
+    if (!REPAIR_DB_COLUMNS.has(k)) {
+      delete normalized[k];
+    }
+  }
+
   return normalized;
 };
 
@@ -729,7 +932,7 @@ export const createRepairRequest = async (repair: Partial<RepairRequest>) => {
     .select()
     .single();
   if (error) throw error;
-  return data;
+  return mapRepairFromDb(data);
 };
 
 export const getRepairRequests = async (userId?: string): Promise<RepairRequest[]> => {
@@ -737,20 +940,7 @@ export const getRepairRequests = async (userId?: string): Promise<RepairRequest[
   if (userId) query = query.eq('user_id', userId);
   const { data, error } = await query;
   if (error) throw error;
-  return data.map((r: any) => ({
-    ...r,
-    userId: r.user_id,
-    userName: r.user_name || '',
-    status: REPAIR_STATUS_FROM_DB[r.status] || r.status,
-    device: `${r.device_brand || ''} ${r.device_model || ''}`,
-    issue: r.issue_description || r.issue_type || '',
-    date: r.created_at,
-    imageUrl: r.image_urls?.[0] || '',
-    estimatedCost: r.estimated_cost,
-    aiDiagnosis: r.ai_diagnosis,
-    adminNote: r.admin_note,
-    fulfillmentMethod: r.fulfillment_method
-  }));
+  return (data || []).map((r: any) => mapRepairFromDb(r));
 };
 
 export const updateRepairRequest = async (id: string, updates: Partial<RepairRequest>) => {
@@ -762,7 +952,7 @@ export const updateRepairRequest = async (id: string, updates: Partial<RepairReq
     .select()
     .single();
   if (error) throw error;
-  return data;
+  return mapRepairFromDb(data);
 };
 
 // ==========================================
@@ -789,53 +979,53 @@ const TRADE_STATUS_FROM_DB: Record<string, string> = {
   rejected: 'Rejected',
 };
 
-const normalizeTradeUpdatePayload = (updates: Partial<TradeInRequest>) => {
-  const normalized: Record<string, any> = { ...updates };
+const TRADE_DB_COLUMNS = new Set([
+  'id',
+  'display_id',
+  'user_id',
+  'customer_id',
+  'user_name',
+  'user_email',
+  'user_description',
+  'device_brand',
+  'device_name',
+  'condition',
+  'accessories',
+  'target_device',
+  'target_product_id',
+  'estimated_value',
+  'offered_price',
+  'final_value',
+  'preferred_date',
+  'preferred_time',
+  'fulfillment_method',
+  'contact_name',
+  'contact_phone',
+  'contact_email',
+  'admin_notes',
+  'status',
+  'created_at',
+  'updated_at',
+]);
 
-  // Map legacy keys to actual DB columns
-  if ((normalized as any).admin_note !== undefined && normalized.admin_notes === undefined) {
-    normalized.admin_notes = (normalized as any).admin_note;
-  }
-
-  if (normalized.status) {
-    normalized.status = TRADE_STATUS_TO_DB[String(normalized.status)] || String(normalized.status).toLowerCase();
-  }
-
-  delete (normalized as any).admin_note;
-  return normalized;
-};
-
-export const createTradeRequest = async (trade: Partial<TradeInRequest>) => {
-  const payload = normalizeTradeUpdatePayload({
-    ...trade,
-    status: trade.status || 'submitted',
-    estimated_value: trade.estimated_value || 0
-  });
-
-  const { data, error } = await supabase
-    .from('trade_in_requests')
-    .insert(payload)
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
-};
-
-export const getTradeRequests = async (userId?: string): Promise<TradeInRequest[]> => {
-  let query = supabase.from('trade_in_requests').select('*').order('created_at', { ascending: false });
-  if (userId) query = query.eq('user_id', userId);
-  const { data, error } = await query;
-  if (error) throw error;
-  return data.map((t: any) => ({
+export const mapTradeFromDb = (t: any): TradeInRequest => {
+  if (!t) return t;
+  const rawStatus = String(t.status || 'submitted').toLowerCase();
+  const uiStatus = TRADE_STATUS_FROM_DB[rawStatus] ?? t.status;
+  const deviceStr = `${t.device_brand || ''} ${t.device_name || ''}`.trim() || '—';
+  const num = (v: any) =>
+    v != null && v !== '' && Number.isFinite(Number(v)) ? Number(v) : undefined;
+  return {
     ...t,
     userId: t.user_id,
     userName: t.user_name,
     userEmail: t.user_email,
-    status: TRADE_STATUS_FROM_DB[t.status] || t.status,
-    device: `${t.device_brand || ''} ${t.device_name || ''}`,
+    status: uiStatus,
+    device: deviceStr,
     date: t.created_at,
     estimatedValue: Number(t.estimated_value) || 0,
-    finalValue: t.final_value ? Number(t.final_value) : undefined,
+    finalValue: num(t.final_value),
+    offeredPrice: num(t.offered_price),
     adminNote: t.admin_notes,
     targetDevice: t.target_device,
     userDescription: t.user_description,
@@ -844,8 +1034,118 @@ export const getTradeRequests = async (userId?: string): Promise<TradeInRequest[
     contactName: t.contact_name,
     contactEmail: t.contact_email,
     contactPhone: t.contact_phone,
-    fulfillmentMethod: t.fulfillment_method
-  }));
+    fulfillmentMethod: t.fulfillment_method,
+    condition: t.condition,
+  } as TradeInRequest;
+};
+
+const normalizeTradePayload = (updates: Record<string, any>, mode: 'insert' | 'update') => {
+  const normalized: Record<string, any> = { ...updates };
+
+  const camelToSnake: [string, string][] = [
+    ['userId', 'user_id'],
+    ['userName', 'user_name'],
+    ['userEmail', 'user_email'],
+    ['userDescription', 'user_description'],
+    ['deviceBrand', 'device_brand'],
+    ['deviceName', 'device_name'],
+    ['targetDevice', 'target_device'],
+    ['targetProductId', 'target_product_id'],
+    ['estimatedValue', 'estimated_value'],
+    ['offeredPrice', 'offered_price'],
+    ['finalValue', 'final_value'],
+    ['preferredDate', 'preferred_date'],
+    ['preferredTime', 'preferred_time'],
+    ['contactName', 'contact_name'],
+    ['contactPhone', 'contact_phone'],
+    ['contactEmail', 'contact_email'],
+    ['fulfillmentMethod', 'fulfillment_method'],
+    ['adminNote', 'admin_notes'],
+  ];
+  for (const [cam, snk] of camelToSnake) {
+    if (normalized[cam] !== undefined && normalized[snk] === undefined) {
+      normalized[snk] = normalized[cam];
+    }
+    delete normalized[cam];
+  }
+
+  if (normalized.admin_note !== undefined && normalized.admin_notes === undefined) {
+    normalized.admin_notes = normalized.admin_note;
+  }
+  delete normalized.admin_note;
+
+  if (normalized.status) {
+    normalized.status =
+      TRADE_STATUS_TO_DB[String(normalized.status)] || String(normalized.status).toLowerCase();
+  }
+
+  if (
+    normalized.preferred_date === '' ||
+    normalized.preferred_date === null ||
+    normalized.preferred_date === undefined
+  ) {
+    delete normalized.preferred_date;
+  } else if (typeof normalized.preferred_date === 'string') {
+    const d = new Date(normalized.preferred_date);
+    if (Number.isNaN(d.getTime())) delete normalized.preferred_date;
+    else normalized.preferred_date = d.toISOString().slice(0, 10);
+  }
+  if (normalized.preferred_time === '' || normalized.preferred_time === null) {
+    delete normalized.preferred_time;
+  }
+
+  for (const k of ['estimated_value', 'offered_price', 'final_value'] as const) {
+    if (typeof normalized[k] === 'string') {
+      const parsed = Number(String(normalized[k]).replace(/[^0-9.]/g, ''));
+      normalized[k] = Number.isFinite(parsed) ? parsed : null;
+    }
+  }
+
+  for (const k of Object.keys(normalized)) {
+    if (normalized[k] === undefined) delete normalized[k];
+  }
+
+  for (const k of Object.keys(normalized)) {
+    if (!TRADE_DB_COLUMNS.has(k)) delete normalized[k];
+  }
+
+  if (mode === 'update') {
+    delete normalized.id;
+    delete normalized.display_id;
+    delete normalized.created_at;
+  }
+
+  return normalized;
+};
+
+const normalizeTradeUpdatePayload = (updates: Partial<TradeInRequest>) =>
+  normalizeTradePayload(updates as Record<string, any>, 'update');
+
+export const createTradeRequest = async (trade: Partial<TradeInRequest>) => {
+  const payload = normalizeTradePayload(
+    {
+      ...trade,
+      status: trade.status || 'submitted',
+      estimated_value: trade.estimated_value ?? trade.estimatedValue ?? 0,
+    } as Record<string, any>,
+    'insert'
+  );
+
+  const { data, error } = await supabase
+    .from('trade_in_requests')
+    .insert(payload)
+    .select()
+    .single();
+  if (error) throw error;
+  return mapTradeFromDb(data);
+};
+
+export const getTradeRequests = async (userId?: string): Promise<TradeInRequest[]> => {
+  let query = supabase.from('trade_in_requests').select('*').order('created_at', { ascending: false });
+  if (userId) query = query.eq('user_id', userId);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []).map((t: any) => mapTradeFromDb(t));
 };
 
 export const updateTradeRequest = async (id: string, updates: Partial<TradeInRequest>) => {
@@ -857,7 +1157,7 @@ export const updateTradeRequest = async (id: string, updates: Partial<TradeInReq
     .select()
     .single();
   if (error) throw error;
-  return data;
+  return mapTradeFromDb(data);
 };
 
 // ==========================================

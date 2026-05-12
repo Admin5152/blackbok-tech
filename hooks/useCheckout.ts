@@ -23,6 +23,20 @@ export interface PlaceOrderResult {
   total?: number | null;
 }
 
+/**
+ * Optional metadata that the checkout form can attach to the order.
+ * All fields default sensibly on the server side, so callers only need
+ * to supply what they actually collected from the UI.
+ */
+export interface PlaceOrderMeta {
+  shipping_address?: string | null;
+  shipping_method?: string | null;     // 'pickup' | 'delivery'
+  shipping_cost?: number | null;
+  payment_method?: string | null;      // 'in_person' | 'card' | 'mobile_money'
+  notes?: string | null;
+  customer_id?: string | null;
+}
+
 export interface UseCheckoutResult {
   loading: boolean;
   error: string | null;
@@ -36,6 +50,7 @@ export interface UseCheckoutResult {
   placeOrder: (
     cartItems: CheckoutCartItem[],
     coupon?: AppliedCoupon | null,
+    meta?: PlaceOrderMeta,
   ) => Promise<PlaceOrderResult>;
 }
 
@@ -84,6 +99,7 @@ export function useCheckout(): UseCheckoutResult {
   const placeOrder = useCallback(async (
     cartItems: CheckoutCartItem[],
     coupon: AppliedCoupon | null = null,
+    meta: PlaceOrderMeta = {},
   ): Promise<PlaceOrderResult> => {
     if (!Array.isArray(cartItems) || cartItems.length === 0) {
       const empty = new Error('Your cart is empty.');
@@ -142,12 +158,22 @@ export function useCheckout(): UseCheckoutResult {
         reservationId = (useRow as { id: string }).id;
       }
 
-      // 2. Call place_order RPC
-      const { data: rpcData, error: rpcErr } = await supabase.rpc('place_order', {
+      // 2. Call place_order RPC. Only forward metadata fields when
+      //    they're explicitly provided so we don't override the RPC
+      //    defaults with stray nulls.
+      const rpcArgs: Record<string, unknown> = {
         p_cart_items: cartItems,
         p_coupon_id: coupon?.id ?? null,
         p_discount_amount: coupon?.discountAmount ?? 0,
-      });
+      };
+      if (meta.shipping_address != null) rpcArgs.p_shipping_address = meta.shipping_address;
+      if (meta.shipping_method  != null) rpcArgs.p_shipping_method  = meta.shipping_method;
+      if (meta.payment_method   != null) rpcArgs.p_payment_method   = meta.payment_method;
+      if (meta.shipping_cost    != null) rpcArgs.p_shipping_cost    = meta.shipping_cost;
+      if (meta.customer_id      != null) rpcArgs.p_customer_id      = meta.customer_id;
+      if (meta.notes            != null) rpcArgs.p_notes            = meta.notes;
+
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('place_order', rpcArgs);
       if (rpcErr) throw rpcErr;
 
       const result = parseRpcReturn(rpcData);

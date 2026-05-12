@@ -1,166 +1,179 @@
-import React, { useEffect, useState } from 'react';
-import { Mail, CheckCircle, ArrowLeft, RefreshCw, AlertCircle, Clock } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Mail, CheckCircle, ArrowLeft, RefreshCw, Clock } from 'lucide-react';
 import { useLocation } from '@tanstack/react-router';
 import { EmailConfirmationService, type EmailConfirmationStatus } from '../lib/emailConfirmation';
 
 interface ConfirmationProps {
   theme: 'light' | 'dark';
   navigateTo: (view: string) => void;
+  notify?: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
   email?: string;
 }
 
-export const Confirmation: React.FC<ConfirmationProps> = ({ theme, navigateTo, email }) => {
+// Total time we'll keep auto-polling on the confirmation screen before
+// giving up. Keeps the QA expectation (CONF-08) and avoids leaking timers
+// when the user walks away from the tab.
+const POLL_INTERVAL_MS = 3000;
+const POLL_TIMEOUT_MS = 5 * 60 * 1000;
+
+// sessionStorage key the Login screen reads to surface a toast after the
+// hash-router redirect from /confirmation -> /auth (CONF-03). We avoid
+// passing the message through the URL because hash routing strips
+// query-strings off `window.location.search`.
+const AUTH_FLASH_KEY = 'auth.flash';
+
+export const Confirmation: React.FC<ConfirmationProps> = ({ theme, navigateTo, notify, email }) => {
   const location = useLocation();
   const isEmailConfirmPage = location.pathname === '/emailconfirm';
   const [confirmationStatus, setConfirmationStatus] = useState<EmailConfirmationStatus | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [monitoringActive, setMonitoringActive] = useState(false);
-  
+  const [pollExpired, setPollExpired] = useState(false);
+
+  // Refs let us guarantee single-instance cleanup of interval/timeout
+  // regardless of how many times the effect re-renders.
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const redirectedRef = useRef(false);
+
   const isDark = theme === 'dark';
   const bgClass = isDark ? 'bg-black' : 'bg-[#F0F0F0]';
-  const cardClass = isDark 
-    ? 'bg-[#0a0a0a] border-white/10' 
+  const cardClass = isDark
+    ? 'bg-[#0a0a0a] border-white/10'
     : 'bg-white border-black/10';
   const textClass = isDark ? 'text-white' : 'text-black';
   const mutedClass = isDark ? 'text-white/60' : 'text-black/60';
-  const buttonClass = isDark 
-    ? 'bg-[#CDA032] text-black hover:bg-[#B38B21]' 
-    : 'bg-[#CDA032] text-black hover:bg-[#B38B21]';
+  const buttonClass = 'bg-[#CDA032] text-black hover:bg-[#B38B21]';
 
-  // Check if user is coming from email confirmation
+  const clearTimers = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  };
+
+  // Hand off the success message via sessionStorage so it survives the
+  // hash-routed navigation to /auth (CONF-03).
+  const redirectToLoginConfirmed = () => {
+    if (redirectedRef.current) return;
+    redirectedRef.current = true;
+    clearTimers();
+    setMonitoringActive(false);
+    try {
+      sessionStorage.setItem(
+        AUTH_FLASH_KEY,
+        JSON.stringify({ type: 'success', message: 'Email confirmed! Please login to continue.' })
+      );
+    } catch {
+      // sessionStorage may be unavailable (private mode, SSR) - fall back to URL param.
+    }
+    notify?.('Email confirmed! Please login to continue.', 'success');
+    navigateTo('/auth?message=' + encodeURIComponent('Email confirmed! Please login to continue.'));
+  };
+
+  // One-shot URL detection on mount (handles the case where the user lands
+  // back here via the Supabase confirmation link).
   useEffect(() => {
     const urlCheck = EmailConfirmationService.checkConfirmationClickFromUrl();
-    
     if (urlCheck.confirmed) {
-      console.log('Email confirmation detected from URL!');
-      navigateTo('/auth?message=Email confirmed! Please login to continue.');
-      return;
+      redirectToLoginConfirmed();
     }
-    
-    // Check current confirmation status
-    if (email) {
-      checkConfirmationStatus();
-    }
-  }, [email, navigateTo]);
+    // intentionally only runs once
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Periodic check for email confirmation status
+  // Single source of truth for polling. Replaces the two duplicate
+  // pollers + startMonitoring() that previously leaked intervals (CONF-08).
   useEffect(() => {
-    if (!email || confirmationStatus?.isEmailConfirmed) return;
-    
-    const interval = setInterval(async () => {
-      console.log('Checking if verification link has been clicked...');
-      const status = await EmailConfirmationService.checkEmailConfirmationByEmail(email);
-      
-      if (status?.isEmailConfirmed) {
-        console.log('✅ Verification link clicked! Redirecting to login...');
-        setConfirmationStatus(status);
-        setMonitoringActive(false);
-        clearInterval(interval);
-        
-        // Show success message and redirect to login
-        setTimeout(() => {
-          navigateTo('/auth?message=Email confirmed! Please login to continue.');
-        }, 1000);
-      }
-    }, 3000); // Check every 3 seconds
-    
-    // Cleanup interval after 5 minutes
-    const timeout = setTimeout(() => {
-      clearInterval(interval);
-      setMonitoringActive(false);
-      console.log('Stopped checking for verification link (timeout)');
-    }, 5 * 60 * 1000);
-    
-    return () => {
-      clearInterval(interval);
-      clearTimeout(timeout);
-    };
-  }, [email, confirmationStatus, navigateTo]);
-
-  // Check email confirmation status
-  const checkConfirmationStatus = async () => {
+    if (isEmailConfirmPage) return;
     if (!email) return;
-    
+    if (confirmationStatus?.isEmailConfirmed) return;
+    if (pollExpired) return;
+
+    clearTimers();
+    setMonitoringActive(true);
+
+    const tick = async () => {
+      const status = await EmailConfirmationService.checkEmailConfirmationByEmail(email);
+      if (status?.isEmailConfirmed) {
+        setConfirmationStatus(status);
+        redirectToLoginConfirmed();
+      }
+    };
+
+    intervalRef.current = setInterval(tick, POLL_INTERVAL_MS);
+    timeoutRef.current = setTimeout(() => {
+      clearTimers();
+      setMonitoringActive(false);
+      setPollExpired(true);
+      console.log('[Confirmation] Polling stopped after timeout');
+    }, POLL_TIMEOUT_MS);
+
+    return () => {
+      clearTimers();
+      setMonitoringActive(false);
+    };
+  }, [email, confirmationStatus?.isEmailConfirmed, pollExpired, isEmailConfirmPage]);
+
+  // Manual "Check Status" handler. Always surfaces feedback to the user
+  // even if Supabase can't read the user (the expected state pre-confirm),
+  // fixing the "button does nothing" perception (CONF-05).
+  const handleCheckStatus = async () => {
+    if (!email || isChecking) return;
     setIsChecking(true);
     try {
       const status = await EmailConfirmationService.checkEmailConfirmationByEmail(email);
-      setConfirmationStatus(status);
-      
-      // If email is confirmed, redirect to login
       if (status?.isEmailConfirmed) {
-        console.log('Email already confirmed!');
-        navigateTo('/auth?message=Email confirmed! Please login to continue.');
+        setConfirmationStatus(status);
+        redirectToLoginConfirmed();
+        return;
       }
-    } catch (error) {
+      // Fallback: render an "awaiting verification" card so the user sees
+      // something change after clicking. The real Supabase user object
+      // isn't reachable from the public anon client until they sign in.
+      setConfirmationStatus({
+        isEmailConfirmed: false,
+        email,
+        needsConfirmation: true,
+      });
+      notify?.('Still awaiting verification. Please click the link in your inbox.', 'info');
+    } catch (error: any) {
       console.error('Error checking confirmation status:', error);
+      notify?.(error?.message || 'Could not check status. Please try again.', 'error');
     } finally {
       setIsChecking(false);
     }
   };
 
-  // Start monitoring for email confirmation
-  const startMonitoring = () => {
-    if (!email || monitoringActive) return;
-    
-    console.log('Starting email confirmation monitoring...');
-    setMonitoringActive(true);
-    
-    // In a real implementation, you'd need the user ID
-    // For now, we'll just check periodically by email
-    const monitorInterval = setInterval(async () => {
-      const status = await EmailConfirmationService.checkEmailConfirmationByEmail(email);
-      
-      if (status?.isEmailConfirmed) {
-        console.log('Email confirmed via monitoring!');
-        setMonitoringActive(false);
-        clearInterval(monitorInterval);
-        navigateTo('/auth?message=Email confirmed! Please login to continue.');
-      }
-    }, 5000); // Check every 5 seconds
-    
-    // Stop monitoring after 5 minutes to avoid infinite polling
-    setTimeout(() => {
-      clearInterval(monitorInterval);
-      setMonitoringActive(false);
-      console.log('Email confirmation monitoring stopped (timeout)');
-    }, 5 * 60 * 1000);
-  };
-
-  // Handle resend email
+  // Resend handler now surfaces both success and failure (CONF-04).
   const handleResendEmail = async () => {
     if (!email || isResending) return;
-    
     setIsResending(true);
     try {
       const result = await EmailConfirmationService.resendConfirmationEmail(email);
-      
       if (result.success) {
-        console.log('Confirmation email resent successfully');
-        // You could show a success notification here
-        startMonitoring(); // Start monitoring after resending
+        notify?.(`Confirmation email re-sent to ${email}.`, 'success');
+        // Restart monitoring if it had timed out.
+        setPollExpired(false);
       } else {
-        console.error('Failed to resend confirmation email:', result.error);
-        // You could show an error notification here
+        notify?.(result.error || 'Failed to resend confirmation email.', 'error');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error resending confirmation email:', error);
+      notify?.(error?.message || 'Failed to resend confirmation email.', 'error');
     } finally {
       setIsResending(false);
     }
   };
 
-  // Auto-start monitoring when component mounts
-  useEffect(() => {
-    if (email && !confirmationStatus?.isEmailConfirmed) {
-      startMonitoring();
-    }
-    
-    return () => {
-      // Cleanup monitoring when component unmounts
-      setMonitoringActive(false);
-    };
-  }, [email, confirmationStatus]);
+  // Final cleanup on unmount (defensive — the polling effect already
+  // handles this, but covers the auto-redirect path too).
+  useEffect(() => () => clearTimers(), []);
 
   return (
     <div className={`view-transition min-h-screen w-full flex items-center justify-center p-4 lg:p-6 overflow-auto ${bgClass}`}>
@@ -177,19 +190,19 @@ export const Confirmation: React.FC<ConfirmationProps> = ({ theme, navigateTo, e
           <h1 className={`text-2xl font-black ${textClass}`}>
             {isEmailConfirmPage ? 'Account Verified' : 'Check Your Email'}
           </h1>
-          
+
           <p className={`${mutedClass} leading-relaxed`}>
             {isEmailConfirmPage
               ? 'Your account has been verified. Please click on the Go to Login button to login again.'
               : "We've sent a confirmation email to:"}
           </p>
-          
+
           {!isEmailConfirmPage && email && (
             <div className={`p-3 rounded-lg ${isDark ? 'bg-white/5 border border-white/10' : 'bg-black/5 border border-black/10'}`}>
               <p className={`font-medium ${textClass}`}>{email}</p>
             </div>
           )}
-          
+
           {!isEmailConfirmPage && (
             <p className={`${mutedClass} text-sm leading-relaxed`}>
               Click the confirmation link in the email to activate your account and complete your registration.
@@ -200,7 +213,7 @@ export const Confirmation: React.FC<ConfirmationProps> = ({ theme, navigateTo, e
         {/* Status Display */}
         {!isEmailConfirmPage && confirmationStatus && (
           <div className={`mt-6 p-4 rounded-lg ${
-            confirmationStatus.isEmailConfirmed 
+            confirmationStatus.isEmailConfirmed
               ? isDark ? 'bg-green-500/10 border border-green-500/20' : 'bg-green-50 border border-green-200'
               : isDark ? 'bg-white/5' : 'bg-black/5'
           } space-y-3`}>
@@ -209,24 +222,16 @@ export const Confirmation: React.FC<ConfirmationProps> = ({ theme, navigateTo, e
                 <>
                   <CheckCircle className={`w-5 h-5 flex-shrink-0 ${isDark ? 'text-green-400' : 'text-green-600'}`} />
                   <div>
-                    <p className={`font-medium ${textClass} text-sm`}>
-                      ✅ Verification Link Clicked!
-                    </p>
-                    <p className={`${mutedClass} text-xs mt-1`}>
-                      Redirecting you to login page...
-                    </p>
+                    <p className={`font-medium ${textClass} text-sm`}>Verification Link Clicked</p>
+                    <p className={`${mutedClass} text-xs mt-1`}>Redirecting you to login page...</p>
                   </div>
                 </>
               ) : (
                 <>
                   <Clock className={`w-5 h-5 flex-shrink-0 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />
                   <div>
-                    <p className={`font-medium ${textClass} text-sm`}>
-                      ⏳ Awaiting Verification
-                    </p>
-                    <p className={`${mutedClass} text-xs mt-1`}>
-                      Click the link in your email to verify
-                    </p>
+                    <p className={`font-medium ${textClass} text-sm`}>Awaiting Verification</p>
+                    <p className={`${mutedClass} text-xs mt-1`}>Click the link in your email to verify</p>
                   </div>
                 </>
               )}
@@ -240,9 +245,18 @@ export const Confirmation: React.FC<ConfirmationProps> = ({ theme, navigateTo, e
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
               <p className={`text-sm ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
-                🔍 Checking if verification link has been clicked...
+                Checking if verification link has been clicked...
               </p>
             </div>
+          </div>
+        )}
+
+        {/* Poll timeout notice */}
+        {!isEmailConfirmPage && pollExpired && !confirmationStatus?.isEmailConfirmed && (
+          <div className={`mt-4 p-3 rounded-lg ${isDark ? 'bg-white/5 border border-white/10' : 'bg-black/5 border border-black/10'}`}>
+            <p className={`text-xs ${mutedClass}`}>
+              Auto-check paused after 5 minutes. Resend the email or click "Check Status" to look again.
+            </p>
           </div>
         )}
 
@@ -256,7 +270,7 @@ export const Confirmation: React.FC<ConfirmationProps> = ({ theme, navigateTo, e
               <p className={`${mutedClass} text-xs mt-1`}>Look for an email from BlackBox</p>
             </div>
           </div>
-          
+
           <div className="flex items-start gap-3">
             <CheckCircle className={`w-5 h-5 mt-0.5 flex-shrink-0 ${isDark ? 'text-[#CDA032]' : 'text-[#CDA032]'}`} />
             <div>
@@ -264,7 +278,7 @@ export const Confirmation: React.FC<ConfirmationProps> = ({ theme, navigateTo, e
               <p className={`${mutedClass} text-xs mt-1`}>Click the confirmation link in the email</p>
             </div>
           </div>
-          
+
           <div className="flex items-start gap-3">
             <CheckCircle className={`w-5 h-5 mt-0.5 flex-shrink-0 ${isDark ? 'text-[#CDA032]' : 'text-[#CDA032]'}`} />
             <div>
@@ -278,12 +292,12 @@ export const Confirmation: React.FC<ConfirmationProps> = ({ theme, navigateTo, e
         {/* Action Buttons */}
         <div className="mt-8 space-y-3">
           <button
-            onClick={() => navigateTo('auth')}
+            onClick={() => navigateTo('/auth')}
             className={`w-full py-3 px-4 rounded-xl font-black text-sm uppercase tracking-wider transition-all ${buttonClass}`}
           >
             Go to Login
           </button>
-          
+
           {!isEmailConfirmPage && (
             <>
               <button
@@ -298,9 +312,9 @@ export const Confirmation: React.FC<ConfirmationProps> = ({ theme, navigateTo, e
                 <RefreshCw size={16} className={isResending ? 'animate-spin' : ''} />
                 {isResending ? 'Sending...' : 'Resend Confirmation Email'}
               </button>
-              
+
               <button
-                onClick={checkConfirmationStatus}
+                onClick={handleCheckStatus}
                 disabled={isChecking || !email}
                 className={`w-full py-3 px-4 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2 ${
                   isChecking || !email

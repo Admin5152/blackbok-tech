@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Eye, Package, Calendar, Clock, MapPin, CreditCard, ChevronRight, CheckCircle2, ChevronDown, User, Mail, Phone, Truck, Shield, DollarSign, Edit2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { ShoppingCart, Package, Calendar, MapPin, CreditCard, ChevronRight, ChevronDown } from 'lucide-react';
 import { Badge, SearchInput, Modal, ModalClose, Td, Th, TableWrapper, EmptyState, DateFilterDropdown } from './adminUtils';
 import { getAdminOrdersFromItems, updateOrderStatus } from '../../lib/api';
 import type { Order } from '../../types';
@@ -16,6 +16,26 @@ export const AdminOrders: React.FC = () => {
     const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
     const ORDER_STATUS_OPTIONS = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled', 'Refunded'] as const;
     const DATE_FILTER_OPTIONS = ['All Time', 'Today', 'Past 7 Days', 'Past 30 Days', 'Past 3 Months'] as const;
+
+    const modalLineSubtotal = useMemo(() => {
+        if (!sel?.items?.length) return 0;
+        return sel.items.reduce((s, i) => s + (i.price || 0) * (i.quantity || 1), 0);
+    }, [sel]);
+
+    const paymentMethodLabel = (raw?: string) => {
+        const r = String(raw || '').toLowerCase();
+        if (r === 'in_person' || r === 'pickup_cash') return 'Pay on pickup';
+        if (r === 'mobile_money') return 'Mobile Money';
+        if (r === 'card') return 'Card';
+        return raw ? String(raw) : 'N/A';
+    };
+
+    const shippingMethodLabel = (raw?: string) => {
+        const r = String(raw || '').toLowerCase();
+        if (r === 'pickup' || r.includes('pick')) return 'Store pickup';
+        if (r === 'delivery' || r.includes('deliver')) return 'Delivery';
+        return raw ? String(raw) : 'Standard';
+    };
 
     useEffect(() => {
         getAdminOrdersFromItems().then(d => {
@@ -83,10 +103,10 @@ export const AdminOrders: React.FC = () => {
                             order.status === 'Cancelled' ? 'text-red-400 bg-red-400/10' :
                                 order.status === 'Refunded' ? 'text-rose-500 bg-rose-500/10' :
                                     order.status === 'Processing' ? 'text-blue-400 bg-blue-400/10' :
-                                        order.status === 'Shipped' || order.status === 'shipped' as any ? 'text-emerald-400 bg-emerald-400/20 shadow-[0_0_10px_rgba(52,211,153,0.3)]' :
+                                        order.status === 'Shipped' ? 'text-emerald-400 bg-emerald-400/20 shadow-[0_0_10px_rgba(52,211,153,0.3)]' :
                                             'text-amber-400 bg-amber-400/10'}`}
                 >
-                    {isUpdating ? 'Updating...' : (order.status.toLowerCase() === 'ready' ? 'Ready' : order.status)}
+                    {isUpdating ? 'Updating...' : order.status}
                     <ChevronDown size={12} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                 </button>
 
@@ -113,50 +133,63 @@ export const AdminOrders: React.FC = () => {
 
     const statuses = ['All', 'Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled', 'Refunded'];
 
-    // Helper to check if a date is within a specific range
-    const isDateInRange = (dateString: string, filterStr: string) => {
-        if (filterStr === 'All Time') return true;
-        const orderDate = new Date(dateString);
-        const now = new Date();
-        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const filtered = useMemo(() => {
+        const isDateInRange = (dateString: string, filterStr: string) => {
+            if (filterStr === 'All Time') return true;
+            const orderDate = new Date(dateString);
+            if (Number.isNaN(orderDate.getTime())) return false;
+            const now = new Date();
+            const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const endOfToday = new Date(startOfToday);
+            endOfToday.setDate(endOfToday.getDate() + 1);
 
-        switch (filterStr) {
-            case 'Today':
-                return orderDate >= startOfToday;
-            case 'Past 7 Days':
-                return orderDate >= new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-            case 'Past 30 Days':
-                return orderDate >= new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-            case 'Past 3 Months':
-                return orderDate >= new Date(now.setMonth(now.getMonth() - 3));
-            default:
-                return true;
-        }
-    };
+            switch (filterStr) {
+                case 'Today':
+                    return orderDate >= startOfToday && orderDate < endOfToday;
+                case 'Past 7 Days':
+                    return orderDate >= new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                case 'Past 30 Days':
+                    return orderDate >= new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                case 'Past 3 Months': {
+                    const cutoff = new Date();
+                    cutoff.setMonth(cutoff.getMonth() - 3);
+                    return orderDate >= cutoff;
+                }
+                default:
+                    return true;
+            }
+        };
 
-    const filtered = orders.filter(o => {
-        const query = q.toLowerCase();
+        return orders.filter(o => {
+            const query = q.trim().toLowerCase();
+            const dateStr = new Date(o.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).toLowerCase();
+            const displayRef = (o.display_id || '').toLowerCase();
+            const idCompact = o.id.replace(/-/g, '').toLowerCase();
+            const qCompact = query.replace(/-/g, '');
+            const shortTail = o.id.slice(-6).toLowerCase();
 
-        // Advanced Text Search
-        const dateStr = new Date(o.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).toLowerCase();
-        const matchQ =
-            (o.userName || '').toLowerCase().includes(query) ||
-            o.id.toLowerCase().includes(query) ||
-            (o.shipping_address || '').toLowerCase().includes(query) ||
-            dateStr.includes(query) ||
-            o.items.some(item => (item.name || '').toLowerCase().includes(query));
+            const matchQ =
+                !query ||
+                (o.userName || '').toLowerCase().includes(query) ||
+                o.id.toLowerCase().includes(query) ||
+                idCompact.includes(qCompact) ||
+                displayRef.includes(query) ||
+                shortTail.includes(query) ||
+                (o.shipping_address || '').toLowerCase().includes(query) ||
+                dateStr.includes(query) ||
+                o.items.some(item => (item.name || '').toLowerCase().includes(query));
 
-        // Status Match
-        const matchS = statusFilter === 'All' || o.status === statusFilter;
+            const matchS = statusFilter === 'All' || o.status === statusFilter;
 
-        // Date Match
-        const matchD = isDateInRange(o.date, dateFilter);
+            const matchD = isDateInRange(o.date, dateFilter);
 
-        return matchQ && matchS && matchD;
-    });
+            return matchQ && matchS && matchD;
+        });
+    }, [orders, q, statusFilter, dateFilter]);
 
     const revenue = orders.reduce((s, o) => s + o.total, 0);
     const avgOrder = orders.length ? (revenue / orders.length).toFixed(0) : '0';
+    const activeOrderCount = orders.filter(o => !['Delivered', 'Cancelled', 'Refunded'].includes(o.status)).length;
 
     return (
         <div className="space-y-5">
@@ -173,9 +206,9 @@ export const AdminOrders: React.FC = () => {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
                     { label: 'Total Orders', val: orders.length, col: '#B38B21' },
-                    { label: 'Total Revenue', val: `GH₵${revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, col: '#B38B21' },
-                    { label: 'Avg Order Value', val: `GH₵${avgOrder}`, col: '#B38B21' },
-                    { label: 'Active Orders', val: orders.filter(o => !['Delivered', 'Cancelled'].includes(o.status)).length, col: '#B38B21' },
+                    { label: 'Total Revenue', val: formatCurrency(revenue), col: '#B38B21' },
+                    { label: 'Avg Order Value', val: formatCurrency(Number(avgOrder) || 0), col: '#B38B21' },
+                    { label: 'Active Orders', val: activeOrderCount, col: '#B38B21' },
                 ].map(s => (
                     <div key={s.label} className="bg-[#0a0a0a] border border-white/5 rounded-xl p-4 md:p-5 relative overflow-hidden group">
                         <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -188,13 +221,19 @@ export const AdminOrders: React.FC = () => {
             {/* Filters */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 mb-4">
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-hide flex-1">
-                    {statuses.map(s => (
+                {[...statuses].map(s => {
+                    const count =
+                        s === 'All'
+                            ? orders.length
+                            : orders.filter(o => o.status === s).length;
+                    return (
                         <button key={s} onClick={() => setStatusFilter(s)}
                             className={`px-2.5 py-1 md:py-1.5 rounded-xl text-[9px] md:text-[11px] font-black uppercase whitespace-nowrap transition-all 
                                 ${statusFilter === s ? 'bg-[#B38B21] text-black shadow-[0_0_15px_rgba(179,139,33,0.3)]' : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white'}`}>
-                            {s === 'Shipped' ? 'Ready' : s}
+                            {s} <span className="opacity-70">({count})</span>
                         </button>
-                    ))}
+                    );
+                })}
                 </div>
 
                 <div className="flex items-center gap-3 w-full sm:w-auto flex-wrap sm:flex-nowrap">
@@ -218,7 +257,7 @@ export const AdminOrders: React.FC = () => {
                     <p className="text-xs text-white/40 uppercase tracking-widest font-bold">Loading Orders...</p>
                 </div>
             ) : filtered.length === 0 ? (
-                <EmptyState icon={<ShoppingCart size={40} className="text-white/20" />} message="No orders match your filters." />
+                <EmptyState icon={<ShoppingCart size={40} className="text-white/20" />} message={orders.length === 0 ? 'No orders yet. Completed checkouts will appear here.' : 'No orders match your filters.'} />
             ) : (
                 <TableWrapper>
                     <thead>
@@ -240,7 +279,9 @@ export const AdminOrders: React.FC = () => {
                                             <Package size={14} className={o.items.length > 1 ? "text-[#B38B21]" : "text-white/40"} />
                                         </div>
                                         <div>
-                                            <p className="text-xs font-black text-white group-hover:text-[#B38B21] transition-colors">#{o.id.slice(-6).toUpperCase()}</p>
+                                            <p className="text-xs font-black text-white group-hover:text-[#B38B21] transition-colors">
+                                                {o.display_id ? o.display_id : `#${o.id.slice(-6).toUpperCase()}`}
+                                            </p>
                                             <p className="text-[10px] text-white/40 font-bold">{o.items.length} item{o.items.length !== 1 ? 's' : ''}</p>
                                         </div>
                                     </div>
@@ -253,7 +294,7 @@ export const AdminOrders: React.FC = () => {
                                         <p className="text-[9px] text-[#B38B21]/60 truncate">{o.shipping_address}</p>
                                     </div>
                                 </Td>
-                                <Td><p className="text-xs font-black text-white">GH₵{o.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p></Td>
+                                <Td><p className="text-xs font-black text-white">{formatCurrency(o.total)}</p></Td>
                                 <Td><p className="text-[11px] font-bold text-white/50">{new Date(o.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</p></Td>
                                 <Td><StatusDropdown order={o} /></Td>
                                 <Td>
@@ -288,15 +329,17 @@ export const AdminOrders: React.FC = () => {
                         <div className="sticky top-0 z-10 bg-[#0a0a0a]/90 backdrop-blur-xl border-b border-white/5 p-5 md:p-6 flex items-start justify-between rounded-t-2xl">
                             <div>
                                 <div className="flex items-center gap-3 mb-1">
-                                    <h2 className="text-lg md:text-xl font-black text-white tracking-tight uppercase">Order #{sel.id.slice(-6).toUpperCase()}</h2>
+                                    <h2 className="text-lg md:text-xl font-black text-white tracking-tight uppercase">
+                                        Order {sel.display_id ? sel.display_id : `#${sel.id.slice(-6).toUpperCase()}`}
+                                    </h2>
                                     <StatusDropdown order={sel} />
-                                    {sel.status !== 'Shipped' && sel.status !== 'shipped' && sel.status !== 'Delivered' && (
+                                    {sel.status !== 'Shipped' && sel.status !== 'Delivered' && (
                                         <button 
-                                            onClick={() => handleStatusChange(sel.id, 'Shipped')}
+                                            onClick={(e) => { e.stopPropagation(); handleStatusChange(sel.id, 'Shipped'); }}
                                             disabled={updatingOrderId === sel.id}
                                             className="ml-auto px-4 py-1.5 md:py-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-wider hover:bg-emerald-500/30 transition-colors disabled:opacity-50"
                                         >
-                                            Mark as Ready
+                                            Mark as Shipped
                                         </button>
                                     )}
                                 </div>
@@ -318,8 +361,12 @@ export const AdminOrders: React.FC = () => {
                                     <p className="text-xs text-white/50 mb-1">{sel.userPhone || 'No phone'}</p>
                                     <p className="text-xs text-white/50 mb-3">{sel.shipping_address || 'No address provided'}</p>
                                     <div className="pt-3 border-t border-white/5 flex items-center justify-between text-xs">
-                                        <span className="text-white/40 font-bold">Method</span>
-                                        <span className="text-white font-bold">{sel.shipping_method || 'Standard'}</span>
+                                        <span className="text-white/40 font-bold">Shipping method</span>
+                                        <span className="text-white font-bold">{shippingMethodLabel(sel.shipping_method)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-xs mt-2">
+                                        <span className="text-white/40 font-bold">Shipping cost</span>
+                                        <span className="text-white font-bold">{formatCurrency(sel.shipping_cost ?? 0)}</span>
                                     </div>
                                 </div>
 
@@ -336,7 +383,7 @@ export const AdminOrders: React.FC = () => {
                                         </div>
                                         <div className="flex justify-between">
                                             <span className="text-white/50 font-bold">Method</span>
-                                            <span className="text-white font-bold">{sel.paymentMethod || sel.payment_method || 'N/A'}</span>
+                                            <span className="text-white font-bold">{paymentMethodLabel(sel.paymentMethod || sel.payment_method)}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -360,7 +407,8 @@ export const AdminOrders: React.FC = () => {
                                                 <p className="text-xs text-white/40 truncate">{item.description || item.category}</p>
                                             </div>
                                             <div className="text-right flex-shrink-0">
-                                                <p className="text-sm font-black text-white">GH₵{item.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                                                <p className="text-sm font-black text-white">{formatCurrency(item.price)}</p>
+                                                <p className="text-[10px] text-white/50">each</p>
                                                 <p className="text-xs font-bold text-white/40">Qty: {item.quantity}</p>
                                             </div>
                                         </div>
@@ -373,15 +421,18 @@ export const AdminOrders: React.FC = () => {
                                 <div className="w-full md:w-1/2 lg:w-1/3 space-y-3 bg-white/[0.02] border border-white/5 rounded-xl p-4">
                                     <div className="flex justify-between items-start gap-3 text-xs">
                                         <span className="text-white/50 font-bold">Subtotal</span>
-                                        <span className="text-white font-bold text-right break-all">GH₵{(sel.total - (sel.shipping_cost || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                        <span className="text-white font-bold text-right break-all">{formatCurrency(modalLineSubtotal)}</span>
                                     </div>
                                     <div className="flex justify-between items-start gap-3 text-xs">
                                         <span className="text-white/50 font-bold">Shipping</span>
-                                        <span className="text-white font-bold text-right break-all">GH₵{(sel.shipping_cost || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                        <span className="text-white font-bold text-right break-all">{formatCurrency(sel.shipping_cost ?? 0)}</span>
                                     </div>
+                                    {Math.abs(modalLineSubtotal + (sel.shipping_cost ?? 0) - sel.total) > 0.02 && (
+                                        <p className="text-[10px] text-white/40 font-bold text-right">Order total reflects discounts or adjustments from checkout.</p>
+                                    )}
                                     <div className="pt-3 border-t border-white/10 flex justify-between items-start gap-3">
-                                        <span className="text-xs font-black uppercase text-white/70">Total Paid</span>
-                                        <span className="text-base sm:text-lg font-black text-[#B38B21] text-right break-all leading-tight">GH₵{sel.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                        <span className="text-xs font-black uppercase text-white/70">Total</span>
+                                        <span className="text-base sm:text-lg font-black text-[#B38B21] text-right break-all leading-tight">{formatCurrency(sel.total)}</span>
                                     </div>
                                 </div>
                             </div>

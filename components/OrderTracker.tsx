@@ -16,17 +16,40 @@ export const OrderTracker: React.FC<OrderTrackerProps> = ({ order, isExpanded = 
   useEffect(() => {
     const fetchTrackingUpdates = async () => {
       if (!order.id) return;
-      
+
       setLoading(true);
       try {
-        const { data, error } = await supabase
-          .from('order_tracking_updates')
+        // The canonical table is `public.tracking_updates` (created
+        // by 2026_05_checkout_complete.sql). The legacy table
+        // `order_tracking_updates` may still exist in older
+        // environments — fall back to it if the primary read fails
+        // so we don't break old deployments.
+        let rows: any[] = [];
+        const primary = await supabase
+          .from('tracking_updates')
           .select('*')
           .eq('order_id', order.id)
-          .order('timestamp', { ascending: true });
+          .order('created_at', { ascending: true });
 
-        if (error) throw error;
-        setTrackingUpdates(data || []);
+        if (!primary.error && primary.data) {
+          rows = primary.data;
+        } else {
+          const fallback = await supabase
+            .from('order_tracking_updates')
+            .select('*')
+            .eq('order_id', order.id)
+            .order('timestamp', { ascending: true });
+          if (!fallback.error && fallback.data) rows = fallback.data;
+        }
+
+        // Normalize timestamp field so the existing JSX
+        // (`trackingUpdates[index].timestamp`) keeps working regardless
+        // of which source the row came from.
+        const normalized: TrackingUpdate[] = rows.map((r: any) => ({
+          ...r,
+          timestamp: r.timestamp || r.created_at || r.updated_at,
+        }));
+        setTrackingUpdates(normalized);
       } catch (error) {
         console.error('Error fetching tracking updates:', error);
       } finally {

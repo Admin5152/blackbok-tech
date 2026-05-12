@@ -6,6 +6,7 @@ import {
 } from '../../lib/api';
 // Products are sourced exclusively from Supabase.
 import type { Product } from '../../types';
+import { formatCurrency } from '../../lib/utils';
 
 interface Props { canEdit?: boolean; }
 
@@ -35,8 +36,8 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
     const [ramIn, setRamIn] = useState('');
     const [error, setError] = useState('');
 
-    const load = async () => {
-        setLoading(true);
+    const load = async (opts?: { silent?: boolean }) => {
+        if (!opts?.silent) setLoading(true);
         try {
             const remote = await getProducts();
             setProducts(remote);
@@ -44,7 +45,9 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
         } catch (e) {
             console.error('Failed to load products from Supabase:', e);
             setProducts([]);
-        } finally { setLoading(false); }
+        } finally {
+            if (!opts?.silent) setLoading(false);
+        }
     };
 
     useEffect(() => { load(); }, []);
@@ -56,70 +59,78 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
         if (!confirm('Delete this product?')) return;
         try {
             await deleteProduct(id);
-            const updated = products.filter(p => p.id !== id);
-            setProducts(updated);
-            localStorage.setItem(PROD_KEY, JSON.stringify(updated));
+            await load({ silent: true });
+            window.dispatchEvent(new CustomEvent('products:refresh'));
         } catch (e: any) {
             alert('Delete failed: ' + e.message);
         }
     };
 
     const submitForm = async () => {
-        if (!draft.name?.trim() || !draft.price) { setError('Name and price are required.'); return; }
+        const priceNum = Number(draft.price);
+        if (!draft.name?.trim() || !Number.isFinite(priceNum) || priceNum < 0) {
+            setError('Name and price are required.');
+            return;
+        }
         setSaving(true); setError('');
         try {
             if (draft.id) {
-                // Update via Supabase
                 await updateProduct(draft.id, {
-                    name: draft.name, description: draft.description || '', price: draft.price!,
-                    image: draft.image || '', category: draft.category || 'iPhone',
-                    stock: draft.stock, rating: draft.rating, discount: draft.discount,
-                    new: draft.new, reviewCount: (draft as any).reviewCount,
-                    colors: draft.colors, storage: draft.storage, ram: draft.ram,
-                    featured: (draft as any).featured
+                    name: draft.name,
+                    description: draft.description || '',
+                    price: priceNum,
+                    image: draft.image || '',
+                    category: draft.category || 'iPhone',
+                    stock: draft.stock != null ? Number(draft.stock) : 0,
+                    rating: draft.rating != null ? Number(draft.rating) : undefined,
+                    discount: draft.discount != null ? Number(draft.discount) : undefined,
+                    new: draft.new ?? false,
+                    reviewCount: (draft as any).reviewCount,
+                    colors: draft.colors,
+                    storage: draft.storage,
+                    ram: draft.ram,
+                    featured: Boolean((draft as any).featured),
                 });
-                const updated = products.map(p => p.id === draft.id ? { ...p, ...draft } as Product : p);
-                setProducts(updated);
-                localStorage.setItem(PROD_KEY, JSON.stringify(updated));
             } else {
-                // Create via Supabase
-                const created = await createProduct({
-                    name: draft.name!, description: draft.description || '', price: draft.price!,
-                    image: draft.image || '', category: draft.category || 'iPhone',
-                    stock: draft.stock ?? 10, rating: draft.rating ?? 4.5,
-                    discount: draft.discount, new: draft.new ?? false, reviewCount: 0, specs: [],
-                    colors: draft.colors, storage: draft.storage, ram: draft.ram,
+                await createProduct({
+                    name: draft.name!,
+                    description: draft.description || '',
+                    price: priceNum,
+                    image: draft.image || '',
+                    category: draft.category || 'iPhone',
+                    stock: draft.stock ?? 10,
+                    rating: draft.rating ?? 4.5,
+                    discount: draft.discount != null ? Number(draft.discount) : undefined,
+                    new: draft.new ?? false,
+                    reviewCount: 0,
+                    specs: [],
+                    colors: draft.colors,
+                    storage: draft.storage,
+                    ram: draft.ram,
+                    featured: Boolean((draft as any).featured),
                 });
-                // Map returned row + extras
-                const np: Product = {
-                    id: created.id || `local_${Date.now()}`,
-                    name: draft.name!, description: draft.description || '', price: draft.price!,
-                    image: draft.image || '', category: draft.category || 'iPhone',
-                    stock: draft.stock ?? 10, rating: draft.rating ?? 4.5,
-                    discount: draft.discount, new: draft.new ?? false, reviewCount: 0, specs: [],
-                    ...(draft as any),
-                };
-                const updated = [np, ...products];
-                setProducts(updated);
-                localStorage.setItem(PROD_KEY, JSON.stringify(updated));
             }
-            setShowForm(false); setDraft(EMPTY);
+            setShowForm(false);
+            setDraft(EMPTY);
+            await load({ silent: true });
+            window.dispatchEvent(new CustomEvent('products:refresh'));
         } catch (e: any) {
             setError('Save failed: ' + (e.message || 'Unknown error'));
-        } finally { setSaving(false); }
+        } finally {
+            setSaving(false);
+        }
     };
 
     /** Toggle featured flag and persist to DB + local cache */
     const toggleFeatured = async (id: string) => {
         const product = products.find(p => p.id === id);
         if (!product) return;
-        const nextFeatured = !(product as any).featured;
+        const nextFeatured = !Boolean((product as any).featured);
 
         try {
             await updateProduct(id, { featured: nextFeatured });
-            const updated = products.map(p => p.id === id ? { ...p, featured: nextFeatured } : p);
-            setProducts(updated);
-            localStorage.setItem(PROD_KEY, JSON.stringify(updated));
+            await load({ silent: true });
+            window.dispatchEvent(new CustomEvent('products:refresh'));
         } catch (e: any) {
             alert('Failed to update featured flag: ' + (e?.message || 'Unknown error'));
         }
@@ -144,7 +155,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
     const catMap: Record<string, number> = {};
     products.forEach(p => { catMap[p.category] = (catMap[p.category] || 0) + 1; });
     const lowStock = products.filter(p => (p.stock ?? 0) < 5);
-    const featured = products.filter(p => (p as any).featured);
+    const featured = products.filter(p => Boolean(p.featured));
 
     return (
         <div className="space-y-5">
@@ -154,7 +165,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
                     { label: 'Total', val: products.length, col: '#B38B21' },
                     { label: 'Featured', val: featured.length, col: '#6366f1' },
                     { label: 'Low Stock', val: lowStock.length, col: lowStock.length > 0 ? '#ef4444' : '#10b981' },
-                    { label: 'New Items', val: products.filter(p => p.new).length, col: '#B38B21' },
+                    { label: 'New Items', val: products.filter(p => Boolean(p.new || p.is_new)).length, col: '#B38B21' },
                 ].map(s => (
                     <div key={s.label} className="bg-[#0a0a0a] border border-white/5 rounded-xl p-4">
                         <p className="text-[9px] text-white/30 uppercase tracking-widest mb-1">{s.label}</p>
@@ -179,7 +190,10 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
                     {cats.map(c => (
                         <button key={c} onClick={() => setCatFilter(c)}
                             className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${catFilter === c ? 'bg-[#B38B21] text-black' : 'bg-white/5 text-white/40 hover:text-white'}`}>
-                            {c} {c !== 'All' && catMap[c] ? `(${catMap[c]})` : ''}
+                            {c}{' '}
+                            <span className="opacity-70">
+                                ({c === 'All' ? products.length : (catMap[c] ?? 0)})
+                            </span>
                         </button>
                     ))}
                 </div>
@@ -213,12 +227,14 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
                                 </Td>
                                 <Td>
                                     <p className="text-xs font-black text-white">{p.name}</p>
-                                    {p.new && <span className="text-[8px] bg-[#B38B21]/20 text-[#B38B21] px-1.5 py-0.5 rounded-full font-black uppercase">New</span>}
+                                    {Boolean(p.new || p.is_new) && <span className="text-[8px] bg-[#B38B21]/20 text-[#B38B21] px-1.5 py-0.5 rounded-full font-black uppercase">New</span>}
                                 </Td>
                                 <Td><span className="text-[10px] text-white/40 font-bold">{p.category}</span></Td>
                                 <Td>
-                                    <span className="text-xs font-black text-white">${p.price}</span>
-                                    {p.discount && <span className="ml-1 text-[9px] text-red-400 font-bold">-{p.discount}%</span>}
+                                    <span className="text-xs font-black text-white">{formatCurrency(p.price)}</span>
+                                    {p.discount != null && Number(p.discount) > 0 && (
+                                        <span className="ml-1 text-[9px] text-red-400 font-bold">-{p.discount}%</span>
+                                    )}
                                 </Td>
                                 <Td><span className={`text-xs font-black ${(p.stock ?? 0) < 5 ? 'text-red-400' : 'text-white/60'}`}>{p.stock ?? '—'}</span></Td>
                                 <Td><span className="text-[10px] text-[#B38B21] font-black">{p.rating ? `★ ${p.rating}` : '—'}</span></Td>
@@ -230,10 +246,10 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
                                 </Td>
                                 {/* Featured toggle */}
                                 <Td>
-                                    <button onClick={() => toggleFeatured(p.id)}
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); void toggleFeatured(p.id); }}
                                         title="Toggle homepage feature"
-                                        className={`p-1.5 rounded-lg transition-all ${(p as any).featured ? 'bg-[#B38B21]/20 text-[#B38B21]' : 'bg-white/5 text-white/20 hover:text-[#B38B21] hover:bg-[#B38B21]/10'}`}>
-                                        <Star size={13} fill={(p as any).featured ? 'currentColor' : 'none'} />
+                                        className={`p-1.5 rounded-lg transition-all ${Boolean((p as any).featured) ? 'bg-[#B38B21]/20 text-[#B38B21]' : 'bg-white/5 text-white/20 hover:text-[#B38B21] hover:bg-[#B38B21]/10'}`}>
+                                        <Star size={13} fill={Boolean((p as any).featured) ? 'currentColor' : 'none'} />
                                     </button>
                                 </Td>
                                 {canEdit && (
@@ -269,7 +285,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
                                         className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:border-[#B38B21]/50 focus:outline-none" />
                                 </div>
                                 <div>
-                                    <label className="text-[9px] font-black uppercase tracking-widest text-white/30 block mb-1">Price ($) *</label>
+                                    <label className="text-[9px] font-black uppercase tracking-widest text-white/30 block mb-1">Price (GH₵) *</label>
                                     <input type="number" placeholder="0.00" value={draft.price ?? ''}
                                         onChange={e => setDraft({ ...draft, price: parseFloat(e.target.value) || 0 })}
                                         className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:border-[#B38B21]/50 focus:outline-none" />
@@ -331,7 +347,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
                                 </label>
                             </div>
 
-                            <button onClick={submitForm} disabled={saving || !draft.name || !draft.price}
+                            <button type="button" onClick={submitForm} disabled={saving || !draft.name?.trim() || !Number.isFinite(Number(draft.price)) || Number(draft.price) < 0}
                                 className="w-full py-3 bg-[#B38B21] text-black font-black text-xs uppercase tracking-widest rounded-xl hover:bg-[#D4AF37] transition-all disabled:opacity-40 flex items-center justify-center gap-2">
                                 <Save size={14} /> {saving ? 'Saving...' : (draft.id ? 'Save Changes' : 'Add Product')}
                             </button>
@@ -362,7 +378,7 @@ const ChipField = ({ label, chips, inputVal, setInputVal, placeholder, onAdd, on
             <input value={inputVal} onChange={e => setInputVal(e.target.value)} placeholder={placeholder}
                 onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), onAdd())}
                 className="flex-1 bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none" />
-            <button onClick={onAdd} className="px-3 py-2 bg-white/5 hover:bg-[#B38B21]/20 text-white/40 hover:text-[#B38B21] border border-white/10 rounded-xl text-xs font-black transition-all">Add</button>
+            <button type="button" onClick={onAdd} className="px-3 py-2 bg-white/5 hover:bg-[#B38B21]/20 text-white/40 hover:text-[#B38B21] border border-white/10 rounded-xl text-xs font-black transition-all">Add chip</button>
         </div>
     </div>
 );

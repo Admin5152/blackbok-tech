@@ -3,6 +3,7 @@ import { Users, Eye, Mail, Phone, MapPin, Calendar, DollarSign, Package, ArrowUp
 import { SearchInput, EmptyState } from './adminUtils';
 import { getOrders, getUsers } from '../../lib/api';
 import type { Order, User } from '../../types';
+import { formatCurrency } from '../../lib/utils';
 
 export const AdminCustomers: React.FC = () => {
     const [users, setUsers] = useState<User[]>([]);
@@ -118,7 +119,7 @@ export const AdminCustomers: React.FC = () => {
                                 <DollarSign size={16} />
                                 <span className="text-[10px] font-black uppercase tracking-widest">Total Spent</span>
                             </div>
-                            <p className="text-2xl font-black text-[#B38B21]">${stats.totalSpent.toLocaleString()}</p>
+                            <p className="text-2xl font-black text-[#B38B21]">{formatCurrency(stats.totalSpent)}</p>
                         </div>
                         <div className="bg-black/30 rounded-xl p-4">
                             <div className="flex items-center gap-3 text-white/60 mb-2">
@@ -243,7 +244,7 @@ export const AdminCustomers: React.FC = () => {
                                                 </span>
                                             </td>
                                             <td className="p-4 text-white/70">{stats.orderCount}</td>
-                                            <td className="p-4 text-[#B38B21] font-medium">${stats.totalSpent.toLocaleString()}</td>
+                                            <td className="p-4 text-[#B38B21] font-medium">{formatCurrency(stats.totalSpent)}</td>
                                             <td className="p-4">
                                                 <button
                                                     onClick={() => setSelectedCustomer(customer)}

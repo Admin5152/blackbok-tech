@@ -11,7 +11,7 @@ import { AdminUsers } from './admin/AdminUsers';
 // import { AdminInbox } from './admin/AdminInbox';
 import {
   Home, Users, Package, ShoppingCart, RefreshCcw,
-  Wrench, LogOut, Menu, X, Shield, MessageSquare, RotateCcw
+  Wrench, LogOut, Menu, X, Shield, MessageSquare
 } from 'lucide-react';
 
 interface AdminProps {
@@ -23,14 +23,13 @@ interface AdminProps {
 
 export type AdminSection = 'overview' | 'inbox' | 'orders' | 'customers' | 'products' | 'trades' | 'returns' | 'repairs' | 'users';
 
+// ADM-OV-01: exactly seven primary destinations (Returns stays available via Overview quick actions + direct URL if needed).
 const NAV_ITEMS: { id: AdminSection; label: string; icon: any }[] = [
   { id: 'overview', label: 'Overview', icon: Home },
-  // { id: 'inbox', label: 'Inbox', icon: MessageSquare },
   { id: 'orders', label: 'Orders', icon: ShoppingCart },
   { id: 'customers', label: 'Customers', icon: Users },
   { id: 'products', label: 'Products', icon: Package },
   { id: 'trades', label: 'Trade-Ins', icon: RefreshCcw },
-  { id: 'returns', label: 'Returns', icon: RotateCcw },
   { id: 'repairs', label: 'Repairs', icon: Wrench },
   { id: 'users', label: 'User Roles', icon: Shield },
 ];
@@ -48,14 +47,18 @@ const SECTION_TITLES: Record<AdminSection, string> = {
 };
 
 export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme = 'dark' }) => {
-  const role: string = user?.role || 'user';
+  const role: string = (user?.role || 'user').toString().toLowerCase();
   const [section, setSection] = useState<AdminSection>('overview');
   const [sidebar, setSidebar] = useState(true);
 
-  // DEV MODE: all permissions open during development
-  const isAdmin = true;
-  const isSales = true;
-  const isRepair = true;
+  // Role-derived permissions. The route-level guard already ensures the
+  // visitor is an admin to land on this page; these flags further gate
+  // mutation actions inside individual admin sub-views. Admins get full
+  // access; staff/sales roles only get the customer-facing tooling
+  // (products, trades, returns); repair techs only get repairs.
+  const isAdmin = role === 'admin';
+  const isSales = isAdmin || role === 'staff' || role === 'sales';
+  const isRepair = isAdmin || role === 'repair' || role === 'technician';
 
   const navigate = (s: AdminSection) => { setSection(s); };
 
@@ -153,17 +156,37 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
           >
             <Menu size={20} />
           </button>
-          <div>
-            <h1 className={`text-base font-black italic uppercase tracking-tight ${isLight ? 'text-black' : 'text-white'}`}>
+          <div className="min-w-0 flex-1">
+            <h1 className={`text-base font-black italic uppercase tracking-tight truncate ${isLight ? 'text-black' : 'text-white'}`}>
               {SECTION_TITLES[section]}
             </h1>
-            <p className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-black/40' : 'text-white/20'}`}>
+            <p className={`text-[9px] font-black uppercase tracking-widest truncate ${isLight ? 'text-black/40' : 'text-white/20'}`}>
               BlackBox Admin ·{' '}
               {new Date().toLocaleDateString('en', {
                 weekday: 'long', month: 'long', day: 'numeric',
               })}
             </p>
           </div>
+
+          {/*
+            Always-visible sign-out button in the header. The sidebar already
+            has a sign-out button, but it's hidden whenever the sidebar is
+            collapsed (the default state on mobile), so admins were getting
+            stuck. This one stays visible on every viewport.
+          */}
+          <button
+            onClick={handleLogout}
+            className={`shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-xl border transition-all
+              ${isLight
+                ? 'border-black/10 text-black/60 hover:text-red-600 hover:border-red-300 hover:bg-red-500/5'
+                : 'border-white/10 text-white/60 hover:text-red-300 hover:border-red-500/30 hover:bg-red-500/10'
+              }`}
+            title="Sign out"
+            aria-label="Sign out"
+          >
+            <LogOut size={15} />
+            <span className="hidden sm:inline text-[10px] font-black uppercase tracking-widest">Sign Out</span>
+          </button>
         </header>
 
         {/* Content */}

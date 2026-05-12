@@ -6,7 +6,6 @@ import {
 } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import type { RepairRequest } from '../types';
-import { generateId } from '../lib/utils';
 import { useAppContext } from '../App';
 import { ImageUpload } from '../components/ImageUpload';
 import { repairPricing, repairServicesMap } from '../data/repairPrices';
@@ -165,20 +164,14 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
         estimated_cost: getTotalRepairCost() > 0 ? getTotalRepairCost() : undefined,
       });
       const newRepair: RepairRequest = {
-        id: created?.id || generateId(),
-        userId: user.id,
-        userName: formData.name || user.name,
-        device: `${formData.brand} ${formData.model}`,
-        estimatedCost: '',
+        ...created,
         issue: issueText,
-        status: 'Pending',
-        date: new Date().toISOString(),
-        imageUrl: formData.photos[0],
-        fulfillmentMethod: formData.fulfillmentMethod,
+        date: created.date || new Date().toISOString(),
       };
       setRepairs([newRepair, ...repairs]);
       setMyRepairs(prev => [newRepair, ...prev]);
-      notify('Repair request submitted! We’ll review and confirm your booking.', 'success');
+      const refLabel = created.display_id ? ` (${created.display_id})` : '';
+      notify(`Repair request submitted${refLabel}! We’ll review and confirm your booking.`, 'success');
       navigate({ to: '/profile' });
     } catch (err: any) {
       notify('Submission failed: ' + (err.message || 'Please try again'), 'error');

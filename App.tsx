@@ -10,7 +10,7 @@ import {
   useLocation,
   createHashHistory
 } from '@tanstack/react-router';
-import { X, CheckCircle2, Activity, Scale, RefreshCcw, Home as HomeIcon, ShoppingBag, Wrench, ShoppingCart, User as UserIcon, LogOut, ChevronRight, ChevronDown, Settings, AlertTriangle, Sparkles, Eye, Clock } from 'lucide-react';
+import { X, Activity, Scale, RefreshCcw, Home as HomeIcon, ShoppingBag, Wrench, ShoppingCart, User as UserIcon, LogOut, ChevronRight, ChevronDown, Settings, Sparkles, Eye, Clock } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { WhatsAppIcon } from './components/Icons';
 import { Product, User, CartItem, Category, RepairRequest, Order, TradeRequest } from './types';
@@ -18,7 +18,7 @@ import { getProducts, getOrders, getTradeRequests, getRepairRequests } from './l
 import { handleSignOut } from './lib/signOut';
 import AuthService from './lib/auth';
 import { setupMobileBackButton, preventAppClose } from './lib/mobileNavigation';
-// INITIAL_PRODUCTS removed — products now load exclusively from Supabase.
+import { INITIAL_PRODUCTS } from './constants';
 import { Navbar } from './components/Navbar';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { Footer } from './components/Footer';
@@ -102,6 +102,7 @@ export interface AppContextType {
   onAddToCart: (p: Product, options?: Record<string, string>, qty?: number) => void;
   theme: Theme;
   setTheme: (t: Theme) => void;
+  refreshProducts: () => Promise<void>;
 }
 
 export const AppContext = createContext<AppContextType | null>(null);
@@ -113,11 +114,32 @@ export const useAppContext = () => {
 };
 
 // --- SCROLL TO TOP ---
+// HOME-01: the browser's default `history.scrollRestoration` will try to
+// restore the previous scroll position on initial load — that's why the
+// landing page sometimes opens scrolled near the footer. We disable that
+// restoration explicitly and scroll to the top on every navigation. The
+// rAF lets the new route render first so the scroll lands on the new
+// content rather than the old layout.
 const ScrollToTop = () => {
   const { pathname } = useLocation();
+
   useEffect(() => {
-    window.scrollTo(0, 0);
+    try {
+      if ('scrollRestoration' in window.history) {
+        window.history.scrollRestoration = 'manual';
+      }
+    } catch {
+      // ignore — some embedded browsers throw here
+    }
+  }, []);
+
+  useEffect(() => {
+    const id = window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    });
+    return () => window.cancelAnimationFrame(id);
   }, [pathname]);
+
   return null;
 };
 
@@ -314,12 +336,85 @@ const resetPasswordRoute = createRoute({
   component: () => <ResetPassword />,
 });
 
+/**
+ * Inline access gate for the /admin route. Renders a friendly denial
+ * screen instead of the dashboard whenever the visitor isn't a logged-in
+ * admin. Defense in depth — the Admin component itself also gates its
+ * own privileged actions by role.
+ */
+const AdminAccessDenied: React.FC<{
+  reason: 'not-logged-in' | 'not-admin';
+  navigateTo: (path: string) => void;
+  theme: 'light' | 'dark';
+}> = ({ reason, navigateTo, theme }) => {
+  const isLight = theme === 'light';
+  return (
+    <div className={`min-h-screen flex items-center justify-center p-6 ${isLight ? 'bg-[#F0F0F0] text-black' : 'bg-black text-white'}`}>
+      <div className={`w-full max-w-md rounded-2xl border p-8 text-center ${isLight ? 'bg-white border-black/10' : 'bg-[#0a0a0a] border-white/10'}`}>
+        <div className="mx-auto w-14 h-14 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-5">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-400">
+            <rect x="3" y="11" width="18" height="11" rx="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+        </div>
+        <h1 className="text-xl font-black italic uppercase tracking-tight mb-2">Access Restricted</h1>
+        <p className={`text-sm mb-6 ${isLight ? 'text-black/60' : 'text-white/60'}`}>
+          {reason === 'not-logged-in'
+            ? 'You need to sign in with an admin account to view this page.'
+            : 'Your account does not have admin permissions. Contact a system administrator if you believe this is a mistake.'}
+        </p>
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={() => navigateTo(reason === 'not-logged-in' ? '/auth' : '/')}
+            className="w-full py-3 bg-[#CDA032] text-black font-black rounded-xl text-xs uppercase tracking-[0.15em] hover:brightness-110 transition-all"
+          >
+            {reason === 'not-logged-in' ? 'Sign In' : 'Go Home'}
+          </button>
+          {reason === 'not-admin' && (
+            <button
+              onClick={() => navigateTo('/auth')}
+              className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-[0.15em] border transition-all ${isLight ? 'border-black/10 hover:bg-black/5' : 'border-white/10 hover:bg-white/5'}`}
+            >
+              Switch account
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const adminRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/admin',
   component: () => {
     const context = useAppContext();
-    return <Admin user={context.user} setUser={context.setUser} navigateTo={context.navigateTo} theme={context.theme} />;
+    const user = context.user;
+
+    // Role guard. Before this gate, anyone with the URL could load the
+    // admin dashboard. Now:
+    //   - no user            → "please sign in" screen
+    //   - user.role !== admin → "access restricted" screen
+    if (!user) {
+      return (
+        <AdminAccessDenied
+          reason="not-logged-in"
+          navigateTo={context.navigateTo}
+          theme={context.theme}
+        />
+      );
+    }
+    if (user.role !== 'admin') {
+      return (
+        <AdminAccessDenied
+          reason="not-admin"
+          navigateTo={context.navigateTo}
+          theme={context.theme}
+        />
+      );
+    }
+
+    return <Admin user={user} setUser={context.setUser} navigateTo={context.navigateTo} theme={context.theme} />;
   },
 });
 
@@ -408,7 +503,7 @@ const confirmationRoute = createRoute({
   component: () => {
     const context = useAppContext();
     const { email } = confirmationRoute.useSearch();
-    return <Confirmation theme={context.theme} navigateTo={context.navigateTo} email={email} />;
+    return <Confirmation theme={context.theme} navigateTo={context.navigateTo} notify={context.notify} email={email} />;
   },
   validateSearch: (search: Record<string, unknown>) => {
     return {
@@ -423,12 +518,29 @@ const emailConfirmRoute = createRoute({
   component: () => {
     const context = useAppContext();
     const { email } = emailConfirmRoute.useSearch();
-    return <Confirmation theme={context.theme} navigateTo={context.navigateTo} email={email} />;
+    return <Confirmation theme={context.theme} navigateTo={context.navigateTo} notify={context.notify} email={email} />;
   },
   validateSearch: (search: Record<string, unknown>) => {
     return {
       email: (search.email as string) || ''
     };
+  },
+});
+
+// QA-only debug route: renders the ErrorPage so STC-15 can be tested
+// without having to crash a real component.
+const errorDebugRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/error',
+  component: () => {
+    const context = useAppContext();
+    return (
+      <ErrorPage
+        theme={context.theme as any}
+        error={{ message: 'Diagnostic preview — triggered manually via /error route.' }}
+        reset={() => window.location.reload()}
+      />
+    );
   },
 });
 
@@ -463,6 +575,7 @@ const routeTree = rootRoute.addChildren([
   policiesRoute,
   confirmationRoute,
   emailConfirmRoute,
+  errorDebugRoute,
   splatRoute,
 ]);
 
@@ -488,14 +601,28 @@ function RootComponent() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<Category[]>([]);
-  const [notification, setNotification] = useState<{ msg: string, type: 'success' | 'error' } | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
   const [showWelcomeScreen, setShowWelcomeScreen] = useState(() => {
-    return !sessionStorage.getItem('bb_v4_welcomed');
+    try {
+      return !sessionStorage.getItem('bb_v4_welcomed');
+    } catch {
+      return true;
+    }
   });
+
+  // Stable handler so WelcomeScreen's auto-dismiss timer is not reset on every
+  // parent re-render (APP-01 / APP-02).
+  const completeWelcome = React.useCallback(() => {
+    try {
+      sessionStorage.setItem('bb_v4_welcomed', 'true');
+    } catch {
+      /* sessionStorage unavailable (private mode) — still hide welcome */
+    }
+    setShowWelcomeScreen(false);
+  }, []);
   const [theme, setTheme] = useState<Theme>('dark');
 
   const navigate = useNavigate();
@@ -506,6 +633,36 @@ function RootComponent() {
   const isConfirmationRoute = location.pathname === '/confirmation';
   const isEmailConfirmRoute = location.pathname === '/emailconfirm';
   const isStandaloneRoute = isAdminRoute || isForgotPasswordRoute || isResetPasswordRoute || isConfirmationRoute || isEmailConfirmRoute;
+
+  // Memoized so the context value identity is stable and admin views
+  // can call it directly (or fire the `products:refresh` window event
+  // — see the listener below) to update the global product list after
+  // a mutation (e.g. starring a product as featured for HOME-03).
+  //
+  // APP-05: if Supabase is unreachable or misconfigured we fall back to
+  // INITIAL_PRODUCTS so the app still renders something instead of an
+  // empty store.
+  const refreshProducts = React.useCallback(async () => {
+    try {
+      const productsData = await getProducts();
+      if (Array.isArray(productsData) && productsData.length > 0) {
+        setProducts(productsData);
+      } else {
+        // Remote returned an empty list — keep the UX populated with the
+        // built-in catalogue so the home/store pages stay useful (APP-05).
+        setProducts(INITIAL_PRODUCTS);
+      }
+    } catch (error) {
+      console.error('Failed to fetch products from Supabase, using INITIAL_PRODUCTS fallback:', error);
+      setProducts(INITIAL_PRODUCTS);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handler = () => { refreshProducts(); };
+    window.addEventListener('products:refresh', handler);
+    return () => window.removeEventListener('products:refresh', handler);
+  }, [refreshProducts]);
 
   // Setup mobile navigation
   useEffect(() => {
@@ -580,26 +737,67 @@ function RootComponent() {
       console.error('Error loading from localStorage:', e);
     }
 
-    // Fetch products from Supabase (single source of truth)
-    const fetchProducts = async () => {
-      try {
-        const productsData = await getProducts();
-        setProducts(productsData);
-      } catch (error) {
-        console.error('Failed to fetch products from Supabase:', error);
-        setProducts([]);
-      }
-    };
-
-    fetchProducts();
+    refreshProducts();
   }, []);
 
-  // If an admin is logged in, keep them in the standalone admin area.
+  // If an admin is logged in, keep them in the standalone admin area —
+  // but let auth-flow routes through so admins can recover their own
+  // password / confirm email without being yanked back to the dashboard.
   useEffect(() => {
-    if (user?.role === 'admin' && location.pathname !== '/admin') {
+    const authFlowPaths = ['/reset-password', '/forgot-password', '/emailconfirm', '/confirmation', '/auth'];
+    if (
+      user?.role === 'admin' &&
+      location.pathname !== '/admin' &&
+      !authFlowPaths.includes(location.pathname)
+    ) {
       navigate({ to: '/admin' as any });
     }
   }, [user, location.pathname, navigate]);
+
+  // Email-flow routing. Supabase's redirect after a "forgot password" or
+  // "confirm email" click is unreliable when the redirectTo URL uses a
+  // hash fragment (fragments can be stripped, recovery tokens can land in
+  // either the search string or the hash). To make this robust:
+  //   1. Listen for the PASSWORD_RECOVERY auth event and bounce to
+  //      /reset-password whenever it fires.
+  //   2. Inspect the entry URL on mount and bounce immediately if we see
+  //      a `type=recovery` or `type=email_confirm` marker in either the
+  //      search string or the hash.
+  useEffect(() => {
+    if (!supabase) return;
+
+    const goTo = (path: string) => {
+      if (location.pathname !== path) {
+        navigate({ to: path as any });
+      }
+    };
+
+    // Initial URL inspection (covers links that land on the homepage with
+    // auth-flow params in either the search or the hash).
+    try {
+      const search = window.location.search || '';
+      const hash = window.location.hash || '';
+      const looksLike = (marker: string): boolean =>
+        new RegExp(`(^|[?&#])type=${marker}(?:&|$)`).test(search) ||
+        new RegExp(`(^|[?&#])type=${marker}(?:&|$)`).test(hash);
+
+      if (looksLike('recovery') || /access_token=.*type=recovery/.test(hash)) {
+        goTo('/reset-password');
+      } else if (looksLike('email_confirm') || looksLike('signup')) {
+        goTo('/emailconfirm');
+      }
+    } catch {
+      /* ignore — window may be unavailable */
+    }
+
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') goTo('/reset-password');
+    });
+
+    return () => {
+      sub.subscription.unsubscribe();
+    };
+  }, [navigate, location.pathname]);
 
   useEffect(() => {
     if (user) localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
@@ -681,9 +879,10 @@ function RootComponent() {
     return () => { cancelled = true; };
   }, [user?.id]);
 
-  // Apply theme globally (CSS reads html[data-theme]).
+  // Apply theme globally (CSS reads html[data-theme]; Tailwind `dark:` reads .dark on <html>).
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
+    document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
 
   const notify = (msg: string, type: 'success' | 'error' | 'info' | 'warning' = 'success') => {
@@ -782,6 +981,7 @@ function RootComponent() {
     onAddToCart: (p: Product, options?: Record<string, string>, qty?: number) => addToCart(p, options, qty),
     theme,
     setTheme,
+    refreshProducts,
   };
 
   const isLight = theme === 'light';
@@ -791,10 +991,7 @@ function RootComponent() {
       <ScrollToTop />
       {/* Welcome Screen */}
       {showWelcomeScreen && (
-        <WelcomeScreen onComplete={() => {
-          sessionStorage.setItem('bb_v4_welcomed', 'true');
-          setShowWelcomeScreen(false);
-        }} />
+        <WelcomeScreen onComplete={completeWelcome} />
       )}
 
       {isStandaloneRoute ? (
@@ -815,7 +1012,7 @@ function RootComponent() {
             setUser={setUser}
           />
 
-          <FloatingWhatsApp phoneNumber="233000000000" theme={theme} hasNotification={notifications.length > 0 || !!notification} />
+          <FloatingWhatsApp phoneNumber="233000000000" theme={theme} hasNotification={notifications.length > 0} />
 
           <main className="flex-1">
             <Outlet />
@@ -856,39 +1053,10 @@ function RootComponent() {
           onAddToCart={(p) => addToCart(p)}
         />
 
-        {notification && (
-          <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[200] w-auto min-w-[320px] max-w-md pointer-events-none">
-            <div className={`
-                pointer-events-auto flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl 
-                backdrop-blur-xl border transition-all duration-500 animate-in slide-in-from-top-6 zoom-in-95
-                ${isLight
-                ? 'bg-white/95 border-black/5 text-black'
-                : 'bg-[#1a1a1a]/95 border-white/5 text-white'}
-              `}>
-
-              <div className={`
-                  flex items-center justify-center shrink-0
-                  ${notification.type === 'success' ? 'text-green-500' : 'text-red-500'}
-                `}>
-                {notification.type === 'success' ? <CheckCircle2 size={20} /> : <AlertTriangle size={20} />}
-              </div>
-
-              <div className="flex-1 min-w-0 pr-2">
-                <p className={`text-sm font-semibold truncate tracking-tight ${isLight ? 'text-black/90' : 'text-white/90'}`}>
-                  {notification.msg}
-                </p>
-              </div>
-
-              <button
-                onClick={() => setNotification(null)}
-                className={`p-1.5 rounded-full transition-colors ${isLight ? 'hover:bg-black/5 text-black/40 hover:text-black' : 'hover:bg-white/10 text-white/40 hover:text-white'}`}
-                aria-label="Dismiss"
-              >
-                <X size={16} />
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Legacy single-toast removed — all notifications now flow through
+            the stacked NotificationContainer mounted at the App root so
+            multiple toasts can appear simultaneously (APP-11) with proper
+            per-type colours (APP-09 / APP-10). */}
 
         {isMobileMenuOpen && (
           <div className="fixed inset-0 z-[150] lg:hidden no-print">
@@ -1116,6 +1284,7 @@ export default function App() {
     onAddToCart: noop as any,
     theme,
     setTheme,
+    refreshProducts: (async () => {}) as any,
   };
 
   return (

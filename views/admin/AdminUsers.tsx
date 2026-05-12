@@ -3,6 +3,7 @@ import { Users, Shield, Wrench, ShoppingBag, Check, ArrowUpDown, Eye, Mail, Phon
 import { SearchInput, Td, Th, TableWrapper, EmptyState } from './adminUtils';
 import { getUsers, updateUserRole } from '../../lib/api';
 import type { User } from '../../types';
+import { formatCurrency } from '../../lib/utils';
 
 // Simplified roles for admin management (user ↔ admin only)
 const ROLES = [
@@ -149,7 +150,7 @@ export const AdminUsers: React.FC = () => {
                                 <DollarSign size={16} />
                                 <span className="text-[10px] font-black uppercase tracking-widest">Total Spent</span>
                             </div>
-                            <p className="text-2xl font-black text-[#B38B21]">${stats.totalSpent.toLocaleString()}</p>
+                            <p className="text-2xl font-black text-[#B38B21]">{formatCurrency(stats.totalSpent)}</p>
                         </div>
                         <div className="bg-black/30 rounded-xl p-4">
                             <div className="flex items-center gap-3 text-white/60 mb-2">

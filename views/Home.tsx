@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   ChevronRight, ChevronLeft, ArrowRight, Smartphone, Laptop as LaptopIcon, Gamepad2, Package, Settings,
-  Users, Award, TrendingUp, Star, Quote, ArrowLeftRight, Wrench, Mail, Phone, MapPin, Search, Heart, Eye
+  Users, Award, TrendingUp, Star, Quote, ArrowLeftRight, Wrench, Mail, Phone, MapPin, Heart, Eye
 } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import { Product, Category } from '../types';
@@ -46,11 +46,42 @@ export const Home: React.FC<HomeProps> = ({
   }, [themeImages]);
 
   const [currentHighlightsIndex, setCurrentHighlightsIndex] = useState(0);
-  // Prioritize featured products, then fall back to category highlights
-  const featuredProducts = products.filter(p => (p as any).featured);
+
+  // Defensive category matcher — covers DB rows that didn't get
+  // normalized (e.g. "Mobile Phones", "Laptops & Notebooks"). Order
+  // matters: more specific matches first.
+  const matchesCategory = (productCategory: string | undefined, target: Category): boolean => {
+    if (!productCategory) return false;
+    const value = String(productCategory).trim().toLowerCase();
+    switch (target) {
+      case 'iPhone':
+        return value === 'iphone' || value.includes('iphone') || value.includes('phone') || value.includes('mobile') || value.includes('smartphone');
+      case 'Laptop':
+        return value === 'laptop' || value.includes('laptop') || value.includes('notebook') || value.includes('macbook') || value.includes('computer');
+      case 'Accessories':
+        return value === 'accessories' || value.includes('accessor') || value.includes('case') || value.includes('wearable') || value.includes('charger') || value.includes('cable');
+      case 'Gaming':
+        return value === 'gaming' || value.includes('gam') || value.includes('console');
+      case 'Audio':
+        return value === 'audio' || value.includes('audio') || value.includes('headphone') || value.includes('earbud') || value.includes('speaker');
+      default:
+        return productCategory === target;
+    }
+  };
+
+  // Featured Arrivals: explicit boolean coercion so `null`/`undefined`/`'false'`
+  // (Postgres returns booleans as JS booleans normally, but be safe) don't
+  // accidentally read as truthy.
+  const featuredProducts = useMemo(
+    () => products.filter(p => Boolean((p as any).featured)),
+    [products]
+  );
+
   const highlights = useMemo(() => {
     const combined = [...featuredProducts, ...products.filter(p => !featuredProducts.find(f => f.id === p.id))];
-    return combined.filter(p => ['Accessories', 'Gaming', 'Audio', 'iPhone'].includes(p.category)).slice(0, 10);
+    return combined
+      .filter(p => matchesCategory(p.category, 'Accessories') || matchesCategory(p.category, 'Gaming') || matchesCategory(p.category, 'Audio') || matchesCategory(p.category, 'iPhone'))
+      .slice(0, 10);
   }, [products, featuredProducts]);
 
   const nextHighlight = () => setCurrentHighlightsIndex((prev) => (prev + 1) % highlights.length);
@@ -64,28 +95,28 @@ export const Home: React.FC<HomeProps> = ({
       desc: "Latest iPhone models and premium hardware",
       img: "/iPhone.jpeg",
       icon: Smartphone,
-      products: products.filter(p => p.category === 'iPhone').slice(0, 3)
+      products: products.filter(p => matchesCategory(p.category, 'iPhone')).slice(0, 3)
     },
     {
       name: "Laptop" as Category,
       desc: "Elite MacBooks and pro performance machines",
       img: "https://images.unsplash.com/photo-1671777560821-707c83d0305f",
       icon: LaptopIcon,
-      products: products.filter(p => p.category === 'Laptop').slice(0, 3)
+      products: products.filter(p => matchesCategory(p.category, 'Laptop')).slice(0, 3)
     },
     {
       name: "Gaming" as Category,
       desc: "Next-gen consoles and immersive controllers",
       img: "/ps5.jpeg",
       icon: Gamepad2,
-      products: products.filter(p => p.category === 'Gaming').slice(0, 3)
+      products: products.filter(p => matchesCategory(p.category, 'Gaming')).slice(0, 3)
     },
     {
       name: "Accessories" as Category,
       desc: "Premium accessories and tech essentials",
       img: "/cases.jpeg",
       icon: Package,
-      products: products.filter(p => p.category === 'Accessories').slice(0, 3)
+      products: products.filter(p => matchesCategory(p.category, 'Accessories')).slice(0, 3)
     }
   ];
 
@@ -328,12 +359,12 @@ export const Home: React.FC<HomeProps> = ({
                 <p className={`text-lg md:text-xl ${theme === 'dark' ? 'text-white/70' : 'text-black/70'}`}>The accessories you love.<br />In a fresh mix of colors.</p>
               </div>
               <div className="flex justify-center mt-8">
-                <img src="/cases.jpeg" alt="Accessories" className="h-40 md:h-56 object-cover rounded-2xl drop-shadow-xl" />
+                <img src="/cases.jpeg" alt="Accessories" className="h-40 md:h-56 w-40 md:w-56 object-cover rounded-2xl drop-shadow-xl" />
               </div>
             </div>
 
             {/* Product Cards */}
-            {products.filter(p => p.category === 'Accessories' || p.category === 'iPhone').slice(0, 8).map(p => (
+            {products.filter(p => matchesCategory(p.category, 'Accessories') || matchesCategory(p.category, 'iPhone')).slice(0, 8).map(p => (
               <div
                 key={p.id}
                 onClick={() => onQuickView(p)}
@@ -348,11 +379,21 @@ export const Home: React.FC<HomeProps> = ({
                   <img src={p.image} alt={p.name} className="w-full h-full object-contain filter drop-shadow-lg" />
                 </div>
 
-                <div className="absolute top-4 right-4 bg-black/10 dark:bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-md z-20 rounded-full px-4 py-2 hover:bg-black/20 dark:hover:bg-white/20">
-                  <span className={`text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
-                    <Search size={12} /> View
-                  </span>
-                </div>
+                <button
+                  type="button"
+                  aria-label={`Quick view ${p.name}`}
+                  title="Quick view"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onQuickView(p);
+                  }}
+                  className={`absolute top-4 right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full border shadow-lg backdrop-blur-md transition-all hover:scale-105 active:scale-95 ${theme === 'dark'
+                    ? 'border-white/25 bg-black/55 text-white hover:bg-[#CDA032] hover:text-black hover:border-transparent'
+                    : 'border-black/12 bg-white/90 text-black hover:bg-[#CDA032] hover:border-transparent'
+                    }`}
+                >
+                  <Eye size={18} strokeWidth={2.25} />
+                </button>
 
                 <div className="absolute inset-x-0 bottom-0 p-6 flex flex-col z-20 bg-gradient-to-t from-black/5 to-transparent dark:from-black/80 dark:to-transparent">
                   <div className="flex items-center gap-2 mb-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-y-2 group-hover:translate-y-0">
@@ -441,14 +482,14 @@ export const Home: React.FC<HomeProps> = ({
                 <img
                   src="/laptop.jpeg"
                   alt="Laptops"
-                  className="h-40 md:h-56 object-contain drop-shadow-2xl"
+                  className="h-40 md:h-56 max-w-full object-contain drop-shadow-2xl"
                 />
               </div>
               <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-[#CDA032]/20 rounded-full blur-[60px] group-hover:scale-150 transition-transform duration-1000"></div>
             </div>
 
             {/* Product Cards */}
-            {products.filter(p => p.category === 'Laptop').map(p => (
+            {products.filter(p => matchesCategory(p.category, 'Laptop')).map(p => (
               <div
                 key={p.id}
                 onClick={() => onQuickView(p)}
@@ -463,11 +504,21 @@ export const Home: React.FC<HomeProps> = ({
                   <img src={p.image} alt={p.name} className="w-full h-full object-contain filter drop-shadow-lg" />
                 </div>
 
-                <div className="absolute top-4 right-4 bg-black/10 dark:bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-md z-20 rounded-full px-4 py-2 hover:bg-black/20 dark:hover:bg-white/20">
-                  <span className={`text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
-                    <Search size={12} /> View
-                  </span>
-                </div>
+                <button
+                  type="button"
+                  aria-label={`Quick view ${p.name}`}
+                  title="Quick view"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onQuickView(p);
+                  }}
+                  className={`absolute top-4 right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full border shadow-lg backdrop-blur-md transition-all hover:scale-105 active:scale-95 ${theme === 'dark'
+                    ? 'border-white/25 bg-black/55 text-white hover:bg-[#CDA032] hover:text-black hover:border-transparent'
+                    : 'border-black/12 bg-white/90 text-black hover:bg-[#CDA032] hover:border-transparent'
+                    }`}
+                >
+                  <Eye size={18} strokeWidth={2.25} />
+                </button>
 
                 <div className="absolute inset-x-0 bottom-0 p-6 flex flex-col z-20 bg-gradient-to-t from-black/5 to-transparent dark:from-black/80 dark:to-transparent">
                   <div className="flex items-center gap-2 mb-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-y-2 group-hover:translate-y-0">
@@ -663,7 +714,14 @@ export const Home: React.FC<HomeProps> = ({
                   </span>
                 </div>
                 <div className="absolute top-0 -right-10 md:right-0 bottom-0 w-2/3 md:w-1/2">
-                  <img src="/cases.jpeg" alt="Audio Promo" className="w-full h-full object-cover rounded-l-full blur-[2px] opacity-70 scale-125 group-hover:scale-110 group-hover:blur-none transition-all duration-700" style={{ mixBlendMode: theme === 'light' ? 'multiply' : 'screen' }} />
+                  <img
+                    src="/cases.jpeg"
+                    alt="Audio Promo"
+                    className={`w-full h-full object-cover rounded-l-full scale-125 group-hover:scale-110 transition-all duration-700 ${
+                      theme === 'light' ? 'opacity-95' : 'opacity-70 blur-[2px] group-hover:blur-none'
+                    }`}
+                    style={theme === 'light' ? undefined : { mixBlendMode: 'screen' }}
+                  />
                 </div>
               </Link>
             )}
@@ -743,7 +801,13 @@ export const Home: React.FC<HomeProps> = ({
                   </p>
                 </div>
                 <div className="absolute right-0 bottom-0 top-0 w-1/2 overflow-hidden flex justify-end">
-                  <img src="/macbook.jpeg" alt="MacBook Promo" className="h-full object-cover transform scale-110 origin-right group-hover:scale-[1.15] transition-transform duration-[1.5s] mix-blend-multiply opacity-90" />
+                  <img
+                    src="/macbook.jpeg"
+                    alt="MacBook Promo"
+                    className={`w-full h-full object-cover transform scale-110 origin-right group-hover:scale-[1.15] transition-transform duration-[1.5s] ${
+                      theme === 'light' ? 'opacity-95' : 'mix-blend-multiply opacity-90'
+                    }`}
+                  />
                 </div>
                 <div className="absolute top-6 right-6 w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-black/40 hover:bg-white transition-colors cursor-pointer z-20">
                   <ArrowRight size={16} />
@@ -830,7 +894,13 @@ export const Home: React.FC<HomeProps> = ({
                 </div>
                 <div className="absolute right-0 bottom-0 top-0 w-1/2 md:w-1/2 flex justify-end">
                   <div className={`w-full h-full flex items-center justify-center transform translate-y-4 group-hover:translate-y-0 transition-transform duration-700`}>
-                    <img src="/macbook.jpeg" alt="Accessory Layer" className="object-cover h-[120%] opacity-90 mix-blend-luminosity" />
+                    <img
+                      src="/macbook.jpeg"
+                      alt="Accessory Layer"
+                      className={`w-full object-cover h-[120%] ${
+                        theme === 'light' ? 'opacity-95' : 'opacity-90 mix-blend-luminosity'
+                      }`}
+                    />
                   </div>
                 </div>
                 <div className={`absolute top-6 right-6 w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer z-20 ${theme === 'light' ? 'bg-white text-black hover:bg-black hover:text-white shadow-md' : 'bg-white/10 text-white hover:bg-[#CDA032] hover:text-black'}`}>
@@ -853,7 +923,7 @@ export const Home: React.FC<HomeProps> = ({
           </div>
           <div className="relative flex overflow-hidden">
             <div className="flex py-4 animate-scroll whitespace-nowrap">
-              {products.filter(p => p.category === 'Laptop').map((p, i) => (
+              {products.filter(p => matchesCategory(p.category, 'Laptop')).map((p, i) => (
                 <div key={`${p.id}-${i}`} className="inline-flex items-center gap-4 px-8 group cursor-default">
                   <span className={`text-4xl md:text-6xl font-black italic tracking-tighter uppercase transition-colors duration-500 hover:text-[#D4AF37] ${theme === 'light' ? 'text-black/5' : 'text-white/5'
                     }`}>
@@ -863,7 +933,7 @@ export const Home: React.FC<HomeProps> = ({
                 </div>
               ))}
               {/* Duplicate for seamless scroll */}
-              {products.filter(p => p.category === 'Laptop').map((p, i) => (
+              {products.filter(p => matchesCategory(p.category, 'Laptop')).map((p, i) => (
                 <div key={`${p.id}-dup-${i}`} className="inline-flex items-center gap-4 px-8 group cursor-default">
                   <span className={`text-4xl md:text-6xl font-black italic tracking-tighter uppercase transition-colors duration-500 hover:text-[#D4AF37] ${theme === 'light' ? 'text-black/5' : 'text-white/5'
                     }`}>

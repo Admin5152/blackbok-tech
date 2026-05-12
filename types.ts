@@ -268,6 +268,7 @@ export interface TradeInRequest {
   date: string;
   estimatedValue: number;
   finalValue?: number;
+  offeredPrice?: number;
   adminNote?: string;
   imageUrl?: string;
   targetDevice?: string;

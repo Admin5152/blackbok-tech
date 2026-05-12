@@ -251,7 +251,13 @@ export const Profile: React.FC<ProfileProps> = ({
         );
 
       case 'orders':
+        // PRF-08: render the orders list AND the tracking modal as
+        // siblings. The modal was previously written as `if
+        // (selectedOrder) return ...` AFTER an unconditional return,
+        // which made it dead code — that's why clicking "Track Order"
+        // never showed the timeline.
         return (
+          <>
           <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
             <div className={`flex items-center justify-between px-2 ${isLight ? 'text-black' : 'text-white'}`}>
               <div>
@@ -338,12 +344,9 @@ export const Profile: React.FC<ProfileProps> = ({
               </div>
             )}
           </div>
-        );
 
-        // Order Tracking Modal
-        if (selectedOrder) {
-          return (
-            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+          {selectedOrder && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-6">
               <div className="bg-gradient-to-br from-[#0a0a0a] to-[#050505] border border-white/10 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
                 <div className="sticky top-0 bg-gradient-to-br from-[#0a0a0a] to-[#050505] border-b border-white/10 p-6 flex items-center justify-between z-10">
                   <div>
@@ -351,11 +354,14 @@ export const Profile: React.FC<ProfileProps> = ({
                       <Truck size={20} className="text-[#B38B21]" />
                       Order Tracking
                     </h3>
-                    <p className="text-[9px] font-bold text-white/30 uppercase tracking-wider">Order #{selectedOrder!.id}</p>
+                    <p className="text-[9px] font-bold text-white/30 uppercase tracking-wider">
+                      Order {selectedOrder.display_id || `#${selectedOrder.id.slice(-8).toUpperCase()}`}
+                    </p>
                   </div>
                   <button
                     onClick={() => setSelectedOrder(null)}
                     className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                    aria-label="Close tracking"
                   >
                     <XCircle size={20} className="text-white/60" />
                   </button>
@@ -363,14 +369,15 @@ export const Profile: React.FC<ProfileProps> = ({
 
                 <div className="p-6">
                   <OrderTracker
-                    order={selectedOrder!}
+                    order={selectedOrder}
                     isExpanded={true}
                   />
                 </div>
               </div>
             </div>
-          );
-        }
+          )}
+          </>
+        );
 
       case 'trades':
         return (

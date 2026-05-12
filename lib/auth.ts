@@ -136,27 +136,49 @@ class AuthService {
       try {
         const client = getSupabaseClient();
         console.log('✅ Supabase client obtained');
-        
-        // Create user with Supabase Auth
+
+        // Create user with Supabase Auth.
+        //
+        // emailRedirectTo: always anchor to the site root (`/`) instead of
+        // `window.location.pathname`. The previous build included whatever
+        // path the user happened to be on (e.g. `/auth`), and many static
+        // hosts return 404 for unknown paths before the SPA can boot. The
+        // `?type=email_confirm` query parameter is a defensive marker the
+        // App.tsx listener picks up if the hash fragment gets stripped.
         console.log('🔄 Attempting Supabase registration...');
-        const emailRedirectTo = `${window.location.origin}${window.location.pathname}#/emailconfirm`;
+        const emailRedirectTo = `${window.location.origin}/?type=email_confirm#/emailconfirm`;
         const { data, error } = await client.auth.signUp({
           email: credentials.email,
           password: credentials.password,
           options: {
-            emailRedirectTo
+            emailRedirectTo,
+            data: { name: credentials.name },
           }
         });
 
-        console.log('📊 Supabase signup response:', { 
-          hasData: !!data, 
+        console.log('📊 Supabase signup response:', {
+          hasData: !!data,
           hasUser: !!data?.user,
-          error: error?.message 
+          identitiesLength: data?.user?.identities?.length,
+          error: error?.message,
         });
 
         if (error) {
           console.error('❌ Supabase signup error:', error);
           return { user: null, error: error.message };
+        }
+
+        // Anti-enumeration: Supabase's default behavior for `signUp` with an
+        // already-registered email is to return a user object with NO error
+        // and an empty `identities` array (instead of a clear duplicate
+        // error). Detect that case explicitly so the UI can show the right
+        // message. See https://supabase.com/docs/reference/javascript/auth-signup
+        if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+          console.warn('⚠️ Sign-up attempted with an email that already exists.');
+          return {
+            user: null,
+            error: 'An account with this email already exists. Please log in instead.',
+          };
         }
 
         if (data.user) {
@@ -413,7 +435,14 @@ class AuthService {
       }
 
       const client = getSupabaseClient();
-      const redirectTo = `${window.location.origin}${window.location.pathname}#/reset-password`;
+      // Defense in depth: include BOTH a query parameter (Supabase preserves
+      // these reliably across the redirect) AND the hash route (used if the
+      // host happens to forward fragments cleanly). Anchor to the site root
+      // (`/`) rather than `window.location.pathname` so the redirect can't
+      // land on a path the host returns 404 for before the SPA boots.
+      // The App.tsx recovery listener routes to /reset-password whichever
+      // way the URL lands.
+      const redirectTo = `${window.location.origin}/?type=recovery#/reset-password`;
 
       const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo });
       if (error) {

@@ -24,10 +24,33 @@ export const Compare: React.FC = () => {
         allProducts.filter(p => compareIds.includes(p.id)),
         [allProducts, compareIds]);
 
-    const availableProducts = allProducts.filter(p =>
-        !compareIds.includes(p.id) &&
-        (searchTerm === '' || p.name.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    // CMP-11: forgive partial / lower-case / multi-word / token-out-of-order
+    // queries. The previous filter only matched against `p.name` with a
+    // single `.includes`, so a user typing "iphone 15" against a product
+    // named "Apple iPhone 15 Pro Max" would get a hit, but "15 pro" or
+    // "macbook m3" against "Apple MacBook Pro M3 14-inch" wouldn't unless
+    // the words appeared in the exact same order. We now split the query
+    // into tokens and require every token to appear somewhere in the
+    // combined "name + brand + category + description" haystack.
+    const normalize = (s: unknown) =>
+        String(s ?? '').toLowerCase().replace(/[^a-z0-9\s]+/g, ' ').replace(/\s+/g, ' ').trim();
+
+    const availableProducts = useMemo(() => {
+        const tokens = normalize(searchTerm).split(' ').filter(Boolean);
+        return allProducts.filter(p => {
+            if (compareIds.includes(p.id)) return false;
+            if (tokens.length === 0) return true;
+            const haystack = normalize(
+                [
+                    p.name,
+                    (p as any).brand,
+                    p.category,
+                    (p as any).description,
+                ].filter(Boolean).join(' '),
+            );
+            return tokens.every(t => haystack.includes(t));
+        });
+    }, [allProducts, compareIds, searchTerm]);
 
     const containerClass = isLight ? 'bg-white border-black/10' : 'bg-[#121212] border-white/5';
     const textMuted = isLight ? 'text-black/40' : 'text-white/20';
@@ -163,11 +186,17 @@ export const Compare: React.FC = () => {
                                             <div className="space-y-4 min-h-[220px]">
                                                 <h4 className={`text-[9px] font-black uppercase tracking-[0.4em] italic ${textMuted}`}>Hardware Specs</h4>
                                                 <div className="space-y-2">
-                                                    {p.specs?.slice(0, 4).map((spec, i) => (
-                                                        <div key={i} className={`p-4 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-transparent ${cardBg} hover:border-[#CDA032]/20 transition-all`}>
-                                                            {spec}
+                                                    {(p.specs && p.specs.length > 0) ? (
+                                                        p.specs.slice(0, 4).map((spec, i) => (
+                                                            <div key={i} className={`p-4 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-transparent ${cardBg} hover:border-[#CDA032]/20 transition-all`}>
+                                                                {spec}
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <div className={`p-4 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-dashed ${cardBg} ${textMuted}`}>
+                                                            No specifications added yet
                                                         </div>
-                                                    ))}
+                                                    )}
                                                 </div>
                                             </div>
 
@@ -184,14 +213,20 @@ export const Compare: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        {/* Action Block */}
+                                        {/* Action Block — CMP-13: switched to brand-gold so the
+                                            CTA is unmistakable against either light or dark cards.
+                                            Previously it used bg-white / bg-black which blended into
+                                            the surrounding card surface and was hard to spot. */}
                                         <div className="p-8 pt-0 mt-auto">
                                             <button
+                                                type="button"
                                                 onClick={() => onAddToCart(p)}
-                                                className={`w-full py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.4em] transition-all active:scale-95 flex items-center justify-center gap-3 ${isLight ? 'bg-black text-white hover:bg-black/90' : 'bg-white text-black hover:bg-white/90'
-                                                    }`}
+                                                aria-label={`Add ${p.name} to cart`}
+                                                disabled={(p.stock ?? 0) <= 0}
+                                                className="w-full py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.4em] transition-all active:scale-95 flex items-center justify-center gap-3 bg-[#CDA032] text-black shadow-lg shadow-[#CDA032]/20 hover:bg-[#B38B21] hover:scale-[1.02] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#CDA032] disabled:hover:scale-100"
                                             >
-                                                <ShoppingCart size={16} /> Deploy Unit
+                                                <ShoppingCart size={16} />
+                                                {(p.stock ?? 0) > 0 ? 'Deploy Unit' : 'Out of Stock'}
                                             </button>
                                         </div>
                                     </div>

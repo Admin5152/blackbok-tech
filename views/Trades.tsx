@@ -98,6 +98,11 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
   const [loadingTrades, setLoadingTrades] = useState(false);
   const [submitting, setSubmitting]     = useState(false);
 
+  // The freshly-submitted trade — kept around so the success step
+  // can display the human-friendly TRD00001-style display_id that
+  // the DB trigger generated.
+  const [lastSubmittedTrade, setLastSubmittedTrade] = useState<TradeRequest | null>(null);
+
   // ── Mirror Repair's step/subStep structure exactly ─────────────────────────
   // step 1 = device selection (sub-stepped like Repair)
   // step 2 = trade-in details + upgrade target
@@ -226,18 +231,30 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
         accessories: accessoriesList,
         target_device: targetProduct?.name || '',
         target_product_id: targetProduct?.id || undefined,
-        preferred_date: formData.date,
+        preferred_date: formData.date || undefined,
         preferred_time: timeSlots.find(t => t.id === formData.timeSlot)?.time || '',
         contact_name: formData.name,
         contact_email: formData.email,
         contact_phone: formData.phone,
         fulfillment_method: formData.fulfillmentMethod,
       });
-      setMyTrades(prev => [{
-        id: data.id, userId: user.id, userName: formData.name, userEmail: formData.email,
+
+      // The DB trigger gave us a TRD00001-style display_id — pull it
+      // straight from the freshly inserted row so the success screen
+      // and the "My Requests" sidebar both show it.
+      const newTrade: TradeRequest = {
+        id: data.id,
+        display_id: (data as any).display_id,
+        userId: user.id,
+        userName: formData.name,
+        userEmail: formData.email,
         device: `${selectedDevice.brand} ${selectedDevice.name} — ${selectedVariant}`,
-        status: 'Pending', date: new Date().toISOString(), estimatedValue: 0,
-      } as TradeRequest, ...prev]);
+        status: 'Pending',
+        date: new Date().toISOString(),
+        estimatedValue: 0,
+      } as TradeRequest;
+      setLastSubmittedTrade(newTrade);
+      setMyTrades(prev => [newTrade, ...prev]);
       notify("Trade-in request submitted! We'll review and send you an offer within 24 hours.", 'success');
       go(5);
     } catch (err: any) {
@@ -851,6 +868,11 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                 </div>
                 <div>
                   <h2 className="text-2xl font-black text-white mb-2">Request Submitted!</h2>
+                  {lastSubmittedTrade?.display_id && (
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#CDA032] mb-3">
+                      Reference: {lastSubmittedTrade.display_id}
+                    </p>
+                  )}
                   <p className="text-sm text-white/50 max-w-sm mx-auto">
                     Our team will review your {selectedDevice?.brand} {selectedDevice?.name} — {selectedVariant} and send a personalised offer to{' '}
                     <span className="text-white font-bold">{formData.email}</span>.
@@ -866,7 +888,43 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                   ))}
                 </div>
                 <div className="flex flex-col sm:flex-row justify-center gap-3">
-                  <button onClick={() => { setStep(1); setSubStep(1); setSelectedDeviceType(''); setSelectedBrand(''); setSelectedDevice(null); setSelectedVariant(''); setTargetProductId(''); setNotes(''); }}
+                  <button
+                    onClick={() => {
+                      // TRD-23: clear the entire wizard so the next request
+                      // starts truly fresh. Mirrors the initial state above.
+                      setStep(1);
+                      setSubStep(1);
+                      setSelectedDeviceType('');
+                      setSelectedBrand('');
+                      setSelectedDevice(null);
+                      setSelectedVariant('');
+                      setTargetProductId('');
+                      setNotes('');
+                      setFormData({
+                        name: user?.name || '',
+                        email: user?.email || '',
+                        phone: '',
+                        address: '',
+                        date: '',
+                        timeSlot: '',
+                        fulfillmentMethod: 'Headquarters',
+                      });
+                      setDeviceDetails({
+                        serialNumber: '',
+                        physicalDesc: '',
+                        issueDesc: '',
+                        whenStarted: '',
+                        previousRepairs: '',
+                      });
+                      setAccessories({
+                        chargers: false,
+                        caseCover: false,
+                        cables: false,
+                        memory: false,
+                        other: false,
+                      });
+                      setLastSubmittedTrade(null);
+                    }}
                     className="px-6 py-3 border border-[var(--bb-border)] rounded-xl text-sm font-bold hover:border-[#CDA032]/40 transition-all">
                     New Request
                   </button>
@@ -942,7 +1000,12 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                     <div className="space-y-3">
                       {myTrades.slice(0, 5).map(t => (
                         <div key={t.id} className="border border-[var(--bb-border)] rounded-xl p-3">
-                          <p className="text-xs font-black text-white truncate">{t.device}</p>
+                          {t.display_id && (
+                            <p className="text-[9px] font-black uppercase tracking-[0.25em] text-[#CDA032] mb-1">
+                              {t.display_id}
+                            </p>
+                          )}
+                          <p className="text-xs font-black text-white truncate">{(t as any).device}</p>
                           <div className="flex items-center justify-between mt-1">
                             <StatusBadge status={t.status} />
                             {(t as any).finalValue && <span className="text-[10px] font-black text-[#CDA032]">${(t as any).finalValue}</span>}

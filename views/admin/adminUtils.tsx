@@ -104,16 +104,17 @@ export const EmptyState = ({ icon, message }: { icon: React.ReactNode; message: 
 
 // Mini SVG bar chart
 export const BarChart = ({ data, color = '#B38B21' }: { data: number[]; color?: string }) => {
+    const len = Math.max(data.length, 1);
     const max = Math.max(...data, 1);
-    const w = 280; const h = 60; const barW = w / data.length - 4;
+    const w = 280; const h = 60; const barW = Math.max(1, w / len - 4);
     return (
         <svg width="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
             {data.map((v, i) => {
                 const bh = Math.max(2, (v / max) * h);
                 return (
                     <g key={i}>
-                        <rect x={i * (w / data.length)} y={h - bh} width={barW} height={bh} rx="3" fill={color} opacity="0.2" />
-                        <rect x={i * (w / data.length)} y={h - bh} width={barW} height={Math.min(4, bh)} rx="2" fill={color} />
+                        <rect x={i * (w / len)} y={h - bh} width={barW} height={bh} rx="3" fill={color} opacity="0.2" />
+                        <rect x={i * (w / len)} y={h - bh} width={barW} height={Math.min(4, bh)} rx="2" fill={color} />
                     </g>
                 );
             })}
@@ -122,13 +123,13 @@ export const BarChart = ({ data, color = '#B38B21' }: { data: number[]; color?: 
 };
 
 export const Sparkline = ({ data, color = '#B38B21' }: { data: number[]; color?: string }) => {
-    if (data.length < 2) return null;
-    const max = Math.max(...data, 1); const w = 100; const h = 36;
-    const pts = data.map((v, i) => `${(i / (data.length - 1)) * w},${h - (v / max) * h}`).join(' ');
+    const series = data.length === 0 ? [0, 0] : data.length === 1 ? [data[0], data[0]] : data;
+    const max = Math.max(...series, 1); const w = 100; const h = 36;
+    const pts = series.map((v, i) => `${(i / (series.length - 1)) * w},${h - (v / max) * h}`).join(' ');
     return (
         <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
             <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <circle cx={(data.length - 1) / (data.length - 1) * w} cy={h - (data[data.length - 1] / max) * h} r="3" fill={color} />
+            <circle cx={(series.length - 1) / (series.length - 1) * w} cy={h - (series[series.length - 1] / max) * h} r="3" fill={color} />
         </svg>
     );
 };

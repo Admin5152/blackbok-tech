@@ -76,6 +76,7 @@ const RADIUS = 88;
 
 export const FloatingWhatsApp: React.FC<FloatingShareMenuProps> = ({
   phoneNumber = '+233543217272',
+  hasNotification = false,
 }) => {
   const [open, setOpen] = useState(false);
 
@@ -189,6 +190,38 @@ export const FloatingWhatsApp: React.FC<FloatingShareMenuProps> = ({
               className="absolute inset-0 rounded-full animate-ping"
               style={{ background: 'rgba(205,160,50,0.2)', animationDuration: '2.2s' }}
             />
+          )}
+
+          {/* Notification indicator dot — shows when any toast/notification is active */}
+          {hasNotification && !open && (
+            <>
+              <span
+                className="absolute rounded-full"
+                style={{
+                  top: 4,
+                  right: 4,
+                  width: 14,
+                  height: 14,
+                  background: '#EF4444',
+                  border: '2px solid #ffffff',
+                  zIndex: 30,
+                  boxShadow: '0 2px 6px rgba(239,68,68,0.6)',
+                }}
+                aria-label="Active notification"
+              />
+              <span
+                className="absolute rounded-full animate-ping"
+                style={{
+                  top: 4,
+                  right: 4,
+                  width: 14,
+                  height: 14,
+                  background: 'rgba(239,68,68,0.6)',
+                  zIndex: 25,
+                  animationDuration: '1.6s',
+                }}
+              />
+            </>
           )}
         </button>
       </div>

@@ -3,7 +3,7 @@ import {
   X, CheckCircle2, Activity, Scale, RefreshCcw, RotateCcw, Home as HomeIcon,
   ShoppingBag, Wrench, ShoppingCart, User as UserIcon, LogOut,
   ChevronRight, ChevronDown, Settings, AlertTriangle,
-  Sparkles, Eye, Clock, Menu, Sun, Moon, Search, TrendingUp, Box, Laptop, Smartphone, Gamepad2, History, Calendar, Info, Heart, UserCog
+  Sparkles, Eye, Clock, Menu, Sun, Moon, Search, TrendingUp, Box, Laptop, Smartphone, Gamepad2, History, Calendar, Info, Heart, UserCog, Headphones
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from '@tanstack/react-router';
 import { User, CartItem, Product } from '../types';
@@ -137,6 +137,13 @@ export const Navbar: React.FC<{
                     <Link to="/store" search={{ category: 'Accessories' } as any} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
                       <Box size={14} className="opacity-40" /> Accessories
                     </Link>
+                    <Link to="/store" search={{ category: 'Audio' } as any} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
+                      <Headphones size={14} className="opacity-40" /> Audio
+                    </Link>
+                    <div className={`my-1 h-px ${isLight ? 'bg-black/5' : 'bg-white/5'}`} />
+                    <Link to="/history" search={{ tab: 'orders' } as any} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
+                      <History size={14} className="opacity-40" /> Track Orders
+                    </Link>
                   </div>
                 </div>
               </div>
@@ -222,6 +229,31 @@ export const Navbar: React.FC<{
                 </button>
               )}
 
+              {/* Mobile / tablet cart — always visible below lg (desktop cart lives in the main nav row) */}
+              <Link
+                to="/cart"
+                title={cartCount > 0 ? `Cart: ${cartCount} item${cartCount === 1 ? '' : 's'}` : 'Cart'}
+                aria-label={`Open cart${cartCount > 0 ? `, ${cartCount} item${cartCount === 1 ? '' : 's'}` : ', empty'}`}
+                className={[
+                  'lg:hidden relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-all',
+                  cartCount > 0
+                    ? 'border-[#CDA032]/60 bg-[#CDA032]/15 text-black shadow-[0_0_0_1px_rgba(205,160,50,0.25)] dark:text-white'
+                    : isLight
+                      ? 'border-black/10 bg-black/5 text-black hover:bg-black/10'
+                      : 'border-white/10 bg-white/5 text-white hover:bg-white/10',
+                ].join(' ')}
+              >
+                <ShoppingCart size={20} strokeWidth={2.25} />
+                {cartCount > 0 && (
+                  <span
+                    className="absolute -top-0.5 -right-0.5 min-h-[20px] min-w-[20px] px-1 rounded-full bg-[#CDA032] text-black text-[10px] font-black flex items-center justify-center shadow-md ring-2 ring-white/90 dark:ring-black/80"
+                    aria-hidden="true"
+                  >
+                    {cartCount > 99 ? '99+' : cartCount}
+                  </span>
+                )}
+              </Link>
+
               {/* Mobile Menu Trigger */}
               <button
                 onClick={() => setIsMobileMenuOpen(true)}
@@ -246,17 +278,33 @@ export const Navbar: React.FC<{
           {/* Mobile Navigation Drawer */}
           <div className={`absolute right-0 top-0 h-full w-80 bg-black border-l border-white/10 shadow-2xl transform transition-transform duration-500 ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
 
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-white/10">
-              <span className="text-white text-sm font-black uppercase tracking-widest">Menu</span>
-
-              {/* Close Button */}
-              <button
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
-              >
-                <X size={20} className="text-white" />
-              </button>
+            {/* Header — cart shortcut so users always see cart without scrolling the drawer */}
+            <div className="flex items-center justify-between gap-3 p-6 border-b border-white/10">
+              <span className="text-white text-sm font-black uppercase tracking-widest shrink-0">Menu</span>
+              <div className="flex items-center gap-2">
+                <Link
+                  to="/cart"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="relative flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-white hover:border-[#CDA032]/50 hover:bg-[#CDA032]/10 transition-all"
+                  aria-label={`Cart${cartCount > 0 ? `, ${cartCount} items` : ''}`}
+                >
+                  <ShoppingCart size={18} className="text-[#CDA032]" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Cart</span>
+                  {cartCount > 0 && (
+                    <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-[#CDA032] text-black text-[10px] font-black flex items-center justify-center">
+                      {cartCount > 99 ? '99+' : cartCount}
+                    </span>
+                  )}
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors shrink-0"
+                  aria-label="Close menu"
+                >
+                  <X size={20} className="text-white" />
+                </button>
+              </div>
             </div>
 
             {/* User Profile Section */}
@@ -295,8 +343,10 @@ export const Navbar: React.FC<{
                         { path: '/store', label: 'All Products', icon: Box },
                         { path: '/store', label: 'iPhone', icon: Smartphone, search: { category: 'iPhone' } },
                         { path: '/store', label: 'Laptops', icon: Laptop, search: { category: 'Laptop' } },
+                        { path: '/store', label: 'Accessories', icon: Box, search: { category: 'Accessories' } },
                         { path: '/store', label: 'Gaming', icon: Gamepad2, search: { category: 'Gaming' } },
-                        { path: '/store', label: 'Accessories', icon: Box, search: { category: 'Accessories' } }
+                        { path: '/store', label: 'Audio', icon: Headphones, search: { category: 'Audio' } },
+                        { path: '/history', label: 'Track Orders', icon: History, search: { tab: 'orders' } }
                       ]
                     },
                     {
@@ -359,7 +409,7 @@ export const Navbar: React.FC<{
                         </div>
 
                         {hasSubItems && (
-                          <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isSubmenuOpen ? 'max-h-[500px] opacity-100 mt-2 mb-6' : 'max-h-0 opacity-0'}`}>
+                          <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isSubmenuOpen ? 'max-h-[min(90vh,880px)] opacity-100 mt-2 mb-6' : 'max-h-0 opacity-0'}`}>
                             <div className="ml-12 mr-6 space-y-2">
                               {item.subItems?.map((sub: any, idx: number) => {
                                 if (sub.type === 'info') {

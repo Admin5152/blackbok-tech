@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { DollarSign, ShoppingCart, Users, Package, RefreshCcw, Wrench, AlertTriangle, Star, ArrowUpRight, CalendarDays, Download } from 'lucide-react';
-import { BarChart, Sparkline, DonutChart, PROD_KEY } from './adminUtils';
+import { DollarSign, ShoppingCart, Users, Package, RefreshCcw, Wrench, AlertTriangle, Star, ArrowUpRight, CalendarDays, Download, Megaphone } from 'lucide-react';
+import { BarChart, Sparkline, DonutChart } from './adminUtils';
 import { getOrders, getUsers, getTradeRequests, getRepairRequests } from '../../lib/api';
 import type { Order, User, Product, TradeRequest, RepairRequest } from '../../types';
 import { useAppContext } from '../../App';
+import { formatCurrency } from '../../lib/utils';
 
-type Section = 'overview' | 'orders' | 'customers' | 'products' | 'trades' | 'repairs' | 'users';
+type Section = 'overview' | 'orders' | 'customers' | 'products' | 'trades' | 'repairs' | 'users' | 'returns';
 
 interface Props {
     onNavigate: (section: Section) => void;
@@ -23,6 +24,79 @@ const catColors: Record<string, string> = {
     iPhone: STATUS_COLORS.info, Laptop: '#6366f1', Gaming: '#f97316',
     Accessories: '#10b981', Audio: '#a855f7', Tablet: '#06b6d4', Trades: '#f43f5e'
 };
+
+function getValidDate(input?: string): Date | null {
+    if (!input) return null;
+    const dt = new Date(input);
+    return Number.isNaN(dt.getTime()) ? null : dt;
+}
+
+function parseRepairAmount(amount: string | number | undefined): number {
+    if (typeof amount === 'number') return amount || 0;
+    if (!amount) return 0;
+    return parseFloat(String(amount).replace(/[^0-9.]/g, '')) || 0;
+}
+
+function buildDailyBuckets(
+    entries: { date?: string; created_at?: string }[],
+    valueOf: (e: any) => number,
+    dayCount: number,
+): number[] {
+    const buckets = Array.from({ length: dayCount }, () => 0);
+    const start = new Date(); start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - (dayCount - 1));
+    entries.forEach(e => {
+        const dt = getValidDate(e.date || e.created_at);
+        if (!dt) return;
+        const idx = Math.floor((new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime() - start.getTime()) / 86400000);
+        if (idx >= 0 && idx < dayCount) buckets[idx] += valueOf(e);
+    });
+    return buckets;
+}
+
+function buildMonthlyRevenueLast12(
+    orders: Order[],
+    repairs: RepairRequest[],
+    trades: TradeRequest[],
+): number[] {
+    const keys = Array.from({ length: 12 }, (_, i) => {
+        const d = new Date();
+        d.setDate(1);
+        d.setMonth(d.getMonth() - (11 - i));
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    });
+    const sums = keys.map(() => 0);
+    const keyIndex = Object.fromEntries(keys.map((k, i) => [k, i]));
+    const add = (dt: Date, val: number) => {
+        const k = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`;
+        const idx = keyIndex[k];
+        if (idx !== undefined) sums[idx] += val;
+    };
+    orders.forEach(o => {
+        const dt = getValidDate(o.date || o.created_at);
+        if (dt) add(dt, o.total || 0);
+    });
+    repairs.forEach(r => {
+        if ((r.status || '').toLowerCase() !== 'completed') return;
+        const dt = getValidDate(r.date || r.created_at);
+        if (dt) add(dt, parseRepairAmount(r.estimatedCost));
+    });
+    trades.forEach(t => {
+        if ((t.status || '').toLowerCase() !== 'completed') return;
+        const dt = getValidDate(t.date || t.created_at);
+        if (dt) add(dt, t.finalValue || 0);
+    });
+    return sums.map(Math.round);
+}
+
+function chartLabelsForYear(): string[] {
+    return Array.from({ length: 12 }, (_, i) => {
+        const d = new Date();
+        d.setDate(1);
+        d.setMonth(d.getMonth() - (11 - i));
+        return d.toLocaleDateString('en-GH', { month: 'short' });
+    });
+}
 
 interface StatCardProps {
     icon: any;
@@ -83,18 +157,22 @@ interface AlertItemProps {
     onAction?: () => void;
 }
 
-const AlertItem: React.FC<AlertItemProps> = ({ type, message, action, onAction }) => {
+const AlertItem: React.FC<AlertItemProps & { isLight?: boolean }> = ({ type, message, action, onAction, isLight }) => {
     const color = type === 'critical' ? STATUS_COLORS.critical : STATUS_COLORS.warning;
+    const criticalCls = isLight
+        ? 'bg-red-50 border-red-200 text-red-900'
+        : 'bg-red-500/5 border-red-500/20 text-red-100';
+    const warnCls = isLight
+        ? 'bg-amber-50 border-amber-200 text-amber-950'
+        : 'bg-amber-500/5 border-amber-500/20 text-amber-100';
     return (
-        <div className={`flex items-center justify-between gap-3 p-3 rounded-xl border ${type === 'critical' ? 'bg-red-500/5 border-red-500/20 text-red-100' :
-            'bg-amber-500/5 border-amber-500/20 text-amber-100'
-            }`}>
-            <div className="flex items-center gap-3">
-                <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: color }} />
-                <p className="text-[11px] font-medium opacity-90">{message}</p>
+        <div className={`flex items-center justify-between gap-3 p-3 rounded-xl border ${type === 'critical' ? criticalCls : warnCls}`}>
+            <div className="flex items-center gap-3 min-w-0">
+                <div className="w-1.5 h-1.5 rounded-full shrink-0 animate-pulse" style={{ backgroundColor: color }} />
+                <p className="text-[11px] font-medium opacity-95 leading-snug">{message}</p>
             </div>
             {action && (
-                <button onClick={onAction} className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg transition-all flex items-center gap-1"
+                <button onClick={onAction} className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 shrink-0"
                     style={{ backgroundColor: `${color}15`, color }}>
                     {action}
                     <ArrowUpRight size={11} />
@@ -104,7 +182,7 @@ const AlertItem: React.FC<AlertItemProps> = ({ type, message, action, onAction }
     );
 };
 
-const AlertSection = ({ alerts, onNavigate, isLight }: { alerts: AlertItemProps[], onNavigate: any, isLight: boolean }) => {
+const AlertSection = ({ alerts, isLight }: { alerts: AlertItemProps[]; isLight: boolean }) => {
     if (!alerts.length) return null;
     return (
         <div role="alert" aria-live="assertive" aria-atomic="true" className={`space-y-3 border rounded-2xl p-4 ${isLight ? 'bg-red-50 border-red-100' : 'bg-[#110505]/10 border-red-500/5'}`}>
@@ -113,23 +191,23 @@ const AlertSection = ({ alerts, onNavigate, isLight }: { alerts: AlertItemProps[
                 <h3 className={`text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-black/50' : 'text-white/60'}`}>Critical Awareness</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {alerts.map((a, i) => <AlertItem key={i} {...a} />)}
+                {alerts.map((a, i) => <AlertItem key={i} {...a} isLight={isLight} />)}
             </div>
         </div>
     );
 };
 
-const QuickActionMenu = ({ onNavigate, isLight }: { onNavigate: any, isLight: boolean }) => {
+const QuickActionMenu = ({ onNavigate, isLight }: { onNavigate: (section: Section) => void; isLight: boolean }) => {
     const actions = [
-        { label: 'Inventory', icon: Package, color: '#06b6d4', nav: 'products' },
-        // { label: 'Broadcast', icon: Star, color: '#B38B21', nav: 'inbox' },
-        { label: 'Reports', icon: DollarSign, color: '#10b981', nav: 'orders' },
-        { label: 'Invite', icon: Users, color: '#6366f1', nav: 'users' }
+        { label: 'Inventory', icon: Package, color: '#06b6d4', nav: 'products' as Section },
+        { label: 'Broadcast', icon: Megaphone, color: '#B38B21', nav: 'customers' as Section },
+        { label: 'Reports', icon: DollarSign, color: '#10b981', nav: 'orders' as Section },
+        { label: 'Invite', icon: Users, color: '#6366f1', nav: 'users' as Section },
     ];
     return (
         <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
             {actions.map(a => (
-                <button key={a.label} onClick={() => onNavigate(a.nav as any)}
+                <button key={a.label} onClick={() => onNavigate(a.nav)}
                     className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all shrink-0
                     ${isLight ? 'bg-white border-black/5 hover:bg-black/5 text-black/60 hover:text-black' : 'bg-white/[0.03] border-white/5 hover:bg-white/5 text-white/40 hover:text-white'}`}>
                     <a.icon size={13} style={{ color: a.color }} />
@@ -175,7 +253,7 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
     const [trades, setTrades] = useState<TradeRequest[]>([]);
     const [repairs, setRepairs] = useState<RepairRequest[]>([]);
     const [products, setProducts] = useState<Product[]>(contextProducts || []);
-    const [revenueWindow, setRevenueWindow] = useState<'7D' | '30D' | '90D' | 'ALL'>('30D');
+    const [revenueWindow, setRevenueWindow] = useState<'7D' | '1M' | '1Y'>('7D');
 
     useEffect(() => {
         let mounted = true;
@@ -207,24 +285,11 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
         return () => { mounted = false; };
     }, [contextProducts]);
 
-    const parseRepairAmount = (amount: string | number | undefined) => {
-        if (typeof amount === 'number') return amount || 0;
-        if (!amount) return 0;
-        return parseFloat(String(amount).replace(/[^0-9.]/g, '')) || 0;
-    };
-
-    const getValidDate = (input?: string) => {
-        if (!input) return null;
-        const dt = new Date(input);
-        return Number.isNaN(dt.getTime()) ? null : dt;
-    };
-
     const inSelectedWindow = (input?: string) => {
         const dt = getValidDate(input);
-        if (!dt) return revenueWindow === 'ALL';
-        if (revenueWindow === 'ALL') return true;
+        if (!dt) return false;
         const now = Date.now();
-        const days = revenueWindow === '7D' ? 7 : revenueWindow === '30D' ? 30 : 90;
+        const days = revenueWindow === '7D' ? 7 : revenueWindow === '1M' ? 30 : 365;
         return dt.getTime() >= now - days * 24 * 60 * 60 * 1000;
     };
 
@@ -245,6 +310,16 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
     const pendingTrades = trades.filter(t => t.status === 'Pending').length;
     const activeRepairs = repairs.filter(r => !['Completed', 'Rejected'].includes(r.status)).length;
     const lowStock = products.filter(p => (p.stock ?? 0) < 5).length;
+    const criticalLowStock = useMemo(() => products.filter(p => (p.stock ?? 0) <= 2).length, [products]);
+
+    const newOrdersLast7d = useMemo(() => {
+        const cut = Date.now() - 7 * 86400000;
+        return orders.filter(o => {
+            const d = getValidDate(o.date || o.created_at);
+            return d !== null && d.getTime() >= cut;
+        }).length;
+    }, [orders]);
+
     const avgOrder = filteredOrders.length ? Math.round(orderRevenue / filteredOrders.length) : 0;
 
     // PERFORMANCE: Optimized calculations
@@ -259,59 +334,108 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
         [catMap]);
 
     const globalActivity = useMemo(() => [
-        ...orders.map(o => ({ type: 'order', id: o.id, title: `Order Placed`, sub: o.userName, date: o.date, status: o.status, icon: ShoppingCart, color: '#6366f1' })),
-        ...trades.map(t => ({ type: 'trade', id: t.id, title: `Trade Quote`, sub: t.device, date: t.date, status: t.status, icon: RefreshCcw, color: '#a855f7' })),
-        ...repairs.map(r => ({ type: 'repair', id: r.id, title: `Repair Entry`, sub: r.device, date: r.date, status: r.status, icon: Wrench, color: '#f97316' }))
-    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 10), [orders, trades, repairs]);
+        ...orders.map(o => ({
+            type: 'order' as const, id: o.id, title: `Order Placed`, sub: o.userName ?? '',
+            date: o.date || o.created_at, status: o.status, icon: ShoppingCart, color: '#6366f1'
+        })),
+        ...trades.map(t => ({
+            type: 'trade' as const, id: t.id, title: `Trade Quote`, sub: t.device ?? '',
+            date: t.date || t.created_at, status: t.status, icon: RefreshCcw, color: '#a855f7'
+        })),
+        ...repairs.map(r => ({
+            type: 'repair' as const, id: r.id, title: `Repair Entry`, sub: r.device ?? '',
+            date: r.date || r.created_at, status: r.status, icon: Wrench, color: '#f97316'
+        }))
+    ].sort((a, b) => {
+        const ta = getValidDate(a.date)?.getTime() ?? 0;
+        const tb = getValidDate(b.date)?.getTime() ?? 0;
+        return tb - ta;
+    }).slice(0, 10), [orders, trades, repairs]);
 
     const alerts: AlertItemProps[] = useMemo(() => {
         const list: AlertItemProps[] = [];
-        if (lowStock > 0) list.push({ type: 'critical', message: `${lowStock} products are below critical stock levels`, action: 'Restock', onAction: () => onNavigate('products') });
-        if (pendingTrades > 3) list.push({ type: 'warning', message: `${pendingTrades} trade-in requests are awaiting initial estimate`, action: 'Review', onAction: () => onNavigate('trades') });
-        const overdueRepairs = repairs.filter(r => r.status === 'In Repair').length; // Mock logic for "overdue"
-        if (overdueRepairs > 0) list.push({ type: 'warning', message: `${overdueRepairs} repairs have been in progress for over 48 hours`, action: 'Check', onAction: () => onNavigate('repairs') });
-        return list;
-    }, [lowStock, pendingTrades, repairs, onNavigate]);
-
-    // 7-day buckets derived from real orders/repairs/trades
-    const buildDailyBuckets = (entries: { date?: string; created_at?: string }[], valueOf: (e: any) => number) => {
-        const days = 7;
-        const buckets = Array.from({ length: days }, () => 0);
-        const start = new Date(); start.setHours(0, 0, 0, 0);
-        start.setDate(start.getDate() - (days - 1));
-        entries.forEach(e => {
-            const dt = getValidDate(e.date || e.created_at);
-            if (!dt) return;
-            const idx = Math.floor((new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime() - start.getTime()) / 86400000);
-            if (idx >= 0 && idx < days) buckets[idx] += valueOf(e);
+        if (criticalLowStock > 0) list.push({
+            type: 'critical',
+            message: `${criticalLowStock} products are below critical stock levels`,
+            action: 'Restock',
+            onAction: () => onNavigate('products')
         });
-        return buckets;
-    };
+        if (pendingTrades > 3) list.push({
+            type: 'warning',
+            message: `${pendingTrades} trade-in requests are awaiting initial estimate`,
+            action: 'Review',
+            onAction: () => onNavigate('trades')
+        });
+        const overdueRepairs = repairs.filter(r => r.status === 'In Repair').length;
+        if (overdueRepairs > 0) list.push({
+            type: 'warning',
+            message: `${overdueRepairs} repairs have been in progress for over 48 hours`,
+            action: 'Check',
+            onAction: () => onNavigate('repairs')
+        });
+        return list;
+    }, [criticalLowStock, pendingTrades, repairs, onNavigate]);
 
-    const ordersByDay = useMemo(
-        () => buildDailyBuckets(filteredOrders as any, () => 1),
-        [filteredOrders]
-    );
-    const revenueByDay = useMemo(() => {
-        const a = buildDailyBuckets(filteredOrders as any, (o) => o.total || 0);
-        const b = buildDailyBuckets(
-            (filteredRepairs as any).filter((r: any) => (r.status || '').toLowerCase() === 'completed'),
-            (r) => parseRepairAmount(r.estimatedCost)
-        );
-        const c = buildDailyBuckets(
-            (filteredTrades as any).filter((t: any) => (t.status || '').toLowerCase() === 'completed'),
-            (t) => t.finalValue || 0
-        );
+    const revenueSpark7d = useMemo(() => {
+        const completedRepairs = repairs.filter(r => (r.status || '').toLowerCase() === 'completed');
+        const completedTrades = trades.filter(t => (t.status || '').toLowerCase() === 'completed');
+        const a = buildDailyBuckets(orders as any, (o: Order) => o.total || 0, 7);
+        const b = buildDailyBuckets(completedRepairs as any, (r: RepairRequest) => parseRepairAmount(r.estimatedCost), 7);
+        const c = buildDailyBuckets(completedTrades as any, (t: TradeRequest) => t.finalValue || 0, 7);
         return a.map((v, i) => Math.round(v + b[i] + c[i]));
-    }, [filteredOrders, filteredRepairs, filteredTrades]);
+    }, [orders, repairs, trades]);
+
+    const ordersSpark7d = useMemo(
+        () => buildDailyBuckets(orders as any, () => 1, 7),
+        [orders]
+    );
+
+    const chartRevenueData = useMemo(() => {
+        const completedRepairs = repairs.filter(r => (r.status || '').toLowerCase() === 'completed');
+        const completedTrades = trades.filter(t => (t.status || '').toLowerCase() === 'completed');
+        if (revenueWindow === '7D') {
+            const a = buildDailyBuckets(orders as any, (o: Order) => o.total || 0, 7);
+            const b = buildDailyBuckets(completedRepairs as any, (r: RepairRequest) => parseRepairAmount(r.estimatedCost), 7);
+            const c = buildDailyBuckets(completedTrades as any, (t: TradeRequest) => t.finalValue || 0, 7);
+            return a.map((v, i) => Math.round(v + b[i] + c[i]));
+        }
+        if (revenueWindow === '1M') {
+            const a = buildDailyBuckets(orders as any, (o: Order) => o.total || 0, 30);
+            const b = buildDailyBuckets(completedRepairs as any, (r: RepairRequest) => parseRepairAmount(r.estimatedCost), 30);
+            const c = buildDailyBuckets(completedTrades as any, (t: TradeRequest) => t.finalValue || 0, 30);
+            return a.map((v, i) => Math.round(v + b[i] + c[i]));
+        }
+        return buildMonthlyRevenueLast12(orders, repairs, trades);
+    }, [orders, repairs, trades, revenueWindow]);
+
+    const chartAxisLabels = useMemo(() => {
+        const n = chartRevenueData.length;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (revenueWindow === '7D') {
+            return Array.from({ length: n }, (_, i) => {
+                const d = new Date(today);
+                d.setDate(d.getDate() - (n - 1 - i));
+                return d.toLocaleDateString('en-GH', { weekday: 'short' });
+            });
+        }
+        if (revenueWindow === '1M') {
+            return Array.from({ length: n }, (_, i) => {
+                const d = new Date(today);
+                d.setDate(d.getDate() - (n - 1 - i));
+                return String(d.getDate());
+            });
+        }
+        return chartLabelsForYear();
+    }, [revenueWindow, chartRevenueData.length]);
+
     const userGrowthByDay = useMemo(
-        () => buildDailyBuckets(users as any, () => 1).reduce<number[]>((acc, v) => {
+        () => buildDailyBuckets(users as any, () => 1, 7).reduce<number[]>((acc, v) => {
             acc.push((acc[acc.length - 1] || 0) + v);
             return acc;
         }, []),
         [users]
     );
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 
     const revenueStreams = [
@@ -354,7 +478,7 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
                         <p className={`text-[9px] font-black uppercase tracking-widest text-right ${isLight ? 'text-black/40' : 'text-white/20'}`}>Last Sync: Just Now</p>
                     </div>
                 </div>
-                <AlertSection alerts={alerts} onNavigate={onNavigate} isLight={isLight} />
+                <AlertSection alerts={alerts} isLight={isLight} />
             </div>
 
             {/* PRIMARY METRICS — Business Health */}
@@ -364,9 +488,9 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
                     <h2 className="text-[10px] font-black uppercase tracking-[0.2em]">Business Health</h2>
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <StatCard isLight={isLight} icon={DollarSign} value={`$${totalRevenue.toLocaleString()}`} label="Total Revenue" trend={12} trendUp={true} spark={revenueByDay} iconColor={STATUS_COLORS.info} onClick={() => onNavigate('orders')} />
-                    <StatCard isLight={isLight} icon={ShoppingCart} value={orders.length} label="New Orders" trend={8} trendUp={true} spark={ordersByDay} iconColor="#6366f1" onClick={() => onNavigate('orders')} />
-                    <StatCard isLight={isLight} icon={Star} value={`$${avgOrder}`} label="Avg Order Value" trend={3} trendUp={false} iconColor={STATUS_COLORS.info} onClick={() => onNavigate('orders')} />
+                    <StatCard isLight={isLight} icon={DollarSign} value={formatCurrency(totalRevenue)} label="Total Revenue" trend={12} trendUp={true} spark={revenueSpark7d} iconColor={STATUS_COLORS.info} onClick={() => onNavigate('orders')} />
+                    <StatCard isLight={isLight} icon={ShoppingCart} value={newOrdersLast7d} label="New Orders" trend={8} trendUp={true} spark={ordersSpark7d} iconColor="#6366f1" onClick={() => onNavigate('orders')} />
+                    <StatCard isLight={isLight} icon={Star} value={formatCurrency(Number(avgOrder) || 0)} label="Avg Order Value" trend={3} trendUp={false} iconColor={STATUS_COLORS.info} onClick={() => onNavigate('orders')} />
                     <StatCard isLight={isLight} icon={Users} value="94%" label="Customer Satisfaction" trend={1} trendUp={true} iconColor={STATUS_COLORS.success} />
                 </div>
                 <div className={`border rounded-2xl p-5 sm:p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 ${isLight ? 'bg-white border-black/5 shadow-sm' : 'bg-[#0a0a0a] border-white/5'}`}>
@@ -376,14 +500,14 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
                             Revenue Overview
                         </p>
                         <h3 className={`text-2xl sm:text-3xl font-black tracking-tight ${isLight ? 'text-black' : 'text-white'}`}>
-                            ${totalRevenue.toLocaleString()}
+                            {formatCurrency(totalRevenue)}
                         </h3>
                         <p className={`text-[11px] ${isLight ? 'text-black/60' : 'text-white/60'}`}>
                             {revenueWindow} window • {filteredOrders.length} orders • {filteredRepairs.length} repairs • {filteredTrades.length} trades
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                        {(['7D', '30D', '90D', 'ALL'] as const).map((window) => (
+                        {(['7D', '1M', '1Y'] as const).map((window) => (
                             <button
                                 key={window}
                                 onClick={() => setRevenueWindow(window)}
@@ -441,7 +565,7 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
                                 <p className={`text-[10px] mt-1 ${isLight ? 'text-black/50' : 'text-white/50'}`}>Segmented by selected revenue window</p>
                             </div>
                             <div className="flex gap-2">
-                                {(['7D', '30D', '90D', 'ALL'] as const).map(t => (
+                                {(['7D', '1M', '1Y'] as const).map(t => (
                                     <button
                                         key={t}
                                         onClick={() => setRevenueWindow(t)}
@@ -452,8 +576,8 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
                                 ))}
                             </div>
                         </div>
-                        <BarChart data={revenueByDay} />
-                        <div className="flex justify-between mt-3 px-2">{days.map(d => <span key={d} className={`text-[9px] font-bold ${isLight ? 'text-black/50' : 'text-white/50'}`}>{d}</span>)}</div>
+                        <BarChart data={chartRevenueData.length ? chartRevenueData : [0, 0, 0, 0, 0, 0, 0]} />
+                        <div className="flex justify-between mt-3 px-2 gap-0.5 overflow-hidden">{chartAxisLabels.map((d, i) => <span key={`${d}-${i}`} className={`text-[9px] font-bold truncate text-center flex-1 min-w-0 ${isLight ? 'text-black/50' : 'text-white/50'}`}>{d}</span>)}</div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -471,7 +595,7 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
                             </div>
                             <div className={`flex justify-between items-end border-t pt-4 ${isLight ? 'border-black/5' : 'border-white/5'}`}>
                                 <span className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-black/50' : 'text-white/50'}`}>Net Profit</span>
-                                <span className="text-lg font-black text-emerald-400">+$14,200</span>
+                                <span className="text-lg font-black text-emerald-400">+{formatCurrency(14200)}</span>
                             </div>
                         </div>
                     </div>
@@ -525,7 +649,7 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center justify-between gap-2 mb-0.5">
                                         <p className={`text-[11px] font-black uppercase tracking-tight ${isLight ? 'text-black' : 'text-white'}`}>{act.title}</p>
-                                        <span className={`text-[8px] font-black uppercase tracking-widest ${isLight ? 'text-black/50' : 'text-white/50'}`}>{new Date(act.date).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
+                                        <span className={`text-[8px] font-black uppercase tracking-widest ${isLight ? 'text-black/50' : 'text-white/50'}`}>{getValidDate(act.date)?.toLocaleDateString('en-GH', { month: 'short', day: 'numeric' }) ?? '—'}</span>
                                     </div>
                                     <p className={`text-[10px] font-bold truncate flex items-center gap-1 ${isLight ? 'text-black/50' : 'text-white/50'}`}>
                                         {act.sub}
@@ -565,7 +689,7 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
                                             {row.label}
                                             <ArrowUpRight size={9} className="opacity-0 group-hover:opacity-100 transition-all" />
                                         </span>
-                                        <span className={`font-black tracking-tight ${isLight ? 'text-black' : 'text-white'}`}>${row.val.toLocaleString()}</span>
+                                        <span className={`font-black tracking-tight ${isLight ? 'text-black' : 'text-white'}`}>{formatCurrency(row.val)}</span>
                                     </div>
                                     <div className={`w-full rounded-full h-1.5 overflow-hidden ${isLight ? 'bg-black/5' : 'bg-white/[0.03]'}`}>
                                         <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${pct}%`, background: row.color }} />

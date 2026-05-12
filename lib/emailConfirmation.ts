@@ -135,9 +135,11 @@ export class EmailConfirmationService {
       }
 
       const client = getSupabaseClient();
-      
-      // Resend confirmation email
-      const emailRedirectTo = `${window.location.origin}${window.location.pathname}#/emailconfirm`;
+
+      // Anchor the redirect at site root (not `window.location.pathname`)
+      // so we don't land on a path the host returns 404 for before the
+      // SPA boots — same fix applied to signUp in lib/auth.ts.
+      const emailRedirectTo = `${window.location.origin}/?type=email_confirm#/emailconfirm`;
       const { error } = await client.auth.resend({
         type: 'signup',
         email: email,
@@ -145,12 +147,12 @@ export class EmailConfirmationService {
           emailRedirectTo
         }
       });
-      
+
       if (error) {
         console.error('Error resending confirmation email:', error);
         return { success: false, error: error.message };
       }
-      
+
       console.log('Confirmation email resent successfully');
       return { success: true };
     } catch (error: any) {

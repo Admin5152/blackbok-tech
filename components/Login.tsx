@@ -22,15 +22,49 @@ export const Login: React.FC<LoginProps> = ({ setUser, navigateTo, theme, notify
     password: '',
   });
 
-  // Check for success message from email confirmation
+  // Check for a flash message after redirects (eg. email-confirmation
+  // success). We look in sessionStorage FIRST because hash routing
+  // strips `?message=` off `window.location.search` — that's the bug
+  // QA hit in CONF-03. The URL parser is kept as a fallback for any
+  // future caller that still uses the query-string approach.
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const message = urlParams.get('message');
-    
+    const FLASH_KEY = 'auth.flash';
+    try {
+      const raw = sessionStorage.getItem(FLASH_KEY);
+      if (raw) {
+        sessionStorage.removeItem(FLASH_KEY);
+        const parsed = JSON.parse(raw) as { type?: 'success' | 'error' | 'info' | 'warning'; message?: string };
+        if (parsed?.message) {
+          notify(parsed.message, parsed.type || 'success');
+          return;
+        }
+      }
+    } catch {
+      // ignore corrupt JSON / unavailable storage
+    }
+
+    // Fallback: check both `?message=` AND the part of the hash after
+    // `?` (TanStack hash router puts search params there).
+    const readMessage = (qs: string) => {
+      try {
+        return new URLSearchParams(qs).get('message');
+      } catch {
+        return null;
+      }
+    };
+    let message = readMessage(window.location.search);
+    if (!message && window.location.hash.includes('?')) {
+      message = readMessage(window.location.hash.split('?')[1] || '');
+    }
     if (message) {
       notify(message, 'success');
-      // Clear the message from URL
-      window.history.replaceState({}, '', window.location.pathname);
+      // Strip the query bit from the hash so a refresh doesn't re-trigger.
+      if (window.location.hash.includes('?')) {
+        const cleanedHash = window.location.hash.split('?')[0];
+        window.history.replaceState({}, '', `${window.location.pathname}${cleanedHash}`);
+      } else {
+        window.history.replaceState({}, '', window.location.pathname);
+      }
     }
   }, [notify]);
 

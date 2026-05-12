@@ -3,6 +3,7 @@ import { RefreshCcw, Smartphone, Plus, Trash2, Check, X, ChevronDown, Send, Doll
 import { Badge, SearchInput, Modal, ModalClose, EmptyState, Td, Th, TableWrapper, TRADE_DEVICES_KEY } from './adminUtils';
 import { getTradeRequests, updateTradeRequest } from '../../lib/api';
 import type { TradeRequest } from '../../types';
+import { formatCurrency } from '../../lib/utils';
 
 const DEFAULT_TRADE_DEVICES = [
     { id: 'iphone', name: 'iPhone', variants: ['iPhone 16 Pro Max', 'iPhone 16 Pro', 'iPhone 16', 'iPhone 15 Pro Max', 'iPhone 15 Pro', 'iPhone 15', 'iPhone 14 Pro Max', 'iPhone 14 Pro', 'iPhone 14', 'iPhone 13', 'iPhone 12', 'iPhone 11', 'iPhone X', 'Other iPhone'] },
@@ -86,18 +87,25 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
         try {
             const payload = { ...updates, ...(updates.status ? { status: toDbTradeStatus(updates.status) } : {}) };
             await updateTradeRequest(id, payload);
-            setTrades(prev => prev.map(t => t.id === id ? { ...t, ...updates, status: payload.status ?? t.status } : t));
-            setSel(prev => prev?.id === id ? { ...prev, ...updates, status: payload.status ?? prev.status } : prev);
+            const fresh = await getTradeRequests();
+            setTrades(fresh as any);
+            setSel(prev => {
+                if (!prev || prev.id !== id) return prev;
+                return fresh.find(x => x.id === id) ?? null;
+            });
         } catch (e) { console.error(e); }
         finally { setSaving(false); }
     };
 
     const sendOffer = async () => {
         if (!sel || !offer || !condition) return;
+        const amount = parseFloat(offer);
+        if (!Number.isFinite(amount)) return;
         await patchTrade(sel.id, {
             status: 'awaiting_user',
             condition,
-            final_value: parseFloat(offer),
+            final_value: amount,
+            offered_price: amount,
             admin_note: offerNote,
         });
         setOffer(''); setOfferNote(''); setCondition('');
@@ -105,12 +113,38 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
 
     const statuses = ['All', 'submitted', 'inspecting', 'offer_made', 'awaiting_user', 'accepted', 'completed', 'rejected'];
 
+    const tabCount = (s: string) => {
+        if (s === 'All') return trades.length;
+        return trades.filter(t => toDbTradeStatus(t.status) === s).length;
+    };
+
+    const formatTradeDate = (d?: string) => {
+        if (!d) return '—';
+        const dt = new Date(d);
+        return Number.isNaN(dt.getTime()) ? '—' : dt.toLocaleDateString();
+    };
+
+    const ql = q.trim().toLowerCase();
     const filtered = trades.filter(t => {
-        const matchQ = (t.device || '').toLowerCase().includes(q.toLowerCase())
-            || (t.userName || '').toLowerCase().includes(q.toLowerCase());
+        const matchQ = !ql
+            || (t.device || '').toLowerCase().includes(ql)
+            || (t.userName || '').toLowerCase().includes(ql)
+            || (t.userEmail || '').toLowerCase().includes(ql)
+            || ((t as any).targetDevice || '').toLowerCase().includes(ql)
+            || ((t as any).userDescription || '').toLowerCase().includes(ql);
         const matchS = statusF === 'All' || toDbTradeStatus(t.status) === statusF;
         return matchQ && matchS;
     });
+
+    const offerDisplay = (t: TradeRequest) => {
+        const v = t.finalValue ?? (t as any).offeredPrice;
+        return v != null && Number.isFinite(Number(v)) ? formatCurrency(Number(v)) : 'TBD';
+    };
+
+    const modalOfferRaw = sel ? (sel.finalValue ?? (sel as any).offeredPrice) : undefined;
+    const modalHasOfferAmount =
+        modalOfferRaw != null && modalOfferRaw !== '' && Number.isFinite(Number(modalOfferRaw));
+    const showOfferReviewCard = !!sel && (modalHasOfferAmount || !!sel.condition);
 
     const addDevice = () => { if (!newDevName.trim()) return; saveDevices([...devices, { id: `dev_${Date.now()}`, name: newDevName.trim(), variants: [] }]); setNewDevName(''); };
     const rmDevice = (id: string) => saveDevices(devices.filter(d => d.id !== id));
@@ -140,7 +174,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                     {statuses.map(s => (
                         <button key={s} onClick={() => setStatusF(s)}
                             className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${statusF === s ? 'bg-[#B38B21] text-black' : 'bg-white/5 text-white/40 hover:text-white'}`}>
-                            {s === 'All' ? 'All' : (TRADE_STATUS_LABELS[s] || s)}
+                            {s === 'All' ? 'All' : (TRADE_STATUS_LABELS[s] || s)} <span className="opacity-60">({tabCount(s)})</span>
                         </button>
                     ))}
                 </div>
@@ -158,6 +192,8 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
             {/* Table */}
             {loading ? (
                 <div className="text-center py-12 text-white/30 text-sm">Loading trade requests...</div>
+            ) : trades.length === 0 ? (
+                <EmptyState icon={<RefreshCcw size={40} />} message="No trade-in requests yet" />
             ) : filtered.length === 0 ? (
                 <EmptyState icon={<RefreshCcw size={40} />} message="No trade-in requests match your filters" />
             ) : (
@@ -174,9 +210,9 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                     <p className="text-[10px] text-white/30">{t.userEmail}</p>
                                 </Td>
                                 <Td><p className="text-xs text-white/50">{(t as any).targetDevice || '—'}</p></Td>
-                                <Td><p className="text-xs font-black text-[#B38B21]">{t.finalValue ? `$${t.finalValue}` : 'TBD'}</p></Td>
+                                <Td><p className="text-xs font-black text-[#B38B21]">{offerDisplay(t)}</p></Td>
                                 <Td><p className="text-xs text-white/50">{t.condition || <span className="text-white/20 italic">Pending</span>}</p></Td>
-                                <Td><p className="text-[10px] text-white/30">{new Date(t.date).toLocaleDateString()}</p></Td>
+                                <Td><p className="text-[10px] text-white/30">{formatTradeDate(t.date)}</p></Td>
                                 <Td><Badge status={toTradeStatusLabel(t.status)} /></Td>
                                 <Td>
                                     <button onClick={() => setSel(t)} className="text-[10px] font-black text-[#B38B21] hover:text-[#D4AF37] uppercase">Review</button>
@@ -221,10 +257,14 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                         </div>
 
                         {/* Approved offer */}
-                        {(sel.finalValue || sel.condition) && (
+                        {showOfferReviewCard && (
                             <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 mb-4">
                                 <p className="text-[9px] text-green-400 uppercase tracking-widest">Current Offer</p>
-                                {sel.finalValue && <p className="text-xl font-black text-green-400">${sel.finalValue}</p>}
+                                {modalHasOfferAmount && (
+                                    <p className="text-xl font-black text-green-400">
+                                        {formatCurrency(Number(sel.finalValue ?? (sel as any).offeredPrice))}
+                                    </p>
+                                )}
                                 {sel.condition && <p className="text-[10px] text-green-400/70 mt-0.5">Condition: {sel.condition}</p>}
                                 {(sel as any).adminNote && <p className="text-xs text-white/50 mt-1">{(sel as any).adminNote}</p>}
                             </div>

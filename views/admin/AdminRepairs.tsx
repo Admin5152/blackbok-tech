@@ -4,6 +4,7 @@ import { Badge, SearchInput, Modal, ModalClose, EmptyState, Td, Th, TableWrapper
 import { getRepairRequests, updateRepairRequest } from '../../lib/api';
 import { useAdminRepairs } from '../../hooks/useAdminRepairs';
 import type { RepairRequest } from '../../types';
+import { formatCurrency } from '../../lib/utils';
 
 interface Props { canEdit?: boolean; }
 
@@ -34,34 +35,26 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
     const patchRepair = async (id: string, updates: Record<string, any>) => {
         setSaving(true);
         try {
-            await updateRepairRequest(id, updates);
-            setRepairs(prev => prev.map(r => r.id === id ? { ...r, ...updates, status: updates.status ?? r.status } : r));
-            setSel(prev => prev?.id === id ? { ...prev, ...updates } : prev);
-        } catch (e) { console.error(e); }
-        finally { setSaving(false); }
+            await updateRepairRequest(id, updates as Partial<RepairRequest>);
+            const fresh = await getRepairRequests();
+            setRepairs(fresh as any);
+            setSel((prev) => (prev && prev.id === id ? fresh.find((x) => x.id === id) ?? null : prev));
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setSaving(false);
+        }
     };
 
-    /**
-     * Calls the hook's assignTechnician and then mirrors the result into
-     * the legacy local state so the table + modal stay in sync without a
-     * full refetch.
-     */
-    const handleAssignTechnician = async (technicianId: string | null) => {
-        if (!sel) return;
-        setAssigning(true);
-        try {
-            const result = await assignTechnician(sel.id, technicianId);
-            if (result) {
-                setRepairs(prev => prev.map(r =>
-                    r.id === sel.id ? { ...r, assigned_technician: result.assigned_technician } : r,
-                ));
-                setSel(prev => prev ? { ...prev, assigned_technician: result.assigned_technician } : prev);
-            }
-        } catch (e) {
-            console.error('Assign technician failed:', e);
-        } finally {
-            setAssigning(false);
-        }
+    const sendEstimate = async () => {
+        if (!sel || !estimate) return;
+        await patchRepair(sel.id, {
+            status: 'Estimate Sent',
+            estimated_cost: Number(estimate),
+            admin_note: estimateNote || undefined,
+        });
+        setEstimate('');
+        setEstimateNote('');
     };
 
     const technicianLabel = (id: string | null | undefined) => {
@@ -71,28 +64,43 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
         return tech.name || tech.email || id.slice(0, 8);
     };
 
-    const sendEstimate = async () => {
-        if (!sel || !estimate) return;
-        await patchRepair(sel.id, {
-            status: 'estimate_sent',
-            estimated_cost: Number(estimate),
-            admin_note: estimateNote,
-        });
-        setEstimate(''); setEstimateNote('');
+    const handleAssignTechnician = async (technicianId: string | null) => {
+        if (!sel) return;
+        setAssigning(true);
+        try {
+            await assignTechnician(sel.id, technicianId);
+            const fresh = await getRepairRequests();
+            setRepairs(fresh as any);
+            setSel((prev) => (prev ? fresh.find((x) => x.id === prev.id) ?? prev : null));
+        } catch (e) {
+            console.error('Assign technician failed:', e);
+        } finally {
+            setAssigning(false);
+        }
     };
 
     const statuses = ['All', 'Pending', 'Diagnosing', 'Estimate Sent', 'In Repair', 'Ready', 'Completed', 'Rejected'];
 
+    const repairCostNum = (r: RepairRequest) => {
+        const raw = (r as any).estimated_cost;
+        if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+        return parseFloat(String(r.estimatedCost || '0').replace(/[^0-9.]/g, '')) || 0;
+    };
+
     const filtered = repairs.filter(r => {
-        const matchQ = (r.device || '').toLowerCase().includes(q.toLowerCase())
-            || (r.userName || '').toLowerCase().includes(q.toLowerCase());
+        const qq = q.trim().toLowerCase();
+        const matchQ = !qq
+            || (r.device || '').toLowerCase().includes(qq)
+            || (r.userName || '').toLowerCase().includes(qq)
+            || (r.issue || '').toLowerCase().includes(qq)
+            || (r.issue_type || '').toLowerCase().includes(qq);
         const matchS = statusF === 'All' || r.status === statusF;
         return matchQ && matchS;
     });
 
     const repairRevenue = repairs
         .filter(r => r.status === 'Completed')
-        .reduce((s, r) => s + parseFloat((r.estimatedCost || '0').replace(/[^0-9.]/g, '')) || 0, 0);
+        .reduce((s, r) => s + repairCostNum(r), 0);
 
     return (
         <div className="space-y-5">
@@ -102,7 +110,7 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
                     { label: 'Total Repairs', val: repairs.length, col: '#f97316' },
                     { label: 'Active', val: repairs.filter(r => !['Completed', 'Rejected'].includes(r.status)).length, col: '#f59e0b' },
                     { label: 'Completed', val: repairs.filter(r => r.status === 'Completed').length, col: '#10b981' },
-                    { label: 'Revenue', val: `$${repairRevenue.toLocaleString()}`, col: '#B38B21' },
+                    { label: 'Revenue', val: formatCurrency(repairRevenue), col: '#B38B21' },
                 ].map(s => (
                     <div key={s.label} className="bg-[#0a0a0a] border border-white/5 rounded-xl p-4">
                         <p className="text-[9px] text-white/30 uppercase tracking-widest mb-1">{s.label}</p>
@@ -114,12 +122,15 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
             {/* Filters */}
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2 flex-wrap">
-                    {statuses.map(s => (
-                        <button key={s} onClick={() => setStatusF(s)}
-                            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${statusF === s ? 'bg-[#B38B21] text-black' : 'bg-white/5 text-white/40 hover:text-white'}`}>
-                            {s}
-                        </button>
-                    ))}
+                    {statuses.map(s => {
+                        const count = s === 'All' ? repairs.length : repairs.filter((r) => r.status === s).length;
+                        return (
+                            <button key={s} onClick={() => setStatusF(s)}
+                                className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${statusF === s ? 'bg-[#B38B21] text-black' : 'bg-white/5 text-white/40 hover:text-white'}`}>
+                                {s} <span className="opacity-70">({count})</span>
+                            </button>
+                        );
+                    })}
                 </div>
                 <SearchInput value={q} onChange={setQ} placeholder="Search repairs..." />
             </div>
@@ -127,8 +138,10 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
             {/* Table */}
             {loading ? (
                 <div className="text-center py-12 text-white/30 text-sm">Loading repair requests...</div>
+            ) : repairs.length === 0 ? (
+                <EmptyState icon={<Wrench size={40} />} message="No repair requests yet. Customers can submit from the Repair page while signed in." />
             ) : filtered.length === 0 ? (
-                <EmptyState icon={<Wrench size={40} />} message="No repair requests match your filters" />
+                <EmptyState icon={<Wrench size={40} />} message="No repair requests match your filters." />
             ) : (
                 <TableWrapper>
                     <thead><tr>
@@ -141,7 +154,7 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
                                 <Td><p className="text-xs font-black text-white">{r.userName || '—'}</p></Td>
                                 <Td><p className="text-xs text-white/50 max-w-[180px] truncate">{r.issue || '—'}</p></Td>
                                 <Td><p className="text-xs font-black text-[#B38B21]">{r.estimatedCost || 'TBD'}</p></Td>
-                                <Td><p className="text-[10px] text-white/30">{new Date(r.date).toLocaleDateString()}</p></Td>
+                                <Td><p className="text-[10px] text-white/30">{r.date && !Number.isNaN(new Date(r.date).getTime()) ? new Date(r.date).toLocaleDateString() : '—'}</p></Td>
                                 <Td><Badge status={r.status} /></Td>
                                 <Td>
                                     <button onClick={() => setSel(r)} className="text-[10px] font-black text-[#B38B21] hover:text-[#D4AF37] uppercase">Review</button>
@@ -182,7 +195,7 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
                             <div className="grid grid-cols-2 gap-2">
                                 <div className="bg-black/40 rounded-xl p-2.5">
                                     <p className="text-[9px] text-white/30 uppercase tracking-widest mb-0.5">Date</p>
-                                    <p className="text-xs font-bold text-white">{new Date(sel.date).toLocaleDateString()}</p>
+                                    <p className="text-xs font-bold text-white">{sel.date && !Number.isNaN(new Date(sel.date).getTime()) ? new Date(sel.date).toLocaleDateString() : '—'}</p>
                                 </div>
                                 {sel.estimatedCost && (
                                     <div className="bg-[#B38B21]/10 border border-[#B38B21]/20 rounded-xl p-2.5">
@@ -191,10 +204,10 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
                                     </div>
                                 )}
                             </div>
-                            {(sel as any).adminNote && (
+                            {sel.adminNote && (
                                 <div className="bg-white/5 rounded-xl p-3">
                                     <p className="text-[9px] text-white/30 uppercase mb-0.5">Admin Note</p>
-                                    <p className="text-xs text-white/50">{(sel as any).adminNote}</p>
+                                    <p className="text-xs text-white/50">{sel.adminNote}</p>
                                 </div>
                             )}
                             {sel.imageUrl && (

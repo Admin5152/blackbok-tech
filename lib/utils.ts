@@ -1,9 +1,13 @@
 
+/** Ghana Cedis — explicit GH₵ prefix for storefront + admin (Section 18). */
 export const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('en-GH', {
-    style: 'currency',
-    currency: 'GHS',
-  }).format(amount);
+  const n = Number(amount);
+  if (!Number.isFinite(n)) return 'GH₵0';
+  const formatted = n.toLocaleString('en-GH', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+  return `GH₵${formatted}`;
 };
 
 export const formatDate = (dateString: string) => {

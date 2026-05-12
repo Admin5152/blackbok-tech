@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Product, ProductImage } from '../types';
-import { X, Plus, Minus, Heart, Share2, Star, Check, Truck, Shield, RefreshCw, ArrowLeft, Copy, Facebook, Twitter, MessageCircle, ChevronRight } from 'lucide-react';
+import { X, Plus, Minus, Heart, Share2, Star, Check, Truck, Shield, RefreshCw, ArrowLeft, Copy, Facebook, Twitter, ChevronRight } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
 import { ProductImageGallery } from '../components/product/ProductImageGallery';
 
@@ -50,13 +50,6 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
-  const [isReviewFormOpen, setIsReviewFormOpen] = useState(false);
-  const [reviewForm, setReviewForm] = useState({
-    name: '',
-    rating: 5,
-    title: '',
-    body: ''
-  });
   const overviewRef = useRef<HTMLDivElement | null>(null);
   const specsRef = useRef<HTMLDivElement | null>(null);
   const reviewsRef = useRef<HTMLDivElement | null>(null);
@@ -138,17 +131,24 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
     setTimeout(() => setIsCopied(false), 2000);
   };
 
-  const handleReviewSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Review submitted:', reviewForm);
-    // Here you would normally send to backend
-    alert('Review submitted successfully!');
-    setIsReviewFormOpen(false);
-    setReviewForm({ name: '', rating: 5, title: '', body: '' });
-  };
+  // Inline WhatsApp glyph — lucide-react ships generic message icons
+  // (MessageCircle / MessageSquare) so we render the official mark
+  // here as an SVG to match brand expectations (PDP-09).
+  const WhatsAppIcon = ({ size = 24 }: { size?: number }) => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M20.52 3.48A11.86 11.86 0 0 0 12.04 0C5.5 0 .2 5.3.2 11.84a11.8 11.8 0 0 0 1.59 5.92L0 24l6.4-1.68a11.84 11.84 0 0 0 5.64 1.44h.01c6.54 0 11.84-5.3 11.84-11.84a11.8 11.8 0 0 0-3.37-8.44Zm-8.48 18.2h-.01a9.84 9.84 0 0 1-5.01-1.37l-.36-.21-3.79.99 1.01-3.69-.23-.38a9.83 9.83 0 0 1-1.5-5.18c0-5.43 4.42-9.84 9.86-9.84 2.63 0 5.1 1.03 6.96 2.88a9.78 9.78 0 0 1 2.88 6.96c0 5.43-4.42 9.84-9.86 9.84Zm5.4-7.36c-.3-.15-1.75-.86-2.02-.96-.27-.1-.47-.15-.66.15-.2.3-.76.96-.93 1.16-.17.2-.34.22-.64.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.34.45-.51.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.66-1.6-.91-2.19-.24-.57-.48-.5-.66-.51-.17-.01-.37-.01-.57-.01-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48 0 1.46 1.06 2.87 1.21 3.07.15.2 2.09 3.2 5.07 4.49.71.31 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.09 1.75-.71 2-1.4.25-.69.25-1.28.17-1.4-.08-.13-.27-.2-.57-.35Z" />
+    </svg>
+  );
 
   const shareLinks = [
-    { name: 'WhatsApp', icon: <MessageCircle size={24} />, color: 'bg-[#25D366]', url: `https://wa.me/?text=Check this out on BlackBox: ${product.name} - ${shareUrl}` },
+    { name: 'WhatsApp', icon: <WhatsAppIcon size={24} />, color: 'bg-[#25D366]', url: `https://wa.me/?text=Check this out on BlackBox: ${product.name} - ${shareUrl}` },
     { name: 'Facebook', icon: <Facebook size={24} />, color: 'bg-[#1877F2]', url: `https://www.facebook.com/sharer/sharer.php?u=${shareUrl}` },
     { name: 'Twitter', icon: <Twitter size={24} />, color: 'bg-[#1DA1F2]', url: `https://twitter.com/intent/tweet?text=Check this out on BlackBox: ${product.name}&url=${shareUrl}` },
   ];
@@ -263,9 +263,15 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             {/* Overview */}
             <div ref={overviewRef as any} className="pt-6">
               <h2 className="text-sm font-black uppercase tracking-[0.35em] text-[#B38B21] mb-4">Overview</h2>
-              <p className="text-white/80 leading-relaxed max-w-xl text-lg font-medium">
-                {product.description || "Experience premium technology crafted for excellence. This unit features industry-leading performance and stunning design."}
-              </p>
+              {product.description ? (
+                <p className="text-white/80 leading-relaxed max-w-xl text-lg font-medium">
+                  {product.description}
+                </p>
+              ) : (
+                <p className="text-white/40 italic max-w-xl text-sm">
+                  No description has been added for this product yet.
+                </p>
+              )}
             </div>
 
             {normalizedVariants.length > 0 && (
@@ -403,20 +409,20 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             {/* Specs (anchor for navigation) */}
             <div ref={specsRef as any} className="pt-8 border-t border-white/10">
               <h2 className="text-sm font-black uppercase tracking-[0.35em] text-[#B38B21] mb-6">Specifications</h2>
-              <ul className="space-y-4">
-                {(product.specs && product.specs.length > 0 ? product.specs : [
-                  "Premium Grade Materials & Construction",
-                  "Optimized Power Management System",
-                  "State-of-the-art Processing Capabilities",
-                  "Enhanced Connectivity Features",
-                  "12-Month Standard Warranty"
-                ]).map((s, i) => (
-                  <li key={i} className="flex items-start gap-4 p-4 rounded-2xl bg-white/5 border border-white/10">
-                    <span className="mt-1 w-2 h-2 rounded-full bg-[#B38B21] shadow-[0_0_8px_rgba(179,139,33,0.5)] shrink-0" />
-                    <span className="text-sm text-white/90 leading-relaxed font-bold tracking-wide">{s}</span>
-                  </li>
-                ))}
-              </ul>
+              {product.specs && product.specs.length > 0 ? (
+                <ul className="space-y-4">
+                  {product.specs.map((s, i) => (
+                    <li key={i} className="flex items-start gap-4 p-4 rounded-2xl bg-white/5 border border-white/10">
+                      <span className="mt-1 w-2 h-2 rounded-full bg-[#B38B21] shadow-[0_0_8px_rgba(179,139,33,0.5)] shrink-0" />
+                      <span className="text-sm text-white/90 leading-relaxed font-bold tracking-wide">{s}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-white/40 italic text-sm">
+                  No specifications have been added for this product yet.
+                </p>
+              )}
             </div>
 
           </div>
@@ -511,8 +517,15 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
           </div>
         </div>
 
-        {/* Related Products */}
-        {relatedProducts.length > 0 && (
+        {/* Related Products — belt-and-suspenders filter: even though
+            the parent route already excludes the current product, the
+            brief moment between local-cached and remote-fetched
+            `product` (different IDs in some edge cases) was letting
+            the current item leak into this list (PDP-16). */}
+        {(() => {
+          const visibleRelated = relatedProducts.filter(p => p.id !== product.id).slice(0, 4);
+          if (visibleRelated.length === 0) return null;
+          return (
           <div className="mt-20 border-t border-white/10 pt-16">
             <div className="flex items-end justify-between mb-10 px-2">
               <div className="space-y-2">
@@ -529,7 +542,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8 pb-10">
-              {relatedProducts.slice(0, 4).map((item) => (
+              {visibleRelated.map((item) => (
                 <div
                   key={item.id}
                   onClick={() => navigateTo('product', item.id)}
@@ -569,7 +582,8 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               </button>
             </div>
           </div>
-        )}
+          );
+        })()}
       </div>
 
       {/* YouTube Style Share Modal */}
@@ -647,103 +661,6 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
         </div>
       )}
 
-      {/* Review Form Modal */}
-      {isReviewFormOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
-          <div
-            className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300"
-            onClick={() => setIsReviewFormOpen(false)}
-          />
-          <div className="relative bg-[#1a1a1a] border border-white/10 w-full max-w-lg rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 border-b border-white/5">
-              <h3 className="text-lg font-bold tracking-tight">Write a Review</h3>
-              <button
-                onClick={() => setIsReviewFormOpen(false)}
-                className="p-2 hover:bg-white/5 rounded-full transition-colors"
-                aria-label="Close"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Review Form */}
-            <form onSubmit={handleReviewSubmit} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-white/80 mb-2">Your Name</label>
-                <input
-                  type="text"
-                  required
-                  value={reviewForm.name}
-                  onChange={(e) => setReviewForm({...reviewForm, name: e.target.value})}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-[#B38B21] transition-colors"
-                  placeholder="Enter your name"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-white/80 mb-2">Rating</label>
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      onClick={() => setReviewForm({...reviewForm, rating: star})}
-                      className="text-2xl transition-colors"
-                    >
-                      <Star
-                        className={`w-8 h-8 ${star <= reviewForm.rating
-                          ? 'fill-yellow-400 text-yellow-400'
-                          : 'text-white/20 hover:text-yellow-400/50'
-                        }`}
-                      />
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-white/80 mb-2">Review Title</label>
-                <input
-                  type="text"
-                  required
-                  value={reviewForm.title}
-                  onChange={(e) => setReviewForm({...reviewForm, title: e.target.value})}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-[#B38B21] transition-colors"
-                  placeholder="Summarize your experience"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-white/80 mb-2">Review</label>
-                <textarea
-                  required
-                  value={reviewForm.body}
-                  onChange={(e) => setReviewForm({...reviewForm, body: e.target.value})}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-[#B38B21] transition-colors h-32 resize-none"
-                  placeholder="Tell us about your experience with this product..."
-                />
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setIsReviewFormOpen(false)}
-                  className="flex-1 px-4 py-3 bg-white/10 border border-white/10 rounded-lg text-white hover:bg-white/20 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-3 bg-[#B38B21] text-black rounded-lg font-medium hover:bg-[#D4AF37] transition-colors"
-                >
-                  Submit Review
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

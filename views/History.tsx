@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     ShoppingBag,
     ArrowLeftRight,
@@ -13,7 +13,7 @@ import {
     Package,
     ArrowRight
 } from 'lucide-react';
-import { Link, useSearch } from '@tanstack/react-router';
+import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { useAppContext } from '../App';
 import { Order, RepairRequest, TradeRequest } from '../types';
 import { formatCurrency } from '../lib/utils';
@@ -25,8 +25,15 @@ type HistoryTab = 'orders' | 'trades' | 'repairs';
 export const History: React.FC = () => {
     const { theme, orders = [], repairs = [], trades = [], user } = useAppContext();
     const isLight = theme === 'light';
+    const navigate = useNavigate();
     const { tab } = useSearch({ from: '/history' } as any);
     const [activeTab, setActiveTab] = useState<HistoryTab>((tab as any) || 'orders');
+
+    // Keep tab in sync with ?tab= when navigating from mobile menu (UI-04).
+    useEffect(() => {
+        const t = tab as string;
+        if (t === 'orders' || t === 'trades' || t === 'repairs') setActiveTab(t as HistoryTab);
+    }, [tab]);
     const [searchQuery, setSearchQuery] = useState('');
     const [historyOrders, setHistoryOrders] = useState<Order[]>([]);
 
@@ -72,6 +79,68 @@ export const History: React.FC = () => {
 
     // Trades and repairs come from real Supabase data via App.tsx context.
 
+    // HST-05: filter each list by the search term. We match against the
+    // human-readable display_id (e.g. "ORD00001", "TRD00001", "REP00001"),
+    // the raw UUID, tracking number, device, item names, and status so
+    // any reasonable identifier the user remembers will resolve.
+    const q = searchQuery.trim().toLowerCase();
+    const matchesQuery = (...fields: Array<string | undefined | null>) => {
+        if (!q) return true;
+        return fields.some(
+            (f) => typeof f === 'string' && f.toLowerCase().includes(q),
+        );
+    };
+
+    const filteredOrders = useMemo<Order[]>(() => {
+        if (!q) return historyOrders;
+        return historyOrders.filter((o) => {
+            const itemNames = (o.items || []).map((i: any) => i.name).join(' ');
+            return matchesQuery(
+                (o as any).display_id,
+                o.id,
+                (o as any).tracking_number,
+                (o as any).status,
+                itemNames,
+            );
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [historyOrders, q]);
+
+    const filteredTrades = useMemo<TradeRequest[]>(() => {
+        if (!q) return trades;
+        return trades.filter((t) =>
+            matchesQuery(
+                (t as any).display_id,
+                t.id,
+                (t as any).device,
+                (t as any).device_brand,
+                (t as any).device_name,
+                (t as any).status,
+            ),
+        );
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [trades, q]);
+
+    const filteredRepairs = useMemo<RepairRequest[]>(() => {
+        if (!q) return repairs;
+        return repairs.filter((r) =>
+            matchesQuery(
+                (r as any).display_id,
+                r.id,
+                (r as any).device,
+                (r as any).device_brand,
+                (r as any).device_model,
+                (r as any).issue,
+                (r as any).issue_description,
+                (r as any).status,
+            ),
+        );
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [repairs, q]);
+
+    // HST-04 still passes: badges show the unfiltered totals so users
+    // can see at a glance how many records exist on each tab even while
+    // they're typing into the search box.
     const tabs = [
         { id: 'orders', label: 'Orders', icon: ShoppingBag, count: historyOrders.length },
         { id: 'trades', label: 'Trade-ins', icon: ArrowLeftRight, count: trades.length },
@@ -126,7 +195,10 @@ export const History: React.FC = () => {
                     {tabs.map(tab => (
                         <button
                             key={tab.id}
-                            onClick={() => setActiveTab(tab.id as HistoryTab)}
+                            onClick={() => {
+                                setActiveTab(tab.id as HistoryTab);
+                                navigate({ to: '/history', search: { tab: tab.id } as any });
+                            }}
                             className={`flex items-center gap-3 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === tab.id
                                 ? 'bg-[#CDA032] text-black shadow-lg shadow-[#CDA032]/20'
                                 : 'text-white/40 hover:text-white hover:bg-white/5'}`}
@@ -145,8 +217,8 @@ export const History: React.FC = () => {
                 {/* Content Area */}
                 <div className="grid gap-6">
                     {activeTab === 'orders' && (
-                        historyOrders.length > 0 ? (
-                            historyOrders.map(order => (
+                        filteredOrders.length > 0 ? (
+                            filteredOrders.map(order => (
                                 <div
                                     key={order.id}
                                     className={`group p-6 md:p-8 rounded-[2.5rem] border transition-all duration-500 flex flex-col md:flex-row md:items-center justify-between gap-8 ${isLight ? 'bg-white border-black/5 hover:border-black' : 'bg-white/5 border-white/5 hover:border-[#CDA032]/30 hover:bg-white/[0.07] shadow-2xl shadow-black'}`}
@@ -191,8 +263,8 @@ export const History: React.FC = () => {
                     )}
 
                     {activeTab === 'trades' && (
-                        trades.length > 0 ? (
-                            trades.map(trade => (
+                        filteredTrades.length > 0 ? (
+                            filteredTrades.map(trade => (
                                 <Link
                                     key={trade.id}
                                     to={`/tracking/trade/${trade.id}`}
@@ -235,8 +307,8 @@ export const History: React.FC = () => {
                     )}
 
                     {activeTab === 'repairs' && (
-                        repairs.length > 0 ? (
-                            repairs.map(repair => (
+                        filteredRepairs.length > 0 ? (
+                            filteredRepairs.map(repair => (
                                 <Link
                                     key={repair.id}
                                     to={`/tracking/repair/${repair.id}`}

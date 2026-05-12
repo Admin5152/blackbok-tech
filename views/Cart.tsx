@@ -70,19 +70,35 @@ export const Cart: React.FC<CartProps> = ({
   const progressToFreeShipping = Math.min((subtotal / freeShippingThreshold) * 100, 100);
   const remainingForFreeShipping = Math.max(freeShippingThreshold - subtotal, 0);
 
-  const cartIds = cart.map(item => item.id);
-  const cartCategories = cart.map(item => item.category);
+  // CART-16: bulletproof recommendation pool — recommendations must
+  // be (a) DISTINCT products (the catalog array can in rare cases
+  // include the same product twice when joined across variant tables)
+  // and (b) NEVER items already in the cart, even when the same
+  // product is in the cart under multiple variants (which makes the
+  // raw `cart.map(item => item.id)` list contain duplicates). A Set
+  // guarantees O(1) membership checks and clean exclusion.
+  const cartProductIds = new Set(cart.map((item) => item.id));
+  const cartCategories = cart.map((item) => item.category);
 
-  const recommendations = products
-    .filter(p => !cartIds.includes(p.id))
-    .filter((p, index, self) => index === self.findIndex((t) => t.id === p.id))
-    .sort((a, b) => {
-      const aScore = cartCategories.filter(cat => cat === a.category).length;
-      const bScore = cartCategories.filter(cat => cat === b.category).length;
-      if (aScore !== bScore) return bScore - aScore;
-      return Math.random() - 0.5;
-    })
-    .slice(0, 4);
+  const recommendations = (() => {
+    const seen = new Set<string>();
+    const distinct: Product[] = [];
+    for (const p of products) {
+      if (!p?.id) continue;
+      if (cartProductIds.has(p.id)) continue;
+      if (seen.has(p.id)) continue;
+      seen.add(p.id);
+      distinct.push(p);
+    }
+    return distinct
+      .sort((a, b) => {
+        const aScore = cartCategories.filter((cat) => cat === a.category).length;
+        const bScore = cartCategories.filter((cat) => cat === b.category).length;
+        if (aScore !== bScore) return bScore - aScore;
+        return Math.random() - 0.5;
+      })
+      .slice(0, 4);
+  })();
 
   return (
     <div className="bg-[var(--bb-bg)] min-h-screen text-[var(--bb-text)] px-4 sm:px-6 lg:px-8 py-10 sm:py-14 md:py-16 relative overflow-hidden">
@@ -189,16 +205,27 @@ export const Cart: React.FC<CartProps> = ({
                             {item.name}
                           </h3>
 
-                          {/* Options if they exist */}
-                          {item.selectedOptions && Object.keys(item.selectedOptions).length > 0 && (
-                            <div className="flex flex-wrap gap-2 mt-4">
-                              {Object.entries(item.selectedOptions).map(([key, val]) => (
-                                <span key={key} className="px-3 py-1.5 bg-[var(--bb-surface-2)] rounded-full text-[9px] font-bold uppercase tracking-[0.2em] opacity-80 backdrop-blur-md">
-                                  {key}: {val}
-                                </span>
-                              ))}
-                            </div>
-                          )}
+                          {/* Selected variant options (color, storage, RAM…)
+                              CART-01: rendered as high-contrast chips so the
+                              user can clearly see what they're buying. Filters
+                              out empty/falsy values so we never show
+                              "Color: undefined". */}
+                          {item.selectedOptions &&
+                            Object.entries(item.selectedOptions).filter(([, val]) => Boolean(val)).length > 0 && (
+                              <div className="flex flex-wrap gap-2 mt-4">
+                                {Object.entries(item.selectedOptions)
+                                  .filter(([, val]) => Boolean(val))
+                                  .map(([key, val]) => (
+                                    <span
+                                      key={key}
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#CDA032]/40 bg-[#CDA032]/10 text-[10px] font-black uppercase tracking-[0.18em] text-[#CDA032]"
+                                    >
+                                      <span className="opacity-60">{key}:</span>
+                                      <span>{val}</span>
+                                    </span>
+                                  ))}
+                              </div>
+                            )}
                         </div>
 
                         <div className="sm:text-right mt-4 sm:mt-0">
