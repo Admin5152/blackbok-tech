@@ -16,6 +16,48 @@
 -- ============================================================
 BEGIN;
 
+-- Rate limit infrastructure (shared with notification triggers migration).
+CREATE TABLE IF NOT EXISTS public.rate_limit_events (
+  id          BIGSERIAL PRIMARY KEY,
+  bucket_key  TEXT NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_rate_limit_events_bucket_time
+  ON public.rate_limit_events (bucket_key, created_at DESC);
+
+CREATE OR REPLACE FUNCTION public.consume_rate_limit(
+  p_bucket_key       TEXT,
+  p_max_hits         INTEGER,
+  p_window_seconds   INTEGER
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_cnt INTEGER;
+BEGIN
+  IF p_bucket_key IS NULL OR BTRIM(p_bucket_key, ' ') = '' THEN
+    RETURN;
+  END IF;
+
+  SELECT COUNT(*)::INTEGER
+    INTO v_cnt
+    FROM public.rate_limit_events r
+   WHERE r.bucket_key = p_bucket_key
+     AND r.created_at > NOW() - (INTERVAL '1 second' * p_window_seconds);
+
+  IF v_cnt >= p_max_hits THEN
+    RAISE EXCEPTION 'Rate limit exceeded. Please wait before trying again.'
+      USING ERRCODE = 'P0001';
+  END IF;
+
+  INSERT INTO public.rate_limit_events (bucket_key) VALUES (p_bucket_key);
+END;
+$$;
+
 -- Drop any previous overload with this exact signature before re-creating.
 DROP FUNCTION IF EXISTS public.place_order(
   JSONB, UUID, NUMERIC, TEXT, TEXT, TEXT, NUMERIC, UUID, TEXT
@@ -63,6 +105,8 @@ BEGIN
     RAISE EXCEPTION 'You must be signed in to place an order.'
       USING ERRCODE = '42501';
   END IF;
+
+  PERFORM public.consume_rate_limit('place_order:' || v_user_id::TEXT, 15, 60);
 
   IF p_cart_items IS NULL
      OR jsonb_typeof(p_cart_items) <> 'array'

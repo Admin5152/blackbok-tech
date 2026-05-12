@@ -1169,12 +1169,12 @@ export const updateTradeRequest = async (id: string, updates: Partial<TradeInReq
 // ==========================================
 
 export const updateUserRole = async (userId: string, role: string) => {
-  // First delete existing role(s)
-  await supabase.from('user_roles').delete().eq('user_id', userId);
-  // Insert new role
+  const normalized =
+    role === 'admin' || role === 'staff' ? role : 'user';
   const { data, error } = await supabase
-    .from('user_roles')
-    .insert({ user_id: userId, role })
+    .from('profiles')
+    .update({ role: normalized })
+    .eq('id', userId)
     .select()
     .single();
   if (error) throw error;

@@ -27,6 +27,47 @@
 -- ============================================================
 BEGIN;
 
+CREATE TABLE IF NOT EXISTS public.rate_limit_events (
+  id          BIGSERIAL PRIMARY KEY,
+  bucket_key  TEXT NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_rate_limit_events_bucket_time
+  ON public.rate_limit_events (bucket_key, created_at DESC);
+
+CREATE OR REPLACE FUNCTION public.consume_rate_limit(
+  p_bucket_key       TEXT,
+  p_max_hits         INTEGER,
+  p_window_seconds   INTEGER
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_cnt INTEGER;
+BEGIN
+  IF p_bucket_key IS NULL OR BTRIM(p_bucket_key, ' ') = '' THEN
+    RETURN;
+  END IF;
+
+  SELECT COUNT(*)::INTEGER
+    INTO v_cnt
+    FROM public.rate_limit_events r
+   WHERE r.bucket_key = p_bucket_key
+     AND r.created_at > NOW() - (INTERVAL '1 second' * p_window_seconds);
+
+  IF v_cnt >= p_max_hits THEN
+    RAISE EXCEPTION 'Rate limit exceeded. Please wait before trying again.'
+      USING ERRCODE = 'P0001';
+  END IF;
+
+  INSERT INTO public.rate_limit_events (bucket_key) VALUES (p_bucket_key);
+END;
+$$;
+
 -- ------------------------------------------------------------
 -- 1. Tighten notifications.type with a CHECK constraint
 -- ------------------------------------------------------------
@@ -79,6 +120,8 @@ BEGIN
   IF p_user_id IS NULL THEN
     RETURN NULL;
   END IF;
+
+  PERFORM public.consume_rate_limit('notification:' || p_user_id::TEXT, 40, 60);
 
   INSERT INTO public.notifications (
     user_id, title, body, type, reference_id, is_read
