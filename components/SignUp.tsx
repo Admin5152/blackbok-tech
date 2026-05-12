@@ -87,7 +87,7 @@ export const SignUp: React.FC<SignUpProps> = ({ setUser, navigateTo, theme, noti
         }, 100);
       } else {
         console.error('Registration failed:', response.error);
-        notify(response.error || 'Registration failed', 'error');
+        notify(AuthService.formatSignUpError(response.error) || 'Registration failed', 'error');
       }
     } catch (error: any) {
       console.error('Sign up component error:', error);

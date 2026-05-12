@@ -128,7 +128,7 @@ const InlineAuthForm: React.FC<InlineAuthFormProps> = ({ onAuthenticated, notify
           password: form.password,
         });
         if (!res.user) {
-          notify(res.error || 'Sign up failed.', 'error');
+          notify(AuthService.formatSignUpError(res.error) || 'Sign up failed.', 'error');
           return;
         }
         // After sign up Supabase usually requires email confirmation

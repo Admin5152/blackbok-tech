@@ -1,4 +1,5 @@
 import { supabase, getSupabaseClient, isSupabaseConfigured } from './supabase';
+import { authEmailConfirmRedirectUrl, authPasswordRecoveryRedirectUrl } from './siteUrl';
 import type { User } from '../interface/interface';
 import { normalizeCanonicalRole, type CanonicalAppRole, canAccessAdminDashboard } from './roles';
 import { resolveUserDisplayName } from './userDisplayName';
@@ -25,6 +26,20 @@ export interface AuthResponse {
   error?: string;
 }
 
+export type RegistrationEmailState =
+  | 'available'
+  | 'active_account'
+  | 'auth_without_profile'
+  | 'profile_only'
+  | 'unknown';
+
+export interface RegistrationEmailStatusResult {
+  ok: boolean;
+  state: RegistrationEmailState;
+  exists_in_auth?: boolean;
+  has_profile?: boolean;
+}
+
 // Authentication Service
 class AuthService {
   private static resolveAppRole(role: unknown): CanonicalAppRole {
@@ -42,6 +57,76 @@ class AuthService {
       return 'Confirm your email using the link we sent you, then try signing in again.';
     }
     return m;
+  }
+
+  /** Maps common GoTrue sign-up error strings to clearer copy. */
+  static formatSignUpError(message: string | undefined): string {
+    const m = (message || '').trim();
+    if (!m) return 'Registration could not complete. Try again or contact support.';
+    if (/user already registered|already registered|already exists|duplicate/i.test(m)) {
+      return 'This email is already on file. Use Sign in or Forgot password, or read the message below if your account was removed.';
+    }
+    return m;
+  }
+
+  /**
+   * Cross-checks `auth.users` vs `public.profiles` (migration `2026_05_registration_email_status.sql`).
+   * Returns null if the RPC is missing or fails — signup still works without it, with generic errors.
+   */
+  static async registrationEmailStatus(email: string): Promise<RegistrationEmailStatusResult | null> {
+    if (!isSupabaseConfigured()) return null;
+    const trimmed = email.trim();
+    if (!trimmed) return null;
+    try {
+      const client = getSupabaseClient();
+      const { data, error } = await client.rpc('registration_email_status', { p_email: trimmed });
+      if (error) {
+        console.warn('registration_email_status:', error.message);
+        return null;
+      }
+      const row = data as {
+        ok?: boolean;
+        error?: string;
+        state?: string;
+        exists_in_auth?: boolean;
+        has_profile?: boolean;
+      } | null;
+      if (!row || row.ok === false) return null;
+      const state = (row.state as RegistrationEmailState) || 'unknown';
+      return {
+        ok: true,
+        state,
+        exists_in_auth: row.exists_in_auth,
+        has_profile: row.has_profile,
+      };
+    } catch (e) {
+      console.warn('registration_email_status:', e);
+      return null;
+    }
+  }
+
+  /** Human-readable explanation for duplicate / blocked registration. */
+  static explainRegistrationState(state: RegistrationEmailState): string {
+    switch (state) {
+      case 'available':
+        return 'This email is not taken on our login system. You can use it to register.';
+      case 'active_account':
+        return 'This email already has an active BlackBox account. Use Sign in, or Forgot password if you forgot your password.';
+      case 'auth_without_profile':
+        return 'This email is still tied to a login (for example after shop data was removed but the login was not). You cannot register again with the same email until that login is cleared. Try Sign in or Forgot password. If you closed your account and still see this, contact support to remove the leftover login, then use Sign up.';
+      case 'profile_only':
+        return 'This email appears in shop records without a matching login. Contact support so we can fix or release this email.';
+      default:
+        return 'This email cannot be used for a new registration right now. Try Sign in or Forgot password.';
+    }
+  }
+
+  private static async duplicateSignupUserMessage(email: string): Promise<string> {
+    const hint = await this.registrationEmailStatus(email);
+    if (hint?.ok && hint.state !== 'available') {
+      return this.explainRegistrationState(hint.state);
+    }
+    return 'This email is already registered in the login system. Use Sign in or Forgot password.';
   }
 
   // Sign In
@@ -178,15 +263,22 @@ class AuthService {
         // `?type=email_confirm` query parameter is a defensive marker the
         // App.tsx listener picks up if the hash fragment gets stripped.
         console.log('🔄 Attempting Supabase registration...');
-        const emailRedirectTo = `${window.location.origin}/?type=email_confirm#/emailconfirm`;
+        const emailRedirectTo = authEmailConfirmRedirectUrl();
         const trimmedName = credentials.name.trim();
+        const emailTrim = credentials.email.trim();
         const metaPayload = {
           name: trimmedName,
           full_name: trimmedName,
           display_name: trimmedName,
         };
+
+        const preStatus = await this.registrationEmailStatus(emailTrim);
+        if (preStatus?.ok && preStatus.state !== 'available') {
+          return { user: null, error: this.explainRegistrationState(preStatus.state) };
+        }
+
         const { data, error } = await client.auth.signUp({
-          email: credentials.email,
+          email: emailTrim,
           password: credentials.password,
           options: {
             emailRedirectTo,
@@ -203,7 +295,11 @@ class AuthService {
 
         if (error) {
           console.error('❌ Supabase signup error:', error);
-          return { user: null, error: error.message };
+          const hint = await this.registrationEmailStatus(emailTrim);
+          if (hint?.ok && hint.state !== 'available') {
+            return { user: null, error: this.explainRegistrationState(hint.state) };
+          }
+          return { user: null, error: this.formatSignUpError(error.message) };
         }
 
         // Anti-enumeration: Supabase's default behavior for `signUp` with an
@@ -212,18 +308,16 @@ class AuthService {
         // error). Detect that case explicitly so the UI can show the right
         // message. See https://supabase.com/docs/reference/javascript/auth-signup
         if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
-          console.warn('⚠️ Sign-up attempted with an email that already exists.');
-          return {
-            user: null,
-            error: 'An account with this email already exists. Please log in instead.',
-          };
+          console.warn('⚠️ Sign-up attempted with an email that already exists (empty identities).');
+          const msg = await this.duplicateSignupUserMessage(emailTrim);
+          return { user: null, error: msg };
         }
 
         if (data.user) {
           console.log('✅ Supabase signup successful, user created but not confirmed');
           
           // Create user profile with safe method (won't fail if RLS blocks it)
-          const profile = await this.createUserProfileSafe(data.user.id, credentials.email, 'user', trimmedName);
+          const profile = await this.createUserProfileSafe(data.user.id, emailTrim, 'user', trimmedName);
 
           // If signup returned a session, sync profile name (trigger may have raced or used empty meta).
           if (data.session && trimmedName) {
@@ -515,7 +609,12 @@ class AuthService {
         return { success: false, error: 'No email address on file.' };
       }
       const client = getSupabaseClient();
-      const { error } = await client.auth.resend({ type: 'signup', email: email.trim() });
+      const emailRedirectTo = authEmailConfirmRedirectUrl();
+      const { error } = await client.auth.resend({
+        type: 'signup',
+        email: email.trim(),
+        options: { emailRedirectTo },
+      });
       if (error) {
         return { success: false, error: error.message };
       }
@@ -540,7 +639,7 @@ class AuthService {
       // land on a path the host returns 404 for before the SPA boots.
       // The App.tsx recovery listener routes to /reset-password whichever
       // way the URL lands.
-      const redirectTo = `${window.location.origin}/?type=recovery#/reset-password`;
+      const redirectTo = authPasswordRecoveryRedirectUrl();
 
       const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo });
       if (error) {

@@ -1,4 +1,4 @@
-import { getSupabaseClient, isSupabaseConfigured } from './supabase';
+import { getSupabaseClient, getSupabaseAnonKey, isSupabaseConfigured } from './supabase';
 
 function edgeFunctionsBaseUrl(): string {
   const env = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -106,15 +106,26 @@ export class DeleteAccountService {
       const response = await fetch(fnUrl, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        }
+          Authorization: `Bearer ${session.access_token}`,
+          apikey: getSupabaseAnonKey(),
+          'Content-Type': 'application/json',
+        },
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Error deleting user account via Edge Function:', errorText);
-        return { success: false, error: 'Failed to delete account: ' + (errorText || response.statusText) };
+        const errorText = await response.text().catch(() => '');
+        console.error('Error deleting user account via Edge Function:', response.status, errorText);
+        if (response.status === 404) {
+          return {
+            success: false,
+            error:
+              'Delete service is not available (Edge Function not deployed). Deploy `delete-account` in the Supabase project or contact support.',
+          };
+        }
+        return {
+          success: false,
+          error: `Could not complete account deletion (${response.status}). ${errorText || response.statusText}`.trim(),
+        };
       }
 
       console.log('✅ Account deleted successfully via Edge Function');

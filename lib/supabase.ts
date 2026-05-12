@@ -59,3 +59,6 @@ export const getSupabaseClient = (): SupabaseClient => {
   return _client;
 };
 
+/** Public anon key (same as the JS client) for Edge Function fetch calls that need an `apikey` header. */
+export const getSupabaseAnonKey = (): string => supabaseAnonKey;
+

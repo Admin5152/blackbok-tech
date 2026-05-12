@@ -1,4 +1,5 @@
 import { supabase, getSupabaseClient, isSupabaseConfigured } from './supabase';
+import { authEmailConfirmRedirectUrl } from './siteUrl';
 import type { AuthUser } from './auth';
 
 export interface EmailConfirmationStatus {
@@ -139,7 +140,7 @@ export class EmailConfirmationService {
       // Anchor the redirect at site root (not `window.location.pathname`)
       // so we don't land on a path the host returns 404 for before the
       // SPA boots — same fix applied to signUp in lib/auth.ts.
-      const emailRedirectTo = `${window.location.origin}/?type=email_confirm#/emailconfirm`;
+      const emailRedirectTo = authEmailConfirmRedirectUrl();
       const { error } = await client.auth.resend({
         type: 'signup',
         email: email,
