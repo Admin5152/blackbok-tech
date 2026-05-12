@@ -88,8 +88,7 @@ class AuthService {
             .maybeSingle();
           
           const finalRole = this.resolveAppRole(
-            roles?.role ?? profile?.role ?? data.user.app_metadata?.role ?? data.user.user_metadata?.role,
-            data.user.email
+            roles?.role ?? profile?.role ?? data.user.app_metadata?.role ?? data.user.user_metadata?.role
           );
           console.log(' User role resolved:', finalRole);
           
@@ -308,8 +307,7 @@ class AuthService {
         .maybeSingle();
       
       const finalRole = this.resolveAppRole(
-        roles?.role ?? profile?.role ?? user.app_metadata?.role ?? user.user_metadata?.role,
-        user.email
+        roles?.role ?? profile?.role ?? user.app_metadata?.role ?? user.user_metadata?.role
       );
       console.log('User role resolved:', finalRole);
       
