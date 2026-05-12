@@ -39,19 +39,20 @@ export const AdminUsers: React.FC = () => {
         return () => { mounted = false; };
     }, []);
 
-    const filtered = users.filter(u => {
+    const filtered = (users || []).filter(u => {
+        if (!u) return false;
         const name = String(u.name ?? '').toLowerCase();
         const email = String(u.email ?? '').toLowerCase();
         const ql = q.toLowerCase();
         const matchQ = name.includes(ql) || email.includes(ql);
-        const matchR = roleFilter === 'all' || u.role === roleFilter;
+        const matchR = roleFilter === 'all' || (u.role ?? 'user') === roleFilter;
         return matchQ && matchR;
     });
 
     const sorted = [...filtered].sort((a, b) => {
-        const aVal = a[sortField] || '';
-        const bVal = b[sortField] || '';
-        const comparison = aVal.toString().localeCompare(bVal.toString());
+        const aVal = (a as any)?.[sortField] ?? '';
+        const bVal = (b as any)?.[sortField] ?? '';
+        const comparison = String(aVal).localeCompare(String(bVal));
         return sortDirection === 'asc' ? comparison : -comparison;
     });
 
