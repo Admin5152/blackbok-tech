@@ -3,6 +3,9 @@
 -- profiles.role = 'admin'). Matches Admin.tsx isSales gate.
 --
 -- Uses public.has_role() from 2026_05_production_ready.sql.
+-- Requires app_role enum to include 'staff'. If you see:
+--   invalid input value for enum app_role: "staff"
+-- run 2026_05_production_staff_enum.sql first (adds the label on old DBs).
 -- Idempotent: DROP + CREATE policy.
 -- ============================================================
 BEGIN;
