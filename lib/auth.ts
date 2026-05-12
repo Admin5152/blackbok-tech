@@ -1,6 +1,7 @@
 import { supabase, getSupabaseClient, isSupabaseConfigured } from './supabase';
 import type { User } from '../interface/interface';
 import { normalizeCanonicalRole, type CanonicalAppRole } from './roles';
+import { resolveUserDisplayName } from './userDisplayName';
 
 // Authentication Types
 export interface AuthUser {
@@ -102,7 +103,7 @@ class AuthService {
           const authUser: AuthUser = {
             id: data.user.id,
             email: data.user.email || '',
-            name: profile?.name || data.user.email?.split('@')[0] || 'User',
+            name: resolveUserDisplayName(profile?.name, data.user),
             role: finalRole
           };
           
@@ -149,12 +150,18 @@ class AuthService {
         // App.tsx listener picks up if the hash fragment gets stripped.
         console.log('🔄 Attempting Supabase registration...');
         const emailRedirectTo = `${window.location.origin}/?type=email_confirm#/emailconfirm`;
+        const trimmedName = credentials.name.trim();
+        const metaPayload = {
+          name: trimmedName,
+          full_name: trimmedName,
+          display_name: trimmedName,
+        };
         const { data, error } = await client.auth.signUp({
           email: credentials.email,
           password: credentials.password,
           options: {
             emailRedirectTo,
-            data: { name: credentials.name },
+            data: metaPayload,
           }
         });
 
@@ -187,7 +194,19 @@ class AuthService {
           console.log('✅ Supabase signup successful, user created but not confirmed');
           
           // Create user profile with safe method (won't fail if RLS blocks it)
-          const profile = await this.createUserProfileSafe(data.user.id, credentials.email, 'user', credentials.name);
+          const profile = await this.createUserProfileSafe(data.user.id, credentials.email, 'user', trimmedName);
+
+          // If signup returned a session, sync profile name (trigger may have raced or used empty meta).
+          if (data.session && trimmedName) {
+            const letter = trimmedName.charAt(0).toUpperCase();
+            const { error: syncErr } = await client
+              .from('profiles')
+              .update({ name: trimmedName, avatar_letter: letter })
+              .eq('id', data.user.id);
+            if (syncErr) {
+              console.warn('Profile name sync after signup skipped:', syncErr.message);
+            }
+          }
           
           if (profile) {
             console.log('✅ Profile created successfully');
@@ -200,7 +219,7 @@ class AuthService {
           const authUser: AuthUser = {
             id: data.user.id,
             email: data.user.email || '',
-            name: credentials.name || data.user.email?.split('@')[0] || 'User',
+            name: resolveUserDisplayName(trimmedName, data.user),
             role: 'user'
           };
           
@@ -277,11 +296,12 @@ class AuthService {
       // If profile doesn't exist, create it
       if (!profile) {
         console.log('Profile not found, creating one for user:', user.id);
+        const seedName = resolveUserDisplayName(undefined, user);
         profile = await this.createUserProfileSafe(
-          user.id, 
-          user.email || '', 
-          'user', 
-          user.email?.split('@')[0]
+          user.id,
+          user.email || '',
+          'user',
+          seedName
         );
       }
       
@@ -303,7 +323,7 @@ class AuthService {
       return {
         id: user.id,
         email: user.email || '',
-        name: profile?.name || user.email?.split('@')[0] || 'User',
+        name: resolveUserDisplayName(profile?.name, user),
         role: finalRole
       };
     } catch (error) {

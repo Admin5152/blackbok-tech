@@ -23,6 +23,7 @@ import {
 } from '../types';
 import { formatCurrency } from './utils';
 import { normalizeCanonicalRole } from './roles';
+import { resolveUserDisplayName } from './userDisplayName';
 
 // Normalizes admin-entered category strings (e.g. "Mobile Phones",
 // "Laptops & Notebooks", "Apple iPhones") to one of the canonical
@@ -76,8 +77,19 @@ export function normalizeOrderStatusForUi(status?: string | null): string {
 // AUTHENTICATION & PROFILES
 // ==========================================
 
-export const signUp = async (email: string, password: string) => {
-  const { data, error } = await supabase.auth.signUp({ email, password });
+export const signUp = async (email: string, password: string, displayName?: string) => {
+  const trimmed = displayName?.trim();
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    ...(trimmed
+      ? {
+          options: {
+            data: { name: trimmed, full_name: trimmed, display_name: trimmed },
+          },
+        }
+      : {}),
+  });
   if (error) throw error;
   return data;
 };
@@ -95,7 +107,7 @@ export const signIn = async (email: string, password: string) => {
     return {
       user: {
         ...data.user,
-        name: profile?.name || data.user.email?.split('@')[0] || 'User',
+        name: resolveUserDisplayName(profile?.name, data.user),
         role,
       },
       session: data.session
