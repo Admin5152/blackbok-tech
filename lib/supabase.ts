@@ -19,8 +19,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('      VITE_SUPABASE_ANON_KEY=your-anon-key');
   console.warn('   3. Restart the development server');
   console.warn('');
-  console.warn('🔑 Admin login will still work: BlackBox@gmail.com / BlackBox');
-  
   // Only throw error in production if variables are missing
   if (import.meta.env.PROD) {
     throw new Error(

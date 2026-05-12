@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import AuthService, { type LoginCredentials, type AuthResponse } from '../lib/auth';
 import type { User } from '../interface/interface';
 import { useLocation } from '@tanstack/react-router';
@@ -13,7 +13,6 @@ interface LoginProps {
 }
 
 export const Login: React.FC<LoginProps> = ({ setUser, navigateTo, theme, notify }) => {
-  const ADMIN_EMAILS = new Set(['blackbox@gmail.com']);
   const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -121,10 +120,8 @@ export const Login: React.FC<LoginProps> = ({ setUser, navigateTo, theme, notify
 
       if (response.user) {
         console.log('Authentication successful, user:', response.user);
-        const isAdminByEmail = ADMIN_EMAILS.has((response.user.email || '').toLowerCase());
-        const resolvedRole = normalizeCanonicalRole(
-          isAdminByEmail ? 'admin' : (response.user.role ?? 'user')
-        ) as User['role'];
+        // Role already resolved in AuthService (DB role + optional admin-email elevation).
+        const resolvedRole = normalizeCanonicalRole(response.user.role ?? 'user') as User['role'];
 
         // Convert AuthUser to User format for compatibility
         const user: User = {
@@ -255,14 +252,6 @@ export const Login: React.FC<LoginProps> = ({ setUser, navigateTo, theme, notify
           </>
         )}
       </button>
-
-      {/* Admin Access Info */}
-      <div className={`text-xs ${cardMuted} text-center space-y-1`}>
-        <div className="flex items-center justify-center gap-2">
-          <AlertCircle size={12} />
-          <span>Admin Access: BlackBox@gmail.com</span>
-        </div>
-      </div>
     </form>
   );
 };
