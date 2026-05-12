@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from '@tanstack/react-router';
 import { ShoppingCart, Heart, Eye, Star, Scale, FileText } from 'lucide-react';
 import { Product } from '../types';
 import { formatCurrency } from '../lib/utils';
 import { useAppContext } from '../App';
+import { getProductOptionGroups, initialSelectedFromGroups } from '../lib/productOptions';
 
 interface ProductCardProps {
   product: Product;
@@ -26,17 +27,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onToggleCompare
 }) => {
   const { theme } = useAppContext();
-  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => {
-    const initial: Record<string, string> = {};
-    product.variants?.forEach(v => {
-      if (v.options.length > 0) {
-        initial[v.name] = v.options[0];
-      }
-    });
-    return initial;
-  });
+  const optionGroups = useMemo(() => getProductOptionGroups(product), [product]);
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    setSelectedOptions(initialSelectedFromGroups(optionGroups));
+  }, [product.id, optionGroups]);
 
   const handleAddToCartWithOptions = () => {
+    const missing = optionGroups.filter((g) => !selectedOptions[g.name]?.trim());
+    if (missing.length > 0) {
+      window.alert(`Select ${missing.map((m) => m.name).join(', ')} before adding to cart.`);
+      return;
+    }
     onAddToCart(product, selectedOptions, 1);
   };
 
@@ -79,7 +82,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       <Link to="/product/$productId" params={{ productId: product.id } as any} className="flex-1 flex flex-col relative z-10">
         <div className="relative h-32 bg-black rounded-t-2xl overflow-hidden group-hover:scale-[1.02] transition-transform duration-500">
           <img
-            src={product.image}
+            src={product.image || product.image_url || ''}
             alt={product.name}
             className="w-full h-full object-cover"
           />
@@ -115,7 +118,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
           {/* Variant Selection */}
           <div className="space-y-3">
-            {product.variants?.map(variant => {
+            {optionGroups.map((variant) => {
               const selectedValue = selectedOptions[variant.name] || '';
               const isColor = variant.name.toLowerCase() === 'color';
 

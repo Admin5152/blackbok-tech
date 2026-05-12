@@ -3,6 +3,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { X, Minus, Plus, ShoppingCart, Star, ShieldCheck, ArrowLeft, Package } from 'lucide-react';
 import { Product } from '../types';
 import { formatCurrency } from '../lib/utils';
+import { getProductOptionGroups, initialSelectedFromGroups } from '../lib/productOptions';
 
 interface QuickViewModalProps {
   product: Product | null;
@@ -12,51 +13,24 @@ interface QuickViewModalProps {
 }
 
 export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen, onClose, onAddToCart }) => {
-  const groupedVariants = useMemo(() => {
-    if (!product) return [];
-
-    const groups: Array<{ name: string; options: string[] }> = [];
-    const asAny = product as any;
-
-    if (Array.isArray(product.variants) && product.variants.length > 0) {
-      const hasNamedOptions = product.variants.some((v: any) => v?.name && Array.isArray(v?.options));
-      if (hasNamedOptions) {
-        return product.variants
-          .filter((v: any) => v?.name && Array.isArray(v?.options))
-          .map((v: any) => ({ name: String(v.name), options: v.options.filter(Boolean) }));
-      }
-    }
-
-    if (Array.isArray(asAny.colors) && asAny.colors.length > 0) {
-      groups.push({ name: 'Color', options: asAny.colors.filter(Boolean) });
-    }
-    if (Array.isArray(asAny.storage) && asAny.storage.length > 0) {
-      groups.push({ name: 'Storage', options: asAny.storage.filter(Boolean) });
-    }
-    if (Array.isArray(asAny.ram) && asAny.ram.length > 0) {
-      groups.push({ name: 'RAM', options: asAny.ram.filter(Boolean) });
-    }
-
-    return groups;
-  }, [product]);
+  const groupedVariants = useMemo(() => getProductOptionGroups(product), [product]);
 
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
 
   useEffect(() => {
-    const initial: Record<string, string> = {};
-    groupedVariants.forEach((variant) => {
-      if (variant.options.length > 0) {
-        initial[variant.name] = variant.options[0];
-      }
-    });
-    setSelectedOptions(initial);
+    setSelectedOptions(initialSelectedFromGroups(groupedVariants));
     setQuantity(1);
   }, [product, groupedVariants]);
 
   if (!product || !isOpen) return null;
 
   const handleAddToCart = () => {
+    const missing = groupedVariants.filter((g) => !selectedOptions[g.name]?.trim());
+    if (missing.length > 0) {
+      window.alert(`Please select: ${missing.map((g) => g.name).join(', ')}`);
+      return;
+    }
     onAddToCart(product, selectedOptions, quantity);
     onClose();
   };
@@ -96,7 +70,7 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
           <div className="w-full md:w-1/2 bg-gradient-to-br from-black/20 to-transparent flex items-center justify-center p-6 sm:p-12 shrink-0 h-[30vh] md:h-auto overflow-hidden relative">
             <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] pointer-events-none"></div>
             <img
-              src={product.image}
+              src={product.image || product.image_url || ''}
               alt={product.name}
               className="max-w-full max-h-full object-contain drop-shadow-[0_20px_50px_rgba(0,0,0,0.5)] transform hover:scale-105 transition-transform duration-700"
             />

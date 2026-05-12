@@ -276,6 +276,12 @@ const normalizeProductImages = (raw: any): any[] => {
   );
 };
 
+/** Maps Postgres `text[]` / JSON arrays to clean string lists for PDP chips. */
+const coerceTextArray = (val: unknown): string[] => {
+  if (!Array.isArray(val)) return [];
+  return val.map((x) => String(x).trim()).filter(Boolean);
+};
+
 /** Maps a Supabase `products` row (+ joined relations) to the UI `Product` shape. */
 export function mapProductFromDb(p: any): Product {
   if (!p) return p;
@@ -294,6 +300,10 @@ export function mapProductFromDb(p: any): Product {
     stock: Number(p.stock ?? 0),
     discount: p.discount != null && p.discount !== '' ? Number(p.discount) : undefined,
     rating: p.rating != null && p.rating !== '' ? Number(p.rating) : undefined,
+    colors: coerceTextArray(p.colors),
+    storage: coerceTextArray(p.storage),
+    ram: coerceTextArray(p.ram),
+    specs: coerceTextArray(p.specs),
   } as Product;
 }
 

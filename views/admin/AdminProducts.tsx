@@ -13,14 +13,14 @@ interface Props { canEdit?: boolean; }
 const CATEGORIES = ['iPhone', 'Laptop', 'Gaming', 'Accessories', 'Audio', 'Tablet', 'Trades'] as const;
 
 type ProductDraft = Partial<Product> & {
-    colors?: string[]; storage?: string[]; ram?: string[];
+    colors?: string[]; storage?: string[]; ram?: string[]; specs?: string[];
     featured?: boolean;
 };
 
 const EMPTY: ProductDraft = {
     name: '', price: 0, category: 'iPhone', description: '', image: '',
     stock: 10, rating: 4.5, discount: undefined, new: false,
-    colors: [], storage: [], ram: [], featured: false,
+    colors: [], storage: [], ram: [], specs: [], featured: false,
 };
 
 export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
@@ -34,6 +34,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
     const [colorIn, setColorIn] = useState('');
     const [storageIn, setStorageIn] = useState('');
     const [ramIn, setRamIn] = useState('');
+    const [specsIn, setSpecsIn] = useState('');
     const [error, setError] = useState('');
 
     const load = async (opts?: { silent?: boolean }) => {
@@ -52,8 +53,8 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
 
     useEffect(() => { load(); }, []);
 
-    const openAdd = () => { setDraft({ ...EMPTY }); setColorIn(''); setStorageIn(''); setRamIn(''); setError(''); setShowForm(true); };
-    const openEdit = (p: Product) => { setDraft({ ...p } as any); setColorIn(''); setStorageIn(''); setRamIn(''); setError(''); setShowForm(true); };
+    const openAdd = () => { setDraft({ ...EMPTY }); setColorIn(''); setStorageIn(''); setRamIn(''); setSpecsIn(''); setError(''); setShowForm(true); };
+    const openEdit = (p: Product) => { setDraft({ ...p } as any); setColorIn(''); setStorageIn(''); setRamIn(''); setSpecsIn(''); setError(''); setShowForm(true); };
 
     const del = async (id: string) => {
         if (!confirm('Delete this product?')) return;
@@ -89,6 +90,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
                     colors: draft.colors,
                     storage: draft.storage,
                     ram: draft.ram,
+                    specs: draft.specs,
                     featured: Boolean((draft as any).featured),
                 });
             } else {
@@ -103,10 +105,10 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
                     discount: draft.discount != null ? Number(draft.discount) : undefined,
                     new: draft.new ?? false,
                     reviewCount: 0,
-                    specs: [],
                     colors: draft.colors,
                     storage: draft.storage,
                     ram: draft.ram,
+                    specs: draft.specs?.length ? draft.specs : [],
                     featured: Boolean((draft as any).featured),
                 });
             }
@@ -136,13 +138,13 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
         }
     };
 
-    const addChip = (field: 'colors' | 'storage' | 'ram', val: string, clear: () => void) => {
+    const addChip = (field: 'colors' | 'storage' | 'ram' | 'specs', val: string, clear: () => void) => {
         if (!val.trim()) return;
         const arr = (draft[field] as string[] | undefined) || [];
         if (!arr.includes(val.trim())) setDraft({ ...draft, [field]: [...arr, val.trim()] });
         clear();
     };
-    const rmChip = (field: 'colors' | 'storage' | 'ram', val: string) =>
+    const rmChip = (field: 'colors' | 'storage' | 'ram' | 'specs', val: string) =>
         setDraft({ ...draft, [field]: ((draft[field] as string[] | undefined) || []).filter(x => x !== val) });
 
     const cats = ['All', ...CATEGORIES];
@@ -334,6 +336,8 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
                                 placeholder="e.g. 256GB" onAdd={() => addChip('storage', storageIn, () => setStorageIn(''))} onRemove={v => rmChip('storage', v)} />
                             <ChipField label="RAM Options" chips={draft.ram || []} inputVal={ramIn} setInputVal={setRamIn}
                                 placeholder="e.g. 16GB" onAdd={() => addChip('ram', ramIn, () => setRamIn(''))} onRemove={v => rmChip('ram', v)} />
+                            <ChipField label="Spec highlights (PDP)" chips={draft.specs || []} inputVal={specsIn} setInputVal={setSpecsIn}
+                                placeholder="e.g. A18 chip, Ceramic Shield" onAdd={() => addChip('specs', specsIn, () => setSpecsIn(''))} onRemove={v => rmChip('specs', v)} />
 
                             {/* Checkboxes */}
                             <div className="flex gap-6">
