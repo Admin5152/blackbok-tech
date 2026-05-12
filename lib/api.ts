@@ -279,7 +279,28 @@ const normalizeProductImages = (raw: any): any[] => {
 /** Maps Postgres `text[]` / JSON arrays to clean string lists for PDP chips. */
 const coerceTextArray = (val: unknown): string[] => {
   if (!Array.isArray(val)) return [];
-  return val.map((x) => String(x).trim()).filter(Boolean);
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const x of val) {
+    if (x == null) continue;
+    let s = '';
+    if (typeof x === 'string') s = x.trim();
+    else if (typeof x === 'number' || typeof x === 'boolean') s = String(x).trim();
+    else if (typeof x === 'object' && !Array.isArray(x)) {
+      try {
+        const vals = Object.values(x as Record<string, unknown>).filter((v) => v != null && String(v).trim() !== '');
+        if (vals.length === 1) s = String(vals[0]).trim();
+      } catch {
+        s = '';
+      }
+    } else s = String(x).trim();
+    if (!s) continue;
+    const low = s.toLowerCase();
+    if (seen.has(low)) continue;
+    seen.add(low);
+    out.push(s);
+  }
+  return out;
 };
 
 /** Maps a Supabase `products` row (+ joined relations) to the UI `Product` shape. */

@@ -4,7 +4,7 @@ import { ShoppingCart, Heart, Eye, Star, Scale, FileText } from 'lucide-react';
 import { Product } from '../types';
 import { formatCurrency } from '../lib/utils';
 import { useAppContext } from '../App';
-import { getProductOptionGroups, initialSelectedFromGroups } from '../lib/productOptions';
+import { getProductOptionGroups, initialSelectedFromGroups, toOptionString } from '../lib/productOptions';
 
 interface ProductCardProps {
   product: Product;
@@ -119,7 +119,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           {/* Variant Selection */}
           <div className="space-y-3">
             {optionGroups.map((variant) => {
-              const selectedValue = selectedOptions[variant.name] || '';
+              const selectedValue = toOptionString(selectedOptions[variant.name] || '');
               const isColor = variant.name.toLowerCase() === 'color';
 
               return (
@@ -129,36 +129,40 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                   </div>
 
                   <div className="flex flex-wrap gap-1.5">
-                      {variant.options.map(opt => (
+                      {variant.options.map((opt, optIdx) => {
+                        const o = toOptionString(opt);
+                        const ol = o.toLowerCase();
+                        return (
                         <button
-                          key={opt}
+                          key={`${variant.name}-${optIdx}-${o}`}
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            setSelectedOptions(prev => ({ ...prev, [variant.name]: opt }));
+                            setSelectedOptions(prev => ({ ...prev, [variant.name]: o }));
                           }}
                           className={isColor
-                            ? `w-5 h-5 rounded-full border-2 transition-all ${selectedValue === opt ? 'border-white scale-110' : 'border-gray-400 hover:border-gray-300'}`
-                            : `px-2 py-0.5 rounded text-[8px] font-black tracking-widest transition-all border ${selectedValue === opt ? 'border-[#CDA032] bg-[#CDA032]/20 text-[#CDA032]' : 'border-white/20 hover:border-white/40 text-white/60 hover:text-white'}`
+                            ? `w-5 h-5 rounded-full border-2 transition-all ${selectedValue === o ? 'border-white scale-110' : 'border-gray-400 hover:border-gray-300'}`
+                            : `px-2 py-0.5 rounded text-[8px] font-black tracking-widest transition-all border ${selectedValue === o ? 'border-[#CDA032] bg-[#CDA032]/20 text-[#CDA032]' : 'border-white/20 hover:border-white/40 text-white/60 hover:text-white'}`
                           }
                           style={isColor ? {
-                            backgroundColor: opt.toLowerCase() === 'black' ? '#000' :
-                              opt.toLowerCase() === 'white' ? '#fff' :
-                                opt.toLowerCase() === 'red' ? '#ef4444' :
-                                  opt.toLowerCase() === 'blue' ? '#3b82f6' :
-                                    opt.toLowerCase() === 'green' ? '#10b981' :
-                                      opt.toLowerCase() === 'purple' ? '#a855f7' :
-                                        opt.toLowerCase() === 'pink' ? '#ec4899' :
-                                          opt.toLowerCase() === 'gold' ? '#f59e0b' :
-                                            opt.toLowerCase() === 'silver' ? '#9ca3af' :
-                                              opt.toLowerCase().includes('space gray') ? '#4B4B4D' :
-                                                opt.toLowerCase().includes('midnight') ? '#1C2938' :
+                            backgroundColor: ol === 'black' ? '#000' :
+                              ol === 'white' ? '#fff' :
+                                ol === 'red' ? '#ef4444' :
+                                  ol === 'blue' ? '#3b82f6' :
+                                    ol === 'green' ? '#10b981' :
+                                      ol === 'purple' ? '#a855f7' :
+                                        ol === 'pink' ? '#ec4899' :
+                                          ol === 'gold' ? '#f59e0b' :
+                                            ol === 'silver' ? '#9ca3af' :
+                                              ol.includes('space gray') ? '#4B4B4D' :
+                                                ol.includes('midnight') ? '#1C2938' :
                                                   '#6b7280'
                           } : {}}
                         >
-                          {!isColor && opt}
+                          {!isColor && o}
                         </button>
-                      ))}
+                      );
+                      })}
                     </div>
                   {selectedValue && (
                     <div className="flex items-center gap-1.5 pt-1">

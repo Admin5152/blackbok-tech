@@ -8,8 +8,23 @@ interface ErrorPageProps {
     theme?: 'light' | 'dark';
 }
 
+function safeErrorMessage(err: unknown): string {
+    if (err == null) return '';
+    if (typeof err === 'string') return err;
+    if (typeof err === 'object' && err !== null && 'message' in err) {
+        const m = (err as { message?: unknown }).message;
+        if (typeof m === 'string' && m.trim()) return m;
+    }
+    try {
+        return JSON.stringify(err);
+    } catch {
+        return 'An unexpected error occurred';
+    }
+}
+
 export const ErrorPage: React.FC<ErrorPageProps> = ({ error, reset, theme = 'dark' }) => {
     const isLight = theme === 'light';
+    const message = safeErrorMessage(error);
 
     return (
         <div className={`h-[100dvh] w-full flex flex-col items-center justify-center p-6 text-center transition-all duration-700 relative overflow-hidden ${isLight ? 'bg-[#FAFAFA] text-black' : 'bg-[#050505] text-white'}`}>
@@ -70,8 +85,8 @@ export const ErrorPage: React.FC<ErrorPageProps> = ({ error, reset, theme = 'dar
                                     <span className={`text-[10px] font-black uppercase tracking-widest opacity-40 ${isLight ? 'text-black' : 'text-white'}`}>// Diagnostic Report</span>
                                 </div>
                                 <h3 className="text-2xl font-black tracking-tight uppercase italic underline decoration-red-500/50 decoration-4 underline-offset-8">Critical Fault Detected</h3>
-                                <p className={`text-base font-medium opacity-60 leading-relaxed max-w-xl ${isLight ? 'text-black' : 'text-white'}`}>
-                                    {error?.message || "Internal core execution halted. The system detected an unauthorized logic fragment or missing dependency. Re-initialization protocol recommended to restore operational status."}
+                                <p className={`text-base font-medium opacity-60 leading-relaxed max-w-xl break-words ${isLight ? 'text-black' : 'text-white'}`}>
+                                    {message || "Internal core execution halted. The system detected an unauthorized logic fragment or missing dependency. Re-initialization protocol recommended to restore operational status."}
                                 </p>
                             </div>
                         </div>

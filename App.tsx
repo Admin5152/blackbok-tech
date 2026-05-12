@@ -118,7 +118,9 @@ export const useAppContext = () => {
 // after route changes and after late layout (images). Hash-router pathname
 // alone can miss updates; include search + hash in the dependency key.
 const ScrollToTop = () => {
-  const location = useLocation();
+  // TanStack Router: `location.search` is the validated search *object*, not `?query=`.
+  // Stringifying it in a template can throw (e.g. "Cannot convert object to primitive value").
+  const scrollKey = useLocation({ select: (l) => l.href });
 
   useEffect(() => {
     try {
@@ -129,8 +131,6 @@ const ScrollToTop = () => {
       // ignore — some embedded browsers throw here
     }
   }, []);
-
-  const scrollKey = `${location.pathname}${location.search}${location.hash ?? ''}`;
 
   useEffect(() => {
     const scrollTopNow = () => {

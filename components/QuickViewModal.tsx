@@ -3,7 +3,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { X, Minus, Plus, ShoppingCart, Star, ShieldCheck, ArrowLeft, Package } from 'lucide-react';
 import { Product } from '../types';
 import { formatCurrency } from '../lib/utils';
-import { getProductOptionGroups, initialSelectedFromGroups } from '../lib/productOptions';
+import { getProductOptionGroups, initialSelectedFromGroups, toOptionString } from '../lib/productOptions';
 
 interface QuickViewModalProps {
   product: Product | null;
@@ -119,16 +119,19 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
                     </label>
                     {selectedOptions[variant.name] && (
                       <span className="text-[9px] font-black uppercase text-[#CDA032] tracking-widest">
-                            // {selectedOptions[variant.name]}
+                            {selectedOptions[variant.name]}
                       </span>
                     )}
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {variant.options.map((option: string) => (
+                    {variant.options.map((option, optIdx) => {
+                      const opt = toOptionString(option);
+                      const ol = opt.toLowerCase();
+                      return (
                       <button
-                        key={option}
-                        onClick={() => setSelectedOptions(prev => ({ ...prev, [variant.name]: option }))}
-                        className={`group relative px-4 sm:px-6 py-3 rounded-2xl border text-[9px] sm:text-[11px] font-black transition-all duration-300 ${selectedOptions[variant.name] === option
+                        key={`${variant.name}-${optIdx}-${opt}`}
+                        onClick={() => setSelectedOptions(prev => ({ ...prev, [variant.name]: opt }))}
+                        className={`group relative px-4 sm:px-6 py-3 rounded-2xl border text-[9px] sm:text-[11px] font-black transition-all duration-300 ${selectedOptions[variant.name] === opt
                           ? 'border-[#CDA032] bg-[#CDA032] text-black shadow-2xl shadow-[#CDA032]/20'
                           : 'border-white/5 bg-white/5 text-white/40 hover:border-white/20 hover:text-white'
                           }`}
@@ -136,29 +139,30 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
                         {variant.name === 'Color' ? (
                           <div className="flex items-center gap-2.5">
                             <div
-                              className={`w-3 h-3 rounded-full border shadow-sm ${selectedOptions[variant.name] === option ? 'border-black/20' : 'border-white/10'}`}
+                              className={`w-3 h-3 rounded-full border shadow-sm ${selectedOptions[variant.name] === opt ? 'border-black/20' : 'border-white/10'}`}
                               style={{
-                                backgroundColor: option.toLowerCase() === 'black' ? '#000' :
-                                  option.toLowerCase() === 'white' ? '#fff' :
-                                    option.toLowerCase() === 'red' ? '#ef4444' :
-                                      option.toLowerCase() === 'blue' ? '#3b82f6' :
-                                        option.toLowerCase() === 'green' ? '#10b981' :
-                                          option.toLowerCase() === 'yellow' ? '#eab308' :
-                                            option.toLowerCase() === 'purple' ? '#a855f7' :
-                                              option.toLowerCase() === 'pink' ? '#ec4899' :
-                                                option.toLowerCase() === 'gray' || option.toLowerCase() === 'grey' ? '#6b7280' :
-                                                  option.toLowerCase() === 'silver' ? '#9ca3af' :
-                                                    option.toLowerCase() === 'gold' || option.toLowerCase() === 'golden' ? '#f59e0b' :
+                                backgroundColor: ol === 'black' ? '#000' :
+                                  ol === 'white' ? '#fff' :
+                                    ol === 'red' ? '#ef4444' :
+                                      ol === 'blue' ? '#3b82f6' :
+                                        ol === 'green' ? '#10b981' :
+                                          ol === 'yellow' ? '#eab308' :
+                                            ol === 'purple' ? '#a855f7' :
+                                              ol === 'pink' ? '#ec4899' :
+                                                ol === 'gray' || ol === 'grey' ? '#6b7280' :
+                                                  ol === 'silver' ? '#9ca3af' :
+                                                    ol === 'gold' || ol === 'golden' ? '#f59e0b' :
                                                       '#6b7280'
                               }}
                             />
-                            {option}
+                            {opt}
                           </div>
                         ) : (
-                          option
+                          opt
                         )}
                       </button>
-                    ))}
+                    );
+                    })}
                   </div>
                 </div>
               ))}

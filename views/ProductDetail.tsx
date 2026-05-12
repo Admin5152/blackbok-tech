@@ -3,7 +3,7 @@ import { Product, ProductImage } from '../types';
 import { X, Plus, Minus, Heart, Share2, Star, Check, Truck, Shield, RefreshCw, ArrowLeft, Copy, Facebook, Twitter, ChevronRight } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
 import { ProductImageGallery } from '../components/product/ProductImageGallery';
-import { getProductOptionGroups, initialSelectedFromGroups } from '../lib/productOptions';
+import { getProductOptionGroups, initialSelectedFromGroups, toOptionString } from '../lib/productOptions';
 
 interface ProductDetailProps {
   product: Product;
@@ -252,11 +252,14 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                       {variant.name}
                     </h3>
                     <div className="flex flex-wrap gap-4">
-                      {variant.options.map((option: string) => (
+                      {variant.options.map((option, optIdx) => {
+                        const opt = toOptionString(option);
+                        const ol = opt.toLowerCase();
+                        return (
                         <button
-                          key={option}
-                          onClick={() => handleOptionChange(variant.name, option)}
-                          className={`relative group transition-all duration-300 ${selectedOptions[variant.name] === option
+                          key={`${variant.name}-${optIdx}-${opt}`}
+                          onClick={() => handleOptionChange(variant.name, opt)}
+                          className={`relative group transition-all duration-300 ${selectedOptions[variant.name] === opt
                             ? 'scale-110'
                             : 'hover:scale-105'
                             }`}
@@ -264,47 +267,48 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                           {variant.name === 'Color' ? (
                             <div className="flex flex-col items-center gap-3">
                               <div
-                                className={`w-12 h-12 rounded-full border-4 shadow-lg transition-all ${selectedOptions[variant.name] === option
+                                className={`w-12 h-12 rounded-full border-4 shadow-lg transition-all ${selectedOptions[variant.name] === opt
                                   ? 'border-white ring-4 ring-[#B38B21]/30'
                                   : 'border-gray-300 hover:border-gray-200'
                                   }`}
                                 style={{
-                                  backgroundColor: option.toLowerCase() === 'black' ? '#000' :
-                                    option.toLowerCase() === 'white' ? '#fff' :
-                                      option.toLowerCase() === 'red' ? '#ef4444' :
-                                        option.toLowerCase() === 'blue' ? '#3b82f6' :
-                                          option.toLowerCase() === 'green' ? '#10b981' :
-                                            option.toLowerCase() === 'yellow' ? '#eab308' :
-                                              option.toLowerCase() === 'purple' ? '#a855f7' :
-                                                option.toLowerCase() === 'pink' ? '#ec4899' :
-                                                  option.toLowerCase() === 'gray' || option.toLowerCase() === 'grey' ? '#6b7280' :
-                                                    option.toLowerCase() === 'silver' ? '#9ca3af' :
-                                                      option.toLowerCase() === 'gold' || option.toLowerCase() === 'golden' ? '#f59e0b' :
+                                  backgroundColor: ol === 'black' ? '#000' :
+                                    ol === 'white' ? '#fff' :
+                                      ol === 'red' ? '#ef4444' :
+                                        ol === 'blue' ? '#3b82f6' :
+                                          ol === 'green' ? '#10b981' :
+                                            ol === 'yellow' ? '#eab308' :
+                                              ol === 'purple' ? '#a855f7' :
+                                                ol === 'pink' ? '#ec4899' :
+                                                  ol === 'gray' || ol === 'grey' ? '#6b7280' :
+                                                    ol === 'silver' ? '#9ca3af' :
+                                                      ol === 'gold' || ol === 'golden' ? '#f59e0b' :
                                                         '#6b7280'
                                 }}
                               />
-                              <span className={`text-sm font-medium transition-colors ${selectedOptions[variant.name] === option
+                              <span className={`text-sm font-medium transition-colors ${selectedOptions[variant.name] === opt
                                 ? 'text-[#B38B21]'
                                 : 'text-white/60 group-hover:text-white/80'
                                 }`}>
-                                {option}
+                                {opt}
                               </span>
-                              {selectedOptions[variant.name] === option && (
+                              {selectedOptions[variant.name] === opt && (
                                 <div className="absolute -top-1 -right-1 w-4 h-4 bg-[#B38B21] rounded-full flex items-center justify-center">
                                   <div className="w-2 h-2 bg-white rounded-full"></div>
                                 </div>
                               )}
                             </div>
                           ) : (
-                            <div className={`px-6 py-3 rounded-full border text-sm font-medium transition-all ${selectedOptions[variant.name] === option
+                            <div className={`px-6 py-3 rounded-full border text-sm font-medium transition-all ${selectedOptions[variant.name] === opt
                               ? 'border-[#B38B21] bg-[#B38B21]/20 text-[#B38B21] shadow-lg shadow-[#B38B21]/20'
                               : 'border-white/20 hover:border-white/40 hover:bg-white/5 text-white/80'
                               }`}>
-                              {option}
+                              {opt}
                             </div>
                           )}
                         </button>
-                      ))}
+                      );
+                      })}
                     </div>
                   </div>
                 ))}

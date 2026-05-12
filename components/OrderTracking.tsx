@@ -59,8 +59,9 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({ order, onStatusUpd
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status.toLowerCase()) {
+  const getStatusIcon = (status: unknown) => {
+    const s = String(status ?? '').trim().toLowerCase();
+    switch (s) {
       case 'pending':
         return <Clock className="w-5 h-5 text-gray-400" />;
       case 'processing':
@@ -76,8 +77,9 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({ order, onStatusUpd
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
+  const getStatusColor = (status: unknown) => {
+    const s = String(status ?? '').trim().toLowerCase();
+    switch (s) {
       case 'pending':
         return 'border-gray-600 bg-gray-600/10';
       case 'processing':

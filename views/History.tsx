@@ -147,16 +147,17 @@ export const History: React.FC = () => {
         { id: 'repairs', label: 'Repairs', icon: Wrench, count: repairs.length }
     ];
 
-    const getStatusColor = (status: string) => {
-        const s = status.toLowerCase();
+    const getStatusColor = (status: unknown) => {
+        const s = String(status ?? '').trim().toLowerCase();
         if (['delivered', 'completed', 'accepted'].includes(s)) return 'text-green-500 bg-green-500/10';
         if (['processing', 'shipped', 'inspecting', 'diagnosing', 'in repair', 'offer made'].includes(s)) return 'text-amber-500 bg-amber-500/10';
         if (['cancelled', 'rejected', 'failed'].includes(s)) return 'text-red-500 bg-red-500/10';
         return 'text-blue-500 bg-blue-500/10';
     };
 
-    const displayOrderStatus = (status: string) => {
-        return status.toLowerCase() === 'shipped' ? 'Ready' : status;
+    const displayOrderStatus = (status: unknown) => {
+        const raw = String(status ?? '');
+        return raw.trim().toLowerCase() === 'shipped' ? 'Ready' : raw;
     };
 
     return (

@@ -62,16 +62,18 @@ export const OrderReceipt: React.FC = () => {
             .finally(() => setLoading(false));
     }, [orderId]);
 
-    const getStatusStepState = (stepKey: string, currentStatus: string): 'done' | 'active' | 'upcoming' => {
+    const getStatusStepState = (stepKey: string, currentStatus: unknown): 'done' | 'active' | 'upcoming' => {
         const hierarchy = ['Pending', 'Processing', 'Shipped', 'Delivered'];
-        const statusIdx = hierarchy.indexOf(currentStatus);
+        const currentStatusStr = String(currentStatus ?? '').trim();
+        const statusIdx = hierarchy.indexOf(currentStatusStr);
         const stepIdx = hierarchy.indexOf(stepKey);
         if (stepIdx < statusIdx) return 'done';
         if (stepIdx === statusIdx) return 'active';
         return 'upcoming';
     };
 
-    const displayStatus = (s: string) => s.toLowerCase() === 'shipped' ? 'Ready' : s;
+    const displayStatus = (s: unknown) =>
+        String(s ?? '').trim().toLowerCase() === 'shipped' ? 'Ready' : String(s ?? '');
 
     if (loading) {
         return (
