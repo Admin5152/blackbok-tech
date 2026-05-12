@@ -3,8 +3,6 @@ import {
     Package,
     Truck,
     CheckCircle2,
-    Clock,
-    MapPin,
     ShieldCheck,
     Wrench,
     ArrowLeftRight,
@@ -18,6 +16,7 @@ import {
 import { Link, useParams } from '@tanstack/react-router';
 import { useAppContext } from '../App';
 import { formatCurrency } from '../lib/utils';
+import { updateRepairRequest, updateTradeRequest } from '../lib/api';
 
 interface TimelineStep {
     id: string;
@@ -63,12 +62,48 @@ export const Tracking: React.FC = () => {
             const repair = repairs.find(r => r.id === id);
             if (!repair) return null;
 
+            const st = repair.status;
+            const pastDiag = ['Estimate Sent', 'In Repair', 'Ready', 'Completed', 'Rejected'].includes(st);
+            const pastEstimate = ['In Repair', 'Ready', 'Completed', 'Rejected'].includes(st);
+
             const steps: TimelineStep[] = [
                 { id: '1', label: 'Ticket Created', description: 'Repair request logged.', date: repair.date, status: 'completed', icon: FileText },
-                { id: '2', label: 'Received', description: 'Device arrived at our facility.', status: repair.status === 'Received' ? 'current' : 'completed', icon: MapPin },
-                { id: '3', label: 'In Repair', description: 'Our engineers are working on it.', status: repair.status === 'In Repair' ? 'current' : (repair.status === 'Ready' || repair.status === 'Completed' ? 'completed' : 'upcoming'), icon: Wrench },
-                { id: '4', label: 'Completed', description: 'Device is ready for pickup/delivery.', status: repair.status === 'Completed' ? 'completed' : 'upcoming', icon: ShieldCheck },
+                {
+                    id: '2',
+                    label: 'Diagnosis',
+                    description: 'Technicians review your device and reported issues.',
+                    status: st === 'Diagnosing' ? 'current' : st === 'Pending' ? 'upcoming' : pastDiag ? 'completed' : 'upcoming',
+                    icon: ArrowLeftRight,
+                },
+                {
+                    id: '3',
+                    label: 'Repair estimate ready',
+                    description: 'Diagnosis is complete and your official quote is ready. Approve or decline on the Repair page.',
+                    status: st === 'Estimate Sent' ? 'current' : pastEstimate ? 'completed' : 'upcoming',
+                    icon: ShieldCheck,
+                },
+                {
+                    id: '4',
+                    label: 'Repair & pickup',
+                    description: 'Work in progress or ready for collection.',
+                    status: st === 'In Repair' || st === 'Ready' ? 'current' : st === 'Completed' ? 'completed' : 'upcoming',
+                    icon: Wrench,
+                },
+                { id: '5', label: 'Completed', description: 'Repair finished — thank you for trusting BlackBox.', status: st === 'Completed' ? 'completed' : 'upcoming', icon: CheckCircle2 },
             ];
+
+            if (st === 'Rejected') {
+                const ec = (repair as any).estimated_cost;
+                const hadQuote = typeof ec === 'number' && ec > 0;
+                if (hadQuote) {
+                    steps[2] = { id: '3', label: 'Estimate declined', description: 'You declined the repair quote.', status: 'completed', icon: XCircle as any };
+                    steps[3] = { id: '4', label: 'Ticket closed', description: 'No further work on this ticket.', status: 'current', icon: AlertCircle };
+                    steps.splice(4, 1);
+                } else {
+                    steps[1] = { id: '2', label: 'Request not approved', description: 'This repair request was closed.', status: 'current', icon: AlertCircle };
+                    steps.splice(2, 3);
+                }
+            }
 
             return {
                 title: `Repair #${id}`,
@@ -79,7 +114,8 @@ export const Tracking: React.FC = () => {
                     { label: 'Device', value: repair.device },
                     { label: 'Estimate', value: repair.estimatedCost || 'TBD' },
                     { label: 'Technician', value: 'Senior Engineer X' }
-                ]
+                ],
+                originalData: repair
             };
         }
 
@@ -87,15 +123,33 @@ export const Tracking: React.FC = () => {
             const trade = trades.find(t => t.id === id);
             if (!trade) return null;
 
+            const offerSentStatuses = ['Offer sent', 'Offer Made', 'Awaiting User'];
+
             const steps: TimelineStep[] = [
                 { id: '1', label: 'Request Initiated', description: 'You started the trade-in process.', date: trade.date, status: 'completed', icon: FileText },
-                { id: '2', label: 'Inspecting', description: 'Our lab is verifying device condition.', status: trade.status === 'Inspecting' ? 'current' : (trade.status === 'Pending' ? 'upcoming' : 'completed'), icon: ArrowLeftRight },
-                { id: '3', label: 'Offer Made', description: 'valuation complete, offer issued.', status: trade.status === 'Offer Made' ? 'current' : (trade.status === 'Accepted' || trade.status === 'Completed' ? 'completed' : 'upcoming'), icon: ShieldCheck },
+                {
+                    id: '2',
+                    label: 'Inspecting',
+                    description: 'Our lab verifies device condition before any offer.',
+                    status: trade.status === 'Inspecting' ? 'current' : trade.status === 'Pending' ? 'upcoming' : 'completed',
+                    icon: ArrowLeftRight,
+                },
+                {
+                    id: '3',
+                    label: 'Offer sent',
+                    description: 'Inspection is complete and your cash offer is ready. Accept or decline in Trade-In.',
+                    status: offerSentStatuses.includes(trade.status)
+                        ? 'current'
+                        : trade.status === 'Accepted' || trade.status === 'Completed'
+                          ? 'completed'
+                          : 'upcoming',
+                    icon: ShieldCheck,
+                },
                 { id: '4', label: 'Completed', description: 'Credits applied to your account.', status: trade.status === 'Completed' ? 'completed' : 'upcoming', icon: CheckCircle2 },
             ];
 
             if (trade.status === 'Rejected') {
-                steps[2] = { id: '3', label: 'Offer Rejected', description: 'The trade-in offer was declined.', status: 'completed', icon: XCircle as any };
+                steps[2] = { id: '3', label: 'Offer declined', description: 'The trade-in offer was declined.', status: 'completed', icon: XCircle as any };
                 steps[3] = { id: '4', label: 'Trade Closed', description: 'Process terminated.', status: 'current', icon: AlertCircle };
             }
 
@@ -208,14 +262,17 @@ export const Tracking: React.FC = () => {
                                     </p>
 
                                     {/* Action Buttons for Offer Made */}
-                                    {step.label === 'Offer Made' && step.status === 'current' && (
+                                    {(step.label === 'Offer sent' || step.label === 'Offer Made') && step.status === 'current' && type === 'trade' && (
                                         <div className="flex gap-3 pt-4">
                                             <button
-                                                onClick={() => {
-                                                    if (type === 'trade') {
-                                                        const updated = trades.map(t => t.id === id ? { ...t, status: 'Accepted' } : t);
+                                                onClick={async () => {
+                                                    try {
+                                                        await updateTradeRequest(String(id), { status: 'Accepted' });
+                                                        const updated = trades.map((t) => (t.id === id ? { ...t, status: 'Accepted' } : t));
                                                         setTrades(updated as any);
                                                         notify('Trade-in offer accepted!', 'success');
+                                                    } catch (e: any) {
+                                                        notify(e?.message || 'Update failed', 'error');
                                                     }
                                                 }}
                                                 className="px-6 py-2.5 bg-[#CDA032] text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:scale-105 transition-all shadow-lg shadow-[#CDA032]/20"
@@ -223,11 +280,49 @@ export const Tracking: React.FC = () => {
                                                 Accept Offer
                                             </button>
                                             <button
-                                                onClick={() => {
-                                                    if (type === 'trade') {
-                                                        const updated = trades.map(t => t.id === id ? { ...t, status: 'Rejected' } : t);
+                                                onClick={async () => {
+                                                    try {
+                                                        await updateTradeRequest(String(id), { status: 'Rejected' });
+                                                        const updated = trades.map((t) => (t.id === id ? { ...t, status: 'Rejected' } : t));
                                                         setTrades(updated as any);
                                                         notify('Offer declined.', 'error');
+                                                    } catch (e: any) {
+                                                        notify(e?.message || 'Update failed', 'error');
+                                                    }
+                                                }}
+                                                className="px-6 py-2.5 bg-white/10 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-white/20 transition-all"
+                                            >
+                                                Decline
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {step.label === 'Repair estimate ready' && step.status === 'current' && type === 'repair' && (
+                                        <div className="flex gap-3 pt-4">
+                                            <button
+                                                onClick={async () => {
+                                                    try {
+                                                        await updateRepairRequest(String(id), { status: 'In Repair' });
+                                                        const updated = repairs.map((r) => (r.id === id ? { ...r, status: 'In Repair' } : r));
+                                                        setRepairs(updated as any);
+                                                        notify('Estimate approved.', 'success');
+                                                    } catch (e: any) {
+                                                        notify(e?.message || 'Update failed', 'error');
+                                                    }
+                                                }}
+                                                className="px-6 py-2.5 bg-[#CDA032] text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:scale-105 transition-all shadow-lg shadow-[#CDA032]/20"
+                                            >
+                                                Approve estimate
+                                            </button>
+                                            <button
+                                                onClick={async () => {
+                                                    try {
+                                                        await updateRepairRequest(String(id), { status: 'Rejected' });
+                                                        const updated = repairs.map((r) => (r.id === id ? { ...r, status: 'Rejected' } : r));
+                                                        setRepairs(updated as any);
+                                                        notify('Estimate declined.', 'info');
+                                                    } catch (e: any) {
+                                                        notify(e?.message || 'Update failed', 'error');
                                                     }
                                                 }}
                                                 className="px-6 py-2.5 bg-white/10 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-white/20 transition-all"

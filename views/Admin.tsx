@@ -1,6 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { handleSignOut } from '../lib/signOut';
+import { getAdminNavBadgeCounts } from '../lib/api';
+import {
+  initAdminNavBaselineIfNeeded,
+  getAdminNavSeen,
+  markAdminNavSectionSeen,
+  type AdminNavBadgeKey,
+} from '../lib/navBadgeWatermarks';
+import { NavUnreadBadge, NavUnreadDot } from '../components/NavUnreadBadge';
 import { AdminOverview } from './admin/AdminOverview';
 import { AdminOrders } from './admin/AdminOrders';
 import { AdminCustomers } from './admin/AdminCustomers';
@@ -47,11 +55,66 @@ const SECTION_TITLES: Record<AdminSection, string> = {
   users: 'Users',
 };
 
+const NAV_BADGE_KEYS = new Set<AdminNavBadgeKey>([
+  'orders',
+  'customers',
+  'products',
+  'trades',
+  'repairs',
+  'users',
+]);
+
+function isNavBadgeKey(id: AdminSection): id is AdminNavBadgeKey {
+  return NAV_BADGE_KEYS.has(id as AdminNavBadgeKey);
+}
+
+const ZERO_BADGES: Record<AdminNavBadgeKey, number> = {
+  orders: 0,
+  customers: 0,
+  products: 0,
+  trades: 0,
+  repairs: 0,
+  users: 0,
+};
+
 export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme = 'dark' }) => {
   const routerNavigate = useNavigate();
   const role: string = (user?.role || 'user').toString().toLowerCase();
   const [section, setSection] = useState<AdminSection>('overview');
   const [sidebar, setSidebar] = useState(true);
+  const [badgeCounts, setBadgeCounts] = useState<Record<AdminNavBadgeKey, number>>(ZERO_BADGES);
+  const badgePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const refreshBadgeCounts = useCallback(async () => {
+    const uid = user?.id;
+    if (!uid) return;
+    initAdminNavBaselineIfNeeded(uid);
+    try {
+      const seen = getAdminNavSeen(uid);
+      const next = await getAdminNavBadgeCounts(seen);
+      setBadgeCounts(next);
+    } catch (e) {
+      console.warn('Admin badge counts:', e);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    const uid = user?.id;
+    if (!uid) return;
+    initAdminNavBaselineIfNeeded(uid);
+    void refreshBadgeCounts();
+    badgePollRef.current = window.setInterval(() => void refreshBadgeCounts(), 45_000);
+    return () => {
+      if (badgePollRef.current) window.clearInterval(badgePollRef.current);
+    };
+  }, [user?.id, refreshBadgeCounts]);
+
+  useEffect(() => {
+    const uid = user?.id;
+    if (!uid || section === 'overview' || !isNavBadgeKey(section)) return;
+    markAdminNavSectionSeen(uid, section);
+    void refreshBadgeCounts();
+  }, [section, user?.id, refreshBadgeCounts]);
 
   // Role-derived permissions. The route-level guard already ensures the
   // visitor is an admin to land on this page; these flags further gate
@@ -104,7 +167,9 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
 
         {/* Nav items — ALL sections always visible */}
         <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
-          {NAV_ITEMS.map(item => (
+          {NAV_ITEMS.map(item => {
+            const n = isNavBadgeKey(item.id) ? badgeCounts[item.id] : 0;
+            return (
             <button
               key={item.id}
               onClick={() => {
@@ -119,14 +184,29 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
                     ? 'text-black/60 hover:text-black hover:bg-black/5'
                     : 'text-white/30 hover:text-white hover:bg-white/5'}`}
             >
-              <item.icon size={17} className="shrink-0" />
+              <span className="relative shrink-0">
+                <item.icon size={17} className="shrink-0" />
+                {!sidebar && isNavBadgeKey(item.id) && (
+                  <NavUnreadDot show={n > 0} className={section === item.id ? 'ring-[#B38B21]' : ''} />
+                )}
+              </span>
               {sidebar && (
-                <span className="text-xs font-black uppercase tracking-wider text-left flex-1">
-                  {item.label}
-                </span>
+                <>
+                  <span className="text-xs font-black uppercase tracking-wider text-left flex-1 min-w-0 truncate">
+                    {item.label}
+                  </span>
+                  {isNavBadgeKey(item.id) && (
+                    <NavUnreadBadge
+                      count={n}
+                      className={section === item.id ? 'ring-2 ring-black/25' : ''}
+                      title={`${n} new since last viewed`}
+                    />
+                  )}
+                </>
               )}
             </button>
-          ))}
+            );
+          })}
         </nav>
 
         {/* User info + sign out */}

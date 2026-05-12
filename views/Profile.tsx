@@ -10,6 +10,7 @@ import { User, RepairRequest, Order, Product, TradeRequest } from '../types';
 import { formatDate, formatCurrency } from '../lib/utils';
 import { ProductCard } from '../components/ProductCard';
 import { OrderTracker } from '../components/OrderTracker';
+import { useAppContext } from '../App';
 import { handleSignOut } from '../lib/signOut';
 import { DeleteAccountService } from '../lib/deleteAccount';
 import { DeleteAccountModal } from '../components/DeleteAccountModal';
@@ -35,6 +36,14 @@ interface ProfileProps {
 export const Profile: React.FC<ProfileProps> = ({
   user, repairs, orders, trades = [], wishlist, products, setUser, navigateTo, toggleWishlist, onAddToCart, theme, notify
 }) => {
+  const {
+    setCart,
+    setOrders,
+    setRepairs,
+    setTrades,
+    setWishlist,
+    setCompareIds,
+  } = useAppContext();
   const isLight = theme === 'light';
   const [activeTab, setActiveTab] = useState<'overview' | 'settings' | 'orders' | 'repairs' | 'address' | 'payment' | 'wishlist' | 'purchases' | 'trades'>('overview');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -176,9 +185,18 @@ export const Profile: React.FC<ProfileProps> = ({
       );
 
       if (result.success) {
-        await handleSignOut(setUser, navigateTo);
+        setCart([]);
+        setOrders([]);
+        setRepairs([]);
+        setTrades([]);
+        setWishlist([]);
+        setCompareIds([]);
+        await AuthService.signOut();
+        setUser(null);
         setShowDeleteModal(false);
-        notify?.('Your account has been deleted.', 'info');
+        setDeletePassword('');
+        notify?.('Your account has been removed and you are signed out.', 'info');
+        navigateTo('home');
       } else {
         setDeleteError(result.error || 'Failed to delete account');
       }

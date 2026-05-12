@@ -90,6 +90,8 @@ export interface AppContextType {
   setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
   setRepairs: (r: RepairRequest[]) => void;
   setTrades: (t: TradeRequest[]) => void;
+  setWishlist: React.Dispatch<React.SetStateAction<string[]>>;
+  setCompareIds: React.Dispatch<React.SetStateAction<string[]>>;
   addToCart: (p: Product, o?: any, q?: number) => void;
   toggleWishlist: (id: string) => void;
   toggleCompare: (id: string) => void;
@@ -1108,13 +1110,7 @@ function RootComponent() {
     setCart(prev => prev.filter(p => `${p.id}-${JSON.stringify(p.selectedOptions)}` !== uniqueId));
   };
 
-  const handleCheckout = (total: number) => {
-    if (!user) {
-      notify('Please sign in to place an order.', 'error');
-      navigate({ to: '/auth' as any });
-      return;
-    }
-    // Navigate to the full checkout form — order is created there
+  const handleCheckout = (_total: number) => {
     navigate({ to: '/checkout' as any });
   };
 
@@ -1123,7 +1119,7 @@ function RootComponent() {
     searchQuery, setSearchQuery,
     selectedCategories, setSelectedCategories,
     setUser, setCart, setOrders,
-    setRepairs, setTrades, addToCart, toggleWishlist, toggleCompare,
+    setRepairs, setTrades, setWishlist, setCompareIds, addToCart, toggleWishlist, toggleCompare,
     onToggleCompare: toggleCompare,
     updateQuantity, removeFromCart, handleCheckout, notify, navigateTo,
     onQuickView: (p: Product) => { setQuickViewProduct(p); setIsQuickViewOpen(true); },
@@ -1156,6 +1152,9 @@ function RootComponent() {
             navigateTo={navigateTo}
             user={user}
             products={products}
+            orders={orders}
+            repairs={repairs}
+            trades={trades}
             theme={theme}
             setTheme={setTheme}
             setSearchQuery={setSearchQuery}
@@ -1421,6 +1420,8 @@ export default function App() {
     setOrders: noop as any,
     setRepairs: noop as any,
     setTrades: noop as any,
+    setWishlist: noop as any,
+    setCompareIds: noop as any,
     addToCart: noop as any,
     toggleWishlist: noop as any,
     toggleCompare: noop as any,

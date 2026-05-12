@@ -31,6 +31,7 @@ export type RegistrationEmailState =
   | 'active_account'
   | 'auth_without_profile'
   | 'profile_only'
+  | 'deleted_account'
   | 'unknown';
 
 export interface RegistrationEmailStatusResult {
@@ -38,10 +39,15 @@ export interface RegistrationEmailStatusResult {
   state: RegistrationEmailState;
   exists_in_auth?: boolean;
   has_profile?: boolean;
+  was_deleted?: boolean;
 }
 
 // Authentication Service
 class AuthService {
+  private static signupEmailStateAllowed(state: RegistrationEmailState): boolean {
+    return state === 'available' || state === 'deleted_account';
+  }
+
   private static resolveAppRole(role: unknown): CanonicalAppRole {
     return normalizeCanonicalRole(role);
   }
@@ -70,7 +76,8 @@ class AuthService {
   }
 
   /**
-   * Cross-checks `auth.users` vs `public.profiles` (migration `2026_05_registration_email_status.sql`).
+   * Cross-checks `auth.users`, `public.profiles`, and `public.account_deletions`
+   * (see migrations `2026_05_registration_email_status.sql` and `2026_05_account_deletions.sql`).
    * Returns null if the RPC is missing or fails — signup still works without it, with generic errors.
    */
   static async registrationEmailStatus(email: string): Promise<RegistrationEmailStatusResult | null> {
@@ -90,6 +97,7 @@ class AuthService {
         state?: string;
         exists_in_auth?: boolean;
         has_profile?: boolean;
+        was_deleted?: boolean;
       } | null;
       if (!row || row.ok === false) return null;
       const state = (row.state as RegistrationEmailState) || 'unknown';
@@ -98,6 +106,7 @@ class AuthService {
         state,
         exists_in_auth: row.exists_in_auth,
         has_profile: row.has_profile,
+        was_deleted: row.was_deleted,
       };
     } catch (e) {
       console.warn('registration_email_status:', e);
@@ -116,6 +125,8 @@ class AuthService {
         return 'This email is still tied to a login (for example after shop data was removed but the login was not). You cannot register again with the same email until that login is cleared. Try Sign in or Forgot password. If you closed your account and still see this, contact support to remove the leftover login, then use Sign up.';
       case 'profile_only':
         return 'This email appears in shop records without a matching login. Contact support so we can fix or release this email.';
+      case 'deleted_account':
+        return 'This email was used on a BlackBox account that was removed. You can use Sign up again with the same email to start fresh.';
       default:
         return 'This email cannot be used for a new registration right now. Try Sign in or Forgot password.';
     }
@@ -123,7 +134,7 @@ class AuthService {
 
   private static async duplicateSignupUserMessage(email: string): Promise<string> {
     const hint = await this.registrationEmailStatus(email);
-    if (hint?.ok && hint.state !== 'available') {
+    if (hint?.ok && !this.signupEmailStateAllowed(hint.state)) {
       return this.explainRegistrationState(hint.state);
     }
     return 'This email is already registered in the login system. Use Sign in or Forgot password.';
@@ -273,7 +284,7 @@ class AuthService {
         };
 
         const preStatus = await this.registrationEmailStatus(emailTrim);
-        if (preStatus?.ok && preStatus.state !== 'available') {
+        if (preStatus?.ok && !this.signupEmailStateAllowed(preStatus.state)) {
           return { user: null, error: this.explainRegistrationState(preStatus.state) };
         }
 
@@ -296,7 +307,7 @@ class AuthService {
         if (error) {
           console.error('❌ Supabase signup error:', error);
           const hint = await this.registrationEmailStatus(emailTrim);
-          if (hint?.ok && hint.state !== 'available') {
+          if (hint?.ok && !this.signupEmailStateAllowed(hint.state)) {
             return { user: null, error: this.explainRegistrationState(hint.state) };
           }
           return { user: null, error: this.formatSignUpError(error.message) };

@@ -2,14 +2,15 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   Send, Activity, Smartphone, Laptop, Tablet, Gamepad2, Watch, Check,
   ArrowLeft, ArrowRight, Calendar, AlertCircle, Clock, MapPin, Phone, Mail, User,
-  Wrench, Package, Info, MonitorSmartphone, ChevronRight
+  Wrench, Package, Info, MonitorSmartphone, ChevronRight, CheckCircle2, XCircle
 } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import type { RepairRequest } from '../types';
 import { useAppContext } from '../App';
 import { ImageUpload } from '../components/ImageUpload';
 import { repairPricing, repairServicesMap } from '../data/repairPrices';
-import { createRepairRequest, getRepairRequests } from '../lib/api';
+import { createRepairRequest, getRepairRequests, updateRepairRequest } from '../lib/api';
+import { saveResumeAfterAuth, peekRestorePayload, clearRestorePayload } from '../lib/resumeAfterAuth';
 
 export const Repair: React.FC = () => {
   const { user, repairs, setRepairs, notify, theme } = useAppContext();
@@ -58,6 +59,7 @@ export const Repair: React.FC = () => {
   });
 
   const formRef = useRef<HTMLDivElement>(null);
+  const repairRestoreDone = useRef(false);
 
   // Load past repairs from Supabase
   useEffect(() => {
@@ -66,6 +68,38 @@ export const Repair: React.FC = () => {
       .then(d => setMyRepairs(d as RepairRequest[]))
       .catch(() => { });
   }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      repairRestoreDone.current = false;
+      return;
+    }
+    if (repairRestoreDone.current) return;
+
+    const payload = peekRestorePayload('repair') as Record<string, unknown> | null;
+    if (!payload || typeof payload !== 'object') {
+      repairRestoreDone.current = true;
+      return;
+    }
+
+    clearRestorePayload('repair');
+    repairRestoreDone.current = true;
+
+    if (typeof payload.step === 'number' && payload.step >= 1 && payload.step <= 6) setStep(payload.step);
+    if (typeof payload.subStep === 'number' && payload.subStep >= 1 && payload.subStep <= 3) setSubStep(payload.subStep);
+    if (typeof payload.transitionKey === 'number') setTransitionKey(payload.transitionKey);
+    if (typeof payload.selectedSeries === 'string') setSelectedSeries(payload.selectedSeries);
+    if (Array.isArray(payload.selectedIssueKeys)) {
+      const valid = (payload.selectedIssueKeys as string[]).filter(
+        (k): k is keyof typeof repairServicesMap => k in repairServicesMap,
+      );
+      setSelectedIssueKeys(new Set(valid));
+    }
+    if (payload.formData && typeof payload.formData === 'object') {
+      setFormData((prev) => ({ ...prev, ...(payload.formData as typeof prev), photos: [] }));
+    }
+    notify('Your repair draft was restored. Re-attach photos if you had added any.', 'success');
+  }, [user, notify]);
 
   useEffect(() => {
     // Scroll to the active form section whenever step or substep changes
@@ -114,7 +148,19 @@ export const Repair: React.FC = () => {
   };
 
   const submitRepairRequest = async () => {
-    if (!user) { navigate({ to: '/auth' }); return; }
+    if (!user) {
+      saveResumeAfterAuth('repair', {
+        step,
+        subStep,
+        transitionKey,
+        formData: { ...formData, photos: [] },
+        selectedIssueKeys: Array.from(selectedIssueKeys),
+        selectedSeries,
+      });
+      notify('Sign in to submit. Your repair progress will be restored after you log in.', 'info');
+      navigate({ to: '/auth' });
+      return;
+    }
     if (submitting) return;
     const selectedLabels = Array.from(selectedIssueKeys).map(k => repairServicesMap[k as keyof typeof repairServicesMap].label);
     const accessoriesList = Object.entries(formData.accessories).filter(([_, v]) => v).map(([k]) => k).join(', ');
@@ -245,6 +291,23 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
     serviceKey: key as keyof typeof repairServicesMap, ...service,
   }));
 
+  const pendingRepairEstimate = myRepairs.find((r) => r.status === 'Estimate Sent');
+
+  const handleRepairEstimateResponse = async (repairId: string, accept: boolean) => {
+    try {
+      const status = accept ? 'In Repair' : 'Rejected';
+      await updateRepairRequest(repairId, { status });
+      setMyRepairs((prev) => prev.map((r) => (r.id === repairId ? { ...r, status } : r)));
+      setRepairs(repairs.map((r) => (r.id === repairId ? { ...r, status } : r)));
+      notify(
+        accept ? 'Estimate approved — we will proceed with the repair.' : 'Repair estimate declined.',
+        accept ? 'success' : 'info',
+      );
+    } catch (err: any) {
+      notify(err?.message || 'Could not update repair.', 'error');
+    }
+  };
+
   return (
     <div className="min-h-screen pb-32 relative" style={{ backgroundColor: 'var(--bb-bg)', color: 'var(--bb-text)' }}>
       {/* Background */}
@@ -270,6 +333,42 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#CDA032] to-[#FCE69B]">working beautifully.</span>
           </h1>
         </header>
+
+        {pendingRepairEstimate && (
+          <div className="mb-8 bg-gradient-to-r from-orange-500/10 to-[#B38B21]/10 border border-orange-500/30 rounded-2xl p-4 sm:p-5">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-orange-400 mb-1">Repair estimate ready</p>
+                <p className="text-white font-black text-lg">{pendingRepairEstimate.device}</p>
+                {pendingRepairEstimate.estimatedCost && (
+                  <p className="text-2xl font-black text-[#B38B21] mt-2">
+                    {pendingRepairEstimate.estimatedCost}{' '}
+                    <span className="text-xs text-white/40 font-normal">authorized quote</span>
+                  </p>
+                )}
+                {(pendingRepairEstimate as any).adminNote && (
+                  <p className="text-xs text-white/50 mt-1 bg-white/5 rounded-xl p-2">{(pendingRepairEstimate as any).adminNote}</p>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleRepairEstimateResponse(pendingRepairEstimate.id, true)}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white font-black text-xs uppercase rounded-xl hover:bg-green-400 transition-all"
+                >
+                  <CheckCircle2 size={14} /> Approve
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRepairEstimateResponse(pendingRepairEstimate.id, false)}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white/10 text-white/70 font-black text-xs uppercase rounded-xl hover:bg-white/20 transition-all"
+                >
+                  <XCircle size={14} /> Decline
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-start">
 

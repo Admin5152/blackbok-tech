@@ -6,11 +6,17 @@ import {
   Sparkles, Eye, Clock, Menu, Sun, Moon, Search, TrendingUp, Box, Laptop, Smartphone, Gamepad2, History, Calendar, Info, Heart, UserCog, Headphones, LayoutDashboard
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from '@tanstack/react-router';
-import { User, CartItem, Product } from '../types';
+import { User, CartItem, Product, Order, RepairRequest, TradeRequest } from '../types';
 import { formatCurrency } from '../lib/utils';
 import { handleSignOut } from '../lib/signOut';
 import { NotificationBell } from './NotificationBell';
 import { canAccessAdminDashboard } from '../lib/roles';
+import {
+  initStoreNavBaselineIfNeeded,
+  getStoreNavSeen,
+  markStoreNavSectionSeen,
+} from '../lib/navBadgeWatermarks';
+import { NavUnreadBadge } from './NavUnreadBadge';
 
 const ViewfinderLogo = () => (
   <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-8 h-8">
@@ -27,6 +33,9 @@ export const Navbar: React.FC<{
   navigateTo: (view: string, id?: string) => void;
   user: any;
   products: Product[];
+  orders?: Order[];
+  repairs?: RepairRequest[];
+  trades?: TradeRequest[];
   theme: 'light' | 'dark';
   setTheme?: (t: 'light' | 'dark') => void;
   setSearchQuery?: (q: string) => void;
@@ -36,6 +45,9 @@ export const Navbar: React.FC<{
   navigateTo,
   user,
   products = [],
+  orders = [],
+  repairs = [],
+  trades = [],
   theme,
   setTheme,
   setSearchQuery: setGlobalSearchQuery,
@@ -48,10 +60,61 @@ export const Navbar: React.FC<{
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [activeMobileSubmenu, setActiveMobileSubmenu] = useState<string | null>(null);
+    const [storeBadgeTick, setStoreBadgeTick] = useState(0);
 
     const cartCount = cart.reduce((a, c) => a + c.quantity, 0);
     const isLight = theme === 'light';
     const showAdminLink = Boolean(user && canAccessAdminDashboard(user.role));
+
+    useEffect(() => {
+      if (!user?.id) return;
+      initStoreNavBaselineIfNeeded(user.id);
+    }, [user?.id]);
+
+    useEffect(() => {
+      if (!user?.id) return;
+      let marked = false;
+      const path = location.pathname;
+      const tab = new URLSearchParams(location.search).get('tab');
+      if (path === '/history') {
+        marked = true;
+        if (tab === 'repairs') markStoreNavSectionSeen(user.id, 'repairs');
+        else if (tab === 'trades') markStoreNavSectionSeen(user.id, 'trades');
+        else markStoreNavSectionSeen(user.id, 'orders');
+      } else if (path === '/trades') {
+        marked = true;
+        markStoreNavSectionSeen(user.id, 'trades');
+      } else if (path === '/repair') {
+        marked = true;
+        markStoreNavSectionSeen(user.id, 'repairs');
+      }
+      if (marked) setStoreBadgeTick((t) => t + 1);
+    }, [location.pathname, location.search, user?.id]);
+
+    const storeUnread = useMemo(() => {
+      if (!user?.id) return { orders: 0, repairs: 0, trades: 0 };
+      void storeBadgeTick;
+      const seen = getStoreNavSeen(user.id);
+      const uid = user.id;
+      const mine = <T extends { user_id?: string; userId?: string }>(rows: T[]) =>
+        rows.filter((r) => (r.user_id || r.userId) === uid);
+      const rowT = (o: { created_at?: string; date?: string }) => {
+        const s = o.created_at || o.date;
+        const t = s ? new Date(s).getTime() : NaN;
+        return Number.isFinite(t) ? t : 0;
+      };
+      const sinceMs = (iso: string) => {
+        const t = new Date(iso).getTime();
+        return Number.isFinite(t) ? t : 0;
+      };
+      const countAfter = (rows: { created_at?: string; date?: string }[], iso: string) =>
+        mine(rows).filter((r) => rowT(r) > sinceMs(iso)).length;
+      return {
+        orders: countAfter(orders, seen.orders),
+        repairs: countAfter(repairs, seen.repairs),
+        trades: countAfter(trades, seen.trades),
+      };
+    }, [user?.id, orders, repairs, trades, storeBadgeTick]);
 
     useEffect(() => {
       const handleScroll = () => {
@@ -123,7 +186,9 @@ export const Navbar: React.FC<{
               {/* Products Dropdown */}
               <div className="relative group">
                 <Link to="/store" className={navItemClass('/store')}>
-                  <ShoppingBag size={16} /> Products <ChevronDown size={14} className="opacity-40 group-hover:rotate-180 transition-transform duration-300" />
+                  <ShoppingBag size={16} /> Products
+                  <NavUnreadBadge count={storeUnread.orders} className="ml-0.5" title="New orders since you last checked history" />
+                  <ChevronDown size={14} className="opacity-40 group-hover:rotate-180 transition-transform duration-300" />
                 </Link>
                 <div className={`absolute top-full left-0 pt-2 opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-300 z-[100]`}>
                   <div className={`w-56 rounded-2xl border shadow-2xl p-2 backdrop-blur-3xl ${isLight ? 'bg-white/95 border-black/5' : 'bg-[#121212]/95 border-white/5'}`}>
@@ -144,7 +209,8 @@ export const Navbar: React.FC<{
                     </Link>
                     <div className={`my-1 h-px ${isLight ? 'bg-black/5' : 'bg-white/5'}`} />
                     <Link to="/history" search={{ tab: 'orders' } as any} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
-                      <History size={14} className="opacity-40" /> Track Orders
+                      <History size={14} className="opacity-40 shrink-0" /> Track Orders
+                      <NavUnreadBadge count={storeUnread.orders} className="ml-auto" title="New orders" />
                     </Link>
                   </div>
                 </div>
@@ -153,7 +219,9 @@ export const Navbar: React.FC<{
               {/* Trades Dropdown */}
               <div className="relative group">
                 <Link to="/trades" className={navItemClass('/trades')}>
-                  <RefreshCcw size={16} /> Trades <ChevronDown size={14} className="opacity-40 group-hover:rotate-180 transition-transform duration-300" />
+                  <RefreshCcw size={16} /> Trades
+                  <NavUnreadBadge count={storeUnread.trades} className="ml-0.5" title="New trade-in activity" />
+                  <ChevronDown size={14} className="opacity-40 group-hover:rotate-180 transition-transform duration-300" />
                 </Link>
                 <div className={`absolute top-full left-0 pt-2 opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-300 z-[100]`}>
                   <div className={`w-56 rounded-2xl border shadow-2xl p-2 backdrop-blur-3xl ${isLight ? 'bg-white/95 border-black/5' : 'bg-[#121212]/95 border-white/5'}`}>
@@ -165,7 +233,8 @@ export const Navbar: React.FC<{
                       <RefreshCcw size={14} className="opacity-40" /> Trade-In Program
                     </Link>
                     <Link to="/history" search={{ tab: 'trades' } as any} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
-                      <History size={14} className="opacity-40" /> Trade-In History
+                      <History size={14} className="opacity-40 shrink-0" /> Trade-In History
+                      <NavUnreadBadge count={storeUnread.trades} className="ml-auto" title="New trade-ins" />
                     </Link>
                   </div>
                 </div>
@@ -174,7 +243,9 @@ export const Navbar: React.FC<{
               {/* Repairs Dropdown */}
               <div className="relative group">
                 <Link to="/repair" className={navItemClass('/repair')}>
-                  <Wrench size={16} /> Repairs <ChevronDown size={14} className="opacity-40 group-hover:rotate-180 transition-transform duration-300" />
+                  <Wrench size={16} /> Repairs
+                  <NavUnreadBadge count={storeUnread.repairs} className="ml-0.5" title="New repair requests" />
+                  <ChevronDown size={14} className="opacity-40 group-hover:rotate-180 transition-transform duration-300" />
                 </Link>
                 <div className={`absolute top-full left-0 pt-2 opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-300 z-[100]`}>
                   <div className={`w-56 rounded-2xl border shadow-2xl p-2 backdrop-blur-3xl ${isLight ? 'bg-white/95 border-black/5' : 'bg-[#121212]/95 border-white/5'}`}>
@@ -183,7 +254,8 @@ export const Navbar: React.FC<{
                       <Calendar size={14} className="opacity-40" /> Schedule Repair
                     </Link>
                     <Link to="/history" search={{ tab: 'repairs' } as any} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
-                      <History size={14} className="opacity-40" /> Repair History
+                      <History size={14} className="opacity-40 shrink-0" /> Repair History
+                      <NavUnreadBadge count={storeUnread.repairs} className="ml-auto" title="New repairs" />
                     </Link>
                   </div>
                 </div>
@@ -362,27 +434,27 @@ export const Navbar: React.FC<{
                       ]
                     },
                     {
-                      path: '/store', label: 'Products', icon: ShoppingBag, subItems: [
+                      path: '/store', label: 'Products', icon: ShoppingBag, badge: storeUnread.orders, subItems: [
                         { path: '/store', label: 'All Products', icon: Box },
                         { path: '/store', label: 'iPhone', icon: Smartphone, search: { category: 'iPhone' } },
                         { path: '/store', label: 'Laptops', icon: Laptop, search: { category: 'Laptop' } },
                         { path: '/store', label: 'Accessories', icon: Box, search: { category: 'Accessories' } },
                         { path: '/store', label: 'Gaming', icon: Gamepad2, search: { category: 'Gaming' } },
                         { path: '/store', label: 'Audio', icon: Headphones, search: { category: 'Audio' } },
-                        { path: '/history', label: 'Track Orders', icon: History, search: { tab: 'orders' } }
+                        { path: '/history', label: 'Track Orders', icon: History, search: { tab: 'orders' }, badge: storeUnread.orders }
                       ]
                     },
                     {
-                      path: '/trades', label: 'Trades', icon: RefreshCcw, subItems: [
+                      path: '/trades', label: 'Trades', icon: RefreshCcw, badge: storeUnread.trades, subItems: [
                         { type: 'info', label: 'Your Trade-In Items', content: 'Track your device value in real-time.' },
                         { path: '/trades', label: 'Trade-In Program', icon: RefreshCcw },
-                        { path: '/history', label: 'Trade-In History', icon: History, search: { tab: 'trades' } }
+                        { path: '/history', label: 'Trade-In History', icon: History, search: { tab: 'trades' }, badge: storeUnread.trades }
                       ]
                     },
                     {
-                      path: '/repair', label: 'Repairs', icon: Wrench, subItems: [
+                      path: '/repair', label: 'Repairs', icon: Wrench, badge: storeUnread.repairs, subItems: [
                         { path: '/repair', label: 'Schedule Repair', icon: Calendar },
-                        { path: '/history', label: 'Repair History', icon: History, search: { tab: 'repairs' } }
+                        { path: '/history', label: 'Repair History', icon: History, search: { tab: 'repairs' }, badge: storeUnread.repairs }
                       ]
                     },
                     { path: '/returns', label: 'Returns', icon: RotateCcw },
@@ -416,10 +488,14 @@ export const Navbar: React.FC<{
                         <span className="flex-1 text-left text-sm font-black uppercase tracking-widest">
                           {item.label}
                         </span>
-                        {item.badge && item.badge > 0 && (
+                        {item.badge != null && item.badge > 0 && (
+                          item.label === 'Cart' ? (
                           <span className="rounded-full bg-[#CDA032] px-2 py-1 text-xs font-black text-black">
-                            {item.badge}
+                            {item.badge > 99 ? '99+' : item.badge}
                           </span>
+                          ) : (
+                            <NavUnreadBadge count={item.badge} title="New activity" />
+                          )
                         )}
                       </button>
                       {hasSubItems && (
@@ -451,12 +527,15 @@ export const Navbar: React.FC<{
                                 to={sub.path}
                                 search={sub.search as any}
                                 onClick={() => setIsMobileMenuOpen(false)}
-                                className="flex items-center gap-4 rounded-xl border border-transparent px-4 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-white/40 transition-all hover:border-white/5 hover:bg-white/5 hover:text-[#CDA032]"
+                                className="flex w-full items-center gap-3 rounded-xl border border-transparent px-4 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-white/40 transition-all hover:border-white/5 hover:bg-white/5 hover:text-[#CDA032]"
                               >
-                                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5">
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/5">
                                   <sub.icon size={14} className="opacity-40" />
                                 </div>
-                                {sub.label}
+                                <span className="flex-1">{sub.label}</span>
+                                {typeof sub.badge === 'number' && sub.badge > 0 && (
+                                  <NavUnreadBadge count={sub.badge} title="New since last visit" />
+                                )}
                               </Link>
                             );
                           })}

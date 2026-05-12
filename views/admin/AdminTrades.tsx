@@ -21,7 +21,7 @@ const CONDITION_OPTIONS = ['Like New', 'Excellent', 'Good', 'Fair', 'Poor'];
 const TRADE_STATUS_LABELS: Record<string, string> = {
     submitted: 'Pending',
     inspecting: 'Inspecting',
-    offer_made: 'Offer Made',
+    offer_made: 'Offer sent',
     awaiting_user: 'Awaiting User',
     accepted: 'Accepted',
     completed: 'Completed',
@@ -34,7 +34,7 @@ const toDbTradeStatus = (status?: string) => {
     if (TRADE_STATUS_LABELS[lower]) return lower;
     if (value === 'Pending') return 'submitted';
     if (value === 'Inspecting') return 'inspecting';
-    if (value === 'Offer Made') return 'offer_made';
+    if (value === 'Offer Made' || value === 'Offer sent') return 'offer_made';
     if (value === 'Awaiting User') return 'awaiting_user';
     if (value === 'Accepted') return 'accepted';
     if (value === 'Completed') return 'completed';
@@ -101,8 +101,9 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
         if (!sel || !offer || !condition) return;
         const amount = parseFloat(offer);
         if (!Number.isFinite(amount)) return;
+        // offer_made = inspection finished; customer is notified and can accept/decline.
         await patchTrade(sel.id, {
-            status: 'awaiting_user',
+            status: 'offer_made',
             condition,
             final_value: amount,
             offered_price: amount,
@@ -158,7 +159,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                 {[
                     { label: 'Total', val: trades.length, col: '#B38B21' },
                     { label: 'Pending', val: trades.filter(t => toDbTradeStatus(t.status) === 'submitted').length, col: '#f59e0b' },
-                    { label: 'Awaiting', val: trades.filter(t => toDbTradeStatus(t.status) === 'awaiting_user').length, col: '#6366f1' },
+                    { label: 'Offer out', val: trades.filter(t => ['offer_made', 'awaiting_user'].includes(toDbTradeStatus(t.status))).length, col: '#6366f1' },
                     { label: 'Completed', val: trades.filter(t => toDbTradeStatus(t.status) === 'completed').length, col: '#10b981' },
                 ].map(s => (
                     <div key={s.label} className="bg-[#0a0a0a] border border-white/5 rounded-xl p-4">
@@ -288,7 +289,10 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                 {/* Send offer */}
                                 <div className="bg-black/40 rounded-xl p-4 space-y-3">
                                     <p className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2">
-                                        <Send size={12} className="text-purple-400" /> Send Approval Offer to User
+                                        <Send size={12} className="text-purple-400" /> Send offer after inspection
+                                    </p>
+                                    <p className="text-[9px] text-white/40 leading-relaxed">
+                                        Sending sets status to <span className="text-white/60">Offer sent</span> — inspection is recorded as done. The customer is notified and can accept or decline.
                                     </p>
                                     <div>
                                         <label className="text-[9px] text-white/30 uppercase tracking-widest block mb-1">Set Condition (Admin Only)</label>
@@ -310,7 +314,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                         className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs resize-none focus:border-[#B38B21]/50 focus:outline-none" />
                                     <button onClick={sendOffer} disabled={!offer || !condition || saving}
                                         className="w-full py-2.5 bg-[#B38B21] text-black font-black text-xs uppercase tracking-widest rounded-xl hover:bg-[#D4AF37] transition-all disabled:opacity-40 flex items-center justify-center gap-2">
-                                        <Send size={13} /> {saving ? 'Sending...' : 'Send Offer to User'}
+                                        <Send size={13} /> {saving ? 'Sending...' : 'Send offer to customer'}
                                     </button>
                                 </div>
                             </div>

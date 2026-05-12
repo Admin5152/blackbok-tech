@@ -4,6 +4,7 @@ import AuthService, { type LoginCredentials, type AuthResponse } from '../lib/au
 import type { User } from '../interface/interface';
 import { useLocation } from '@tanstack/react-router';
 import { canAccessAdminDashboard, normalizeCanonicalRole } from '../lib/roles';
+import { activateResumeAfterLogin, clearResumeAfterAuth } from '../lib/resumeAfterAuth';
 
 interface LoginProps {
   setUser: (user: User | null) => void;
@@ -138,13 +139,21 @@ export const Login: React.FC<LoginProps> = ({ setUser, navigateTo, theme, notify
         setUser(user);
         notify(`Login successful! Welcome back, ${user.name}!`, 'success');
 
-        // Navigate based on role
         if (canAccessAdminDashboard(resolvedRole)) {
+          clearResumeAfterAuth();
           console.log('Navigating to admin panel');
           navigateTo('/admin');
         } else {
-          console.log('Navigating to home');
-          navigateTo('home');
+          const resumed = activateResumeAfterLogin();
+          if (resumed) {
+            notify('Continuing where you left off.', 'success');
+            if (resumed === 'trades') navigateTo('trades');
+            else if (resumed === 'repair') navigateTo('repair');
+            else navigateTo('home');
+          } else {
+            console.log('Navigating to home');
+            navigateTo('home');
+          }
         }
       } else {
         console.error('Authentication failed:', response.error);

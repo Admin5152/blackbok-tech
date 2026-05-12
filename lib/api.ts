@@ -24,6 +24,7 @@ import {
 import { formatCurrency } from './utils';
 import { normalizeCanonicalRole } from './roles';
 import { resolveUserDisplayName } from './userDisplayName';
+import type { AdminNavBadgeKey } from './navBadgeWatermarks';
 
 // Normalizes admin-entered category strings (e.g. "Mobile Phones",
 // "Laptops & Notebooks", "Apple iPhones") to one of the canonical
@@ -1006,6 +1007,7 @@ export const updateRepairRequest = async (id: string, updates: Partial<RepairReq
 const TRADE_STATUS_TO_DB: Record<string, string> = {
   Pending: 'submitted',
   Inspecting: 'inspecting',
+  'Offer sent': 'offer_made',
   'Offer Made': 'offer_made',
   'Awaiting User': 'awaiting_user',
   Accepted: 'accepted',
@@ -1016,7 +1018,7 @@ const TRADE_STATUS_TO_DB: Record<string, string> = {
 const TRADE_STATUS_FROM_DB: Record<string, string> = {
   submitted: 'Pending',
   inspecting: 'Inspecting',
-  offer_made: 'Offer Made',
+  offer_made: 'Offer sent',
   awaiting_user: 'Awaiting User',
   accepted: 'Accepted',
   completed: 'Completed',
@@ -1300,6 +1302,55 @@ export const getUsers = async (): Promise<Profile[]> => {
     ...p,
     role: normalizeCanonicalRole(p.role ?? 'user'),
   }));
+};
+
+export type AccountDeletionRow = {
+  id: string;
+  user_id: string;
+  email: string;
+  display_name: string | null;
+  deleted_at: string;
+};
+
+/** Admin/staff: self-service account removals (see `account_deletions` migration). */
+export const getAccountDeletions = async (): Promise<AccountDeletionRow[]> => {
+  const { data, error } = await supabase
+    .from('account_deletions')
+    .select('id, user_id, email, display_name, deleted_at')
+    .order('deleted_at', { ascending: false });
+  if (error) throw error;
+  return (data || []) as AccountDeletionRow[];
+};
+
+/** Count rows created (or deleted_at for account_deletions) at/after `since` — for admin sidebar badges. */
+export const getAdminNavBadgeCounts = async (
+  since: Partial<Record<AdminNavBadgeKey, string>>,
+): Promise<Record<AdminNavBadgeKey, number>> => {
+  const fallback = '1970-01-01T00:00:00.000Z';
+  const iso = (k: AdminNavBadgeKey) => (since[k] && String(since[k]).trim() ? String(since[k]) : fallback);
+
+  const count = async (table: string, sinceIso: string, dateColumn = 'created_at'): Promise<number> => {
+    const { count: c, error } = await supabase
+      .from(table)
+      .select('id', { count: 'exact', head: true })
+      .gte(dateColumn, sinceIso);
+    if (error) {
+      console.warn(`getAdminNavBadgeCounts ${table}:`, error.message);
+      return 0;
+    }
+    return c ?? 0;
+  };
+
+  const [orders, repairs, trades, customers, products, users] = await Promise.all([
+    count('orders', iso('orders')),
+    count('repair_requests', iso('repairs')),
+    count('trade_in_requests', iso('trades')),
+    count('profiles', iso('customers')),
+    count('products', iso('products')),
+    count('account_deletions', iso('users'), 'deleted_at'),
+  ]);
+
+  return { orders, repairs, trades, customers, products, users };
 };
 
 export const getMessages = async () => {

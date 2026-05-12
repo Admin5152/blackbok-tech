@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Shield, ShoppingBag, Check, ArrowUpDown, Eye, Mail, Phone, MapPin, Calendar, Package, DollarSign, BadgeCheck } from 'lucide-react';
-import { SearchInput, Td, Th, TableWrapper, EmptyState } from './adminUtils';
-import { getUsers, updateUserRole } from '../../lib/api';
+import { Users, Shield, ShoppingBag, Check, ArrowUpDown, Eye, Mail, Phone, MapPin, Calendar, Package, DollarSign, BadgeCheck, UserX } from 'lucide-react';
+import { SearchInput, EmptyState } from './adminUtils';
+import { getUsers, getAccountDeletions, updateUserRole, type AccountDeletionRow } from '../../lib/api';
 import type { User } from '../../types';
 import { formatCurrency } from '../../lib/utils';
 
@@ -16,6 +16,8 @@ type RoleId = typeof ROLES[number]['id'];
 
 export const AdminUsers: React.FC = () => {
     const [users, setUsers] = useState<User[]>([]);
+    const [deletedAccounts, setDeletedAccounts] = useState<AccountDeletionRow[]>([]);
+    const [listTab, setListTab] = useState<'active' | 'deleted'>('active');
     const [q, setQ] = useState('');
     const [roleFilter, setRoleFilter] = useState('all');
     const [loading, setLoading] = useState(true);
@@ -38,6 +40,13 @@ export const AdminUsers: React.FC = () => {
         fetchUserData();
         return () => { mounted = false; };
     }, []);
+
+    const filteredDeleted = (deletedAccounts || []).filter((row) => {
+        const email = String(row.email ?? '').toLowerCase();
+        const name = String(row.display_name ?? '').toLowerCase();
+        const ql = q.toLowerCase();
+        return email.includes(ql) || name.includes(ql);
+    });
 
     const filtered = (users || []).filter(u => {
         if (!u) return false;
@@ -240,10 +249,78 @@ export const AdminUsers: React.FC = () => {
     return (
         <div className="space-y-5">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <h2 className="text-2xl font-black text-white">User Roles Management</h2>
+                <div className="flex rounded-xl border border-white/10 overflow-hidden">
+                    <button
+                        type="button"
+                        onClick={() => setListTab('active')}
+                        className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-colors ${
+                            listTab === 'active' ? 'bg-[#B38B21] text-black' : 'bg-white/5 text-white/50 hover:text-white'
+                        }`}
+                    >
+                        Active accounts
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setListTab('deleted')}
+                        className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${
+                            listTab === 'deleted' ? 'bg-[#B38B21] text-black' : 'bg-white/5 text-white/50 hover:text-white'
+                        }`}
+                    >
+                        <UserX size={14} />
+                        Deleted accounts
+                    </button>
+                </div>
             </div>
 
+            {listTab === 'deleted' ? (
+                <>
+                    <p className="text-xs text-white/50">
+                        Customers who used “Delete account” in their profile. Auth and shop rows for that login are removed; this list is kept for support and audit.
+                    </p>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <SearchInput value={q} onChange={setQ} placeholder="Search by email or name…" />
+                    </div>
+                    {loading ? (
+                        <div className="text-center py-12 text-white/30 text-sm">Loading…</div>
+                    ) : filteredDeleted.length === 0 ? (
+                        <EmptyState icon={<UserX size={40} />} message="No deleted accounts on file" />
+                    ) : (
+                        <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead>
+                                        <tr className="border-b border-white/10">
+                                            <th className="text-left p-4 font-black uppercase text-[10px] text-white/50 tracking-widest">Removed</th>
+                                            <th className="text-left p-4 font-black uppercase text-[10px] text-white/50 tracking-widest">Email</th>
+                                            <th className="text-left p-4 font-black uppercase text-[10px] text-white/50 tracking-widest">Display name</th>
+                                            <th className="text-left p-4 font-black uppercase text-[10px] text-white/50 tracking-widest">Former user id</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {filteredDeleted.map((row) => (
+                                            <tr key={row.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                                                <td className="p-4 text-white/70 text-sm whitespace-nowrap">
+                                                    {row.deleted_at
+                                                        ? new Date(row.deleted_at).toLocaleString()
+                                                        : '—'}
+                                                </td>
+                                                <td className="p-4 text-white/90 text-sm">{row.email}</td>
+                                                <td className="p-4 text-white/60 text-sm">{row.display_name || '—'}</td>
+                                                <td className="p-4 text-white/40 text-xs font-mono">{row.user_id}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+                </>
+            ) : null}
+
+            {listTab === 'active' ? (
+            <>
             {/* Role summary */}
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                 {ROLES.map(r => {
@@ -393,6 +470,8 @@ export const AdminUsers: React.FC = () => {
                     <li>• You cannot change your own role (safety feature)</li>
                 </ul>
             </div>
+            </>
+            ) : null}
         </div>
     );
 };

@@ -50,6 +50,24 @@ export class DeleteAccountService {
         }
       }
 
+      const { data: profileRow } = await client
+        .from('profiles')
+        .select('name, email')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      const logEmail = (profileRow?.email || user.email || '').trim();
+      if (logEmail) {
+        const { error: deletionLogError } = await client.from('account_deletions').insert({
+          user_id: user.id,
+          email: logEmail,
+          display_name: profileRow?.name?.trim() || null,
+        });
+        if (deletionLogError) {
+          console.warn('Could not append account_deletions row (migration may be pending):', deletionLogError);
+        }
+      }
+
       // Delete user profile from profiles table
       const { error: profileError } = await client
         .from('profiles')

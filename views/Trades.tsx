@@ -9,6 +9,7 @@ import type { Product, TradeRequest } from '../types';
 import { useAppContext } from '../App';
 import { TRADE_DEVICES_KEY } from './admin/adminUtils';
 import { createTradeRequest, getTradeRequests, updateTradeRequest } from '../lib/api';
+import { saveResumeAfterAuth, peekRestorePayload, clearRestorePayload } from '../lib/resumeAfterAuth';
 
 interface TradesProps {
   products: Product[];
@@ -74,6 +75,7 @@ const StatusBadge = ({ status }: { status: TradeRequest['status'] }) => {
   const map: Record<string, string> = {
     'Pending':       'bg-yellow-500/10 text-yellow-400',
     'Inspecting':    'bg-blue-500/10 text-blue-400',
+    'Offer sent':    'bg-purple-500/10 text-purple-400',
     'Offer Made':    'bg-purple-500/10 text-purple-400',
     'Awaiting User': 'bg-purple-500/10 text-purple-400',
     'Accepted':      'bg-green-500/10 text-green-400',
@@ -135,6 +137,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
   });
 
   const formRef = useRef<HTMLDivElement>(null);
+  const tradesRestoreDone = useRef(false);
 
   // Scroll to active section on step/subStep change — mirrors Repair
   useEffect(() => {
@@ -174,6 +177,58 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
       .finally(() => setLoadingTrades(false));
   }, [user]);
 
+  // After login: restore trade-in wizard from session (see submitRequest when !user).
+  useEffect(() => {
+    if (!user) {
+      tradesRestoreDone.current = false;
+      return;
+    }
+    if (tradesRestoreDone.current) return;
+
+    const payload = peekRestorePayload('trades') as Record<string, unknown> | null;
+    if (!payload || typeof payload !== 'object') {
+      tradesRestoreDone.current = true;
+      return;
+    }
+
+    const needId = payload.selectedDeviceId as string | null | undefined;
+    if (needId) {
+      const dev = tradeDevices.find((d) => d.id === needId);
+      if (!dev && typeof payload.step === 'number' && payload.step > 1) {
+        clearRestorePayload('trades');
+        notify('Please pick your device again — the saved model is no longer available.', 'info');
+        tradesRestoreDone.current = true;
+        return;
+      }
+    }
+
+    clearRestorePayload('trades');
+    tradesRestoreDone.current = true;
+
+    if (typeof payload.step === 'number' && payload.step >= 1 && payload.step <= 5) setStep(payload.step);
+    if (typeof payload.subStep === 'number' && payload.subStep >= 1 && payload.subStep <= 3) setSubStep(payload.subStep);
+    if (typeof payload.transitionKey === 'number') setTransitionKey(payload.transitionKey);
+    if (typeof payload.selectedDeviceType === 'string') setSelectedDeviceType(payload.selectedDeviceType);
+    if (typeof payload.selectedBrand === 'string') setSelectedBrand(payload.selectedBrand);
+    if (needId) {
+      const dev = tradeDevices.find((d) => d.id === needId);
+      if (dev) setSelectedDevice(dev);
+    }
+    if (typeof payload.selectedVariant === 'string') setSelectedVariant(payload.selectedVariant);
+    if (typeof payload.targetProductId === 'string') setTargetProductId(payload.targetProductId);
+    if (typeof payload.notes === 'string') setNotes(payload.notes);
+    if (payload.formData && typeof payload.formData === 'object') {
+      setFormData((prev) => ({ ...prev, ...(payload.formData as typeof prev) }));
+    }
+    if (payload.deviceDetails && typeof payload.deviceDetails === 'object') {
+      setDeviceDetails((prev) => ({ ...prev, ...(payload.deviceDetails as typeof prev) }));
+    }
+    if (payload.accessories && typeof payload.accessories === 'object') {
+      setAccessories((prev) => ({ ...prev, ...(payload.accessories as typeof prev) }));
+    }
+    notify('Your trade-in progress was restored.', 'success');
+  }, [user, tradeDevices, notify]);
+
   // Brands that have devices of the selected type
   const brandsForType = useMemo(() => {
     const brandsInUse = new Set(tradeDevices.filter(d => d.deviceType === selectedDeviceType).map(d => d.brand));
@@ -196,7 +251,9 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     [products, targetProductId],
   );
 
-  const pendingOffer = myTrades.find(t => t.status === 'Awaiting User' || t.status === 'Offer Made');
+  const pendingOffer = myTrades.find(
+    t => t.status === 'Awaiting User' || t.status === 'Offer sent' || t.status === 'Offer Made',
+  );
 
   const timeSlots = [
     { id: 'morning-1',   time: '9:00 AM',  label: 'Early Morning',   available: true  },
@@ -214,7 +271,25 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
   };
 
   const submitRequest = async () => {
-    if (!user) { navigate({ to: '/auth' }); return; }
+    if (!user) {
+      saveResumeAfterAuth('trades', {
+        step,
+        subStep,
+        transitionKey,
+        selectedDeviceType,
+        selectedBrand,
+        selectedDeviceId: selectedDevice?.id ?? null,
+        selectedVariant,
+        targetProductId,
+        notes,
+        formData,
+        deviceDetails,
+        accessories,
+      });
+      notify('Sign in to submit. Your progress will be restored after you log in.', 'info');
+      navigate({ to: '/auth' });
+      return;
+    }
     if (!selectedDevice || !selectedVariant) { notify('Please select your device', 'error'); return; }
     if (!formData.name || !formData.email || !formData.phone) { notify('Please fill in all contact details', 'error'); return; }
     setSubmitting(true);
@@ -1010,7 +1085,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                             <StatusBadge status={t.status} />
                             {(t as any).finalValue && <span className="text-[10px] font-black text-[#CDA032]">${(t as any).finalValue}</span>}
                           </div>
-                          {(t.status === 'Awaiting User' || t.status === 'Offer Made') && (
+                          {(t.status === 'Awaiting User' || t.status === 'Offer sent' || t.status === 'Offer Made') && (
                             <div className="flex gap-1.5 mt-2">
                               <button onClick={() => handleOfferResponse(t.id, true)}
                                 className="flex-1 py-1.5 bg-green-500/20 text-green-400 text-[9px] font-black uppercase rounded-lg hover:bg-green-500/30 transition-all">Accept</button>
