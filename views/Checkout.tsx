@@ -23,6 +23,7 @@ import { OrderCompletePopup } from '../components/OrderCompletePopup';
 import { CouponInput } from '../components/checkout/CouponInput';
 import type { AppliedCoupon } from '../hooks/useCoupons';
 import { useCheckout, type CheckoutCartItem } from '../hooks/useCheckout';
+import { normalizeCanonicalRole } from '../lib/roles';
 
 // ============================================================
 // Constants — kept at the top so they're easy to audit / extend.
@@ -116,7 +117,7 @@ const InlineAuthForm: React.FC<InlineAuthFormProps> = ({ onAuthenticated, notify
           id: res.user.id,
           name: res.user.name || 'User',
           email: res.user.email,
-          role: res.user.role === 'admin' ? 'admin' : 'user',
+          role: normalizeCanonicalRole((res.user as { role?: string }).role),
         };
         onAuthenticated(user);
         notify(`Welcome back, ${user.name}!`, 'success');
@@ -147,7 +148,7 @@ const InlineAuthForm: React.FC<InlineAuthFormProps> = ({ onAuthenticated, notify
           id: loginRes.user.id,
           name: loginRes.user.name || form.name || 'User',
           email: loginRes.user.email,
-          role: 'user',
+          role: normalizeCanonicalRole((loginRes.user as { role?: string }).role),
         };
         onAuthenticated(user);
         notify(`Account created. Welcome, ${user.name}!`, 'success');

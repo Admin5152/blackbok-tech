@@ -22,6 +22,7 @@ import {
   EmailSendQueue
 } from '../types';
 import { formatCurrency } from './utils';
+import { normalizeCanonicalRole } from './roles';
 
 // Normalizes admin-entered category strings (e.g. "Mobile Phones",
 // "Laptops & Notebooks", "Apple iPhones") to one of the canonical
@@ -89,13 +90,13 @@ export const signIn = async (email: string, password: string) => {
   if (data.user) {
     const profile = await getUserProfile(data.user.id);
     const roles = await getUserRoles(data.user.id);
-    const role = roles[0]?.role || 'user';
-    
+    const role = normalizeCanonicalRole(roles[0]?.role ?? profile?.role ?? 'user');
+
     return {
       user: {
         ...data.user,
         name: profile?.name || data.user.email?.split('@')[0] || 'User',
-        role: role
+        role,
       },
       session: data.session
     };
@@ -1169,8 +1170,7 @@ export const updateTradeRequest = async (id: string, updates: Partial<TradeInReq
 // ==========================================
 
 export const updateUserRole = async (userId: string, role: string) => {
-  const normalized =
-    role === 'admin' || role === 'staff' ? role : 'user';
+  const normalized = normalizeCanonicalRole(role);
   const { data, error } = await supabase
     .from('profiles')
     .update({ role: normalized })
@@ -1250,7 +1250,7 @@ export const getUsers = async (): Promise<Profile[]> => {
   if (error) throw error;
   return data.map((p: any) => ({
     ...p,
-    role: p.user_roles?.[0]?.role || 'user'
+    role: normalizeCanonicalRole(p.user_roles?.[0]?.role ?? p.role ?? 'user'),
   }));
 };
 

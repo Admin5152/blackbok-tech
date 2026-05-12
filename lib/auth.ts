@@ -1,12 +1,13 @@
 import { supabase, getSupabaseClient, isSupabaseConfigured } from './supabase';
 import type { User } from '../interface/interface';
+import { normalizeCanonicalRole, type CanonicalAppRole } from './roles';
 
 // Authentication Types
 export interface AuthUser {
   id: string;
   email: string;
   name?: string;
-  role?: 'user' | 'admin';
+  role?: CanonicalAppRole;
 }
 
 export interface LoginCredentials {
@@ -27,8 +28,9 @@ export interface AuthResponse {
 class AuthService {
   private static readonly ADMIN_EMAILS = new Set(['blackbox@gmail.com']);
 
-  private static normalizeRole(role: unknown): 'user' | 'admin' {
-    return String(role || '').toLowerCase() === 'admin' ? 'admin' : 'user';
+  private static resolveAppRole(role: unknown, email?: string | null): CanonicalAppRole {
+    const fromDb = normalizeCanonicalRole(role);
+    return this.isAdminEmail(email) ? 'admin' : fromDb;
   }
 
   private static isAdminEmail(email?: string | null): boolean {
@@ -91,10 +93,10 @@ class AuthService {
             .eq('user_id', data.user.id)
             .maybeSingle();
           
-          const userRole = this.normalizeRole(
-            roles?.role ?? profile?.role ?? data.user.app_metadata?.role ?? data.user.user_metadata?.role
+          const finalRole = this.resolveAppRole(
+            roles?.role ?? profile?.role ?? data.user.app_metadata?.role ?? data.user.user_metadata?.role,
+            data.user.email
           );
-          const finalRole: 'user' | 'admin' = this.isAdminEmail(data.user.email) ? 'admin' : userRole;
           console.log(' User role resolved:', finalRole);
           
           const authUser: AuthUser = {
@@ -292,10 +294,10 @@ class AuthService {
         .eq('user_id', user.id)
         .maybeSingle();
       
-      const userRole = this.normalizeRole(
-        roles?.role ?? profile?.role ?? user.app_metadata?.role ?? user.user_metadata?.role
+      const finalRole = this.resolveAppRole(
+        roles?.role ?? profile?.role ?? user.app_metadata?.role ?? user.user_metadata?.role,
+        user.email
       );
-      const finalRole: 'user' | 'admin' = this.isAdminEmail(user.email) ? 'admin' : userRole;
       console.log('User role resolved:', finalRole);
       
       return {
@@ -345,7 +347,7 @@ class AuthService {
   }
 
   // Create User Profile
-  static async createUserProfile(userId: string, email: string, role: 'user' | 'admin' = 'user', name?: string) {
+  static async createUserProfile(userId: string, email: string, role: CanonicalAppRole = 'user', name?: string) {
     try {
       console.log('Creating user profile:', { userId, email, role, name });
       
@@ -384,7 +386,7 @@ class AuthService {
   }
 
   // Create User Profile with Admin Bypass (for new registrations)
-  static async createUserProfileSafe(userId: string, email: string, role: 'user' | 'admin' = 'user', name?: string) {
+  static async createUserProfileSafe(userId: string, email: string, role: CanonicalAppRole = 'user', name?: string) {
     try {
       console.log('Creating user profile safely:', { userId, email, role, name });
       

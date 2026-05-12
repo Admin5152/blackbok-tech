@@ -28,7 +28,7 @@ export interface User {
   name: string;
   email: string;
   password: string;
-  role: 'user' | 'admin';
+  role: 'user' | 'admin' | 'staff';
   wishlist?: string[]; // Array of product IDs
 }
 

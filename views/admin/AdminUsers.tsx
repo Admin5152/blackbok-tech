@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Shield, Wrench, ShoppingBag, Check, ArrowUpDown, Eye, Mail, Phone, MapPin, Calendar, Package, DollarSign } from 'lucide-react';
+import { Users, Shield, ShoppingBag, Check, ArrowUpDown, Eye, Mail, Phone, MapPin, Calendar, Package, DollarSign, BadgeCheck } from 'lucide-react';
 import { SearchInput, Td, Th, TableWrapper, EmptyState } from './adminUtils';
 import { getUsers, updateUserRole } from '../../lib/api';
 import type { User } from '../../types';
 import { formatCurrency } from '../../lib/utils';
 
-// Simplified roles for admin management (user ↔ admin only)
+// Matches public.app_role: user | admin | staff (profiles.role CHECK).
 const ROLES = [
-    { id: 'user', label: 'User', icon: Users, desc: 'Regular customer access', color: '#6b7280' },
+    { id: 'user', label: 'User', icon: Users, desc: 'Storefront access (same as legacy "customer")', color: '#6b7280' },
+    { id: 'staff', label: 'Staff', icon: BadgeCheck, desc: 'Sales / ops — catalog & orders (not full admin)', color: '#10b981' },
     { id: 'admin', label: 'Admin', icon: Shield, desc: 'Full system access', color: '#6366f1' },
 ] as const;
 
@@ -240,7 +241,7 @@ export const AdminUsers: React.FC = () => {
             </div>
 
             {/* Role summary */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                 {ROLES.map(r => {
                     const count = users.filter(u => u.role === r.id).length;
                     return (

@@ -1,4 +1,5 @@
-export type AppRole = 'admin' | 'moderator' | 'user';
+/** Aligns with Postgres public.app_role (user | admin | staff). */
+export type AppRole = 'user' | 'admin' | 'staff';
 
 export interface Profile {
   id: string;

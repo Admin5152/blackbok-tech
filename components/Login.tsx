@@ -3,6 +3,7 @@ import { Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import AuthService, { type LoginCredentials, type AuthResponse } from '../lib/auth';
 import type { User } from '../interface/interface';
 import { useLocation } from '@tanstack/react-router';
+import { canAccessAdminDashboard, normalizeCanonicalRole } from '../lib/roles';
 
 interface LoginProps {
   setUser: (user: User | null) => void;
@@ -121,7 +122,9 @@ export const Login: React.FC<LoginProps> = ({ setUser, navigateTo, theme, notify
       if (response.user) {
         console.log('Authentication successful, user:', response.user);
         const isAdminByEmail = ADMIN_EMAILS.has((response.user.email || '').toLowerCase());
-        const resolvedRole: 'user' | 'admin' = (response.user.role === 'admin' || isAdminByEmail) ? 'admin' : 'user';
+        const resolvedRole = normalizeCanonicalRole(
+          isAdminByEmail ? 'admin' : (response.user.role ?? 'user')
+        ) as User['role'];
 
         // Convert AuthUser to User format for compatibility
         const user: User = {
@@ -137,7 +140,7 @@ export const Login: React.FC<LoginProps> = ({ setUser, navigateTo, theme, notify
         notify(`Login successful! Welcome back, ${user.name}!`, 'success');
 
         // Navigate based on role
-        if (resolvedRole === 'admin') {
+        if (canAccessAdminDashboard(resolvedRole)) {
           console.log('Navigating to admin panel');
           navigateTo('/admin');
         } else {

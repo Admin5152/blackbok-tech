@@ -17,6 +17,7 @@ import { Product, User, CartItem, Category, RepairRequest, Order, TradeRequest }
 import { getProducts, getOrders, getTradeRequests, getRepairRequests } from './lib/api';
 import { handleSignOut } from './lib/signOut';
 import AuthService from './lib/auth';
+import { canAccessAdminDashboard, normalizeCanonicalRole } from './lib/roles';
 import { setupMobileBackButton, preventAppClose } from './lib/mobileNavigation';
 import { INITIAL_PRODUCTS } from './constants';
 import { Navbar } from './components/Navbar';
@@ -360,8 +361,8 @@ const AdminAccessDenied: React.FC<{
         <h1 className="text-xl font-black italic uppercase tracking-tight mb-2">Access Restricted</h1>
         <p className={`text-sm mb-6 ${isLight ? 'text-black/60' : 'text-white/60'}`}>
           {reason === 'not-logged-in'
-            ? 'You need to sign in with an admin account to view this page.'
-            : 'Your account does not have admin permissions. Contact a system administrator if you believe this is a mistake.'}
+            ? 'You need to sign in with an admin or staff account to view this page.'
+            : 'Your account does not have admin or staff permissions. Contact a system administrator if you believe this is a mistake.'}
         </p>
         <div className="flex flex-col gap-2">
           <button
@@ -393,8 +394,8 @@ const adminRoute = createRoute({
 
     // Role guard. Before this gate, anyone with the URL could load the
     // admin dashboard. Now:
-    //   - no user            → "please sign in" screen
-    //   - user.role !== admin → "access restricted" screen
+    //   - no user → "please sign in" screen
+    //   - not admin/staff (per app_role / has_role) → "access restricted" screen
     if (!user) {
       return (
         <AdminAccessDenied
@@ -404,7 +405,7 @@ const adminRoute = createRoute({
         />
       );
     }
-    if (user.role !== 'admin') {
+    if (!canAccessAdminDashboard(user.role)) {
       return (
         <AdminAccessDenied
           reason="not-admin"
@@ -706,9 +707,15 @@ function RootComponent() {
             console.log('Current Supabase user:', currentUser);
 
             if (currentUser && currentUser.id === parsedUser.id) {
-              // Session is valid, restore user
+              // Session is valid; merge stored user with canonical role from Supabase
               console.log('User session is valid, restoring user');
-              setUser(parsedUser);
+              setUser({
+                ...parsedUser,
+                id: currentUser.id,
+                email: currentUser.email,
+                name: currentUser.name ?? parsedUser.name,
+                role: normalizeCanonicalRole(currentUser.role ?? parsedUser.role),
+              });
             } else {
               // Session is invalid, clear user
               console.log('User session is invalid, clearing user');
@@ -746,7 +753,7 @@ function RootComponent() {
   useEffect(() => {
     const authFlowPaths = ['/reset-password', '/forgot-password', '/emailconfirm', '/confirmation', '/auth'];
     if (
-      user?.role === 'admin' &&
+      canAccessAdminDashboard(user?.role) &&
       location.pathname !== '/admin' &&
       !authFlowPaths.includes(location.pathname)
     ) {
