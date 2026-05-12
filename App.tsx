@@ -1,4 +1,4 @@
-import React, { useState, useEffect, createContext, useContext } from 'react';
+import React, { useState, useEffect, useLayoutEffect, createContext, useContext } from 'react';
 import {
   createRootRoute,
   createRoute,
@@ -19,6 +19,7 @@ import { handleSignOut } from './lib/signOut';
 import AuthService from './lib/auth';
 import { canAccessAdminDashboard, normalizeCanonicalRole } from './lib/roles';
 import { setupMobileBackButton, preventAppClose } from './lib/mobileNavigation';
+import { scrollToDocumentTop } from './lib/scrollToDocumentTop';
 import { INITIAL_PRODUCTS } from './constants';
 import { Navbar } from './components/Navbar';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
@@ -100,7 +101,7 @@ export interface AppContextType {
   removeFromCart: (uid: string) => void;
   handleCheckout: (t: number) => void;
   notify: (m: string, t?: any) => void;
-  navigateTo: (v: string, id?: string) => void;
+  navigateTo: (v: string, second?: string | { search?: Record<string, unknown> }) => void;
   onQuickView: (p: Product) => void;
   onAddToCart: (p: Product, options?: Record<string, string>, qty?: number) => void;
   theme: Theme;
@@ -136,26 +137,22 @@ const ScrollToTop = () => {
     }
   }, []);
 
-  useEffect(() => {
-    const scrollTopNow = () => {
-      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-      document.documentElement.scrollTop = 0;
-      document.body.scrollTop = 0;
-    };
-
-    scrollTopNow();
-    let raf2 = 0;
-    const raf1 = window.requestAnimationFrame(() => {
-      scrollTopNow();
-      raf2 = window.requestAnimationFrame(scrollTopNow);
+  // useLayoutEffect runs before paint so mobile Safari does not keep the prior
+  // route’s scroll position (user stuck viewing the footer after navigation).
+  useLayoutEffect(() => {
+    scrollToDocumentTop();
+    let rafInner = 0;
+    const rafOuter = window.requestAnimationFrame(() => {
+      scrollToDocumentTop();
+      rafInner = window.requestAnimationFrame(scrollToDocumentTop);
     });
-    const t0 = window.setTimeout(scrollTopNow, 0);
-    const t1 = window.setTimeout(scrollTopNow, 120);
-    const t2 = window.setTimeout(scrollTopNow, 400);
+    const t0 = window.setTimeout(scrollToDocumentTop, 0);
+    const t1 = window.setTimeout(scrollToDocumentTop, 120);
+    const t2 = window.setTimeout(scrollToDocumentTop, 400);
 
     return () => {
-      window.cancelAnimationFrame(raf1);
-      if (raf2) window.cancelAnimationFrame(raf2);
+      window.cancelAnimationFrame(rafOuter);
+      if (rafInner) window.cancelAnimationFrame(rafInner);
       window.clearTimeout(t0);
       window.clearTimeout(t1);
       window.clearTimeout(t2);
@@ -1050,12 +1047,15 @@ function RootComponent() {
     setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
-  const navigateTo = (to: string, id?: string) => {
-    console.log('NavigateTo called with:', { to, id });
+  const navigateTo = (to: string, second?: string | { search?: Record<string, unknown> }) => {
+    console.log('NavigateTo called with:', { to, second });
 
-    if (id) {
-      console.log('Navigating to product:', id);
-      navigate({ to: `/product/${id}` as any });
+    if (second && typeof second === 'object' && second !== null && 'search' in second) {
+      const path = to === 'home' ? '/' : (to.startsWith('/') ? to : `/${to}`);
+      navigate({ to: path as any, search: second.search as any });
+    } else if (typeof second === 'string' && second.trim()) {
+      console.log('Navigating to product:', second);
+      navigate({ to: `/product/${second}` as any });
     } else if (to.startsWith('http')) {
       console.log('Opening external URL:', to);
       window.open(to, '_blank', 'noopener,noreferrer');
@@ -1065,6 +1065,7 @@ function RootComponent() {
       navigate({ to: path as any });
     }
     setIsMobileMenuOpen(false);
+    scrollToDocumentTop();
   };
 
   const addToCart = (product: Product, options: Record<string, string> = {}, qty: number = 1) => {

@@ -16,6 +16,7 @@ import {
   getStoreNavSeen,
   markStoreNavSectionSeen,
 } from '../lib/navBadgeWatermarks';
+import { scrollToDocumentTop } from '../lib/scrollToDocumentTop';
 import { NavUnreadBadge } from './NavUnreadBadge';
 
 const ViewfinderLogo = () => (
@@ -30,7 +31,7 @@ const ViewfinderLogo = () => (
 
 export const Navbar: React.FC<{
   cart: CartItem[];
-  navigateTo: (view: string, id?: string) => void;
+  navigateTo: (view: string, second?: string | { search?: Record<string, unknown> }) => void;
   user: any;
   products: Product[];
   orders?: Order[];
@@ -65,6 +66,14 @@ export const Navbar: React.FC<{
     const cartCount = cart.reduce((a, c) => a + c.quantity, 0);
     const isLight = theme === 'light';
     const showAdminLink = Boolean(user && canAccessAdminDashboard(user.role));
+
+    const closeMobileNavAfterNav = () => {
+      scrollToDocumentTop();
+      setIsMobileMenuOpen(false);
+      requestAnimationFrame(() => {
+        scrollToDocumentTop();
+      });
+    };
 
     useEffect(() => {
       if (!user?.id) return;
@@ -379,7 +388,7 @@ export const Navbar: React.FC<{
               <div className="flex items-center gap-2">
                 <Link
                   to="/cart"
-                  onClick={() => setIsMobileMenuOpen(false)}
+                  onClick={() => closeMobileNavAfterNav()}
                   className="relative flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-white hover:border-[#CDA032]/50 hover:bg-[#CDA032]/10 transition-all"
                   aria-label={`Cart${cartCount > 0 ? `, ${cartCount} items` : ''}`}
                 >
@@ -474,7 +483,7 @@ export const Navbar: React.FC<{
                           // Top-level button always navigates.
                           // Submenu expansion is handled by the chevron button.
                           navigate({ to: item.path });
-                          setIsMobileMenuOpen(false);
+                          closeMobileNavAfterNav();
                         }}
                         className={`mx-2 flex flex-1 items-center gap-4 rounded-xl px-4 py-3 transition-all ${active && !hasSubItems
                           ? 'bg-[#CDA032]/20 text-[#CDA032]'
@@ -526,7 +535,7 @@ export const Navbar: React.FC<{
                                 key={sub.label}
                                 to={sub.path}
                                 search={sub.search as any}
-                                onClick={() => setIsMobileMenuOpen(false)}
+                                onClick={() => closeMobileNavAfterNav()}
                                 className="flex w-full items-center gap-3 rounded-xl border border-transparent px-4 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-white/40 transition-all hover:border-white/5 hover:bg-white/5 hover:text-[#CDA032]"
                               >
                                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/5">
