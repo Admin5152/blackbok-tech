@@ -1,16 +1,65 @@
 import { supabase } from './supabase';
 
-export const uploadImage = async (file: File, bucket: string = 'repair-images'): Promise<string | null> => {
+export const REPAIR_IMAGES_BUCKET = 'repair-images';
+
+/**
+ * Normalizes a stored repair image reference to a storage object path
+ * `{user_id}/{file}` — supports legacy public URLs, signed URLs, or bare paths.
+ */
+export function repairImageObjectPathFromStored(stored: string): string | null {
+  const s = stored.trim().split('?')[0];
+  if (!s || s.includes('..')) return null;
+
+  const pub = `/object/public/${REPAIR_IMAGES_BUCKET}/`;
+  const pi = s.indexOf(pub);
+  if (pi >= 0) {
+    try {
+      return decodeURIComponent(s.slice(pi + pub.length));
+    } catch {
+      return null;
+    }
+  }
+
+  const sign = `/object/sign/${REPAIR_IMAGES_BUCKET}/`;
+  const si = s.indexOf(sign);
+  if (si >= 0) {
+    const rest = s.slice(si + sign.length).split('?')[0];
+    try {
+      return decodeURIComponent(rest);
+    } catch {
+      return null;
+    }
+  }
+
+  if (/^[0-9a-f-]{36}\/.+/i.test(s)) return s;
+  return null;
+}
+
+/** Signed GET URL for private `repair-images` objects (honours storage RLS). */
+export async function getSignedRepairImageUrl(
+  stored: string,
+  expiresIn = 3600,
+): Promise<string | null> {
+  const path = repairImageObjectPathFromStored(stored);
+  if (!path) return null;
+  const { data, error } = await supabase.storage
+    .from(REPAIR_IMAGES_BUCKET)
+    .createSignedUrl(path, expiresIn);
+  if (error || !data?.signedUrl) {
+    console.warn('getSignedRepairImageUrl:', error?.message);
+    return null;
+  }
+  return data.signedUrl;
+}
+
+export const uploadImage = async (file: File, bucket: string = REPAIR_IMAGES_BUCKET): Promise<string | null> => {
   try {
-    // Validate file
     if (!file) return null;
 
-    // Check file size (5MB limit)
     if (file.size > 5 * 1024 * 1024) {
       throw new Error('File size must be less than 5MB');
     }
 
-    // Check file type
     if (!file.type.startsWith('image/')) {
       throw new Error('File must be an image');
     }
@@ -23,7 +72,7 @@ export const uploadImage = async (file: File, bucket: string = 'repair-images'):
       throw new Error('Please sign in to upload repair photos.');
     }
 
-    // Scoped path — must match storage RLS (see database/migrations/2026_05_storage_repair_images_bucket.sql)
+    // Scoped path — must match storage RLS (see database/migrations/*repair_images*.sql)
     const safeExt = (file.name.split('.').pop() || 'jpg').replace(/[^a-zA-Z0-9]/g, '').slice(0, 8) || 'jpg';
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${safeExt}`;
     const filePath = `${user.id}/${fileName}`;
@@ -38,10 +87,15 @@ export const uploadImage = async (file: File, bucket: string = 'repair-images'):
       const msg = error.message || '';
       if (/bucket|not found|does not exist/i.test(msg)) {
         throw new Error(
-          'Photo storage is not set up yet. Ask an admin to run the migration `2026_05_storage_repair_images_bucket.sql` in Supabase (creates the repair-images bucket).',
+          'Photo storage is not set up yet. Ask an admin to run the repair-images storage migrations in Supabase.',
         );
       }
       throw error;
+    }
+
+    // Private bucket: persist path in `repair_requests.image_urls`; UI uses signed URLs to display.
+    if (bucket === REPAIR_IMAGES_BUCKET) {
+      return filePath;
     }
 
     const {
@@ -55,15 +109,21 @@ export const uploadImage = async (file: File, bucket: string = 'repair-images'):
   }
 };
 
-export const deleteImage = async (url: string, bucket: string = 'repair-images'): Promise<void> => {
+export const deleteImage = async (stored: string, bucket: string = REPAIR_IMAGES_BUCKET): Promise<void> => {
   try {
-    const marker = `/object/public/${bucket}/`;
-    const idx = url.indexOf(marker);
-    const raw =
-      idx >= 0
-        ? url.slice(idx + marker.length).split('?')[0]
-        : url.split('/').slice(-2).join('/');
-    const filePath = decodeURIComponent(raw);
+    let filePath: string | null = null;
+    if (bucket === REPAIR_IMAGES_BUCKET) {
+      filePath = repairImageObjectPathFromStored(stored);
+    }
+    if (!filePath) {
+      const marker = `/object/public/${bucket}/`;
+      const idx = stored.indexOf(marker);
+      const raw =
+        idx >= 0
+          ? stored.slice(idx + marker.length).split('?')[0]
+          : stored.split('/').slice(-2).join('/');
+      filePath = decodeURIComponent(raw);
+    }
 
     if (!filePath || filePath.includes('..')) {
       throw new Error('Invalid storage URL');
@@ -88,9 +148,8 @@ export const compressImage = (file: File, maxWidth: number = 800, quality: numbe
     const img = new Image();
 
     img.onload = () => {
-      // Calculate new dimensions
       let { width, height } = img;
-      
+
       if (width > maxWidth) {
         const ratio = maxWidth / width;
         width = maxWidth;
@@ -100,15 +159,14 @@ export const compressImage = (file: File, maxWidth: number = 800, quality: numbe
       canvas.width = width;
       canvas.height = height;
 
-      // Draw and compress
       ctx?.drawImage(img, 0, 0, width, height);
-      
+
       canvas.toBlob(
         (blob) => {
           if (blob) {
             const compressedFile = new File([blob], file.name, {
               type: file.type,
-              lastModified: Date.now()
+              lastModified: Date.now(),
             });
             resolve(compressedFile);
           } else {
@@ -116,7 +174,7 @@ export const compressImage = (file: File, maxWidth: number = 800, quality: numbe
           }
         },
         file.type,
-        quality
+        quality,
       );
     };
 

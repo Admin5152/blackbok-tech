@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Upload, X, Camera, AlertCircle, Check } from 'lucide-react';
 import { uploadImage, compressImage } from '../lib/upload';
+import { RepairStorageImage } from './RepairStorageImage';
 
 interface ImageUploadProps {
   images: string[];
@@ -128,11 +129,11 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       {/* Image Preview Grid */}
       {images.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {images.map((imageUrl, index) => (
-            <div key={index} className="relative group">
+          {images.map((stored, index) => (
+            <div key={`${stored}-${index}`} className="relative group">
               <div className="aspect-square rounded-xl overflow-hidden bg-black/40 border border-white/10">
-                <img
-                  src={imageUrl}
+                <RepairStorageImage
+                  stored={stored}
                   alt={`Upload ${index + 1}`}
                   className="w-full h-full object-cover"
                 />

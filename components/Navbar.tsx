@@ -150,7 +150,17 @@ export const Navbar: React.FC<{
       e.preventDefault();
       const raw = String(searchQuery ?? '').trim();
       setSearchQuery(raw);
-      navigate({ to: '/store', search: (raw ? { q: raw } : {}) as { q?: string } });
+      const search: Record<string, string> = {};
+      if (raw) search.q = raw.slice(0, 200);
+      // Keep store category filters when searching from the header (home or any page).
+      if (location.pathname === '/store') {
+        const sp = new URLSearchParams(location.search);
+        const cat = sp.get('category');
+        const cats = sp.get('categories');
+        if (cat) search.category = cat;
+        if (cats) search.categories = cats;
+      }
+      navigate({ to: '/store', search });
       if (opts?.closeMobile) closeMobileNavAfterNav();
     };
 

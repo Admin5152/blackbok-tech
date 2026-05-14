@@ -18,7 +18,9 @@ SET
   allowed_mime_types = COALESCE(allowed_mime_types, ARRAY['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']::text[])
 WHERE id = 'repair-images';
 
--- 2) Policies on storage.objects (idempotent)
+-- 2) Policies on storage.objects (idempotent).
+--    For private bucket + per-user SELECT, run also:
+--    `2026_05_storage_repair_images_private_rls.sql`
 DROP POLICY IF EXISTS "repair_images_select_public" ON storage.objects;
 CREATE POLICY "repair_images_select_public"
   ON storage.objects FOR SELECT

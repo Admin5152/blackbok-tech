@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
-import { Search, Filter, Grid3x3, List, Smartphone, Laptop as LaptopIcon, Watch, Gamepad2, LayoutGrid, X, ChevronDown, ArrowLeft, Plus, Minus, Tag, Menu } from 'lucide-react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import { useNavigate } from '@tanstack/react-router';
+import { Search, Filter, Grid3x3, List, Smartphone, Laptop as LaptopIcon, Tablet as TabletIcon, Headphones, Watch, Gamepad2, LayoutGrid, X, ChevronDown, ArrowLeft, Plus, Minus, Tag, Menu } from 'lucide-react';
 import { Product, Category } from '../types';
 import { ProductCard } from '../components/ProductCard';
 import { formatCurrency } from '../lib/utils';
@@ -26,7 +27,7 @@ interface StoreProps {
 
 export const Store: React.FC<StoreProps> = ({
   products,
-  searchQuery,
+  searchQuery: _searchQueryFromParent,
   setSearchQuery,
   selectedCategories,
   setSelectedCategories,
@@ -59,12 +60,53 @@ export const Store: React.FC<StoreProps> = ({
     return category as Category;
   };
 
+  /** Category tokens that can match a search word to the product's normalized category (e.g. "phone" → iPhone). */
+  const CANONICAL_CATEGORY_BUCKETS = new Set<string>([
+    'iPhone', 'Laptop', 'Tablet', 'Gaming', 'Audio', 'Accessories',
+  ]);
+
+  const productTextHaystack = (p: Product) =>
+    [
+      p.name,
+      p.description,
+      p.brand,
+      p.model,
+      p.sku,
+      p.category,
+      Array.isArray((p as { specs?: string[] }).specs) ? (p as { specs: string[] }).specs.join(' ') : '',
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+
+  const productMatchesSearchWords = (p: Product, qRaw: string): boolean => {
+    const q = qRaw.trim().toLowerCase();
+    if (!q) return true;
+    const hay = productTextHaystack(p);
+    const productCat = normalizeCategory(p.category);
+    const words = q.split(/\s+/).filter(Boolean);
+    return words.every((word) => {
+      if (hay.includes(word)) return true;
+      const implied = normalizeCategory(word);
+      if (
+        implied &&
+        CANONICAL_CATEGORY_BUCKETS.has(String(implied)) &&
+        productCat === implied
+      ) {
+        return true;
+      }
+      return false;
+    });
+  };
+
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [priceRange, setPriceRange] = useState({ min: 0, max: 15000 });
   const [showPromotionsOnly, setShowPromotionsOnly] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showMobileNav, setShowMobileNav] = useState(false);
+  const navigate = useNavigate();
+
   // Buffer state for the price inputs (desktop + mobile). Lets the user
   // clear the field without it snapping back to a default value (STR-07).
   // The real `priceRange` only updates on blur / Enter / Apply, so the
@@ -111,12 +153,8 @@ export const Store: React.FC<StoreProps> = ({
     setSearchQuery(raw);
   }, [searchFromUrl, setSearchQuery]);
 
-  // Sync with global search query
-  React.useEffect(() => {
-    if (searchQuery !== undefined) {
-      setSearchTerm(searchQuery);
-    }
-  }, [searchQuery]);
+  // Do not mirror `searchQuery` into `searchTerm` on every keystroke — that would
+  // fight local typing while `searchQuery` is still empty until the debounced URL sync runs.
 
   React.useEffect(() => {
     setMobileMinInput(String(priceRange.min));
@@ -124,6 +162,29 @@ export const Store: React.FC<StoreProps> = ({
     setDesktopMinInput(String(priceRange.min));
     setDesktopMaxInput(String(priceRange.max));
   }, [priceRange.min, priceRange.max]);
+
+  // Keep URL in sync with search + category so header search preserves filters and links are shareable.
+  const buildStoreSearchParams = useCallback(() => {
+    const out: Record<string, string> = {};
+    const t = searchTerm.trim();
+    if (t) out.q = t.slice(0, 200);
+    if (selectedCategories.length === 1) {
+      out.category = String(selectedCategories[0]);
+    } else if (selectedCategories.length > 1) {
+      out.categories = selectedCategories.join(',');
+    }
+    return out;
+  }, [searchTerm, selectedCategories]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const id = window.setTimeout(() => {
+      const search = buildStoreSearchParams();
+      setSearchQuery(searchTerm.trim());
+      navigate({ to: '/store', search, replace: true });
+    }, 380);
+    return () => window.clearTimeout(id);
+  }, [buildStoreSearchParams, navigate, searchTerm, setSearchQuery]);
 
   const getDiscountValue = (discount: unknown): number => {
     if (typeof discount === 'number') return Number.isFinite(discount) ? discount : 0;
@@ -147,12 +208,10 @@ export const Store: React.FC<StoreProps> = ({
   };
 
   const filteredProducts = useMemo(() => {
-    const q = String(searchTerm ?? '').toLowerCase().trim();
+    const q = String(searchTerm ?? '').trim();
     let results = products.filter(p => {
       const normalizedProductCategory = normalizeCategory(p.category);
-      const hayName = String(p.name ?? '').toLowerCase();
-      const hayDesc = String(p.description ?? '').toLowerCase();
-      const matchesSearch = hayName.includes(q) || hayDesc.includes(q);
+      const matchesSearch = productMatchesSearchWords(p, q);
       const matchesCategory =
         selectedCategories.length === 0 ||
         (normalizedProductCategory ? selectedCategories.includes(normalizedProductCategory) : false);
@@ -170,8 +229,10 @@ export const Store: React.FC<StoreProps> = ({
     const counts: Record<string, number> = {
       iPhone: 0,
       Laptop: 0,
+      Tablet: 0,
       Accessories: 0,
       Gaming: 0,
+      Audio: 0,
     };
     products.forEach((product) => {
       const normalized = normalizeCategory(product.category);
@@ -186,8 +247,10 @@ export const Store: React.FC<StoreProps> = ({
     { label: 'SHOP ALL', value: 'All', icon: <LayoutGrid size={14} />, count: products.length },
     { label: 'IPHONE', value: 'iPhone', icon: <Smartphone size={14} />, count: categoryCounts.iPhone },
     { label: 'LAPTOP', value: 'Laptop', icon: <LaptopIcon size={14} />, count: categoryCounts.Laptop },
+    { label: 'TABLET', value: 'Tablet', icon: <TabletIcon size={14} />, count: categoryCounts.Tablet },
     { label: 'ACCESSORIES', value: 'Accessories', icon: <Watch size={14} />, count: categoryCounts.Accessories },
     { label: 'GAMING', value: 'Gaming', icon: <Gamepad2 size={14} />, count: categoryCounts.Gaming },
+    { label: 'AUDIO', value: 'Audio', icon: <Headphones size={14} />, count: categoryCounts.Audio },
     { label: 'PROMOTIONS', value: 'All', icon: <Tag size={14} className="text-[#CDA032]" />, count: products.filter(p => getDiscountValue(p.discount) > 0).length },
   ];
 
@@ -201,6 +264,7 @@ export const Store: React.FC<StoreProps> = ({
     setSelectedCategories([]);
     setPriceRange({ min: 0, max: 15000 });
     setSearchTerm('');
+    setSearchQuery('');
   };
 
   const pageBg = isLight ? '#F0F0F0' : '#060605';

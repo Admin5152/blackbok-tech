@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Wrench, Send, DollarSign, UserCheck } from 'lucide-react';
+import { RepairStorageImage } from '../../components/RepairStorageImage';
 import { Badge, SearchInput, Modal, ModalClose, EmptyState, Td, Th, TableWrapper } from './adminUtils';
 import { getRepairRequests, updateRepairRequest } from '../../lib/api';
 import { useAdminRepairs } from '../../hooks/useAdminRepairs';
@@ -299,7 +300,12 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
                             {sel.imageUrl && (
                                 <div>
                                     <p className="text-[9px] text-white/30 uppercase tracking-widest mb-1">Device Photo</p>
-                                    <img src={sel.imageUrl} alt="" className="w-full max-h-40 object-cover rounded-xl bg-white/5" />
+                                    <RepairStorageImage
+                                        stored={sel.imageUrl}
+                                        alt=""
+                                        className="w-full max-h-40 object-cover rounded-xl bg-white/5"
+                                        expiresIn={7200}
+                                    />
                                 </div>
                             )}
                         </div>
