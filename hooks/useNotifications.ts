@@ -22,6 +22,8 @@ export interface UseNotificationsResult {
   error: string | null;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
+  removeNotification: (id: string) => Promise<void>;
+  clearAllNotifications: () => Promise<void>;
   refetch: () => Promise<void>;
 }
 
@@ -142,7 +144,8 @@ export function useNotifications(): UseNotificationsResult {
     const { error: updateError } = await supabase
       .from('notifications')
       .update({ is_read: true })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('user_id', userId);
     if (updateError) {
       setError(updateError.message);
       // Fall back to truth on failure.
@@ -164,6 +167,26 @@ export function useNotifications(): UseNotificationsResult {
     }
   }, [userId, fetchNotifications]);
 
+  const removeNotification = useCallback(async (id: string): Promise<void> => {
+    if (!userId) return;
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    const { error: deleteError } = await supabase.from('notifications').delete().eq('id', id).eq('user_id', userId);
+    if (deleteError) {
+      setError(deleteError.message);
+      fetchNotifications();
+    }
+  }, [userId, fetchNotifications]);
+
+  const clearAllNotifications = useCallback(async (): Promise<void> => {
+    if (!userId) return;
+    setNotifications([]);
+    const { error: deleteError } = await supabase.from('notifications').delete().eq('user_id', userId);
+    if (deleteError) {
+      setError(deleteError.message);
+      fetchNotifications();
+    }
+  }, [userId, fetchNotifications]);
+
   const unreadCount = notifications.reduce((count, n) => count + (n.is_read ? 0 : 1), 0);
 
   return {
@@ -173,6 +196,8 @@ export function useNotifications(): UseNotificationsResult {
     error,
     markAsRead,
     markAllAsRead,
+    removeNotification,
+    clearAllNotifications,
     refetch: fetchNotifications,
   };
 }

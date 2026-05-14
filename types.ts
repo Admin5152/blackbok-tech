@@ -69,6 +69,9 @@ export interface Product {
   variants?: ProductVariant[];
   storage?: string[];
   ram?: string[];
+  /** Legacy DB columns — mapped into `storage` / `ram` chips in `mapProductFromDb`. */
+  storage_capacity?: string | null;
+  ram_capacity?: string | null;
   // Multi-image gallery (joined from public.product_images). Falls back to
   // `image_url` / `image` when the gallery hasn't been populated yet.
   images?: ProductImage[];

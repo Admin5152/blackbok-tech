@@ -42,6 +42,15 @@ function normalizeChipArray(v: unknown): string[] {
   return coerceOptionStrings(v);
 }
 
+/** Split "256GB / 512GB" or "8GB, 16GB" style strings into distinct chip labels. */
+function chipsFromScalar(val: unknown): string[] {
+  if (val == null || val === '') return [];
+  const s = String(val).trim();
+  if (!s) return [];
+  const parts = s.split(/[,/|]/).map((x) => x.trim()).filter(Boolean);
+  return coerceOptionStrings(parts.length ? parts : [s]);
+}
+
 function uniqFromRows(rows: any[], key: 'color' | 'storage' | 'ram'): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
@@ -70,11 +79,13 @@ export function getProductOptionGroups(product: Product | null | undefined): Pro
   const fromColors = normalizeChipArray(asAny.colors);
   const fromStorage = normalizeChipArray(asAny.storage);
   const fromRam = normalizeChipArray(asAny.ram);
+  const storageOpts = fromStorage.length ? fromStorage : chipsFromScalar(asAny.storage_capacity);
+  const ramOpts = fromRam.length ? fromRam : chipsFromScalar(asAny.ram_capacity);
 
   const chipGroups: ProductOptionGroup[] = [];
   if (fromColors.length) chipGroups.push({ name: 'Color', options: fromColors });
-  if (fromStorage.length) chipGroups.push({ name: 'Storage', options: fromStorage });
-  if (fromRam.length) chipGroups.push({ name: 'RAM', options: fromRam });
+  if (storageOpts.length) chipGroups.push({ name: 'Storage', options: storageOpts });
+  if (ramOpts.length) chipGroups.push({ name: 'RAM', options: ramOpts });
   if (chipGroups.length > 0) return chipGroups;
 
   if (Array.isArray(product.variants) && product.variants.length > 0) {

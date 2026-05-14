@@ -85,7 +85,7 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
                 </span>
                 <div className="flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded-full border border-white/5">
                   <Star size={10} className="fill-[#CDA032] text-[#CDA032]" />
-                  <span className="text-[9px] font-black text-white/60">
+                  <span className="text-[9px] font-black" style={{ color: 'var(--bb-muted)' }}>
                     {product.rating || '4.5'}
                   </span>
                 </div>
@@ -103,19 +103,38 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
                   {formatCurrency(product.price * 1.2)}
                 </span>
               </div>
+              {groupedVariants.length > 0 && (
+                <p
+                  className="text-[10px] font-black uppercase tracking-[0.25em] leading-relaxed"
+                  style={{ color: 'var(--bb-muted)' }}
+                >
+                  {groupedVariants
+                    .map((g) => {
+                      const sel = selectedOptions[g.name]?.trim();
+                      return sel ? `${g.name}: ${sel}` : null;
+                    })
+                    .filter(Boolean)
+                    .join(' · ') || 'Choose options below'}
+                </p>
+              )}
             </div>
 
-            <p className="text-sm sm:text-base font-medium text-white/40 leading-relaxed italic border-l-2 border-[#CDA032]/30 pl-6">
+            <p className="text-sm sm:text-base font-medium leading-relaxed italic border-l-2 border-[#CDA032]/30 pl-6" style={{ color: 'var(--bb-muted)' }}>
               {product.description}
             </p>
 
-            {/* Variants Section */}
+            {/* Variants: color, storage, RAM (from chips, legacy groups, or SKU rows) */}
             <div className="space-y-6">
+              {groupedVariants.length === 0 ? (
+                <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--bb-muted)' }}>
+                  No color or storage options for this listing — open the product page for full details.
+                </p>
+              ) : null}
               {groupedVariants.map(variant => (
                 <div key={variant.name} className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <label className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30">
-                      Select {variant.name}
+                    <label className="text-[9px] font-black uppercase tracking-[0.3em]" style={{ color: 'var(--bb-muted)' }}>
+                      {variant.name}
                     </label>
                     {selectedOptions[variant.name] && (
                       <span className="text-[9px] font-black uppercase text-[#CDA032] tracking-widest">
@@ -133,7 +152,7 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
                         onClick={() => setSelectedOptions(prev => ({ ...prev, [variant.name]: opt }))}
                         className={`group relative px-4 sm:px-6 py-3 rounded-2xl border text-[9px] sm:text-[11px] font-black transition-all duration-300 ${selectedOptions[variant.name] === opt
                           ? 'border-[#CDA032] bg-[#CDA032] text-black shadow-2xl shadow-[#CDA032]/20'
-                          : 'border-white/5 bg-white/5 text-white/40 hover:border-white/20 hover:text-white'
+                          : 'border-[color:var(--bb-border)] bg-[color:var(--bb-surface-2)] text-[color:var(--bb-text)] opacity-75 hover:opacity-100'
                           }`}
                       >
                         {variant.name === 'Color' ? (

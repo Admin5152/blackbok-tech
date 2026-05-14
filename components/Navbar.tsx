@@ -331,6 +331,20 @@ export const Navbar: React.FC<{
                 </button>
               )}
 
+              <Link
+                to="/store"
+                title="Shop"
+                aria-label="Open shop"
+                className={[
+                  'lg:hidden flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-all',
+                  isLight
+                    ? 'border-black/10 bg-black/5 text-black hover:bg-[#CDA032] hover:text-black hover:border-[#CDA032]/50'
+                    : 'border-white/10 bg-white/5 text-white hover:bg-[#CDA032] hover:text-black hover:border-[#CDA032]/50',
+                ].join(' ')}
+              >
+                <ShoppingBag size={20} strokeWidth={2.25} />
+              </Link>
+
               {/* Mobile / tablet cart — always visible below lg (desktop cart lives in the main nav row) */}
               <Link
                 to="/cart"

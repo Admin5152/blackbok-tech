@@ -310,11 +310,22 @@ const coerceTextArray = (val: unknown): string[] => {
   return out;
 };
 
+/** When `storage` / `ram` TEXT[] are empty, derive chips from legacy varchar columns. */
+const coerceCapacityFallback = (val: unknown): string[] => {
+  if (val == null || val === '') return [];
+  const s = String(val).trim();
+  if (!s) return [];
+  const parts = s.split(/[,/|]/).map((x) => x.trim()).filter(Boolean);
+  return coerceTextArray((parts.length ? parts : [s]) as unknown[]);
+};
+
 /** Maps a Supabase `products` row (+ joined relations) to the UI `Product` shape. */
 export function mapProductFromDb(p: any): Product {
   if (!p) return p;
   const isNew = p.is_new != null ? Boolean(p.is_new) : Boolean(p.new);
-  return {
+    const storageChips = coerceTextArray(p.storage);
+    const ramChips = coerceTextArray(p.ram);
+    return {
     ...p,
     category: normalizeCategory(p.category),
     image: p.image_url,
@@ -329,8 +340,8 @@ export function mapProductFromDb(p: any): Product {
     discount: p.discount != null && p.discount !== '' ? Number(p.discount) : undefined,
     rating: p.rating != null && p.rating !== '' ? Number(p.rating) : undefined,
     colors: coerceTextArray(p.colors),
-    storage: coerceTextArray(p.storage),
-    ram: coerceTextArray(p.ram),
+    storage: storageChips.length ? storageChips : coerceCapacityFallback(p.storage_capacity),
+    ram: ramChips.length ? ramChips : coerceCapacityFallback(p.ram_capacity),
     specs: coerceTextArray(p.specs),
   } as Product;
 }

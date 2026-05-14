@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Bell, Check, Package, Wrench, RefreshCcw, Megaphone, Info as InfoIcon } from 'lucide-react';
+import { Bell, Check, Package, Wrench, RefreshCcw, Megaphone, Info as InfoIcon, X } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import { useNotifications, type Notification, type NotificationType } from '../hooks/useNotifications';
 
@@ -95,6 +95,8 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ theme }) => 
     error,
     markAsRead,
     markAllAsRead,
+    removeNotification,
+    clearAllNotifications,
   } = useNotifications();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -181,40 +183,62 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ theme }) => 
         >
           {/* Header */}
           <div
-            className={`px-4 py-3 flex items-center justify-between border-b ${
+            className={`px-4 py-3 flex flex-col gap-2 border-b ${
               isLight ? 'border-black/5' : 'border-white/5'
             }`}
           >
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.2em]">
-                Notifications
-              </p>
-              <p
-                className={`text-[10px] ${
-                  isLight ? 'text-black/40' : 'text-white/40'
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[11px] font-black uppercase tracking-[0.2em]">
+                  Notifications
+                </p>
+                <p
+                  className={`text-[10px] ${
+                    isLight ? 'text-black/40' : 'text-white/40'
+                  }`}
+                >
+                  {unreadCount === 0
+                    ? 'All caught up'
+                    : `${unreadCount} unread`}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => void markAllAsRead()}
+                disabled={unreadCount === 0}
+                className={`text-[10px] font-black uppercase tracking-widest transition-colors ${
+                  unreadCount === 0
+                    ? isLight
+                      ? 'text-black/20 cursor-not-allowed'
+                      : 'text-white/20 cursor-not-allowed'
+                    : 'text-[#CDA032] hover:text-[#D4AF37]'
                 }`}
               >
-                {unreadCount === 0
-                  ? 'All caught up'
-                  : `${unreadCount} unread`}
-              </p>
+                <span className="inline-flex items-center gap-1.5">
+                  <Check size={12} /> Mark all read
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => void clearAllNotifications()}
+                disabled={notifications.length === 0}
+                className={`text-[10px] font-black uppercase tracking-widest transition-colors ${
+                  notifications.length === 0
+                    ? isLight
+                      ? 'text-black/20 cursor-not-allowed'
+                      : 'text-white/20 cursor-not-allowed'
+                    : isLight
+                      ? 'text-black/50 hover:text-red-600'
+                      : 'text-white/50 hover:text-red-400'
+                }`}
+              >
+                <span className="inline-flex items-center gap-1.5">
+                  <X size={12} /> Clear all
+                </span>
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => void markAllAsRead()}
-              disabled={unreadCount === 0}
-              className={`text-[10px] font-black uppercase tracking-widest transition-colors ${
-                unreadCount === 0
-                  ? isLight
-                    ? 'text-black/20 cursor-not-allowed'
-                    : 'text-white/20 cursor-not-allowed'
-                  : 'text-[#CDA032] hover:text-[#D4AF37]'
-              }`}
-            >
-              <span className="inline-flex items-center gap-1.5">
-                <Check size={12} /> Mark all read
-              </span>
-            </button>
           </div>
 
           {/* List */}
@@ -259,12 +283,9 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ theme }) => 
                 const hasLink = getNotificationLink(notification) !== null;
                 const interactive = hasLink || !notification.is_read;
                 return (
-                  <button
+                  <div
                     key={notification.id}
-                    type="button"
-                    onClick={() => void handleRowClick(notification)}
-                    disabled={!interactive}
-                    className={`w-full text-left px-4 py-3 flex items-start gap-3 border-b transition-colors ${
+                    className={`flex items-stretch border-b ${
                       isLight ? 'border-black/5' : 'border-white/5'
                     } ${
                       !notification.is_read
@@ -272,49 +293,72 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ theme }) => 
                           ? 'bg-[#CDA032]/5'
                           : 'bg-white/[0.03]'
                         : ''
-                    } ${
-                      interactive
-                        ? isLight
-                          ? 'hover:bg-black/[0.03] cursor-pointer'
-                          : 'hover:bg-white/5 cursor-pointer'
-                        : 'cursor-default'
                     }`}
                   >
-                    <span
-                      className={`shrink-0 mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center ${
-                        isLight ? 'bg-black/5' : 'bg-white/5'
+                    <button
+                      type="button"
+                      onClick={() => void handleRowClick(notification)}
+                      disabled={!interactive}
+                      className={`min-w-0 flex-1 text-left px-4 py-3 flex items-start gap-3 transition-colors ${
+                        interactive
+                          ? isLight
+                            ? 'hover:bg-black/[0.03] cursor-pointer'
+                            : 'hover:bg-white/5 cursor-pointer'
+                          : 'cursor-default'
                       }`}
                     >
-                      <Icon size={14} className={accent} />
-                    </span>
-                    <span className="flex-1 min-w-0">
-                      <span className="flex items-start gap-2">
-                        <span className="flex-1 min-w-0 text-[12px] font-bold leading-tight truncate">
-                          {notification.title}
+                      <span
+                        className={`shrink-0 mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center ${
+                          isLight ? 'bg-black/5' : 'bg-white/5'
+                        }`}
+                      >
+                        <Icon size={14} className={accent} />
+                      </span>
+                      <span className="flex-1 min-w-0">
+                        <span className="flex items-start gap-2">
+                          <span className="flex-1 min-w-0 text-[12px] font-bold leading-tight truncate">
+                            {notification.title}
+                          </span>
+                          {!notification.is_read && (
+                            <span
+                              aria-label="Unread"
+                              className="shrink-0 mt-1 w-2 h-2 rounded-full bg-blue-500"
+                            />
+                          )}
                         </span>
-                        {!notification.is_read && (
-                          <span
-                            aria-label="Unread"
-                            className="shrink-0 mt-1 w-2 h-2 rounded-full bg-blue-500"
-                          />
-                        )}
+                        <span
+                          className={`block mt-1 text-[11px] leading-snug line-clamp-2 ${
+                            isLight ? 'text-black/60' : 'text-white/60'
+                          }`}
+                        >
+                          {clampBody(notification.body)}
+                        </span>
+                        <span
+                          className={`block mt-1.5 text-[10px] uppercase tracking-widest font-black ${
+                            isLight ? 'text-black/30' : 'text-white/30'
+                          }`}
+                        >
+                          {timeAgo(notification.created_at)}
+                        </span>
                       </span>
-                      <span
-                        className={`block mt-1 text-[11px] leading-snug line-clamp-2 ${
-                          isLight ? 'text-black/60' : 'text-white/60'
-                        }`}
-                      >
-                        {clampBody(notification.body)}
-                      </span>
-                      <span
-                        className={`block mt-1.5 text-[10px] uppercase tracking-widest font-black ${
-                          isLight ? 'text-black/30' : 'text-white/30'
-                        }`}
-                      >
-                        {timeAgo(notification.created_at)}
-                      </span>
-                    </span>
-                  </button>
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Remove notification"
+                      title="Remove"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void removeNotification(notification.id);
+                      }}
+                      className={`shrink-0 px-3 flex items-center justify-center border-l transition-colors ${
+                        isLight
+                          ? 'border-black/5 text-black/30 hover:text-red-600 hover:bg-black/[0.04]'
+                          : 'border-white/5 text-white/35 hover:text-red-400 hover:bg-white/5'
+                      }`}
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
                 );
               })
             )}
