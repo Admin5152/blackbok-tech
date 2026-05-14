@@ -223,9 +223,9 @@ export const Home: React.FC<HomeProps> = ({
           </>
         )}
 
-        <div className="relative z-20 flex min-h-hero-viewport w-full flex-col justify-end px-4 pb-8 pt-24 sm:px-6 sm:pb-10 sm:pt-28 md:pb-12">
+        <div className="relative z-20 flex min-h-hero-viewport w-full flex-col justify-end px-4 pb-12 pt-24 sm:px-6 sm:pb-10 sm:pt-28 md:pb-12">
           <div className="mx-auto flex w-full max-w-lg flex-col gap-5 sm:max-w-xl sm:gap-6">
-            <div className="mx-auto w-full max-w-[min(100%,20rem)] text-center sm:max-w-2xl md:max-w-3xl">
+            <div className="mx-auto w-full max-w-[min(100%,20rem)] text-center max-sm:-translate-y-2 sm:max-w-2xl sm:translate-y-0 md:max-w-3xl">
               <h1 className="font-heading text-balance text-3xl font-bold leading-[1.12] tracking-tight text-off-white drop-shadow-[0_2px_20px_rgba(0,0,0,0.85)] sm:text-4xl sm:leading-tight md:text-5xl">
                 <span className="block sm:inline">Redefining Your</span>{' '}
                 <span className="block sm:inline">

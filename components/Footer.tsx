@@ -17,11 +17,11 @@ export const Footer: React.FC<FooterProps> = ({ theme }) => {
     title: string,
     children: React.ReactNode,
   ) => (
-    <div className="space-y-5 min-w-0">
+    <div className="min-w-0 space-y-2.5">
       <h4 className={`text-[10px] font-black uppercase tracking-[0.35em] ${isLight ? 'text-black/35' : 'text-white/25'}`}>
         {title}
       </h4>
-      <ul className={`space-y-3 text-[10px] font-black uppercase tracking-[0.28em] ${isLight ? 'text-black/55' : 'text-white/45'}`}>
+      <ul className={`space-y-2 text-[10px] font-black uppercase tracking-[0.28em] ${isLight ? 'text-black/55' : 'text-white/45'}`}>
         {children}
       </ul>
     </div>
@@ -42,16 +42,16 @@ export const Footer: React.FC<FooterProps> = ({ theme }) => {
   );
 
   return (
-    <footer className={`py-14 sm:py-20 px-4 sm:px-6 lg:px-8 border-t ${isLight ? 'bg-[#E8E8E8] border-black/10 text-black' : 'bg-black border-white/5 text-white'}`}>
-      <div className="max-w-[1440px] mx-auto">
-        <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-10 xl:gap-16">
+    <footer className={`border-t px-4 py-6 sm:px-6 sm:py-8 lg:px-8 ${isLight ? 'bg-[#E8E8E8] border-black/10 text-black' : 'bg-black border-white/5 text-white'}`}>
+      <div className="mx-auto max-w-[1440px]">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-6 xl:gap-8">
           {/* Brand */}
-          <div className="space-y-6 lg:col-span-3">
-            <h2 className="text-3xl font-black italic tracking-tighter uppercase">BLACKBOX</h2>
+          <div className="space-y-3 lg:col-span-3">
+            <h2 className="text-2xl font-black italic tracking-tighter uppercase sm:text-3xl">BLACKBOX</h2>
             <p className={`text-[10px] leading-relaxed max-w-[260px] font-black uppercase tracking-[0.28em] italic ${isLight ? 'text-black/50' : 'text-white/25'}`}>
               Elite hardware repository & specialized diagnostics. Precision establishes the baseline.
             </p>
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
               <a
                 href="https://wa.me/+233543217272"
                 target="_blank"
@@ -83,7 +83,7 @@ export const Footer: React.FC<FooterProps> = ({ theme }) => {
           </div>
 
           {/* Link columns — 2×2 on small screens, 4 across on large */}
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-10 sm:gap-x-8 lg:col-span-9 lg:gap-x-10">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-2 sm:gap-x-5 md:grid-cols-4 lg:col-span-9 lg:gap-x-6 lg:gap-y-5">
             {footCol(
               'Shop',
               <>
@@ -139,7 +139,7 @@ export const Footer: React.FC<FooterProps> = ({ theme }) => {
           </div>
         </div>
 
-        <div className={`flex flex-col sm:flex-row items-center justify-between gap-4 pt-10 mt-10 border-t ${isLight ? 'border-black/10' : 'border-white/10'}`}>
+        <div className={`mt-4 flex flex-col items-center justify-between gap-1.5 border-t pt-4 sm:flex-row sm:gap-2 ${isLight ? 'border-black/10' : 'border-white/10'}`}>
           <p className={`text-[9px] font-black uppercase tracking-[0.35em] italic ${isLight ? 'text-black/35' : 'text-white/20'}`}>
             © 2026 BLACKBOX. EST. KUMASI.
           </p>
