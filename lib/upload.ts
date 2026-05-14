@@ -4,39 +4,49 @@ export const uploadImage = async (file: File, bucket: string = 'repair-images'):
   try {
     // Validate file
     if (!file) return null;
-    
+
     // Check file size (5MB limit)
     if (file.size > 5 * 1024 * 1024) {
       throw new Error('File size must be less than 5MB');
     }
-    
+
     // Check file type
     if (!file.type.startsWith('image/')) {
       throw new Error('File must be an image');
     }
 
-    // Generate unique filename
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-    const filePath = `${fileName}`;
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+    if (authError || !user) {
+      throw new Error('Please sign in to upload repair photos.');
+    }
 
-    // Upload to Supabase Storage
-    const { data, error } = await supabase.storage
-      .from(bucket)
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: false
-      });
+    // Scoped path — must match storage RLS (see database/migrations/2026_05_storage_repair_images_bucket.sql)
+    const safeExt = (file.name.split('.').pop() || 'jpg').replace(/[^a-zA-Z0-9]/g, '').slice(0, 8) || 'jpg';
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${safeExt}`;
+    const filePath = `${user.id}/${fileName}`;
+
+    const { error } = await supabase.storage.from(bucket).upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: false,
+    });
 
     if (error) {
       console.error('Upload error:', error);
+      const msg = error.message || '';
+      if (/bucket|not found|does not exist/i.test(msg)) {
+        throw new Error(
+          'Photo storage is not set up yet. Ask an admin to run the migration `2026_05_storage_repair_images_bucket.sql` in Supabase (creates the repair-images bucket).',
+        );
+      }
       throw error;
     }
 
-    // Get public URL
-    const { data: { publicUrl } } = supabase.storage
-      .from(bucket)
-      .getPublicUrl(filePath);
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from(bucket).getPublicUrl(filePath);
 
     return publicUrl;
   } catch (error) {
@@ -47,13 +57,19 @@ export const uploadImage = async (file: File, bucket: string = 'repair-images'):
 
 export const deleteImage = async (url: string, bucket: string = 'repair-images'): Promise<void> => {
   try {
-    // Extract file path from URL
-    const urlParts = url.split('/');
-    const filePath = urlParts[urlParts.length - 1];
-    
-    const { error } = await supabase.storage
-      .from(bucket)
-      .remove([filePath]);
+    const marker = `/object/public/${bucket}/`;
+    const idx = url.indexOf(marker);
+    const raw =
+      idx >= 0
+        ? url.slice(idx + marker.length).split('?')[0]
+        : url.split('/').slice(-2).join('/');
+    const filePath = decodeURIComponent(raw);
+
+    if (!filePath || filePath.includes('..')) {
+      throw new Error('Invalid storage URL');
+    }
+
+    const { error } = await supabase.storage.from(bucket).remove([filePath]);
 
     if (error) {
       console.error('Delete error:', error);

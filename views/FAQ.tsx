@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { ChevronDown, Plus, Minus, MessageCircle, Phone, ArrowRight, Mail } from 'lucide-react';
-import { Link } from '@tanstack/react-router';
+import { ChevronDown, Plus, Minus, MessageCircle, Phone, Mail } from 'lucide-react';
 import type { Theme } from '../App';
+import { useAppContext } from '../App';
 
 interface FAQProps {
     theme?: Theme;
 }
 
-export const FAQ: React.FC<FAQProps> = ({ theme }) => {
+export const FAQ: React.FC<FAQProps> = ({ theme: themeProp }) => {
+    const { theme: ctxTheme } = useAppContext();
+    const theme = themeProp ?? ctxTheme;
     const isLight = theme === 'light';
 
     const faqs = [
@@ -90,8 +92,8 @@ export const FAQ: React.FC<FAQProps> = ({ theme }) => {
 
                 {/* Header */}
                 <div className="text-center mb-16 space-y-6 animate-in fade-in slide-in-from-bottom-5 duration-700">
-                    <h1 className="text-5xl md:text-7xl font-black tracking-tighter uppercase italic">
-                        HELP <span className={isLight ? 'text-black/20' : 'text-white/20'}>CENTER</span>
+                    <h1 className={`text-5xl md:text-7xl font-black tracking-tighter uppercase italic ${isLight ? 'text-black' : 'text-white'}`}>
+                        HELP <span className={isLight ? 'text-black/40' : 'text-white/25'}>CENTER</span>
                     </h1>
                     <div className="w-16 h-1 bg-[#CDA032] mx-auto rounded-full"></div>
                     <p className={`text-lg md:text-xl font-medium max-w-2xl mx-auto ${isLight ? 'text-black/60' : 'text-white/60'}`}>
@@ -103,7 +105,7 @@ export const FAQ: React.FC<FAQProps> = ({ theme }) => {
                 <div className="space-y-12">
                     {faqs.map((category, catIdx) => (
                         <div key={catIdx} className="animate-in fade-in slide-in-from-bottom-8 duration-700" style={{ animationDelay: `${catIdx * 150}ms` }}>
-                            <h2 className="text-2xl font-bold tracking-tight mb-6 flex items-center gap-3">
+                            <h2 className={`text-2xl font-bold tracking-tight mb-6 flex items-center gap-3 ${isLight ? 'text-black' : 'text-white'}`}>
                                 <span className="w-2 h-2 rounded-full bg-[#CDA032]"></span>
                                 {category.category}
                             </h2>
@@ -119,8 +121,9 @@ export const FAQ: React.FC<FAQProps> = ({ theme }) => {
                                             className={`overflow-hidden rounded-2xl border transition-all duration-300 ${isOpen ? (isLight ? 'bg-white border-[#CDA032]/30 shadow-lg' : 'bg-[#111] border-[#CDA032]/30 shadow-lg shadow-[#CDA032]/5') : (isLight ? 'bg-white/50 border-black/5 hover:border-black/10' : 'bg-white/5 border-white/5 hover:border-white/10')}`}
                                         >
                                             <button
+                                                type="button"
                                                 onClick={() => toggleFaq(uniqueId)}
-                                                className="w-full text-left px-6 py-6 flex items-center justify-between gap-4 font-semibold text-lg"
+                                                className={`w-full text-left px-6 py-6 flex items-center justify-between gap-4 font-semibold text-lg ${isLight ? 'text-black' : 'text-white'}`}
                                             >
                                                 <span className="leading-snug pr-4">{item.question}</span>
                                                 <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isOpen ? 'bg-[#CDA032] text-black' : (isLight ? 'bg-black/5' : 'bg-white/10')}`}>
@@ -143,7 +146,7 @@ export const FAQ: React.FC<FAQProps> = ({ theme }) => {
 
                 {/* Still Need Help CTA */}
                 <div className={`mt-20 p-10 rounded-[2rem] text-center border transition-colors ${isLight ? 'bg-white border-black/5 shadow-xl' : 'bg-[#111] border-white/5'}`}>
-                    <h3 className="text-3xl font-black uppercase italic tracking-wider mb-4">Still have questions?</h3>
+                    <h3 className={`text-3xl font-black uppercase italic tracking-wider mb-4 ${isLight ? 'text-black' : 'text-white'}`}>Still have questions?</h3>
                     <p className={`mb-8 ${isLight ? 'text-black/60' : 'text-white/60'}`}>Our technical experts are ready to assist you.</p>
                     <div className="flex flex-col sm:flex-row justify-center gap-4">
                         <a

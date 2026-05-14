@@ -43,7 +43,7 @@ export const CompareModal: React.FC<CompareModalProps> = ({
               <GitCompare size={20} />
             </div>
             <div>
-              <h2 className="text-xl md:text-2xl font-serif-luxury font-black italic uppercase tracking-tighter">Compare Products</h2>
+              <h2 className="text-xl md:text-2xl font-serif-luxury font-black italic uppercase tracking-tighter">Compare from shop</h2>
               <p className="text-[9px] font-black uppercase tracking-[0.5em] text-white/20 italic">{products.length} products selected</p>
             </div>
           </div>

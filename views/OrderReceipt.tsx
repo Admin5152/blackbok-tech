@@ -233,7 +233,7 @@ export const OrderReceipt: React.FC = () => {
                             </h3>
                             <div className="bg-white/[0.02] border border-white/5 rounded-2xl overflow-hidden divide-y divide-white/5">
                                 <div className="hidden md:grid grid-cols-12 px-5 py-3 text-[9px] font-black uppercase tracking-widest text-white/30">
-                                    <span className="col-span-6">Product</span>
+                                    <span className="col-span-6">Item</span>
                                     <span className="col-span-2 text-center">Qty</span>
                                     <span className="col-span-2 text-right">Unit Price</span>
                                     <span className="col-span-2 text-right">Line Total</span>

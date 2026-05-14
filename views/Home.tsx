@@ -2,9 +2,9 @@ import React, { useState, useMemo, useEffect } from 'react';
 import {
   ChevronRight, ChevronLeft, ArrowRight, Settings,
   Users, Award, TrendingUp, Star, Quote, ArrowLeftRight, Wrench, Mail, Phone, MapPin, Heart, Eye,
-  Search, ShoppingCart,
+  ShoppingCart,
 } from 'lucide-react';
-import { Link, useNavigate } from '@tanstack/react-router';
+import { Link } from '@tanstack/react-router';
 import { Product, Category } from '../types';
 import { HERO_COLLAGE_FILENAMES, getImagesForTheme } from '../data/heroImages';
 import { formatCurrency, TW_DARK_BTN_DEPTH, TW_DARK_GOLD_BTN_DEPTH } from '../lib/utils';
@@ -40,8 +40,6 @@ interface HomeProps {
   user: any;
   theme: 'light' | 'dark';
   navigateTo?: (v: string, id?: string) => void;
-  searchQuery: string;
-  setSearchQuery: (q: string) => void;
 }
 
 export const Home: React.FC<HomeProps> = ({
@@ -56,8 +54,6 @@ export const Home: React.FC<HomeProps> = ({
   user,
   theme,
   navigateTo,
-  searchQuery,
-  setSearchQuery,
 }) => {
   const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
   const [exploreFilter, setExploreFilter] = useState<'All Gear' | 'Pro Series' | 'Essentials'>('All Gear');
@@ -140,17 +136,6 @@ export const Home: React.FC<HomeProps> = ({
   const prevHighlight = () => setCurrentHighlightsIndex((prev) => (prev - 1 + highlights.length) % highlights.length);
 
   const isDark = theme === 'dark';
-  const navigate = useNavigate();
-
-  const handleSiteSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    const raw = searchQuery.trim();
-    setSearchQuery(raw);
-    navigate({
-      to: '/store',
-      search: (raw ? { q: raw } : {}) as { q?: string },
-    });
-  };
 
   const quickLinkClass = `rounded-full border px-3 py-1.5 text-xs font-semibold tracking-wide transition-all duration-200 ${isDark ? 'border-white/15 text-white/90 hover:border-[#D4AF37]/55 hover:bg-white/[0.08] hover:shadow-[0_0_0_1px_rgba(212,175,55,0.35)]' : 'border-black/15 text-black/90 hover:border-[#B38B21]/45 hover:bg-black/[0.03] hover:shadow-[0_0_0_1px_rgba(179,139,33,0.4)]'} ${TW_DARK_BTN_DEPTH}`;
 
@@ -177,9 +162,9 @@ export const Home: React.FC<HomeProps> = ({
   if (!products || products.length === 0) return null;
 
   const customerReviews = [
-    { name: "Kwame Asante", text: "Excellent service and quality products. BlackBox is my go-to for all tech needs.", rating: 5 },
+    { name: "Kwame Asante", text: "Excellent service and quality gear. BlackBox is my go-to for all tech needs.", rating: 5 },
     { name: "Ama Mensah", text: "Professional repair service and fair trade-in values. Highly recommended!", rating: 5 },
-    { name: "Kojo Osei", text: "Great customer service and authentic products. The best tech store in Kumasi.", rating: 5 },
+    { name: "Kojo Osei", text: "Great customer service and authentic gear. The best tech store in Kumasi.", rating: 5 },
     { name: "Yaa Boakye", text: "Fast repairs and reasonable prices. I'm very satisfied with their service.", rating: 5 },
     { name: "Kwame Boateng", text: "Amazing experience! Got exactly what I needed at a great price.", rating: 5 }
   ];
@@ -260,7 +245,7 @@ export const Home: React.FC<HomeProps> = ({
                 </span>
               </h1>
               <p className="mx-auto mt-3 max-w-[min(100%,22rem)] text-pretty text-sm font-light leading-relaxed text-zinc-200/95 drop-shadow-[0_1px_14px_rgba(0,0,0,0.85)] sm:mt-4 sm:max-w-lg sm:text-base md:text-lg">
-                Premium tech products, expert repairs, and seamless trade-ins for the modern enthusiast.
+                Premium tech, expert repairs, and seamless trade-ins for the modern enthusiast.
               </p>
             </div>
 
@@ -273,7 +258,7 @@ export const Home: React.FC<HomeProps> = ({
                   : 'bg-white text-black hover:border-black/10 hover:shadow-black/10'
                   } ${TW_DARK_BTN_DEPTH}`}
               >
-                Browse Products
+                Browse shop
                 <ArrowRight className="shrink-0 transition-transform group-hover:translate-x-1" size={18} />
               </Link>
 
@@ -319,49 +304,20 @@ export const Home: React.FC<HomeProps> = ({
       </section>
 
       <section
-        className={`section-connector border-t py-8 md:py-10 ${isDark ? 'border-white/[0.06] bg-[#050508]' : 'border-black/[0.06] bg-white'}`}
-        aria-labelledby="home-site-search-heading"
+        className={`section-connector border-t py-6 md:py-8 ${isDark ? 'border-white/[0.06] bg-[#050508]' : 'border-black/[0.06] bg-white'}`}
+        aria-labelledby="home-quick-links-heading"
       >
         <div className="mx-auto max-w-3xl px-4 md:px-8">
           <h2
-            id="home-site-search-heading"
-            className={`mb-2 text-center font-heading text-lg font-semibold tracking-wide md:text-xl ${isDark ? 'text-white' : 'text-black'}`}
+            id="home-quick-links-heading"
+            className={`mb-4 text-center font-heading text-base font-semibold tracking-wide md:text-lg ${isDark ? 'text-white' : 'text-black'}`}
           >
-            Search the catalog
+            Quick links
           </h2>
-          <p className={`mb-5 text-center text-sm md:text-base ${isDark ? 'text-white/60' : 'text-black/60'}`}>
-            Matches products across the store. Use the arrows on each row to scroll, or open repairs, trades, and orders from the links below.
+          <p className={`mb-5 text-center text-sm ${isDark ? 'text-white/55' : 'text-black/55'}`}>
+            Search the shop from the bar in the header. Jump to repairs, trade-ins, orders, or help below.
           </p>
-          <form onSubmit={handleSiteSearch} className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
-            <label htmlFor="home-universal-search" className="sr-only">
-              Search products and categories
-            </label>
-            <div className="relative flex-1">
-              <Search
-                className={`pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 ${isDark ? 'text-white/35' : 'text-black/35'}`}
-                aria-hidden
-              />
-              <input
-                id="home-universal-search"
-                type="search"
-                autoComplete="off"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="iPhone, MacBook, cases, chargers…"
-                className={`w-full rounded-2xl border py-3.5 pl-12 pr-4 text-sm outline-none ring-offset-2 transition placeholder:opacity-50 focus-visible:ring-2 ${isDark ? 'border-white/15 bg-white/[0.06] text-white ring-[#D4AF37]/60 ring-offset-[#050508] hover:border-white/28' : 'border-black/15 bg-white text-black ring-[#B38B21]/50 ring-offset-white hover:border-[#B38B21]/35'}`}
-              />
-            </div>
-            <button
-              type="submit"
-              className={`shrink-0 rounded-2xl bg-[#D4AF37] px-8 py-3.5 text-sm font-heading font-semibold tracking-wider text-black transition-all duration-200 hover:bg-[#c9a430] hover:shadow-[0_0_0_2px_rgba(212,175,55,0.55),0_6px_20px_-4px_rgba(0,0,0,0.15)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]/70 focus-visible:ring-offset-2 ${TW_DARK_GOLD_BTN_DEPTH}`}
-            >
-              Search catalog
-            </button>
-          </form>
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-2 gap-y-2">
-            <span className={`basis-full text-center text-[10px] font-bold uppercase tracking-widest sm:basis-auto sm:text-left ${isDark ? 'text-white/45' : 'text-black/45'}`}>
-              Quick links
-            </span>
+          <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-2">
             <Link to="/repair" className={quickLinkClass}>
               Repairs
             </Link>
@@ -381,13 +337,13 @@ export const Home: React.FC<HomeProps> = ({
         </div>
       </section>
 
-      {/* Featured Products — horizontal scroll + quick view (same pattern as accessories / laptop) */}
+      {/* Shop highlights — horizontal scroll + quick view */}
       <section className={`section-connector py-6 md:py-10 overflow-hidden ${isDark ? 'bg-gradient-to-b from-[#050508] via-[#0a0a12] to-[#050508]' : 'bg-white'}`}>
         <div className="max-w-screen-2xl mx-auto">
           <div className="mb-6 flex flex-col gap-4 px-4 sm:flex-row sm:items-center sm:justify-between md:px-8">
             <div className="min-w-0">
               <h2 className={`text-3xl font-heading font-bold tracking-wider md:text-4xl ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
-                Featured Products
+                Shop highlights
               </h2>
             </div>
             <div className="flex items-center justify-end gap-3 shrink-0">
@@ -395,7 +351,7 @@ export const Home: React.FC<HomeProps> = ({
                 type="button"
                 onClick={() => document.getElementById('featured-products-slider')?.scrollBy({ left: -400, behavior: 'smooth' })}
                 className={`w-12 h-12 rounded-full border flex items-center justify-center backdrop-blur-sm ${theme === 'dark' ? 'border-white/15 bg-white/[0.04] text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-black/20 text-black hover:bg-black hover:text-white'} ${homeScrollArrowHover} ${TW_DARK_BTN_DEPTH}`}
-                aria-label="Scroll featured products left"
+                aria-label="Scroll shop highlights left"
               >
                 <ChevronLeft size={24} />
               </button>
@@ -403,7 +359,7 @@ export const Home: React.FC<HomeProps> = ({
                 type="button"
                 onClick={() => document.getElementById('featured-products-slider')?.scrollBy({ left: 400, behavior: 'smooth' })}
                 className={`w-12 h-12 rounded-full border flex items-center justify-center backdrop-blur-sm ${theme === 'dark' ? 'border-white/15 bg-white/[0.04] text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-black/20 text-black hover:bg-black hover:text-white'} ${homeScrollArrowHover} ${TW_DARK_BTN_DEPTH}`}
-                aria-label="Scroll featured products right"
+                aria-label="Scroll shop highlights right"
               >
                 <ChevronRight size={24} />
               </button>
@@ -419,7 +375,7 @@ export const Home: React.FC<HomeProps> = ({
               <div>
                 <h2 className="text-3xl md:text-5xl font-bold tracking-tight">Featured picks</h2>
                 <p className={`mt-3 max-w-[20rem] text-sm leading-relaxed ${theme === 'dark' ? 'text-white/65' : 'text-black/65'}`}>
-                  Scroll this row, then tap a card or the eye icon for a quick preview. The arrow opens the full product page.
+                  Scroll this row, then tap a card or the eye icon for a quick preview. The arrow opens the full listing.
                 </p>
               </div>
               <div className="flex justify-center mt-8">

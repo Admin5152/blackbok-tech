@@ -8,6 +8,11 @@ import { useNavigate } from '@tanstack/react-router';
 import type { Product, TradeRequest } from '../types';
 import { useAppContext } from '../App';
 import { TRADE_DEVICES_KEY } from './admin/adminUtils';
+import {
+  resolveUpgradeTargetProducts,
+  TRADE_UPGRADE_PICKS_UPDATED_EVENT,
+  TRADE_UPGRADE_PRODUCT_IDS_KEY,
+} from '../lib/tradeUpgradePicks';
 import { DEFAULT_TRADE_DEVICES, mergeTradeDevicesFromStorageArray } from '../data/tradeInDevices';
 import { createTradeRequest, getTradeRequests, updateTradeRequest } from '../lib/api';
 import { saveResumeAfterAuth, peekRestorePayload, clearRestorePayload } from '../lib/resumeAfterAuth';
@@ -111,6 +116,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
 
   const formRef = useRef<HTMLDivElement>(null);
   const tradesRestoreDone = useRef(false);
+  const [upgradePicksRev, setUpgradePicksRev] = useState(0);
 
   // Scroll to active section on step/subStep change — mirrors Repair
   useEffect(() => {
@@ -219,9 +225,22 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     [tradeDevices, selectedDeviceType, selectedBrand],
   );
 
-  const upgradeProducts = useMemo(() =>
-    products.filter(p => ['iPhone','Laptop','Tablet','Gaming'].includes(p.category)),
-    [products],
+  useEffect(() => {
+    const bump = () => setUpgradePicksRev((v) => v + 1);
+    window.addEventListener(TRADE_UPGRADE_PICKS_UPDATED_EVENT, bump);
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === TRADE_UPGRADE_PRODUCT_IDS_KEY) bump();
+    };
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener(TRADE_UPGRADE_PICKS_UPDATED_EVENT, bump);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, []);
+
+  const upgradeProducts = useMemo(
+    () => resolveUpgradeTargetProducts(products),
+    [products, upgradePicksRev],
   );
 
   const targetProduct = useMemo(() =>
@@ -630,14 +649,14 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                 <div>
                   <h3 className="text-base font-bold mb-1">What would you like to upgrade to?</h3>
                   <p className="text-xs text-[color:var(--bb-muted)] mb-4">Optional — helps us tailor the offer.</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[min(52vh,28rem)] overflow-y-auto pr-0.5">
                     <button onClick={() => setTargetProductId('')}
                       className={`py-3 px-4 rounded-xl border text-xs font-bold text-center transition-all ${!targetProductId
                         ? 'border-[#CDA032] bg-[#CDA032]/10 text-[#CDA032]'
                         : 'border-[var(--bb-border)] bg-[var(--bb-surface)] opacity-60 hover:opacity-100'}`}>
                       Not sure yet
                     </button>
-                    {upgradeProducts.slice(0, 8).map(p => (
+                    {upgradeProducts.map(p => (
                       <button key={p.id} onClick={() => setTargetProductId(p.id)}
                         className={`flex flex-col items-center py-3 px-3 rounded-xl border text-xs font-bold text-center transition-all ${targetProductId === p.id
                           ? 'border-[#CDA032] bg-[#CDA032]/10 text-[#CDA032]'

@@ -248,13 +248,13 @@ const productDetailRoute = createRoute({
           if (remoteProduct) {
             setProduct(remoteProduct);
           } else if (!localProduct) {
-            setError('Product not found');
+            setError('Item not found');
           }
         })
         .catch((err) => {
           console.error('Failed to fetch product:', err);
           if (!localProduct) {
-            setError('Product not found');
+            setError('Item not found');
           }
         })
         .finally(() => setLoading(false));
@@ -653,7 +653,10 @@ const compareRoute = createRoute({
 const policiesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/policies',
-  component: () => <Policies />,
+  component: () => {
+    const context = useAppContext();
+    return <Policies theme={context.theme} />;
+  },
 });
 
 const confirmationRoute = createRoute({
@@ -1333,7 +1336,7 @@ function RootComponent() {
               <div className="flex-1 overflow-auto py-4 px-3 space-y-1">
                 {[
                   { id: 'home', label: 'Home', icon: HomeIcon, path: '/' },
-                  { id: 'store', label: 'Products', icon: ShoppingBag, path: '/store', subItems: ['iPhone', 'Laptop', 'Accessories', 'Gaming', 'Audio', 'Track Orders'] },
+                  { id: 'store', label: 'Shop', icon: ShoppingBag, path: '/store', subItems: ['iPhone', 'Laptop', 'Accessories', 'Gaming', 'Audio', 'Track Orders'] },
                   { id: 'trades', label: 'Trades', icon: RefreshCcw, path: '/trades', subItems: ['Initiate Trade', 'Track Trade-In'] },
                   { id: 'repair', label: 'Repairs', icon: Wrench, path: '/repair', subItems: ['Schedule Repair', 'Repair Status'] },
                   { id: 'cart', label: 'Cart', icon: ShoppingCart, path: '/cart', count: cart.length },

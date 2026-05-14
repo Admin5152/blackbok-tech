@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCcw, Smartphone, Plus, Trash2, Check, X, ChevronDown, Send, DollarSign } from 'lucide-react';
+import { RefreshCcw, Smartphone, Plus, Trash2, Check, X, Send, DollarSign, Package, ChevronUp, ChevronDown } from 'lucide-react';
 import { Badge, SearchInput, Modal, ModalClose, EmptyState, Td, Th, TableWrapper, TRADE_DEVICES_KEY } from './adminUtils';
+import { useAppContext } from '../../App';
 import { getTradeRequests, updateTradeRequest } from '../../lib/api';
+import { readStoredUpgradeProductIds, persistUpgradeProductIds } from '../../lib/tradeUpgradePicks';
 import type { TradeRequest } from '../../types';
 import { formatCurrency } from '../../lib/utils';
 import {
@@ -45,6 +47,7 @@ const toTradeStatusLabel = (status?: string) => {
 interface Props { canEdit?: boolean; }
 
 export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
+    const { products } = useAppContext();
     const [trades, setTrades] = useState<TradeRequest[]>([]);
     const [devices, setDevices] = useState<TradeInCatalogDevice[]>(DEFAULT_TRADE_DEVICES);
     const [loading, setLoading] = useState(true);
@@ -61,6 +64,9 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
     const [newDevBrand, setNewDevBrand] = useState<string>('Other');
     const [newVariant, setNewVariant] = useState('');
     const [editDevId, setEditDevId] = useState<string | null>(null);
+    const [showUpgradeMgr, setShowUpgradeMgr] = useState(false);
+    const [upgradeMgrQ, setUpgradeMgrQ] = useState('');
+    const [upgradePickDraftIds, setUpgradePickDraftIds] = useState<string[]>([]);
 
     // load trades from Supabase, devices from localStorage (admin-managed list)
     useEffect(() => {
@@ -76,6 +82,12 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
             }
         } catch { /* keep DEFAULT_TRADE_DEVICES */ }
     }, []);
+
+    useEffect(() => {
+        if (!showUpgradeMgr) return;
+        setUpgradePickDraftIds(readStoredUpgradeProductIds() ?? []);
+        setUpgradeMgrQ('');
+    }, [showUpgradeMgr]);
 
     const saveDevices = (d: TradeInCatalogDevice[]) => {
         setDevices(d);
@@ -171,6 +183,35 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
     };
     const rmVariant = (devId: string, v: string) => saveDevices(devices.map(d => d.id === devId ? { ...d, variants: d.variants.filter(x => x !== v) } : d));
 
+    const uq = upgradeMgrQ.trim().toLowerCase();
+    const upgradeCatalogRows = products.filter((p) => {
+        if (!uq) return true;
+        return (
+            p.name.toLowerCase().includes(uq)
+            || (p.brand || '').toLowerCase().includes(uq)
+            || String(p.category || '').toLowerCase().includes(uq)
+        );
+    }).slice(0, 250);
+
+    const productById = new Map(products.map((p) => [p.id, p]));
+    const addUpgradePick = (id: string) => {
+        setUpgradePickDraftIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+    };
+    const rmUpgradePick = (id: string) => setUpgradePickDraftIds((prev) => prev.filter((x) => x !== id));
+    const moveUpgradePick = (index: number, dir: -1 | 1) => {
+        const j = index + dir;
+        if (j < 0 || j >= upgradePickDraftIds.length) return;
+        setUpgradePickDraftIds((prev) => {
+            const next = [...prev];
+            [next[index], next[j]] = [next[j], next[index]];
+            return next;
+        });
+    };
+    const saveUpgradePicks = () => {
+        persistUpgradeProductIds(upgradePickDraftIds);
+        setShowUpgradeMgr(false);
+    };
+
     return (
         <div className="space-y-5">
             {/* Stats */}
@@ -201,10 +242,16 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                 <div className="flex gap-2 items-center">
                     <SearchInput value={q} onChange={setQ} placeholder="Search trades..." />
                     {canEdit && (
-                        <button onClick={() => setShowDevMgr(true)}
-                            className="flex items-center gap-1.5 px-3 py-2 bg-white/5 text-white/60 hover:text-white border border-white/10 rounded-xl text-[10px] font-black uppercase transition-all">
-                            <Smartphone size={12} /> Manage Devices
-                        </button>
+                        <>
+                            <button type="button" onClick={() => setShowUpgradeMgr(true)}
+                                className="flex items-center gap-1.5 px-3 py-2 bg-white/5 text-white/60 hover:text-white border border-white/10 rounded-xl text-[10px] font-black uppercase transition-all">
+                                <Package size={12} /> Upgrade picks
+                            </button>
+                            <button onClick={() => setShowDevMgr(true)}
+                                className="flex items-center gap-1.5 px-3 py-2 bg-white/5 text-white/60 hover:text-white border border-white/10 rounded-xl text-[10px] font-black uppercase transition-all">
+                                <Smartphone size={12} /> Manage Devices
+                            </button>
+                        </>
                     )}
                 </div>
             </div>
@@ -338,6 +385,105 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                 </div>
                             </div>
                         )}
+                    </div>
+                </Modal>
+            )}
+
+            {/* Upgrade target picks (shop products shown on trade-in step 2) */}
+            {showUpgradeMgr && (
+                <Modal onClose={() => setShowUpgradeMgr(false)} maxW="max-w-4xl">
+                    <ModalClose onClose={() => setShowUpgradeMgr(false)} />
+                    <div className="p-6">
+                        <h3 className="text-base font-black text-white mb-1">Manage upgrade picks</h3>
+                        <p className="text-[10px] text-white/30 mb-4 leading-relaxed">
+                            Choose which catalogue products appear as &quot;upgrade to&quot; options in the customer trade-in flow (step 2). Order is preserved. Saves to this browser only; clear the list to fall back to iPhone / Laptop / Tablet / Gaming categories.
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-h-0">
+                            <div className="flex flex-col min-h-0 border border-white/10 rounded-xl overflow-hidden bg-black/30">
+                                <div className="p-3 border-b border-white/10 shrink-0">
+                                    <SearchInput value={upgradeMgrQ} onChange={setUpgradeMgrQ} placeholder="Search catalogue..." />
+                                </div>
+                                <div className="max-h-[48vh] overflow-y-auto p-2 space-y-1">
+                                    {upgradeCatalogRows.length === 0 ? (
+                                        <p className="text-[10px] text-white/30 p-3">No products match.</p>
+                                    ) : (
+                                        upgradeCatalogRows.map((p) => (
+                                            <div key={p.id} className="flex items-center gap-2 rounded-lg bg-white/[0.03] px-2 py-1.5">
+                                                {p.image && (
+                                                    <img src={p.image} alt="" className="h-8 w-8 object-contain shrink-0 rounded" />
+                                                )}
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="text-[11px] font-bold text-white truncate">{p.name}</p>
+                                                    <p className="text-[9px] text-white/35">{p.category} · ${p.price}</p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => addUpgradePick(p.id)}
+                                                    disabled={upgradePickDraftIds.includes(p.id)}
+                                                    className="shrink-0 px-2 py-1 rounded-lg bg-[#B38B21]/20 text-[#B38B21] text-[10px] font-black uppercase disabled:opacity-30 disabled:pointer-events-none hover:bg-[#B38B21]/30"
+                                                >
+                                                    Add
+                                                </button>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                            <div className="flex flex-col min-h-0 border border-white/10 rounded-xl overflow-hidden bg-black/30">
+                                <div className="p-3 border-b border-white/10 shrink-0 flex items-center justify-between gap-2">
+                                    <p className="text-[10px] font-black uppercase text-white/50 tracking-widest">Order ({upgradePickDraftIds.length})</p>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (!window.confirm('Clear all picks and use default category filter on the trade-in page?')) return;
+                                            setUpgradePickDraftIds([]);
+                                        }}
+                                        className="text-[9px] font-black uppercase text-white/40 hover:text-red-400"
+                                    >
+                                        Clear list
+                                    </button>
+                                </div>
+                                <div className="max-h-[48vh] overflow-y-auto p-2 space-y-1 flex-1">
+                                    {upgradePickDraftIds.length === 0 ? (
+                                        <p className="text-[10px] text-white/30 p-3">Nothing selected — customers see the default category mix.</p>
+                                    ) : (
+                                        upgradePickDraftIds.map((id, i) => {
+                                            const p = productById.get(id);
+                                            return (
+                                                <div key={id} className="flex items-center gap-2 rounded-lg bg-white/[0.03] px-2 py-1.5">
+                                                    {p?.image && (
+                                                        <img src={p.image} alt="" className="h-8 w-8 object-contain shrink-0 rounded" />
+                                                    )}
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-[11px] font-bold text-white truncate">{p?.name || id}</p>
+                                                        {p && <p className="text-[9px] text-white/35">${p.price}</p>}
+                                                    </div>
+                                                    <div className="flex flex-col shrink-0 gap-0.5">
+                                                        <button type="button" aria-label="Move up" onClick={() => moveUpgradePick(i, -1)} disabled={i === 0} className="p-0.5 rounded text-white/40 hover:text-white disabled:opacity-20">
+                                                            <ChevronUp size={14} />
+                                                        </button>
+                                                        <button type="button" aria-label="Move down" onClick={() => moveUpgradePick(i, 1)} disabled={i === upgradePickDraftIds.length - 1} className="p-0.5 rounded text-white/40 hover:text-white disabled:opacity-20">
+                                                            <ChevronDown size={14} />
+                                                        </button>
+                                                    </div>
+                                                    <button type="button" onClick={() => rmUpgradePick(id)} className="p-1.5 rounded-lg text-red-400/90 hover:bg-red-500/10 shrink-0" aria-label="Remove">
+                                                        <X size={12} />
+                                                    </button>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="mt-5 flex flex-wrap gap-2 justify-end">
+                            <button type="button" onClick={() => setShowUpgradeMgr(false)} className="px-4 py-2 rounded-xl text-[10px] font-black uppercase text-white/50 border border-white/10 hover:text-white">
+                                Cancel
+                            </button>
+                            <button type="button" onClick={saveUpgradePicks} className="px-5 py-2 rounded-xl text-[10px] font-black uppercase bg-[#B38B21] text-black hover:bg-[#D4AF37]">
+                                Save picks
+                            </button>
+                        </div>
                     </div>
                 </Modal>
             )}

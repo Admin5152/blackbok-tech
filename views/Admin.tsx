@@ -37,7 +37,7 @@ const NAV_ITEMS: { id: AdminSection; label: string; icon: any }[] = [
   { id: 'overview', label: 'Overview', icon: Home },
   { id: 'orders', label: 'Orders', icon: ShoppingCart },
   { id: 'customers', label: 'Customers', icon: Users },
-  { id: 'products', label: 'Products', icon: Package },
+  { id: 'products', label: 'Shop', icon: Package },
   { id: 'trades', label: 'Trade-Ins', icon: RefreshCcw },
   { id: 'repairs', label: 'Repairs', icon: Wrench },
   { id: 'users', label: 'User Roles', icon: Shield },

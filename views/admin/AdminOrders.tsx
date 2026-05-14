@@ -249,7 +249,7 @@ export const AdminOrders: React.FC = () => {
                     />
 
                     <div className="w-full sm:w-64 shrink-0">
-                        <SearchInput value={q} onChange={setQ} placeholder="Search ID, Customer, Address, Product..." />
+                        <SearchInput value={q} onChange={setQ} placeholder="Search ID, Customer, Address, Item..." />
                     </div>
                 </div>
             </div>
@@ -271,7 +271,7 @@ export const AdminOrders: React.FC = () => {
                             <Th>Amount</Th>
                             <Th>Date</Th>
                             <Th>Status</Th>
-                            <Th>Products</Th>
+                            <Th>Items</Th>
                         </tr>
                     </thead>
                     <tbody>

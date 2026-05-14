@@ -601,7 +601,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
           </div>
         </div>
 
-        {/* Related Products — belt-and-suspenders filter: even though
+        {/* Related items — belt-and-suspenders filter: even though
             the parent route already excludes the current product, the
             brief moment between local-cached and remote-fetched
             `product` (different IDs in some edge cases) was letting
@@ -614,7 +614,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             <div className="flex items-end justify-between mb-10 px-2">
               <div>
                 <h2 className={`text-3xl md:text-4xl font-black italic tracking-tighter uppercase ${isLight ? 'text-black' : 'text-white'}`}>
-                  Products You <span className="text-[#B38B21]">May Like</span>
+                  Shop picks you <span className="text-[#B38B21]">may like</span>
                 </h2>
               </div>
               <button

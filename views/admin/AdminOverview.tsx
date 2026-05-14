@@ -548,7 +548,7 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
                         onClick={() => onNavigate('trades')}
                     />
                     <StatCard isLight={isLight} icon={AlertTriangle} value={lowStock} label="Stock Alerts" iconColor={lowStock > 0 ? STATUS_COLORS.critical : STATUS_COLORS.success} onClick={() => onNavigate('products')} />
-                    <StatCard isLight={isLight} icon={Package} value={products.length} label="Active Products" iconColor="#06b6d4" onClick={() => onNavigate('products')} />
+                    <StatCard isLight={isLight} icon={Package} value={products.length} label="Shop items" iconColor="#06b6d4" onClick={() => onNavigate('products')} />
                     <div className={`hidden lg:block border rounded-2xl p-5 flex items-center justify-center text-center ${isLight ? 'bg-black/5 border-black/5' : 'bg-white/[0.01] border-white/5'}`}>
                         <p className={`text-[9px] font-black uppercase tracking-[0.2em] ${isLight ? 'text-black/40' : 'text-white/30'}`}>Capacity: 84%</p>
                     </div>

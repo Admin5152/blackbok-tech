@@ -443,14 +443,27 @@ export const Profile: React.FC<ProfileProps> = ({
                         </div>
                       </div>
 
-                      {/* Track Button */}
-                      <div className="mt-4 flex justify-center">
+                      {/* Receipt + tracking */}
+                      <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+                        <Link
+                          to="/receipt/$orderId"
+                          params={{ orderId: order.id }}
+                          className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 border transition-all ${
+                            isLight
+                              ? 'border-black/15 bg-white text-black hover:bg-black/5'
+                              : 'border-white/15 bg-white/5 text-white hover:bg-white/10'
+                          }`}
+                        >
+                          <FileText size={14} />
+                          View receipt
+                        </Link>
                         <button
+                          type="button"
                           onClick={() => setSelectedOrder(order)}
                           className="px-6 py-2 bg-[#B38B21] text-black rounded-xl text-xs font-black uppercase tracking-wider hover:scale-105 transition-all flex items-center gap-2"
                         >
                           <Truck size={14} />
-                          Track Order
+                          Track order
                         </button>
                       </div>
                     </div>
@@ -544,13 +557,28 @@ export const Profile: React.FC<ProfileProps> = ({
                         </div>
                       </div>
                     </div>
-                    <button
-                      onClick={() => navigateTo(`/tracking/trade/${trade.id}` as any)}
-                      className={`relative z-10 px-8 py-4 rounded-2xl font-black uppercase tracking-widest flex items-center gap-3 transition-all group-hover:scale-105 active:scale-95 shadow-xl ${isLight ? 'bg-black text-white hover:bg-[#B38B21] hover:text-black' : 'bg-white/5 text-white/60 hover:bg-[#B38B21] hover:text-black'}`}
-                    >
-                      Track Valuation
-                      <ChevronRight size={18} />
-                    </button>
+                    <div className="relative z-10 flex flex-col w-full md:w-auto gap-3 shrink-0 items-stretch md:items-end">
+                      <Link
+                        to="/receipt/trade/$tradeId"
+                        params={{ tradeId: trade.id }}
+                        className={`px-8 py-4 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all border ${
+                          isLight
+                            ? 'border-black/15 bg-white text-black hover:bg-black/5'
+                            : 'border-white/15 bg-white/5 text-white hover:bg-white/10'
+                        }`}
+                      >
+                        <FileText size={18} />
+                        View receipt
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => navigateTo(`/tracking/trade/${trade.id}` as any)}
+                        className={`relative z-10 px-8 py-4 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all group-hover:scale-105 active:scale-95 shadow-xl ${isLight ? 'bg-black text-white hover:bg-[#B38B21] hover:text-black' : 'bg-white/5 text-white/60 hover:bg-[#B38B21] hover:text-black'}`}
+                      >
+                        Track valuation
+                        <ChevronRight size={18} />
+                      </button>
+                    </div>
                     <div className="absolute top-0 right-0 w-64 h-64 bg-[#B38B21]/5 rounded-full blur-[100px] opacity-0 group-hover:opacity-100 transition-opacity"></div>
                   </div>
                 ))}
@@ -621,13 +649,28 @@ export const Profile: React.FC<ProfileProps> = ({
                         </div>
                       </div>
                     </div>
-                    <button
-                      onClick={() => navigateTo(`/tracking/repair/${repair.id}` as any)}
-                      className={`relative z-10 px-8 py-4 rounded-2xl font-black uppercase tracking-widest flex items-center gap-3 transition-all group-hover:scale-105 active:scale-95 shadow-xl ${isLight ? 'bg-black text-white hover:bg-[#B38B21] hover:text-black' : 'bg-white/5 text-white/60 hover:bg-[#B38B21] hover:text-black'}`}
-                    >
-                      Track Progress
-                      <ChevronRight size={18} />
-                    </button>
+                    <div className="relative z-10 flex flex-col w-full md:w-auto gap-3 shrink-0 items-stretch md:items-end">
+                      <Link
+                        to="/receipt/repair/$repairId"
+                        params={{ repairId: repair.id }}
+                        className={`px-8 py-4 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all border ${
+                          isLight
+                            ? 'border-black/15 bg-white text-black hover:bg-black/5'
+                            : 'border-white/15 bg-white/5 text-white hover:bg-white/10'
+                        }`}
+                      >
+                        <FileText size={18} />
+                        View receipt
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => navigateTo(`/tracking/repair/${repair.id}` as any)}
+                        className={`relative z-10 px-8 py-4 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all group-hover:scale-105 active:scale-95 shadow-xl ${isLight ? 'bg-black text-white hover:bg-[#B38B21] hover:text-black' : 'bg-white/5 text-white/60 hover:bg-[#B38B21] hover:text-black'}`}
+                      >
+                        Track progress
+                        <ChevronRight size={18} />
+                      </button>
+                    </div>
                     <div className="absolute top-0 right-0 w-64 h-64 bg-[#B38B21]/5 rounded-full blur-[100px] opacity-0 group-hover:opacity-100 transition-opacity"></div>
                   </div>
                 ))}
@@ -691,7 +734,7 @@ export const Profile: React.FC<ProfileProps> = ({
                   onClick={() => navigateTo('store')}
                   className={`px-6 py-3 rounded-full text-[9px] font-black uppercase tracking-wider transition-all ${isLight ? 'bg-black text-white hover:bg-black/90' : 'bg-white/5 hover:bg-white/10 text-white'}`}
                 >
-                  Browse Store
+                  Browse shop
                 </button>
               </div>
             )}

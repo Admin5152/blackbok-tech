@@ -200,7 +200,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
                     ))}
                 </div>
                 <div className="flex items-center gap-2">
-                    <SearchInput value={q} onChange={setQ} placeholder="Search products..." />
+                    <SearchInput value={q} onChange={setQ} placeholder="Search shop..." />
                     {canEdit && (
                         <button onClick={openAdd} className="flex items-center gap-1.5 px-3 py-2 bg-[#B38B21] text-black font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-[#D4AF37] transition-all">
                             <Plus size={12} /> Add Product

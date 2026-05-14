@@ -128,7 +128,7 @@ export const Cart: React.FC<CartProps> = ({
             onClick={() => navigateTo('store')}
             className={`flex items-center gap-3 px-8 py-4 rounded-full text-[10px] font-black uppercase tracking-[0.2em] transition-all w-fit ${cart.length === 0 ? 'bg-[var(--bb-surface-2)] text-[var(--bb-text)] hover:bg-[#CDA032] hover:text-black' : 'bg-black text-white dark:bg-white dark:text-black shadow-xl hover:scale-105 hover:shadow-2xl'}`}
           >
-            <ArrowLeft size={14} /> Continue Shopping
+            <ArrowLeft size={14} /> Back to shop
           </button>
         </div>
 

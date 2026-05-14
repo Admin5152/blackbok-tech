@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Link, useSearch } from '@tanstack/react-router';
 import type { Theme } from '../App';
+import { useAppContext } from '../App';
 
 interface PoliciesProps {
     theme?: Theme;
@@ -35,7 +36,9 @@ const TABS: Array<{ id: PolicyTab; label: string; Icon: React.FC<{ size?: number
     { id: 'terms',    label: 'Terms & Conditions',  Icon: ScrollText },
 ];
 
-export const Policies: React.FC<PoliciesProps> = ({ theme }) => {
+export const Policies: React.FC<PoliciesProps> = ({ theme: themeProp }) => {
+    const { theme: ctxTheme } = useAppContext();
+    const theme = themeProp ?? ctxTheme;
     const isLight = theme === 'light';
     const search = useSearch({ from: '/policies' } as any) as { tab?: string };
 
@@ -51,7 +54,7 @@ export const Policies: React.FC<PoliciesProps> = ({ theme }) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [search.tab]);
 
-    const containerClass = isLight ? 'bg-white border-black/10' : 'bg-[#0A0A0A] border-white/5';
+    const containerClass = isLight ? 'bg-white border-black/10 text-black' : 'bg-[#0A0A0A] border-white/5 text-white';
     const textMuted = isLight ? 'text-black/50' : 'text-white/40';
     const bodyText  = isLight ? 'text-black/70' : 'text-white/60';
     const bulletDot = isLight ? 'bg-black/30'  : 'bg-white/30';
@@ -86,7 +89,7 @@ export const Policies: React.FC<PoliciesProps> = ({ theme }) => {
             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${isLight ? 'bg-black text-white' : 'bg-white text-black'}`}>
                 <Icon size={24} />
             </div>
-            <h2 className="text-2xl font-black uppercase italic tracking-tight">{title}</h2>
+            <h2 className={`text-2xl font-black uppercase italic tracking-tight ${isLight ? 'text-black' : 'text-white'}`}>{title}</h2>
         </div>
     );
 
@@ -96,8 +99,8 @@ export const Policies: React.FC<PoliciesProps> = ({ theme }) => {
 
                 {/* Header */}
                 <div className="text-center mb-12 sm:mb-20 space-y-4">
-                    <h1 className="text-4xl sm:text-6xl font-black italic tracking-tighter uppercase">
-                        Legal <span className={isLight ? 'text-black/20' : 'text-white/20'}>Manifesto</span>
+                    <h1 className={`text-4xl sm:text-6xl font-black italic tracking-tighter uppercase ${isLight ? 'text-black' : 'text-white'}`}>
+                        Legal <span className={isLight ? 'text-black/40' : 'text-white/25'}>Manifesto</span>
                     </h1>
                     <p className={`text-[10px] sm:text-[11px] font-black uppercase tracking-[0.4em] italic ${textMuted}`}>
                         Operational protocols & structural safeguards

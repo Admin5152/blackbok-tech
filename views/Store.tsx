@@ -147,10 +147,12 @@ export const Store: React.FC<StoreProps> = ({
   };
 
   const filteredProducts = useMemo(() => {
-    const q = searchTerm.toLowerCase().trim();
+    const q = String(searchTerm ?? '').toLowerCase().trim();
     let results = products.filter(p => {
       const normalizedProductCategory = normalizeCategory(p.category);
-      const matchesSearch = p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q);
+      const hayName = String(p.name ?? '').toLowerCase();
+      const hayDesc = String(p.description ?? '').toLowerCase();
+      const matchesSearch = hayName.includes(q) || hayDesc.includes(q);
       const matchesCategory =
         selectedCategories.length === 0 ||
         (normalizedProductCategory ? selectedCategories.includes(normalizedProductCategory) : false);
@@ -181,7 +183,7 @@ export const Store: React.FC<StoreProps> = ({
   }, [products]);
 
   const categoryOptions: { label: string; value: Category | 'All'; icon: React.ReactNode; count?: number }[] = [
-    { label: 'ALL PRODUCTS', value: 'All', icon: <LayoutGrid size={14} />, count: products.length },
+    { label: 'SHOP ALL', value: 'All', icon: <LayoutGrid size={14} />, count: products.length },
     { label: 'IPHONE', value: 'iPhone', icon: <Smartphone size={14} />, count: categoryCounts.iPhone },
     { label: 'LAPTOP', value: 'Laptop', icon: <LaptopIcon size={14} />, count: categoryCounts.Laptop },
     { label: 'ACCESSORIES', value: 'Accessories', icon: <Watch size={14} />, count: categoryCounts.Accessories },
@@ -212,61 +214,84 @@ export const Store: React.FC<StoreProps> = ({
 
       {/* Search Bar */}
       <div className="sticky top-16 sm:top-20 lg:top-24 z-40 border-b backdrop-blur-md" style={{ backgroundColor: `${pageBg}e6`, borderColor: borderFaint }}>
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
-          <div className="flex flex-col gap-3 sm:gap-4">
-            {/* Top Row - Back Button, Mobile Nav Toggle, and Filter Button */}
-            <div className="flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3">
+          <div className="flex min-w-0 flex-col gap-2">
+            {/* Single toolbar row: back + search + view / categories / filters */}
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
               <button
                 onClick={() => navigateTo('home')}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 hover:border-white/20 transition-colors"
+                className="flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 px-2 py-2 transition-colors hover:border-white/20 sm:gap-2 sm:px-3"
                 style={{ backgroundColor: panelBg, color: isLight ? '#000' : '#fff' }}
               >
-                <ArrowLeft size={16} className="sm:size-18" />
-                <span className="text-sm font-medium">Back</span>
+                <ArrowLeft size={16} />
+                <span className="hidden text-sm font-medium sm:inline">Back</span>
               </button>
 
-              <div className="flex items-center gap-2">
-                {/* View Mode Toggle - Desktop Only */}
-                <div className="hidden lg:flex items-center gap-0.5 border rounded-lg p-0.5" style={{ borderColor: borderSubtle }}>
+              <div className="relative min-w-0 flex-1">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 sm:left-3" style={{ color: textMuted }} aria-hidden />
+                <input
+                  type="search"
+                  enterKeyHint="search"
+                  placeholder="Search shop…"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full rounded-lg py-2 pl-8 pr-3 text-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032]/40 sm:rounded-xl sm:py-2.5 sm:pl-10"
+                  style={{
+                    backgroundColor: panelBg,
+                    border: `1px solid ${borderSubtle}`,
+                    color: isLight ? '#000' : '#fff',
+                  }}
+                />
+              </div>
+
+              <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
+                {/* View mode — all breakpoints (compact on mobile) */}
+                <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ borderColor: borderSubtle }}>
                   <button
+                    type="button"
                     onClick={() => setViewMode('grid')}
-                    className={`p-1.5 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-[#CDA032] text-black' : 'text-current hover:bg-black/5 dark:hover:bg-white/5'}`}
+                    className={`rounded-md p-1.5 transition-colors ${viewMode === 'grid' ? 'bg-[#CDA032] text-black' : 'text-current hover:bg-black/5 dark:hover:bg-white/5'}`}
+                    aria-label="Grid view"
                   >
                     <Grid3x3 size={14} />
                   </button>
                   <button
+                    type="button"
                     onClick={() => setViewMode('list')}
-                    className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-[#CDA032] text-black' : 'text-current hover:bg-black/5 dark:hover:bg-white/5'}`}
+                    className={`rounded-md p-1.5 transition-colors ${viewMode === 'list' ? 'bg-[#CDA032] text-black' : 'text-current hover:bg-black/5 dark:hover:bg-white/5'}`}
+                    aria-label="List view"
                   >
                     <List size={14} />
                   </button>
                 </div>
 
-                {/* Mobile Navigation Toggle Button */}
+                {/* Categories — mobile / tablet drawer */}
                 <button
+                  type="button"
                   onClick={() => setShowMobileNav(!showMobileNav)}
-                  className="lg:hidden flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 hover:border-white/20 transition-colors"
+                  className="flex items-center gap-1.5 rounded-lg border border-white/10 px-2 py-2 transition-colors hover:border-white/20 lg:hidden"
                   style={{ backgroundColor: panelBg, color: isLight ? '#000' : '#fff' }}
+                  aria-label="Browse categories"
                 >
                   <Menu size={16} />
-                  <span className="text-sm font-medium">Categories</span>
+                  <span className="hidden text-sm font-medium sm:inline">Categories</span>
                 </button>
 
-                {/* Filter Button — works on mobile + desktop. */}
                 <button
+                  type="button"
                   onClick={() => setShowFilters(!showFilters)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${activeFiltersCount > 0 ? 'bg-[#CDA032] text-black border-transparent' : 'border border-white/10 hover:border-white/20'}`}
+                  className={`flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-all sm:gap-2 sm:px-3 ${activeFiltersCount > 0 ? 'border-transparent bg-[#CDA032] text-black' : 'border border-white/10 hover:border-white/20'}`}
                   style={{
                     backgroundColor: activeFiltersCount > 0 ? '#CDA032' : panelBg,
                     borderColor: activeFiltersCount > 0 ? 'transparent' : borderSubtle,
-                    color: activeFiltersCount > 0 ? '#000' : isLight ? '#000' : '#fff'
+                    color: activeFiltersCount > 0 ? '#000' : isLight ? '#000' : '#fff',
                   }}
                   aria-label="Open filters"
                 >
                   <Filter size={14} />
                   <span className="hidden sm:inline">Filters</span>
                   {activeFiltersCount > 0 && (
-                    <span className="bg-black/20 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                    <span className="rounded-full bg-black/20 px-1.5 py-0.5 text-[10px] text-white">
                       {activeFiltersCount}
                     </span>
                   )}
@@ -274,59 +299,22 @@ export const Store: React.FC<StoreProps> = ({
               </div>
             </div>
 
-            {/* Search Input Row  s */}
-            <div className="w-full">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2" size={16} style={{ color: textMuted }} />
-                <input
-                  type="text"
-                  placeholder="Search products..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 sm:py-3 rounded-xl text-sm focus:outline-none transition-all"
-                  style={{
-                    backgroundColor: panelBg,
-                    border: `1px solid ${borderSubtle}`,
-                    color: isLight ? '#000' : '#fff'
-                  }}
-                />
+            {/* Active filters summary — mobile only, only when needed */}
+            {activeFiltersCount > 0 && (
+              <div className="flex items-center gap-2 lg:hidden">
+                <div className="flex items-center gap-2 rounded-full border border-[#CDA032]/30 bg-[#CDA032]/20 px-3 py-1">
+                  <span className="text-xs font-black text-[#CDA032]">{activeFiltersCount} Filters</span>
+                  <button
+                    type="button"
+                    onClick={clearAllFilters}
+                    className="text-[#CDA032] transition-colors hover:text-black"
+                    aria-label="Clear all filters"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
               </div>
-            </div>
-
-            {/* Bottom Row - View Mode Toggle and Filter Count (Mobile) */}
-            <div className="flex items-center justify-between">
-              {/* Active Filters Count - Mobile Only */}
-              <div className="lg:hidden flex items-center gap-2">
-                {activeFiltersCount > 0 && (
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#CDA032]/20 border border-[#CDA032]/30">
-                    <span className="text-xs font-black text-[#CDA032]">{activeFiltersCount} Filters</span>
-                    <button
-                      onClick={clearAllFilters}
-                      className="text-[#CDA032] hover:text-black transition-colors"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* View Mode Toggle - Mobile Only */}
-              <div className="lg:hidden flex items-center gap-0.5 border rounded-lg p-0.5" style={{ borderColor: borderSubtle }}>
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={`p-1.5 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-[#CDA032] text-black' : 'text-current'}`}
-                >
-                  <Grid3x3 size={14} />
-                </button>
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-[#CDA032] text-black' : 'text-current'}`}
-                >
-                  <List size={14} />
-                </button>
-              </div>
-
-            </div>
+            )}
           </div>
         </div>
       </div>
@@ -490,7 +478,7 @@ export const Store: React.FC<StoreProps> = ({
             </div>
           </div>
 
-          {/* Products Grid */}
+          {/* Shop grid */}
           {/* Mobile Category Navigation - Collapsible */}
           <div className={`lg:hidden w-full transition-all duration-300 overflow-hidden ${showMobileNav ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
             <div className="py-3 sm:py-4 mb-4">
@@ -659,7 +647,7 @@ export const Store: React.FC<StoreProps> = ({
           <div className="flex-1">
             <div className="mb-4 flex items-center justify-between">
               <span className="text-sm" style={{ color: textMuted }}>
-                {filteredProducts.length} {filteredProducts.length === 1 ? 'Product' : 'Products'} Found
+                {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'} found
               </span>
             </div>
 
@@ -764,7 +752,7 @@ export const Store: React.FC<StoreProps> = ({
                   </div>
 
                   <div className="space-y-3 sm:space-y-4">
-                    <h3 className="text-2xl sm:text-3xl font-black uppercase tracking-tighter italic">Product <span className="text-[#CDA032]">Not Found</span></h3>
+                    <h3 className="text-2xl sm:text-3xl font-black uppercase tracking-tighter italic">No <span className="text-[#CDA032]">matches</span></h3>
                     <p className="text-xs font-black uppercase tracking-[0.3em] max-w-xs sm:max-w-sm mx-auto opacity-40 leading-relaxed px-4">
                       The specified unit is not present in our current repository. Adjust your filters or explore other hardware categories.
                     </p>
