@@ -35,6 +35,10 @@ export interface PlaceOrderMeta {
   payment_method?: string | null;      // 'in_person' | 'card' | 'mobile_money'
   notes?: string | null;
   customer_id?: string | null;
+  /** Snapshot for receipts; persisted on `orders.customer_*` when RPC supports it. */
+  customer_name?: string | null;
+  customer_email?: string | null;
+  customer_phone?: string | null;
 }
 
 export interface UseCheckoutResult {
@@ -82,7 +86,9 @@ function parseRpcReturn(rpcData: unknown): PlaceOrderResult | null {
 }
 
 /**
- * Wraps the `place_order(p_cart_items, p_coupon_id, p_discount_amount)` RPC.
+ * Wraps the `place_order` RPC (cart + coupon + shipping + optional
+ * `customer_name` / `customer_email` / `customer_phone` when the DB
+ * migration `2026_05_place_order_rpc_customer_fields.sql` is applied).
  *
  * If a coupon is applied, we:
  *   1. Re-validate it is still active and not expired (cheap server round-trip
@@ -172,6 +178,18 @@ export function useCheckout(): UseCheckoutResult {
       if (meta.shipping_cost    != null) rpcArgs.p_shipping_cost    = meta.shipping_cost;
       if (meta.customer_id      != null) rpcArgs.p_customer_id      = meta.customer_id;
       if (meta.notes            != null) rpcArgs.p_notes            = meta.notes;
+
+      const trimOrUndef = (v: string | null | undefined) => {
+        if (v == null) return undefined;
+        const t = String(v).trim();
+        return t.length > 0 ? t : undefined;
+      };
+      const custName = trimOrUndef(meta.customer_name);
+      const custEmail = trimOrUndef(meta.customer_email);
+      const custPhone = trimOrUndef(meta.customer_phone);
+      if (custName != null) rpcArgs.p_customer_name = custName;
+      if (custEmail != null) rpcArgs.p_customer_email = custEmail;
+      if (custPhone != null) rpcArgs.p_customer_phone = custPhone;
 
       const { data: rpcData, error: rpcErr } = await supabase.rpc('place_order', rpcArgs);
       if (rpcErr) throw rpcErr;

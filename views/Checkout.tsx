@@ -423,7 +423,10 @@ export const Checkout: React.FC = () => {
         shipping_method: shippingMethod,
         shipping_cost: shippingCost,
         payment_method: 'in_person',
-        notes: phone ? `Customer phone: ${phone}` : null,
+        customer_name: user.name?.trim() || null,
+        customer_email: user.email?.trim() || null,
+        customer_phone: phone || null,
+        notes: null,
       });
 
       // Clear cart (server + client).

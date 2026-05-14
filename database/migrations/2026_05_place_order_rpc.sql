@@ -1,6 +1,10 @@
 -- ============================================================
 -- BlackBox: place_order RPC
 --
+-- NOTE: Customer contact columns on `orders` and a 12-parameter
+-- overload are applied in `2026_05_place_order_rpc_customer_fields.sql`.
+-- Run that migration after this file on existing projects.
+--
 -- Atomic order placement used by hooks/useCheckout.ts.
 --
 -- Why an RPC instead of multi-statement client code?
