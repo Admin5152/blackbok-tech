@@ -724,7 +724,9 @@ const router = createRouter({
 } as any);
 
 function RootComponent() {
-  const [products, setProducts] = useState<Product[]>([]);
+  // Seed with INITIAL_PRODUCTS so Home (and navbar search) render on first paint
+  // before getProducts() resolves — avoids an empty <main> and a “footer-only” layout.
+  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [compareIds, setCompareIds] = useState<string[]>([]);
@@ -759,6 +761,7 @@ function RootComponent() {
       /* sessionStorage unavailable (private mode) — still hide welcome */
     }
     setShowWelcomeScreen(false);
+    scrollToDocumentTop();
   }, []);
   const [theme, setTheme] = useState<Theme>('dark');
 
