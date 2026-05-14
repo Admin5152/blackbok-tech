@@ -1,13 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   ChevronRight, ChevronLeft, ArrowRight, Settings,
-  Users, Award, TrendingUp, Star, Quote, ArrowLeftRight, Wrench, Mail, Phone, MapPin, Heart, Eye
+  Users, Award, TrendingUp, Star, Quote, ArrowLeftRight, Wrench, Mail, Phone, MapPin, Heart, Eye,
+  Search, ShoppingCart,
 } from 'lucide-react';
-import { Link } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { Product, Category } from '../types';
 import { HERO_COLLAGE_FILENAMES, getImagesForTheme } from '../data/heroImages';
 import { formatCurrency } from '../lib/utils';
-import { ShoppingCart } from 'lucide-react';
 
 /** Editorial overlap positions (sizes bumped so flyers fill the hero). Rotation = CSS animation per tile. */
 const HERO_COLLAGE_FRAMES = [
@@ -40,10 +40,24 @@ interface HomeProps {
   user: any;
   theme: 'light' | 'dark';
   navigateTo?: (v: string, id?: string) => void;
+  searchQuery: string;
+  setSearchQuery: (q: string) => void;
 }
 
 export const Home: React.FC<HomeProps> = ({
-  products, setSelectedCategory, onQuickView, wishlist, toggleWishlist, onAddToCart, compareIds, onToggleCompare, user, theme, navigateTo
+  products,
+  setSelectedCategory,
+  onQuickView,
+  wishlist,
+  toggleWishlist,
+  onAddToCart,
+  compareIds,
+  onToggleCompare,
+  user,
+  theme,
+  navigateTo,
+  searchQuery,
+  setSearchQuery,
 }) => {
   const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
   const [exploreFilter, setExploreFilter] = useState<'All Gear' | 'Pro Series' | 'Essentials'>('All Gear');
@@ -126,6 +140,19 @@ export const Home: React.FC<HomeProps> = ({
   const prevHighlight = () => setCurrentHighlightsIndex((prev) => (prev - 1 + highlights.length) % highlights.length);
 
   const isDark = theme === 'dark';
+  const navigate = useNavigate();
+
+  const handleSiteSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const raw = searchQuery.trim();
+    setSearchQuery(raw);
+    navigate({
+      to: '/store',
+      search: (raw ? { q: raw } : {}) as { q?: string },
+    });
+  };
+
+  const quickLinkClass = `rounded-full border px-3 py-1.5 text-xs font-semibold tracking-wide transition ${isDark ? 'border-white/15 text-white/90 hover:border-[#D4AF37]/45 hover:bg-white/[0.06]' : 'border-black/15 text-black/90 hover:border-black/35 hover:bg-black/[0.04]'}`;
 
   if (!products || products.length === 0) return null;
 
@@ -271,6 +298,69 @@ export const Home: React.FC<HomeProps> = ({
         </div>
       </section>
 
+      <section
+        className={`section-connector border-t py-8 md:py-10 ${isDark ? 'border-white/[0.06] bg-[#050508]' : 'border-black/[0.06] bg-white'}`}
+        aria-labelledby="home-site-search-heading"
+      >
+        <div className="mx-auto max-w-3xl px-4 md:px-8">
+          <h2
+            id="home-site-search-heading"
+            className={`mb-2 text-center font-heading text-lg font-semibold tracking-wide md:text-xl ${isDark ? 'text-white' : 'text-black'}`}
+          >
+            Search the catalog
+          </h2>
+          <p className={`mb-5 text-center text-sm md:text-base ${isDark ? 'text-white/60' : 'text-black/60'}`}>
+            Matches products across the store. Use the arrows on each row to scroll, or open repairs, trades, and orders from the links below.
+          </p>
+          <form onSubmit={handleSiteSearch} className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
+            <label htmlFor="home-universal-search" className="sr-only">
+              Search products and categories
+            </label>
+            <div className="relative flex-1">
+              <Search
+                className={`pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 ${isDark ? 'text-white/35' : 'text-black/35'}`}
+                aria-hidden
+              />
+              <input
+                id="home-universal-search"
+                type="search"
+                autoComplete="off"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="iPhone, MacBook, cases, chargers…"
+                className={`w-full rounded-2xl border py-3.5 pl-12 pr-4 text-sm outline-none ring-offset-2 transition placeholder:opacity-50 focus-visible:ring-2 ${isDark ? 'border-white/15 bg-white/[0.06] text-white ring-[#D4AF37]/60 ring-offset-[#050508]' : 'border-black/15 bg-white text-black ring-[#B38B21]/50 ring-offset-white'}`}
+              />
+            </div>
+            <button
+              type="submit"
+              className="shrink-0 rounded-2xl bg-[#D4AF37] px-8 py-3.5 text-sm font-heading font-semibold tracking-wider text-black transition hover:bg-[#c9a430] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]/70 focus-visible:ring-offset-2"
+            >
+              Search catalog
+            </button>
+          </form>
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-2 gap-y-2">
+            <span className={`basis-full text-center text-[10px] font-bold uppercase tracking-widest sm:basis-auto sm:text-left ${isDark ? 'text-white/45' : 'text-black/45'}`}>
+              Quick links
+            </span>
+            <Link to="/repair" className={quickLinkClass}>
+              Repairs
+            </Link>
+            <Link to="/trades" className={quickLinkClass}>
+              Trade-in
+            </Link>
+            <Link to="/history" className={quickLinkClass}>
+              Orders
+            </Link>
+            <Link to="/faq" className={quickLinkClass}>
+              FAQ
+            </Link>
+            <Link to="/contact" className={quickLinkClass}>
+              Contact
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Featured Products — horizontal scroll + quick view (same pattern as accessories / laptop) */}
       <section className={`section-connector py-6 md:py-10 overflow-hidden ${isDark ? 'bg-gradient-to-b from-[#050508] via-[#0a0a12] to-[#050508]' : 'bg-white'}`}>
         <div className="max-w-screen-2xl mx-auto">
@@ -308,6 +398,9 @@ export const Home: React.FC<HomeProps> = ({
             <div className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#16161f] ring-1 ring-inset ring-white/[0.06]' : 'bg-[#f5f5f7]'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between snap-start flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5`}>
               <div>
                 <h2 className="text-3xl md:text-5xl font-bold tracking-tight">Featured picks</h2>
+                <p className={`mt-3 max-w-[20rem] text-sm leading-relaxed ${theme === 'dark' ? 'text-white/65' : 'text-black/65'}`}>
+                  Scroll this row, then tap a card or the eye icon for a quick preview. The arrow opens the full product page.
+                </p>
               </div>
               <div className="flex justify-center mt-8">
                 <img src="/iPhone.jpeg" alt="" className="h-40 md:h-56 w-40 md:w-56 object-cover rounded-2xl drop-shadow-xl" />
@@ -440,6 +533,9 @@ export const Home: React.FC<HomeProps> = ({
             <div className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#16161f] ring-1 ring-inset ring-white/[0.06]' : 'bg-white'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between snap-start flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5`}>
               <div>
                 <h2 className="text-3xl md:text-5xl font-bold tracking-tight">Take a peek</h2>
+                <p className={`mt-3 max-w-[20rem] text-sm leading-relaxed ${theme === 'dark' ? 'text-white/65' : 'text-black/65'}`}>
+                  Swipe or scroll sideways, then tap a card or the eye icon to preview accessories before you add to cart.
+                </p>
               </div>
               <div className="flex justify-center mt-8">
                 <img src="/cases.jpeg" alt="Accessories" className="h-40 md:h-56 w-40 md:w-56 object-cover rounded-2xl drop-shadow-xl" />
@@ -559,6 +655,9 @@ export const Home: React.FC<HomeProps> = ({
             <div className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#16161f] ring-1 ring-inset ring-white/[0.06]' : 'bg-[#F2F4F7]'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between snap-start flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5 relative overflow-hidden group`}>
               <div className="relative z-10">
                 <h2 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase leading-tight">Laptops.</h2>
+                <p className={`mt-3 max-w-[20rem] text-sm leading-relaxed normal-case font-normal not-italic tracking-normal ${theme === 'dark' ? 'text-white/65' : 'text-black/65'}`}>
+                  Scroll for MacBooks and more; tap a card or the eye for quick view, then use the arrow for full details.
+                </p>
               </div>
               <div className="flex justify-center mt-8 relative z-10 transform group-hover:scale-110 transition-transform duration-700">
                 <img

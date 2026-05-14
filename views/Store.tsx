@@ -8,6 +8,7 @@ import type { Theme } from '../App';
 interface StoreProps {
   products: Product[];
   searchQuery: string;
+  setSearchQuery: (q: string) => void;
   selectedCategories: Category[];
   setSelectedCategories: (cats: Category[]) => void;
   navigateTo: (view: string, id?: string) => void;
@@ -19,11 +20,14 @@ interface StoreProps {
   onAddToCart: (p: Product, options?: Record<string, string>, qty?: number) => void;
   theme?: Theme;
   categoriesFromUrl?: string[];
+  /** `?q=` from /store — hydrates search when opening a shared link or refresh. */
+  searchFromUrl?: string;
 }
 
 export const Store: React.FC<StoreProps> = ({
   products,
   searchQuery,
+  setSearchQuery,
   selectedCategories,
   setSelectedCategories,
   navigateTo,
@@ -35,6 +39,7 @@ export const Store: React.FC<StoreProps> = ({
   onAddToCart,
   theme,
   categoriesFromUrl,
+  searchFromUrl,
 }) => {
   // Keep this in sync with the matching helper in `lib/api.ts`. Uses
   // substring matching so admin-entered category strings like
@@ -98,6 +103,13 @@ export const Store: React.FC<StoreProps> = ({
       setSelectedCategories(Array.from(new Set(normalizedCategories)));
     }
   }, [categoriesFromUrl, setSelectedCategories]);
+
+  React.useEffect(() => {
+    const raw = searchFromUrl?.trim();
+    if (!raw) return;
+    setSearchTerm(raw);
+    setSearchQuery(raw);
+  }, [searchFromUrl, setSearchQuery]);
 
   // Sync with global search query
   React.useEffect(() => {

@@ -194,7 +194,7 @@ const indexRoute = createRoute({
 const storeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/store',
-  validateSearch: (search: Record<string, unknown>): { categories?: string[] } => {
+  validateSearch: (search: Record<string, unknown>): { categories?: string[]; q?: string } => {
     let categories: string[] | undefined;
     
     if (search.categories) {
@@ -208,13 +208,19 @@ const storeRoute = createRoute({
       // Handle ?category=phones format
       categories = [search.category as string];
     }
+
+    let q: string | undefined;
+    if (typeof search.q === 'string') {
+      const trimmed = search.q.trim();
+      if (trimmed) q = trimmed.slice(0, 200);
+    }
     
-    return { categories };
+    return { categories, q };
   },
   component: () => {
     const context = useAppContext();
-    const { categories } = storeRoute.useSearch();
-    return <Store {...context} categoriesFromUrl={categories} />;
+    const { categories, q } = storeRoute.useSearch();
+    return <Store {...context} categoriesFromUrl={categories} searchFromUrl={q} />;
   },
 });
 
@@ -782,7 +788,7 @@ function RootComponent() {
     setShowWelcomeScreen(false);
     scrollToDocumentTop();
   }, []);
-  const [theme, setTheme] = useState<Theme>('dark');
+  const [theme, setTheme] = useState<Theme>('light');
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -1427,7 +1433,7 @@ export default function App() {
   // context during normal operation (nested provider overrides this one).
   const [theme, setTheme] = useState<Theme>(() => {
     const t = localStorage.getItem(STORAGE_KEYS.THEME);
-    return t === 'light' || t === 'dark' ? t : 'dark';
+    return t === 'light' || t === 'dark' ? t : 'light';
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<Category[]>([]);
