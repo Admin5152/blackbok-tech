@@ -1,12 +1,19 @@
-
 import { GoogleGenAI } from "@google/genai";
 
-// Always initialize with process.env.API_KEY directly as a named parameter
-const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+/** Gemini key from `.env` / `.env.local` — must be prefixed with `VITE_` to be exposed to the client bundle. */
+const getGeminiApiKey = (): string =>
+  String(import.meta.env.VITE_GEMINI_API_KEY ?? "").trim();
+
+const getAI = (): GoogleGenAI | null => {
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) return null;
+  return new GoogleGenAI({ apiKey });
+};
 
 export const getDiagnosticHelp = async (device: string, issue: string, base64Image?: string): Promise<string> => {
   try {
     const ai = getAI();
+    if (!ai) return "Diagnostic offline. Set VITE_GEMINI_API_KEY in your environment file.";
     const contents: any[] = [{ text: `Device: ${device}. Issue: ${issue}. Provide a direct technical verdict.` }];
     
     if (base64Image) {
@@ -36,6 +43,7 @@ export const getDiagnosticHelp = async (device: string, issue: string, base64Ima
 export const chatWithGemini = async (history: {role: string, parts: {text: string}[]}[], prompt: string): Promise<string> => {
   try {
     const ai = getAI();
+    if (!ai) return "Pulse is offline. Set VITE_GEMINI_API_KEY in your environment file.";
     // Pass existing history to the chat session for contextual awareness
     const chat = ai.chats.create({
       model: 'gemini-3-pro-preview',

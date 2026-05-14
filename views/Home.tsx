@@ -165,7 +165,7 @@ export const Home: React.FC<HomeProps> = ({
   return (
     <div className="view-transition w-full min-w-0 overflow-hidden bg-black no-print">
       {/* Main Content */}
-      {/* Hero — dark editorial collage of six product flyers; CTAs only */}
+      {/* Hero — collage + headline; box CTAs; slider */}
       <section className="relative min-h-hero-viewport w-full min-w-0 overflow-hidden bg-[#030303]">
         <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_120%_80%_at_50%_40%,#12121a_0%,#030303_55%,#000000_100%)]" aria-hidden />
 
@@ -207,7 +207,7 @@ export const Home: React.FC<HomeProps> = ({
             <button
               type="button"
               onClick={goHeroPrev}
-              className="absolute left-2 top-1/2 z-[22] flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-black/45 text-white shadow-lg backdrop-blur-md transition-colors duration-200 hover:border-white/40 hover:bg-black/65 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 sm:left-4 sm:h-12 sm:w-12 md:left-6 lg:h-14 lg:w-14"
+              className="absolute left-2 top-1/2 z-[22] flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg border border-white/25 bg-black/45 text-white shadow-lg backdrop-blur-md transition-colors duration-200 hover:border-white/40 hover:bg-black/65 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 sm:left-4 sm:h-12 sm:w-12 md:left-6 lg:h-14 lg:w-14"
               aria-label="Previous hero images"
             >
               <ChevronLeft className="h-6 w-6 lg:h-7 lg:w-7" strokeWidth={2} />
@@ -215,7 +215,7 @@ export const Home: React.FC<HomeProps> = ({
             <button
               type="button"
               onClick={goHeroNext}
-              className="absolute right-2 top-1/2 z-[22] flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-black/45 text-white shadow-lg backdrop-blur-md transition-colors duration-200 hover:border-white/40 hover:bg-black/65 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 sm:right-4 sm:h-12 sm:w-12 md:right-6 lg:h-14 lg:w-14"
+              className="absolute right-2 top-1/2 z-[22] flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg border border-white/25 bg-black/45 text-white shadow-lg backdrop-blur-md transition-colors duration-200 hover:border-white/40 hover:bg-black/65 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 sm:right-4 sm:h-12 sm:w-12 md:right-6 lg:h-14 lg:w-14"
               aria-label="Next hero images"
             >
               <ChevronRight className="h-6 w-6 lg:h-7 lg:w-7" strokeWidth={2} />
@@ -224,14 +224,28 @@ export const Home: React.FC<HomeProps> = ({
         )}
 
         <div className="relative z-20 flex min-h-hero-viewport w-full flex-col justify-end px-4 pb-8 pt-24 sm:px-6 sm:pb-10 sm:pt-28 md:pb-12">
-          <div className="mx-auto flex w-full max-w-lg flex-col gap-5 sm:max-w-xl">
-            {/* Shop + About — equal width on larger screens, full width on mobile */}
+          <div className="mx-auto flex w-full max-w-lg flex-col gap-5 sm:max-w-xl sm:gap-6">
+            <div className="mx-auto w-full max-w-[min(100%,20rem)] text-center sm:max-w-2xl md:max-w-3xl">
+              <h1 className="font-heading text-balance text-3xl font-bold leading-[1.12] tracking-tight text-off-white drop-shadow-[0_2px_20px_rgba(0,0,0,0.85)] sm:text-4xl sm:leading-tight md:text-5xl">
+                <span className="block sm:inline">Redefining Your</span>{' '}
+                <span className="block sm:inline">
+                  <span className="bg-gradient-to-r bg-clip-text text-transparent from-[#D4AF37] to-[#F4E4C1]">
+                    Tech Experience
+                  </span>
+                </span>
+              </h1>
+              <p className="mx-auto mt-3 max-w-[min(100%,22rem)] text-pretty text-sm font-light leading-relaxed text-gray-200/95 drop-shadow-[0_1px_12px_rgba(0,0,0,0.75)] sm:mt-4 sm:max-w-lg sm:text-base md:text-lg">
+                Premium tech products, expert repairs, and seamless trade-ins for the modern enthusiast.
+              </p>
+            </div>
+
+            {/* Shop + About — box buttons */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
               <Link
                 to="/store"
-                className={`btn-press inline-flex min-h-[3.25rem] flex-1 items-center justify-center gap-3 rounded-full px-8 py-4 text-center text-sm font-heading font-semibold tracking-wider transition-all duration-300 hover:scale-[1.02] hover:shadow-lg active:scale-95 sm:px-10 sm:py-5 ${theme === 'dark'
-                  ? 'bg-white text-black hover:shadow-white/25'
-                  : 'bg-white text-black hover:shadow-white/30'
+                className={`btn-press inline-flex min-h-[3.25rem] flex-1 items-center justify-center gap-3 rounded-lg border-2 border-transparent px-8 py-4 text-center text-sm font-heading font-semibold tracking-wider transition-all duration-300 hover:scale-[1.01] hover:shadow-lg active:scale-[0.99] sm:px-10 sm:py-5 ${theme === 'dark'
+                  ? 'bg-white text-black hover:border-black/10 hover:shadow-white/20'
+                  : 'bg-white text-black hover:border-black/10 hover:shadow-black/10'
                   }`}
               >
                 Browse Products
@@ -240,18 +254,18 @@ export const Home: React.FC<HomeProps> = ({
 
               <Link
                 to="/about"
-                className="btn-press inline-flex min-h-[3.25rem] flex-1 items-center justify-center gap-3 rounded-full border-2 border-white/90 bg-black/55 px-8 py-4 text-center text-sm font-heading font-semibold tracking-wider text-off-white shadow-lg backdrop-blur-md transition-all duration-300 hover:scale-[1.02] hover:border-white hover:bg-black/70 active:scale-95 sm:px-10 sm:py-5"
+                className="btn-press inline-flex min-h-[3.25rem] flex-1 items-center justify-center gap-3 rounded-lg border-2 border-white/90 bg-black/55 px-8 py-4 text-center text-sm font-heading font-semibold tracking-wider text-off-white shadow-lg backdrop-blur-md transition-all duration-300 hover:scale-[1.01] hover:border-white hover:bg-black/70 active:scale-[0.99] sm:px-10 sm:py-5"
               >
                 About Us
                 <ArrowRight className="shrink-0 transition-transform group-hover:translate-x-1" size={18} />
               </Link>
             </div>
 
-            {/* Dot indicators — centered under CTAs (arrows sit at hero sides) */}
+            {/* Dot indicators — no panel; blends into hero */}
             {heroSlideCount > 1 && (
-              <div className="flex justify-center rounded-2xl border border-white/15 bg-black/50 px-4 py-3 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-md sm:px-5">
+              <div className="flex justify-center pt-1">
                 <div
-                  className="no-scrollbar flex max-w-full flex-wrap items-center justify-center gap-2.5 overflow-x-auto py-0.5"
+                  className="no-scrollbar flex max-w-full flex-wrap items-center justify-center gap-2 overflow-x-auto py-2 sm:gap-2.5"
                   role="tablist"
                   aria-label="Hero image slides"
                 >
@@ -263,7 +277,7 @@ export const Home: React.FC<HomeProps> = ({
                       aria-selected={heroSlide === d}
                       aria-label={`Go to slide ${d + 1} of ${heroSlideCount}`}
                       onClick={() => setHeroSlide(d)}
-                      className={`h-2.5 shrink-0 rounded-full transition-all duration-500 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 ${heroSlide === d ? 'w-10 bg-white' : 'w-2.5 bg-white/40 hover:bg-white/70'
+                      className={`h-2 shrink-0 rounded-full transition-all duration-500 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${heroSlide === d ? 'w-8 bg-white/95' : 'w-2 bg-white/30 hover:bg-white/50'
                         }`}
                     />
                   ))}

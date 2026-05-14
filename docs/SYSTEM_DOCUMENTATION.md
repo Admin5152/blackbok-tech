@@ -52,7 +52,7 @@ Backend persistence and auth are provided by **Supabase** (Postgres + Auth + Rea
 | Build | Vite 6 |
 | Backend | Supabase JS client (`@supabase/supabase-js`) |
 | Icons | `lucide-react` |
-| AI (optional) | `@google/genai` (Gemini), env `GEMINI_API_KEY` / Vite `define` |
+| AI (optional) | `@google/genai` (Gemini), env `VITE_GEMINI_API_KEY` |
 
 ### 2.1 System architecture diagram (internal standard §1.3)
 
@@ -86,14 +86,14 @@ flowchart TB
   SPA -->|PostgREST / RPC| PG
   SPA -->|WebSocket| RT
   SPA -->|upload URLs / policies| ST
-  SPA -->|"GEMINI_API_KEY at build"| GEM
+  SPA -->|"VITE_GEMINI_API_KEY"| GEM
 ```
 
 **Data flow summary**
 
 1. **Host** serves only static files; there is **no Node server** in this repo’s default deploy path.
 2. **SPA** talks **directly** to Supabase (Auth + DB + Realtime + Storage) from the browser using the **anon** key (RLS enforces access).
-3. **Gemini** is optional: if `GEMINI_API_KEY` is set at build time, bundled client code may call Google’s API from the **browser** (treat the key as public — restrict in Google Cloud Console by HTTP referrer / quota).
+3. **Gemini** is optional: if `VITE_GEMINI_API_KEY` is set, the client bundle may call Google’s API from the **browser** (treat the key as public — restrict in Google Cloud Console by HTTP referrer / quota).
 
 ---
 
@@ -126,7 +126,7 @@ Variables are read via Vite (`import.meta.env`). Typical **development** uses `.
 | `VITE_SUPABASE_URL` | Yes (production) | Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | Yes (production) | Supabase anon (public) key |
 | `VITE_APP_URL` | Recommended for prod | Public site origin for auth email redirects (`lib/siteUrl.ts`) |
-| `GEMINI_API_KEY` | Optional | Google Gemini API key; exposed to client via Vite `define` as `process.env.GEMINI_API_KEY` |
+| `VITE_GEMINI_API_KEY` | Optional | Google Gemini API key (Vite client env) |
 
 **Note:** `lib/supabase.ts` documents fallbacks for local/dev only; production should rely on explicit env vars (see `DEPLOYMENT.md`).
 
@@ -288,7 +288,7 @@ Incremental SQL lives under **`database/migrations/`**. Examples (non‑exhausti
 
 ### 9.7 AI
 
-- **`services/geminiService.ts`**, **`components/PulseAI.tsx`** (when enabled): requires `GEMINI_API_KEY` at build/dev time per `vite.config.ts`.
+- **`services/geminiService.ts`**, **`components/PulseAI.tsx`** (when enabled): requires `VITE_GEMINI_API_KEY` in `.env` / `.env.local`.
 
 ---
 
@@ -299,7 +299,7 @@ Incremental SQL lives under **`database/migrations/`**. Examples (non‑exhausti
 | Supabase Auth | Redirect URLs must include production origin and hash routes used in `siteUrl` helpers |
 | Supabase DB / RLS | Policies must align with client queries in `lib/api.ts` |
 | WhatsApp | `FloatingWhatsApp`, footer links — marketing numbers in components |
-| Gemini | `GEMINI_API_KEY` |
+| Gemini | `VITE_GEMINI_API_KEY` |
 
 ---
 
@@ -756,7 +756,7 @@ There is **no single file in this repository** listing 225 cases. If your team m
 
 | Platform | Notes |
 |----------|--------|
-| **Vercel** | Static output from `dist/`; set SPA rewrite to `index.html`. Env: `VITE_*`, `GEMINI_API_KEY`. See `DEPLOYMENT.md`. |
+| **Vercel** | Static output from `dist/`; set SPA rewrite to `index.html`. Env: `VITE_*` including `VITE_GEMINI_API_KEY`. See `DEPLOYMENT.md`. |
 | **Netlify** | Same as Vercel; `_redirects` or `netlify.toml` SPA fallback. |
 | **GitHub Pages / static CDN** | `vite.config.ts` uses **`base: './'`** in production for relative assets. |
 | **Custom Nginx / Apache** | Serve `dist/`, fallback to `index.html` for unknown paths. |
@@ -770,7 +770,7 @@ There is **no single file in this repository** listing 225 cases. If your team m
 | `VITE_SUPABASE_URL` | Yes | Supabase API origin |
 | `VITE_SUPABASE_ANON_KEY` | Yes | Public anon key |
 | `VITE_APP_URL` | Strongly recommended in prod | Canonical public URL for email redirects (`lib/siteUrl.ts`) |
-| `GEMINI_API_KEY` | Optional | Injected as `process.env.GEMINI_API_KEY` for Gemini client code |
+| `VITE_GEMINI_API_KEY` | Optional | Read by `services/geminiService.ts` via `import.meta.env` |
 
 Never ship **service role** keys to this SPA bundle.
 

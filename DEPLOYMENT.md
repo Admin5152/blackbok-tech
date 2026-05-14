@@ -6,7 +6,7 @@
 - [ ] Create `.env.production` file with all required variables
 - [ ] Set `VITE_SUPABASE_URL` to production Supabase URL
 - [ ] Set `VITE_SUPABASE_ANON_KEY` to production Supabase anon key
-- [ ] Set `GEMINI_API_KEY` for AI services
+- [ ] Set `VITE_GEMINI_API_KEY` for AI services (optional)
 - [ ] Set `VITE_APP_URL` to production domain
 
 ### ✅ Database Setup
@@ -42,7 +42,7 @@ vercel --prod
 # Environment Variables in Vercel Dashboard:
 # VITE_SUPABASE_URL
 # VITE_SUPABASE_ANON_KEY  
-# GEMINI_API_KEY
+# VITE_GEMINI_API_KEY
 ```
 
 ### 🌐 Netlify
@@ -56,7 +56,7 @@ netlify deploy --prod --dir=dist
 # Environment Variables in Netlify Dashboard:
 # VITE_SUPABASE_URL
 # VITE_SUPABASE_ANON_KEY
-# GEMINI_API_KEY
+# VITE_GEMINI_API_KEY
 ```
 
 ### 🌐 GitHub Pages

@@ -15,7 +15,7 @@ View your app in AI Studio: https://ai.studio/apps/drive/1A_TSKENf7Zqz2xRyHyVVpQ
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+2. Set `VITE_GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key (from [Google AI Studio](https://aistudio.google.com/apikey))
 3. Run the app:
    `npm run dev`
 # BlackBoxClone
