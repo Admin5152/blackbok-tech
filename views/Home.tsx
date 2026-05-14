@@ -7,7 +7,7 @@ import {
 import { Link, useNavigate } from '@tanstack/react-router';
 import { Product, Category } from '../types';
 import { HERO_COLLAGE_FILENAMES, getImagesForTheme } from '../data/heroImages';
-import { formatCurrency } from '../lib/utils';
+import { formatCurrency, TW_DARK_BTN_DEPTH, TW_DARK_GOLD_BTN_DEPTH } from '../lib/utils';
 
 /** Editorial overlap positions (sizes bumped so flyers fill the hero). Rotation = CSS animation per tile. */
 const HERO_COLLAGE_FRAMES = [
@@ -152,7 +152,27 @@ export const Home: React.FC<HomeProps> = ({
     });
   };
 
-  const quickLinkClass = `rounded-full border px-3 py-1.5 text-xs font-semibold tracking-wide transition ${isDark ? 'border-white/15 text-white/90 hover:border-[#D4AF37]/45 hover:bg-white/[0.06]' : 'border-black/15 text-black/90 hover:border-black/35 hover:bg-black/[0.04]'}`;
+  const quickLinkClass = `rounded-full border px-3 py-1.5 text-xs font-semibold tracking-wide transition-all duration-200 ${isDark ? 'border-white/15 text-white/90 hover:border-[#D4AF37]/55 hover:bg-white/[0.08] hover:shadow-[0_0_0_1px_rgba(212,175,55,0.35)]' : 'border-black/15 text-black/90 hover:border-[#B38B21]/45 hover:bg-black/[0.03] hover:shadow-[0_0_0_1px_rgba(179,139,33,0.4)]'} ${TW_DARK_BTN_DEPTH}`;
+
+  /** Small gold/neutral highlight on product cards */
+  const homeProductCardHover = isDark
+    ? 'transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_rgba(212,175,55,0.32),0_22px_48px_-10px_rgba(0,0,0,0.72)]'
+    : 'transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_rgba(179,139,33,0.45),0_14px_32px_-8px_rgba(0,0,0,0.1)]';
+
+  const homePromoCardHover = isDark
+    ? 'transition-all duration-200 hover:shadow-[0_0_0_1px_rgba(212,175,55,0.22)]'
+    : 'transition-all duration-200 hover:shadow-[0_0_0_1px_rgba(179,139,33,0.38)]';
+
+  const homeScrollArrowHover = isDark
+    ? 'transition-all duration-200 hover:shadow-[0_0_0_2px_rgba(212,175,55,0.38)] active:scale-95'
+    : 'transition-all duration-200 hover:shadow-[0_0_0_2px_rgba(0,0,0,0.14)] active:scale-95';
+
+  const homeHeroArrowHover =
+    'transition-all duration-200 hover:shadow-[0_0_0_2px_rgba(255,255,255,0.35)] hover:border-[#D4AF37]/45 active:scale-[0.98]';
+
+  const homeMiniCardHover = isDark
+    ? 'transition-all duration-200 hover:shadow-[0_0_0_1px_rgba(212,175,55,0.28)]'
+    : 'transition-all duration-200 hover:shadow-[0_0_0_1px_rgba(179,139,33,0.38)]';
 
   if (!products || products.length === 0) return null;
 
@@ -212,7 +232,7 @@ export const Home: React.FC<HomeProps> = ({
             <button
               type="button"
               onClick={goHeroPrev}
-              className="absolute left-2 top-1/2 z-[22] flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg border border-white/25 bg-black/45 text-white shadow-lg backdrop-blur-md transition-colors duration-200 hover:border-white/40 hover:bg-black/65 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 sm:left-4 sm:h-12 sm:w-12 md:left-6 lg:h-14 lg:w-14"
+              className={`absolute left-2 top-1/2 z-[22] flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg border border-white/25 bg-black/45 text-white shadow-lg backdrop-blur-md hover:border-white/40 hover:bg-black/65 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 sm:left-4 sm:h-12 sm:w-12 md:left-6 lg:h-14 lg:w-14 ${homeHeroArrowHover} ${TW_DARK_BTN_DEPTH}`}
               aria-label="Previous hero images"
             >
               <ChevronLeft className="h-6 w-6 lg:h-7 lg:w-7" strokeWidth={2} />
@@ -220,7 +240,7 @@ export const Home: React.FC<HomeProps> = ({
             <button
               type="button"
               onClick={goHeroNext}
-              className="absolute right-2 top-1/2 z-[22] flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg border border-white/25 bg-black/45 text-white shadow-lg backdrop-blur-md transition-colors duration-200 hover:border-white/40 hover:bg-black/65 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 sm:right-4 sm:h-12 sm:w-12 md:right-6 lg:h-14 lg:w-14"
+              className={`absolute right-2 top-1/2 z-[22] flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg border border-white/25 bg-black/45 text-white shadow-lg backdrop-blur-md hover:border-white/40 hover:bg-black/65 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 sm:right-4 sm:h-12 sm:w-12 md:right-6 lg:h-14 lg:w-14 ${homeHeroArrowHover} ${TW_DARK_BTN_DEPTH}`}
               aria-label="Next hero images"
             >
               <ChevronRight className="h-6 w-6 lg:h-7 lg:w-7" strokeWidth={2} />
@@ -248,10 +268,10 @@ export const Home: React.FC<HomeProps> = ({
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
               <Link
                 to="/store"
-                className={`btn-press inline-flex min-h-[3.25rem] flex-1 items-center justify-center gap-3 rounded-lg border-2 border-transparent px-8 py-4 text-center text-sm font-heading font-semibold tracking-wider transition-all duration-300 hover:scale-[1.01] hover:shadow-lg active:scale-[0.99] sm:px-10 sm:py-5 ${theme === 'dark'
+                className={`btn-press inline-flex min-h-[3.25rem] flex-1 items-center justify-center gap-3 rounded-lg border-2 border-transparent px-8 py-4 text-center text-sm font-heading font-semibold tracking-wider transition-all duration-300 hover:scale-[1.01] hover:shadow-lg hover:shadow-[0_0_0_2px_rgba(212,175,55,0.45),0_12px_32px_-8px_rgba(0,0,0,0.2)] active:scale-[0.99] sm:px-10 sm:py-5 ${theme === 'dark'
                   ? 'bg-white text-black hover:border-black/10 hover:shadow-white/20'
                   : 'bg-white text-black hover:border-black/10 hover:shadow-black/10'
-                  }`}
+                  } ${TW_DARK_BTN_DEPTH}`}
               >
                 Browse Products
                 <ArrowRight className="shrink-0 transition-transform group-hover:translate-x-1" size={18} />
@@ -259,10 +279,10 @@ export const Home: React.FC<HomeProps> = ({
 
               <Link
                 to="/about"
-                className={`btn-press inline-flex min-h-[3.25rem] flex-1 items-center justify-center gap-3 rounded-lg border-2 px-8 py-4 text-center text-sm font-heading font-semibold tracking-wider shadow-lg backdrop-blur-md transition-all duration-300 hover:scale-[1.01] active:scale-[0.99] sm:px-10 sm:py-5 ${isDark
+                className={`btn-press inline-flex min-h-[3.25rem] flex-1 items-center justify-center gap-3 rounded-lg border-2 px-8 py-4 text-center text-sm font-heading font-semibold tracking-wider shadow-lg backdrop-blur-md transition-all duration-300 hover:scale-[1.01] hover:shadow-[0_0_0_2px_rgba(212,175,55,0.4)] active:scale-[0.99] sm:px-10 sm:py-5 ${isDark
                   ? 'border-[#CDA032]/40 bg-black/60 text-off-white hover:border-[#CDA032]/70 hover:bg-black/75'
                   : 'border-white/90 bg-black/55 text-off-white hover:border-white hover:bg-black/70'
-                  }`}
+                  } ${TW_DARK_BTN_DEPTH}`}
               >
                 About Us
                 <ArrowRight className="shrink-0 transition-transform group-hover:translate-x-1" size={18} />
@@ -328,12 +348,12 @@ export const Home: React.FC<HomeProps> = ({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="iPhone, MacBook, cases, chargers…"
-                className={`w-full rounded-2xl border py-3.5 pl-12 pr-4 text-sm outline-none ring-offset-2 transition placeholder:opacity-50 focus-visible:ring-2 ${isDark ? 'border-white/15 bg-white/[0.06] text-white ring-[#D4AF37]/60 ring-offset-[#050508]' : 'border-black/15 bg-white text-black ring-[#B38B21]/50 ring-offset-white'}`}
+                className={`w-full rounded-2xl border py-3.5 pl-12 pr-4 text-sm outline-none ring-offset-2 transition placeholder:opacity-50 focus-visible:ring-2 ${isDark ? 'border-white/15 bg-white/[0.06] text-white ring-[#D4AF37]/60 ring-offset-[#050508] hover:border-white/28' : 'border-black/15 bg-white text-black ring-[#B38B21]/50 ring-offset-white hover:border-[#B38B21]/35'}`}
               />
             </div>
             <button
               type="submit"
-              className="shrink-0 rounded-2xl bg-[#D4AF37] px-8 py-3.5 text-sm font-heading font-semibold tracking-wider text-black transition hover:bg-[#c9a430] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]/70 focus-visible:ring-offset-2"
+              className={`shrink-0 rounded-2xl bg-[#D4AF37] px-8 py-3.5 text-sm font-heading font-semibold tracking-wider text-black transition-all duration-200 hover:bg-[#c9a430] hover:shadow-[0_0_0_2px_rgba(212,175,55,0.55),0_6px_20px_-4px_rgba(0,0,0,0.15)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]/70 focus-visible:ring-offset-2 ${TW_DARK_GOLD_BTN_DEPTH}`}
             >
               Search catalog
             </button>
@@ -374,7 +394,7 @@ export const Home: React.FC<HomeProps> = ({
               <button
                 type="button"
                 onClick={() => document.getElementById('featured-products-slider')?.scrollBy({ left: -400, behavior: 'smooth' })}
-                className={`w-12 h-12 rounded-full border flex items-center justify-center transition-colors backdrop-blur-sm ${theme === 'dark' ? 'border-white/15 bg-white/[0.04] text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-black/20 text-black hover:bg-black hover:text-white'}`}
+                className={`w-12 h-12 rounded-full border flex items-center justify-center backdrop-blur-sm ${theme === 'dark' ? 'border-white/15 bg-white/[0.04] text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-black/20 text-black hover:bg-black hover:text-white'} ${homeScrollArrowHover} ${TW_DARK_BTN_DEPTH}`}
                 aria-label="Scroll featured products left"
               >
                 <ChevronLeft size={24} />
@@ -382,7 +402,7 @@ export const Home: React.FC<HomeProps> = ({
               <button
                 type="button"
                 onClick={() => document.getElementById('featured-products-slider')?.scrollBy({ left: 400, behavior: 'smooth' })}
-                className={`w-12 h-12 rounded-full border flex items-center justify-center transition-colors backdrop-blur-sm ${theme === 'dark' ? 'border-white/15 bg-white/[0.04] text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-black/20 text-black hover:bg-black hover:text-white'}`}
+                className={`w-12 h-12 rounded-full border flex items-center justify-center backdrop-blur-sm ${theme === 'dark' ? 'border-white/15 bg-white/[0.04] text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-black/20 text-black hover:bg-black hover:text-white'} ${homeScrollArrowHover} ${TW_DARK_BTN_DEPTH}`}
                 aria-label="Scroll featured products right"
               >
                 <ChevronRight size={24} />
@@ -395,7 +415,7 @@ export const Home: React.FC<HomeProps> = ({
             className="flex items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar snap-x snap-mandatory px-4 md:px-8 pb-8"
             style={{ scrollPaddingLeft: 'max(1rem, env(safe-area-inset-left))' }}
           >
-            <div className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#16161f] ring-1 ring-inset ring-white/[0.06]' : 'bg-[#f5f5f7]'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between snap-start flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5`}>
+            <div className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#16161f] ring-1 ring-inset ring-white/[0.06]' : 'bg-[#f5f5f7]'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between snap-start flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5 ${homePromoCardHover}`}>
               <div>
                 <h2 className="text-3xl md:text-5xl font-bold tracking-tight">Featured picks</h2>
                 <p className={`mt-3 max-w-[20rem] text-sm leading-relaxed ${theme === 'dark' ? 'text-white/65' : 'text-black/65'}`}>
@@ -419,7 +439,7 @@ export const Home: React.FC<HomeProps> = ({
                     onQuickView(p);
                   }
                 }}
-                className={`w-[260px] md:w-[300px] h-[360px] md:h-[420px] rounded-[2rem] snap-start flex-shrink-0 flex flex-col group cursor-pointer overflow-hidden relative shadow-lg ${theme === 'dark' ? 'bg-[#14141c] border border-white/[0.07] shadow-[0_20px_48px_-14px_rgba(0,0,0,0.6)]' : 'bg-[#ffffff]'}`}
+                className={`w-[260px] md:w-[300px] h-[360px] md:h-[420px] rounded-[2rem] snap-start flex-shrink-0 flex flex-col group cursor-pointer overflow-hidden relative shadow-lg ${theme === 'dark' ? 'bg-[#14141c] border border-white/[0.07] shadow-[0_20px_48px_-14px_rgba(0,0,0,0.6)]' : 'bg-[#ffffff] border border-black/[0.08]'} ${homeProductCardHover}`}
               >
                 <div className="pointer-events-none absolute inset-0 z-10">
                   <div className={`absolute bottom-2 left-2 w-12 h-12 border-b-2 border-l-2 rounded-bl-[1.5rem] transition-colors ${theme === 'dark' ? 'border-white/20' : 'border-[#B38B21]/40'}`} />
@@ -438,10 +458,13 @@ export const Home: React.FC<HomeProps> = ({
                     e.stopPropagation();
                     onQuickView(p);
                   }}
-                  className={`absolute top-4 right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full border shadow-lg backdrop-blur-md transition-all hover:scale-105 active:scale-95 ${theme === 'dark'
-                    ? 'border-white/25 bg-black/55 text-white hover:bg-[#CDA032] hover:text-black hover:border-transparent'
-                    : 'border-black/12 bg-white/90 text-black hover:bg-[#CDA032] hover:border-transparent'
-                    }`}
+                  className={[
+                    'absolute top-4 right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full border shadow-lg backdrop-blur-md transition-all hover:scale-105 hover:shadow-[0_0_0_1px_rgba(212,175,55,0.42)] active:scale-95',
+                    theme === 'dark'
+                      ? 'border-white/25 bg-black/55 text-white hover:bg-[#CDA032] hover:text-black hover:border-transparent'
+                      : 'border-black/12 bg-white/90 text-black hover:bg-[#CDA032] hover:border-transparent',
+                    TW_DARK_BTN_DEPTH,
+                  ].join(' ')}
                 >
                   <Eye size={18} strokeWidth={2.25} />
                 </button>
@@ -473,7 +496,7 @@ export const Home: React.FC<HomeProps> = ({
                           e.stopPropagation();
                           if (navigateTo) navigateTo('product', p.id);
                         }}
-                        className={`w-10 h-10 rounded-full backdrop-blur-md transition-all flex items-center justify-center border hover:border-transparent hover:scale-110 active:scale-95 group/nav ${theme === 'dark' ? 'bg-black/40 text-white hover:bg-[#CDA032] border-white/20' : 'bg-white/40 text-black hover:bg-[#CDA032] border-black/10 shadow-sm'}`}
+                        className={`w-10 h-10 rounded-full backdrop-blur-md transition-all flex items-center justify-center border hover:border-transparent hover:scale-110 hover:shadow-[0_0_0_1px_rgba(212,175,55,0.45)] active:scale-95 group/nav ${theme === 'dark' ? 'bg-black/40 text-white hover:bg-[#CDA032] border-white/20' : 'bg-white/40 text-black hover:bg-[#CDA032] border-black/10 shadow-sm'} ${TW_DARK_BTN_DEPTH}`}
                         aria-label={`View ${p.name}`}
                       >
                         <ArrowRight size={16} className="group-hover/nav:-rotate-45 transition-transform" />
@@ -485,7 +508,7 @@ export const Home: React.FC<HomeProps> = ({
                           e.stopPropagation();
                           onAddToCart(p);
                         }}
-                        className={`w-10 h-10 rounded-full backdrop-blur-md transition-all flex items-center justify-center group/btn border hover:border-transparent hover:scale-110 active:scale-95 ${theme === 'dark' ? 'bg-white/10 text-white hover:bg-[#CDA032] hover:text-black border-white/20' : 'bg-black/5 text-black hover:bg-[#CDA032] border-black/10 shadow-sm'}`}
+                        className={`w-10 h-10 rounded-full backdrop-blur-md transition-all flex items-center justify-center group/btn border hover:border-transparent hover:scale-110 hover:shadow-[0_0_0_1px_rgba(212,175,55,0.45)] active:scale-95 ${theme === 'dark' ? 'bg-white/10 text-white hover:bg-[#CDA032] hover:text-black border-white/20' : 'bg-black/5 text-black hover:bg-[#CDA032] border-black/10 shadow-sm'} ${TW_DARK_BTN_DEPTH}`}
                         aria-label={`Add ${p.name} to cart`}
                       >
                         <ShoppingCart size={16} className="group-hover/btn:-translate-x-0.5 transition-transform" />
@@ -500,7 +523,7 @@ export const Home: React.FC<HomeProps> = ({
           <div className="flex justify-center mt-6 px-4">
             <Link
               to="/store"
-              className="group relative inline-flex items-center gap-4 px-10 py-4 border-2 border-[#D4AF37] text-[#D4AF37] rounded-full text-sm font-heading font-semibold tracking-wider transition-all duration-300 hover:bg-[#D4AF37] hover:text-black hover:scale-105"
+              className={`group relative inline-flex items-center gap-4 px-10 py-4 border-2 border-[#D4AF37] text-[#D4AF37] rounded-full text-sm font-heading font-semibold tracking-wider transition-all duration-300 hover:bg-[#D4AF37] hover:text-black hover:scale-105 hover:shadow-[0_0_0_3px_rgba(212,175,55,0.35)] ${TW_DARK_BTN_DEPTH}`}
             >
               <ArrowRight className="absolute -left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-[#D4AF37] group-hover:text-black transition-colors" size={16} />
               Explore full store
@@ -516,13 +539,13 @@ export const Home: React.FC<HomeProps> = ({
           <div className="flex items-center justify-end mb-6 px-4 md:px-8 gap-3">
             <button
               onClick={() => document.getElementById('accessories-slider')?.scrollBy({ left: -400, behavior: 'smooth' })}
-              className={`w-12 h-12 rounded-full border flex items-center justify-center transition-colors backdrop-blur-sm ${theme === 'dark' ? 'border-white/15 bg-white/[0.04] text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-black/20 text-black hover:bg-black hover:text-white'}`}
+              className={`w-12 h-12 rounded-full border flex items-center justify-center backdrop-blur-sm ${theme === 'dark' ? 'border-white/15 bg-white/[0.04] text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-black/20 text-black hover:bg-black hover:text-white'} ${homeScrollArrowHover} ${TW_DARK_BTN_DEPTH}`}
             >
               <ChevronLeft size={24} />
             </button>
             <button
               onClick={() => document.getElementById('accessories-slider')?.scrollBy({ left: 400, behavior: 'smooth' })}
-              className={`w-12 h-12 rounded-full border flex items-center justify-center transition-colors backdrop-blur-sm ${theme === 'dark' ? 'border-white/15 bg-white/[0.04] text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-black/20 text-black hover:bg-black hover:text-white'}`}
+              className={`w-12 h-12 rounded-full border flex items-center justify-center backdrop-blur-sm ${theme === 'dark' ? 'border-white/15 bg-white/[0.04] text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-black/20 text-black hover:bg-black hover:text-white'} ${homeScrollArrowHover} ${TW_DARK_BTN_DEPTH}`}
             >
               <ChevronRight size={24} />
             </button>
@@ -530,7 +553,7 @@ export const Home: React.FC<HomeProps> = ({
 
           <div id="accessories-slider" className="flex items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar snap-x snap-mandatory px-4 md:px-8 pb-8" style={{ scrollPaddingLeft: 'max(1rem, env(safe-area-inset-left))' }}>
             {/* Promo Card */}
-            <div className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#16161f] ring-1 ring-inset ring-white/[0.06]' : 'bg-white'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between snap-start flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5`}>
+            <div className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#16161f] ring-1 ring-inset ring-white/[0.06]' : 'bg-white'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between snap-start flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5 ${homePromoCardHover}`}>
               <div>
                 <h2 className="text-3xl md:text-5xl font-bold tracking-tight">Take a peek</h2>
                 <p className={`mt-3 max-w-[20rem] text-sm leading-relaxed ${theme === 'dark' ? 'text-white/65' : 'text-black/65'}`}>
@@ -547,7 +570,7 @@ export const Home: React.FC<HomeProps> = ({
               <div
                 key={p.id}
                 onClick={() => onQuickView(p)}
-                className={`w-[260px] md:w-[300px] h-[360px] md:h-[420px] rounded-[2rem] snap-start flex-shrink-0 flex flex-col group cursor-pointer overflow-hidden relative shadow-lg ${theme === 'dark' ? 'bg-[#14141c] border border-white/[0.07] shadow-[0_20px_48px_-14px_rgba(0,0,0,0.6)]' : 'bg-[#ffffff]'}`}
+                className={`w-[260px] md:w-[300px] h-[360px] md:h-[420px] rounded-[2rem] snap-start flex-shrink-0 flex flex-col group cursor-pointer overflow-hidden relative shadow-lg ${theme === 'dark' ? 'bg-[#14141c] border border-white/[0.07] shadow-[0_20px_48px_-14px_rgba(0,0,0,0.6)]' : 'bg-[#ffffff] border border-black/[0.08]'} ${homeProductCardHover}`}
               >
                 <div className="pointer-events-none absolute inset-0 z-10">
                   <div className={`absolute bottom-2 left-2 w-12 h-12 border-b-2 border-l-2 rounded-bl-[1.5rem] transition-colors ${theme === 'dark' ? 'border-white/20' : 'border-[#B38B21]/40'}`} />
@@ -566,10 +589,13 @@ export const Home: React.FC<HomeProps> = ({
                     e.stopPropagation();
                     onQuickView(p);
                   }}
-                  className={`absolute top-4 right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full border shadow-lg backdrop-blur-md transition-all hover:scale-105 active:scale-95 ${theme === 'dark'
-                    ? 'border-white/25 bg-black/55 text-white hover:bg-[#CDA032] hover:text-black hover:border-transparent'
-                    : 'border-black/12 bg-white/90 text-black hover:bg-[#CDA032] hover:border-transparent'
-                    }`}
+                  className={[
+                    'absolute top-4 right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full border shadow-lg backdrop-blur-md transition-all hover:scale-105 hover:shadow-[0_0_0_1px_rgba(212,175,55,0.42)] active:scale-95',
+                    theme === 'dark'
+                      ? 'border-white/25 bg-black/55 text-white hover:bg-[#CDA032] hover:text-black hover:border-transparent'
+                      : 'border-black/12 bg-white/90 text-black hover:bg-[#CDA032] hover:border-transparent',
+                    TW_DARK_BTN_DEPTH,
+                  ].join(' ')}
                 >
                   <Eye size={18} strokeWidth={2.25} />
                 </button>
@@ -597,7 +623,7 @@ export const Home: React.FC<HomeProps> = ({
                     <div className="flex items-center gap-2">
                       <button
                         onClick={(e) => { e.stopPropagation(); if (navigateTo) navigateTo('product', p.id); }}
-                        className={`w-10 h-10 rounded-full backdrop-blur-md transition-all flex items-center justify-center border hover:border-transparent hover:scale-110 active:scale-95 group/nav ${theme === 'dark' ? 'bg-black/40 text-white hover:bg-[#CDA032] border-white/20' : 'bg-white/40 text-black hover:bg-[#CDA032] border-black/10 shadow-sm'}`}
+                        className={`w-10 h-10 rounded-full backdrop-blur-md transition-all flex items-center justify-center border hover:border-transparent hover:scale-110 hover:shadow-[0_0_0_1px_rgba(212,175,55,0.45)] active:scale-95 group/nav ${theme === 'dark' ? 'bg-black/40 text-white hover:bg-[#CDA032] border-white/20' : 'bg-white/40 text-black hover:bg-[#CDA032] border-black/10 shadow-sm'} ${TW_DARK_BTN_DEPTH}`}
                       >
                         <ArrowRight size={16} className="group-hover/nav:-rotate-45 transition-transform" />
                       </button>
@@ -605,7 +631,7 @@ export const Home: React.FC<HomeProps> = ({
                       {/* Add to Cart Button */}
                       <button
                         onClick={(e) => { e.stopPropagation(); onAddToCart(p); }}
-                        className="w-10 h-10 rounded-full bg-white/10 hover:bg-[#B38B21] backdrop-blur-md text-white hover:text-black transition-all flex items-center justify-center group/btn border border-white/20 hover:border-transparent hover:scale-110 active:scale-95"
+                        className={`w-10 h-10 rounded-full bg-white/10 hover:bg-[#B38B21] backdrop-blur-md text-white hover:text-black transition-all flex items-center justify-center group/btn border border-white/20 hover:border-transparent hover:scale-110 hover:shadow-[0_0_0_1px_rgba(212,175,55,0.45)] active:scale-95 ${TW_DARK_BTN_DEPTH}`}
                       >
                         <ShoppingCart size={16} className="group-hover/btn:-translate-x-0.5 transition-transform" />
                       </button>
@@ -620,7 +646,7 @@ export const Home: React.FC<HomeProps> = ({
             <Link
               to="/store"
               search={{ category: 'Accessories' } as any}
-              className="group inline-flex items-center gap-4 px-10 py-5 bg-black dark:bg-white text-white dark:text-black rounded-full font-black text-xs uppercase tracking-[0.2em] shadow-2xl hover:scale-105 transition-all w-full md:w-auto justify-center"
+              className={`group inline-flex items-center gap-4 px-10 py-5 bg-black dark:bg-white text-white dark:text-black rounded-full font-black text-xs uppercase tracking-[0.2em] shadow-2xl hover:scale-105 hover:shadow-[0_0_0_2px_rgba(212,175,55,0.35)] transition-all w-full md:w-auto justify-center ${TW_DARK_BTN_DEPTH}`}
             >
               View All Accessories
               <div className="w-8 h-8 rounded-full bg-white/20 dark:bg-black/10 flex items-center justify-center group-hover:translate-x-2 transition-transform">
@@ -638,13 +664,13 @@ export const Home: React.FC<HomeProps> = ({
           <div className="flex items-center justify-end mb-6 px-4 md:px-8 gap-3">
             <button
               onClick={() => document.getElementById('laptop-slider')?.scrollBy({ left: -400, behavior: 'smooth' })}
-              className={`w-12 h-12 rounded-full border flex items-center justify-center transition-colors backdrop-blur-sm ${theme === 'dark' ? 'border-white/15 bg-white/[0.04] text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-black/20 text-black hover:bg-black hover:text-white'}`}
+              className={`w-12 h-12 rounded-full border flex items-center justify-center backdrop-blur-sm ${theme === 'dark' ? 'border-white/15 bg-white/[0.04] text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-black/20 text-black hover:bg-black hover:text-white'} ${homeScrollArrowHover} ${TW_DARK_BTN_DEPTH}`}
             >
               <ChevronLeft size={24} />
             </button>
             <button
               onClick={() => document.getElementById('laptop-slider')?.scrollBy({ left: 400, behavior: 'smooth' })}
-              className={`w-12 h-12 rounded-full border flex items-center justify-center transition-colors backdrop-blur-sm ${theme === 'dark' ? 'border-white/15 bg-white/[0.04] text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-black/20 text-black hover:bg-black hover:text-white'}`}
+              className={`w-12 h-12 rounded-full border flex items-center justify-center backdrop-blur-sm ${theme === 'dark' ? 'border-white/15 bg-white/[0.04] text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-black/20 text-black hover:bg-black hover:text-white'} ${homeScrollArrowHover} ${TW_DARK_BTN_DEPTH}`}
             >
               <ChevronRight size={24} />
             </button>
@@ -652,7 +678,7 @@ export const Home: React.FC<HomeProps> = ({
 
           <div id="laptop-slider" className="flex items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar snap-x snap-mandatory px-4 md:px-8 pb-8" style={{ scrollPaddingLeft: 'max(1rem, env(safe-area-inset-left))' }}>
             {/* Promo Card */}
-            <div className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#16161f] ring-1 ring-inset ring-white/[0.06]' : 'bg-[#F2F4F7]'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between snap-start flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5 relative overflow-hidden group`}>
+            <div className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#16161f] ring-1 ring-inset ring-white/[0.06]' : 'bg-[#F2F4F7]'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between snap-start flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5 relative overflow-hidden group ${homePromoCardHover}`}>
               <div className="relative z-10">
                 <h2 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase leading-tight">Laptops.</h2>
                 <p className={`mt-3 max-w-[20rem] text-sm leading-relaxed normal-case font-normal not-italic tracking-normal ${theme === 'dark' ? 'text-white/65' : 'text-black/65'}`}>
@@ -674,7 +700,7 @@ export const Home: React.FC<HomeProps> = ({
               <div
                 key={p.id}
                 onClick={() => onQuickView(p)}
-                className={`w-[260px] md:w-[300px] h-[360px] md:h-[420px] rounded-[2rem] snap-start flex-shrink-0 flex flex-col group cursor-pointer overflow-hidden relative shadow-lg ${theme === 'dark' ? 'bg-[#14141c] border border-white/[0.07] shadow-[0_20px_48px_-14px_rgba(0,0,0,0.6)]' : 'bg-[#ffffff]'}`}
+                className={`w-[260px] md:w-[300px] h-[360px] md:h-[420px] rounded-[2rem] snap-start flex-shrink-0 flex flex-col group cursor-pointer overflow-hidden relative shadow-lg ${theme === 'dark' ? 'bg-[#14141c] border border-white/[0.07] shadow-[0_20px_48px_-14px_rgba(0,0,0,0.6)]' : 'bg-[#ffffff] border border-black/[0.08]'} ${homeProductCardHover}`}
               >
                 <div className="pointer-events-none absolute inset-0 z-10">
                   <div className={`absolute bottom-2 left-2 w-12 h-12 border-b-2 border-l-2 rounded-bl-[1.5rem] transition-colors ${theme === 'dark' ? 'border-white/20' : 'border-[#CDA032]/40'}`} />
@@ -693,10 +719,13 @@ export const Home: React.FC<HomeProps> = ({
                     e.stopPropagation();
                     onQuickView(p);
                   }}
-                  className={`absolute top-4 right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full border shadow-lg backdrop-blur-md transition-all hover:scale-105 active:scale-95 ${theme === 'dark'
-                    ? 'border-white/25 bg-black/55 text-white hover:bg-[#CDA032] hover:text-black hover:border-transparent'
-                    : 'border-black/12 bg-white/90 text-black hover:bg-[#CDA032] hover:border-transparent'
-                    }`}
+                  className={[
+                    'absolute top-4 right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full border shadow-lg backdrop-blur-md transition-all hover:scale-105 hover:shadow-[0_0_0_1px_rgba(212,175,55,0.42)] active:scale-95',
+                    theme === 'dark'
+                      ? 'border-white/25 bg-black/55 text-white hover:bg-[#CDA032] hover:text-black hover:border-transparent'
+                      : 'border-black/12 bg-white/90 text-black hover:bg-[#CDA032] hover:border-transparent',
+                    TW_DARK_BTN_DEPTH,
+                  ].join(' ')}
                 >
                   <Eye size={18} strokeWidth={2.25} />
                 </button>
@@ -724,14 +753,14 @@ export const Home: React.FC<HomeProps> = ({
                     <div className="flex items-center gap-2">
                       <button
                         onClick={(e) => { e.stopPropagation(); if (navigateTo) navigateTo('product', p.id); }}
-                        className={`w-10 h-10 rounded-full backdrop-blur-md transition-all flex items-center justify-center border hover:border-transparent hover:scale-110 active:scale-95 group/nav ${theme === 'dark' ? 'bg-black/40 text-white hover:bg-[#CDA032] border-white/20' : 'bg-white/40 text-black hover:bg-[#CDA032] border-black/10 shadow-sm'}`}
+                        className={`w-10 h-10 rounded-full backdrop-blur-md transition-all flex items-center justify-center border hover:border-transparent hover:scale-110 hover:shadow-[0_0_0_1px_rgba(212,175,55,0.45)] active:scale-95 group/nav ${theme === 'dark' ? 'bg-black/40 text-white hover:bg-[#CDA032] border-white/20' : 'bg-white/40 text-black hover:bg-[#CDA032] border-black/10 shadow-sm'} ${TW_DARK_BTN_DEPTH}`}
                       >
                         <ArrowRight size={16} className="group-hover/nav:-rotate-45 transition-transform" />
                       </button>
 
                       <button
                         onClick={(e) => { e.stopPropagation(); onAddToCart(p); }}
-                        className={`w-10 h-10 rounded-full backdrop-blur-md transition-all flex items-center justify-center group/btn border hover:border-transparent hover:scale-110 active:scale-95 ${theme === 'dark' ? 'bg-white/10 text-white hover:bg-[#CDA032] hover:text-black border-white/20' : 'bg-black/5 text-black hover:bg-[#CDA032] border-black/10 shadow-sm'}`}
+                        className={`w-10 h-10 rounded-full backdrop-blur-md transition-all flex items-center justify-center group/btn border hover:border-transparent hover:scale-110 hover:shadow-[0_0_0_1px_rgba(212,175,55,0.45)] active:scale-95 ${theme === 'dark' ? 'bg-white/10 text-white hover:bg-[#CDA032] hover:text-black border-white/20' : 'bg-black/5 text-black hover:bg-[#CDA032] border-black/10 shadow-sm'} ${TW_DARK_BTN_DEPTH}`}
                       >
                         <ShoppingCart size={16} className="group-hover/btn:-translate-x-0.5 transition-transform" />
                       </button>
@@ -746,7 +775,7 @@ export const Home: React.FC<HomeProps> = ({
             <Link
               to="/store"
               search={{ category: 'Laptop' } as any}
-              className="group inline-flex items-center gap-4 px-10 py-5 bg-black dark:bg-white text-white dark:text-black rounded-full font-black text-xs uppercase tracking-[0.2em] shadow-2xl hover:scale-105 transition-all w-full md:w-auto justify-center"
+              className={`group inline-flex items-center gap-4 px-10 py-5 bg-black dark:bg-white text-white dark:text-black rounded-full font-black text-xs uppercase tracking-[0.2em] shadow-2xl hover:scale-105 hover:shadow-[0_0_0_2px_rgba(212,175,55,0.35)] transition-all w-full md:w-auto justify-center ${TW_DARK_BTN_DEPTH}`}
             >
               View All Laptops
               <div className="w-8 h-8 rounded-full bg-white/20 dark:bg-black/10 flex items-center justify-center group-hover:translate-x-2 transition-transform">
@@ -786,7 +815,7 @@ export const Home: React.FC<HomeProps> = ({
           <div className="mt-12">
             <Link
               to="/trades"
-              className="inline-flex px-10 py-4 bg-[#CDA032] text-black rounded-full text-sm font-black items-center gap-3 transition-all hover:scale-105 hover:bg-[#B38B21] shadow-lg active:scale-95"
+              className={`inline-flex px-10 py-4 bg-[#CDA032] text-black rounded-full text-sm font-black items-center gap-3 transition-all hover:scale-105 hover:bg-[#B38B21] hover:shadow-[0_0_0_2px_rgba(212,175,55,0.45)] shadow-lg active:scale-95 ${TW_DARK_GOLD_BTN_DEPTH}`}
             >
               Let's Trade
               <ArrowRight size={18} />
@@ -823,7 +852,7 @@ export const Home: React.FC<HomeProps> = ({
             <div>
               <Link
                 to="/repair"
-                className="inline-flex px-10 py-4 bg-[#D4AF37] text-black rounded-full text-sm font-heading font-bold tracking-widest items-center gap-3 transition-transform hover:scale-105 active:scale-95 shadow-lg"
+                className={`inline-flex px-10 py-4 bg-[#D4AF37] text-black rounded-full text-sm font-heading font-bold tracking-widest items-center gap-3 transition-all hover:scale-105 hover:shadow-[0_0_0_2px_rgba(212,175,55,0.45)] active:scale-95 shadow-lg ${TW_DARK_GOLD_BTN_DEPTH}`}
               >
                 Schedule Repair
                 <Wrench size={16} />
@@ -869,7 +898,7 @@ export const Home: React.FC<HomeProps> = ({
                     onClick={() => setExploreFilter(filter as any)}
                     className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${isActive
                       ? (theme === 'light' ? 'bg-black text-white shadow-lg' : 'bg-[#D4AF37] text-black shadow-[0_0_20px_rgba(212,175,55,0.3)]')
-                      : (theme === 'light' ? 'text-gray-500 hover:text-black hover:bg-black/5' : 'text-white/40 hover:text-white hover:bg-white/5')
+                      : (theme === 'light' ? 'text-gray-500 hover:text-black hover:bg-black/5 hover:ring-1 hover:ring-[#B38B21]/35' : 'text-white/40 hover:text-white hover:bg-white/5 hover:ring-1 hover:ring-[#D4AF37]/30')
                       }`}
                   >
                     {filter}
@@ -883,7 +912,7 @@ export const Home: React.FC<HomeProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 grid-rows-[auto] gap-4 md:gap-6 auto-rows-[240px] md:auto-rows-[280px]">
 
             {(exploreFilter === 'All Gear' || exploreFilter === 'Pro Series') && (
-              <Link to="/store" search={{ category: 'Audio' } as any} className={`col-span-1 md:col-span-2 row-span-1 md:row-span-1 rounded-[2rem] p-8 md:p-10 flex flex-col justify-center relative overflow-hidden group transition-transform duration-500 hover:-translate-y-1 hover:shadow-2xl ${theme === 'light' ? 'bg-[#E1F2EB] text-[#0A261D]' : 'bg-gradient-to-br from-[#1A362D] to-[#0A1A14] text-[#86EFAC] border border-[#22C55E]/20'}`}>
+              <Link to="/store" search={{ category: 'Audio' } as any} className={`col-span-1 md:col-span-2 row-span-1 md:row-span-1 rounded-[2rem] p-8 md:p-10 flex flex-col justify-center relative overflow-hidden group transition-transform duration-500 hover:-translate-y-1 hover:shadow-2xl hover:ring-2 hover:ring-[#D4AF37]/25 ${theme === 'light' ? 'bg-[#E1F2EB] text-[#0A261D]' : 'bg-gradient-to-br from-[#1A362D] to-[#0A1A14] text-[#86EFAC] border border-[#22C55E]/20'}`}>
                 <div className="relative z-10 w-full md:w-2/3">
                   <span className={`inline-block px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.2em] mb-4 backdrop-blur-md ${theme === 'light' ? 'bg-white/50 text-[#0A261D]' : 'bg-black/30 text-[#86EFAC]'}`}>Limited Time Offer</span>
                   <h3 className={`text-3xl md:text-5xl font-black italic tracking-tighter uppercase leading-[1.1] mb-2 ${theme === 'light' ? 'text-[#0A261D]' : 'text-white'}`}>
@@ -908,7 +937,7 @@ export const Home: React.FC<HomeProps> = ({
             )}
 
             {(exploreFilter === 'All Gear' || exploreFilter === 'Essentials') && (
-              <Link to="/store" search={{ category: 'Accessories' } as any} className={`col-span-1 md:col-span-1 row-span-1 md:row-span-2 rounded-[2rem] p-6 flex flex-col justify-between relative overflow-hidden group transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl ${theme === 'light' ? 'bg-white' : 'bg-[#14141c] border border-white/[0.07] shadow-[0_12px_40px_-8px_rgba(0,0,0,0.5)]'}`}>
+              <Link to="/store" search={{ category: 'Accessories' } as any} className={`col-span-1 md:col-span-1 row-span-1 md:row-span-2 rounded-[2rem] p-6 flex flex-col justify-between relative overflow-hidden group transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl hover:ring-2 hover:ring-[#D4AF37]/25 ${theme === 'light' ? 'bg-white' : 'bg-[#14141c] border border-white/[0.07] shadow-[0_12px_40px_-8px_rgba(0,0,0,0.5)]'}`}>
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 z-10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
 
                 <div className="flex justify-between items-start z-20">
@@ -940,7 +969,7 @@ export const Home: React.FC<HomeProps> = ({
             )}
 
             {(exploreFilter === 'All Gear' || exploreFilter === 'Pro Series') && (
-              <Link to="/store" search={{ category: 'Gaming' } as any} className={`col-span-1 md:col-span-1 row-span-1 rounded-[2rem] p-6 flex flex-col justify-center relative overflow-hidden group transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl ${theme === 'light' ? 'bg-[#F2F4F7] border border-black/5' : 'bg-[#1A1A1A] border border-white/5'}`}>
+              <Link to="/store" search={{ category: 'Gaming' } as any} className={`col-span-1 md:col-span-1 row-span-1 rounded-[2rem] p-6 flex flex-col justify-center relative overflow-hidden group transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl hover:ring-2 hover:ring-[#D4AF37]/25 ${theme === 'light' ? 'bg-[#F2F4F7] border border-black/5' : 'bg-[#1A1A1A] border border-white/5'}`}>
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 z-10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
 
                 <div className="flex justify-between items-start z-20">
@@ -972,7 +1001,7 @@ export const Home: React.FC<HomeProps> = ({
             )}
 
             {(exploreFilter === 'All Gear' || exploreFilter === 'Pro Series') && (
-              <Link to="/store" search={{ category: 'Laptop' } as any} className={`col-span-1 md:col-span-2 row-span-1 md:row-span-1 rounded-[2rem] p-8 md:p-10 flex flex-col justify-center relative overflow-hidden group transition-transform duration-500 hover:-translate-y-1 hover:shadow-2xl ${theme === 'light' ? 'bg-[#FFF3CD]' : 'bg-gradient-to-br from-[#CDA032]/20 to-[#4A3B12] border border-[#CDA032]/20'}`}>
+              <Link to="/store" search={{ category: 'Laptop' } as any} className={`col-span-1 md:col-span-2 row-span-1 md:row-span-1 rounded-[2rem] p-8 md:p-10 flex flex-col justify-center relative overflow-hidden group transition-transform duration-500 hover:-translate-y-1 hover:shadow-2xl hover:ring-2 hover:ring-[#D4AF37]/25 ${theme === 'light' ? 'bg-[#FFF3CD]' : 'bg-gradient-to-br from-[#CDA032]/20 to-[#4A3B12] border border-[#CDA032]/20'}`}>
                 <div className="relative z-10 w-full md:w-1/2">
                   <h3 className={`text-2xl md:text-4xl font-black italic tracking-tighter uppercase leading-[1.1] mb-2 ${theme === 'light' ? 'text-black' : 'text-white'}`}>
                     Pro Power.<br />Anywhere.
@@ -997,7 +1026,7 @@ export const Home: React.FC<HomeProps> = ({
             )}
 
             {(exploreFilter === 'All Gear' || exploreFilter === 'Essentials') && (
-              <Link to="/trades" className={`col-span-1 md:col-span-1 row-span-1 rounded-[2rem] p-8 relative overflow-hidden group transition-transform duration-500 hover:-translate-y-1 hover:shadow-xl flex flex-col justify-end ${theme === 'light' ? 'bg-[#F9FAFB] shadow-inner' : 'bg-[#14141c] shadow-inner border border-white/[0.07]'}`}>
+              <Link to="/trades" className={`col-span-1 md:col-span-1 row-span-1 rounded-[2rem] p-8 relative overflow-hidden group transition-transform duration-500 hover:-translate-y-1 hover:shadow-xl hover:ring-2 hover:ring-[#D4AF37]/25 flex flex-col justify-end ${theme === 'light' ? 'bg-[#F9FAFB] shadow-inner' : 'bg-[#14141c] shadow-inner border border-white/[0.07]'}`}>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent z-10 opacity-70"></div>
                 <div className="absolute inset-0 bg-gradient-to-br from-[#CDA032]/20 to-transparent z-20 mix-blend-overlay"></div>
                 <img src="/iPhone.jpeg" alt="Trade In Promo" className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-[2s] z-0 filter saturate-150" />
@@ -1016,19 +1045,19 @@ export const Home: React.FC<HomeProps> = ({
             )}
 
             {(exploreFilter === 'All Gear' || exploreFilter === 'Pro Series') && (
-              <div className={`col-span-1 md:col-span-1 row-span-1 rounded-[2rem] p-6 flex flex-col relative overflow-hidden transition-all duration-500 hover:shadow-xl ${theme === 'light' ? 'bg-white' : 'bg-[#14141c] border border-white/[0.07]'}`}>
+              <div className={`col-span-1 md:col-span-1 row-span-1 rounded-[2rem] p-6 flex flex-col relative overflow-hidden transition-all duration-500 hover:shadow-xl hover:ring-2 hover:ring-[#D4AF37]/20 ${theme === 'light' ? 'bg-white' : 'bg-[#14141c] border border-white/[0.07]'}`}>
                 <div className="flex items-center justify-between mb-4">
                   <span className={`text-[10px] font-black uppercase tracking-widest ${theme === 'light' ? 'text-black' : 'text-white'}`}>Highlights</span>
                   <div className="flex gap-1">
                     <button
                       onClick={prevHighlight}
-                      className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${theme === 'light' ? 'bg-black/5 hover:bg-black/10' : 'bg-white/5 hover:bg-white/10'} text-[#CDA032]`}
+                      className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${theme === 'light' ? 'bg-black/5 hover:bg-black/10 hover:ring-2 hover:ring-[#B38B21]/40' : 'bg-white/5 hover:bg-white/10 hover:ring-2 hover:ring-[#D4AF37]/35'} text-[#CDA032] ${TW_DARK_BTN_DEPTH}`}
                     >
                       <ChevronLeft size={12} />
                     </button>
                     <button
                       onClick={nextHighlight}
-                      className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${theme === 'light' ? 'bg-black/5 hover:bg-black/10' : 'bg-white/5 hover:bg-white/10'} text-[#CDA032]`}
+                      className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${theme === 'light' ? 'bg-black/5 hover:bg-black/10 hover:ring-2 hover:ring-[#B38B21]/40' : 'bg-white/5 hover:bg-white/10 hover:ring-2 hover:ring-[#D4AF37]/35'} text-[#CDA032] ${TW_DARK_BTN_DEPTH}`}
                     >
                       <ChevronRight size={12} />
                     </button>
@@ -1044,7 +1073,7 @@ export const Home: React.FC<HomeProps> = ({
                       <div
                         key={p.id}
                         onClick={() => onQuickView(p)}
-                        className={`min-w-[45%] rounded-2xl overflow-hidden relative group/mini cursor-pointer ${theme === 'light' ? 'bg-gray-100' : 'bg-[#050505]'} border border-white/5`}
+                        className={`min-w-[45%] rounded-2xl overflow-hidden relative group/mini cursor-pointer ${theme === 'light' ? 'bg-gray-100 border border-black/10' : 'bg-[#050505] border border-white/10'} ${homeMiniCardHover}`}
                       >
                         <img src={p.image} alt={p.name} className="w-full h-full object-contain p-2 group-hover/mini:scale-110 transition-transform duration-700" />
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/mini:opacity-100 transition-opacity flex items-center justify-center">
@@ -1056,7 +1085,7 @@ export const Home: React.FC<HomeProps> = ({
                 </div>
                 <button
                   onClick={() => navigateTo?.('store')}
-                  className={`w-full py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-colors ${theme === 'light' ? 'bg-gray-100 text-black hover:bg-[#CDA032]' : 'bg-white/5 text-white hover:bg-white/10'}`}
+                  className={`w-full py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${theme === 'light' ? 'bg-gray-100 text-black hover:bg-[#CDA032] hover:shadow-[0_0_0_1px_rgba(179,139,33,0.45)]' : 'bg-white/5 text-white hover:bg-white/10 hover:shadow-[0_0_0_1px_rgba(212,175,55,0.35)]'} ${TW_DARK_BTN_DEPTH}`}
                 >
                   See All
                 </button>
@@ -1064,7 +1093,7 @@ export const Home: React.FC<HomeProps> = ({
             )}
 
             {(exploreFilter === 'All Gear' || exploreFilter === 'Essentials') && (
-              <Link to="/store" search={{ category: 'Accessories' } as any} className={`col-span-1 md:col-span-2 row-span-1 rounded-[2rem] p-8 md:p-10 flex items-center relative overflow-hidden group transition-transform duration-500 hover:-translate-y-1 hover:shadow-2xl ${theme === 'light' ? 'bg-[#F8F9FA]' : 'bg-gradient-to-r from-[#111] to-[#0A0A0A] border border-white/5'}`}>
+              <Link to="/store" search={{ category: 'Accessories' } as any} className={`col-span-1 md:col-span-2 row-span-1 rounded-[2rem] p-8 md:p-10 flex items-center relative overflow-hidden group transition-transform duration-500 hover:-translate-y-1 hover:shadow-2xl hover:ring-2 hover:ring-[#D4AF37]/25 ${theme === 'light' ? 'bg-[#F8F9FA]' : 'bg-gradient-to-r from-[#111] to-[#0A0A0A] border border-white/5'}`}>
                 <div className="relative z-10 w-2/3 md:w-1/2">
                   <h3 className={`text-2xl md:text-4xl font-black italic tracking-tighter uppercase leading-[1] mb-2 ${theme === 'light' ? 'text-black' : 'text-white'}`}>
                     Bring Bold<br />Fashion
@@ -1140,7 +1169,7 @@ export const Home: React.FC<HomeProps> = ({
           <div className="pt-4">
             <Link
               to="/about"
-              className="inline-flex px-10 py-4 bg-transparent border-2 border-[#D4AF37] text-[#D4AF37] rounded-full text-sm font-bold tracking-widest items-center gap-3 transition-all duration-300 hover:bg-[#D4AF37] hover:text-black hover:scale-105"
+              className={`inline-flex px-10 py-4 bg-transparent border-2 border-[#D4AF37] text-[#D4AF37] rounded-full text-sm font-bold tracking-widest items-center gap-3 transition-all duration-300 hover:bg-[#D4AF37] hover:text-black hover:scale-105 hover:shadow-[0_0_0_2px_rgba(212,175,55,0.35)] ${TW_DARK_BTN_DEPTH}`}
             >
               Learn More About BlackBox
               <ArrowRight size={18} />

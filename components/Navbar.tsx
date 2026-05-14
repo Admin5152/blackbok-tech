@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from '@tanstack/react-router';
 import { User, CartItem, Product, Order, RepairRequest, TradeRequest } from '../types';
-import { formatCurrency } from '../lib/utils';
+import { formatCurrency, TW_DARK_BTN_DEPTH, TW_DARK_GOLD_BTN_DEPTH } from '../lib/utils';
 import { handleSignOut } from '../lib/signOut';
 import { NotificationBell } from './NotificationBell';
 import { canAccessAdminDashboard } from '../lib/roles';
@@ -311,8 +311,8 @@ export const Navbar: React.FC<{
                 className={`
                 hidden sm:flex items-center gap-2 px-6 py-3 rounded-xl transition-all duration-300 text-[11px] font-black uppercase tracking-widest
                 ${user
-                    ? isLight ? 'bg-black/5 text-black border border-black/10 hover:border-black/20' : 'bg-white/5 text-white border border-white/10 hover:border-white/30'
-                    : isLight ? 'bg-black text-white shadow-lg hover:bg-black/90' : 'bg-white text-black shadow-lg hover:brightness-90'}
+                    ? isLight ? 'bg-black/5 text-black border border-black/10 hover:border-black/20' : `bg-white/5 text-white border border-white/10 hover:border-white/30 ${TW_DARK_BTN_DEPTH}`
+                    : isLight ? 'bg-black text-white shadow-lg hover:bg-black/90' : `bg-white text-black shadow-lg hover:brightness-90 ${TW_DARK_GOLD_BTN_DEPTH}`}
               `}
               >
                 <div className={`w-5 h-5 rounded-md flex items-center justify-center font-black italic text-[9px] ${isLight ? 'bg-black text-white' : 'bg-[#CDA032] text-black'}`}>
@@ -325,7 +325,7 @@ export const Navbar: React.FC<{
               {setTheme && (
                 <button
                   onClick={() => setTheme(isLight ? 'dark' : 'light')}
-                  className={`p-2.5 rounded-full border transition-all ${isLight ? 'border-black/10 bg-black/5 text-black hover:bg-black/10' : 'border-white/10 bg-white/5 text-white hover:bg-white/10'}`}
+                  className={`p-2.5 rounded-full border transition-all ${isLight ? 'border-black/10 bg-black/5 text-black hover:bg-black/10' : 'border-white/10 bg-white/5 text-white hover:bg-white/10'} ${TW_DARK_BTN_DEPTH}`}
                 >
                   {isLight ? <Moon size={18} /> : <Sun size={18} />}
                 </button>
@@ -340,6 +340,7 @@ export const Navbar: React.FC<{
                   isLight
                     ? 'border-black/10 bg-black/5 text-black hover:bg-[#CDA032] hover:text-black hover:border-[#CDA032]/50'
                     : 'border-white/10 bg-white/5 text-white hover:bg-[#CDA032] hover:text-black hover:border-[#CDA032]/50',
+                  TW_DARK_BTN_DEPTH,
                 ].join(' ')}
               >
                 <ShoppingBag size={20} strokeWidth={2.25} />
@@ -357,6 +358,7 @@ export const Navbar: React.FC<{
                     : isLight
                       ? 'border-black/10 bg-black/5 text-black hover:bg-black/10'
                       : 'border-white/10 bg-white/5 text-white hover:bg-white/10',
+                  TW_DARK_BTN_DEPTH,
                 ].join(' ')}
               >
                 <ShoppingCart size={20} strokeWidth={2.25} />
@@ -373,7 +375,7 @@ export const Navbar: React.FC<{
               {/* Mobile Menu Trigger */}
               <button
                 onClick={() => setIsMobileMenuOpen(true)}
-                className={`lg:hidden p-2.5 rounded-full transition-all ${isLight ? 'text-black/60 hover:text-black hover:bg-black/5' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
+                className={`lg:hidden p-2.5 rounded-full transition-all ${isLight ? 'text-black/60 hover:text-black hover:bg-black/5' : 'text-white/40 hover:text-white hover:bg-white/5'} ${TW_DARK_BTN_DEPTH}`}
               >
                 <Menu size={24} />
               </button>
@@ -403,7 +405,7 @@ export const Navbar: React.FC<{
                 <Link
                   to="/cart"
                   onClick={() => closeMobileNavAfterNav()}
-                  className="relative flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-white hover:border-[#CDA032]/50 hover:bg-[#CDA032]/10 transition-all"
+                  className={`relative flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-white hover:border-[#CDA032]/50 hover:bg-[#CDA032]/10 transition-all ${TW_DARK_BTN_DEPTH}`}
                   aria-label={`Cart${cartCount > 0 ? `, ${cartCount} items` : ''}`}
                 >
                   <ShoppingCart size={18} className="text-[#CDA032]" />
@@ -586,7 +588,7 @@ export const Navbar: React.FC<{
                     }
                     setIsMobileMenuOpen(false);
                   }}
-                  className="flex w-full items-center justify-center gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-6 py-3 text-red-500 transition-all hover:bg-red-500/20"
+                  className={`flex w-full items-center justify-center gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-6 py-3 text-red-500 transition-all hover:bg-red-500/20 ${TW_DARK_BTN_DEPTH}`}
                 >
                   <LogOut size={18} />
                   <span className="text-sm font-black uppercase tracking-wider">Sign Out</span>

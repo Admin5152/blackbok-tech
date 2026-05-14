@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from '@tanstack/react-router';
-import { ArrowLeft, Download, Share2 } from 'lucide-react';
+import { ArrowLeft, Download, Share2, User, Mail, Phone, MapPin, Truck } from 'lucide-react';
 import { Order } from '../types';
 import { formatCurrency, formatDate } from '../lib/utils';
 import { supabase } from '../lib/supabase';
+import { useAppContext } from '../App';
 import {
   getOrderItemConfigurationLine,
   mergeVariantSkuFallback,
@@ -14,6 +15,7 @@ import { BlackBoxReceiptLogo } from '../components/BlackBoxReceiptLogo';
 export const Receipt: React.FC = () => {
   const { orderId } = useParams({ from: '/receipt/$orderId' });
   const navigate = useNavigate();
+  const { user } = useAppContext();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -50,7 +52,12 @@ export const Receipt: React.FC = () => {
             id: orderData.id,
             display_id: orderData.display_id,
             userId: orderData.user_id,
-            userName: orderData.customer_name || 'Customer',
+            userName: orderData.customer_name?.trim() || 'Customer',
+            userEmail: orderData.customer_email?.trim() || undefined,
+            userPhone: orderData.customer_phone?.trim() || undefined,
+            notes: orderData.notes?.trim() || undefined,
+            tracking_number: orderData.tracking_number || undefined,
+            estimated_delivery: orderData.estimated_delivery || undefined,
             items: orderData.order_items?.map((item: any) => ({
               id: item.product_id,
               name: item.products?.name || item.product_name || 'Product',
@@ -78,6 +85,7 @@ export const Receipt: React.FC = () => {
             payment_status: orderData.payment_status,
             shipping_method: orderData.shipping_method,
             shipping_cost: Number(orderData.shipping_cost ?? 0),
+            actual_delivery: orderData.actual_delivery || undefined,
           };
 
           setOrder(transformedOrder);
@@ -156,6 +164,21 @@ export const Receipt: React.FC = () => {
   const payMethod = String(order.paymentMethod || order.payment_method || '—');
   const shipMethod = String(order.shipping_method || '—');
 
+  const isOrderOwner = Boolean(user?.id && order.userId && user.id === order.userId);
+  const displayName =
+    (order.userName && order.userName !== 'Customer' ? order.userName.trim() : '') ||
+    (isOrderOwner && user?.name ? user.name.trim() : '') ||
+    order.userName?.trim() ||
+    'Customer';
+  const displayEmail = (order.userEmail?.trim() || (isOrderOwner ? user?.email?.trim() : '')) || null;
+  const displayPhone = (order.userPhone?.trim() || (isOrderOwner ? user?.phone?.trim() : '')) || null;
+  const addressSegments =
+    order.shipping_address
+      ?.split(',')
+      .map((s) => s.trim())
+      .filter(Boolean) ?? [];
+  const etaLabel = order.estimated_delivery ? formatDate(order.estimated_delivery) : null;
+
   return (
     <div className="min-h-screen bg-black text-white print:bg-white print:text-black print:min-h-0">
       {/* Screen toolbar — hidden when printing */}
@@ -207,39 +230,118 @@ export const Receipt: React.FC = () => {
             </div>
           </header>
 
-          {/* Dense meta — two columns, minimal vertical space */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1 text-[11px] leading-snug print:text-[10px] print:gap-y-0.5">
-            <div className="space-y-1">
-              <p className="text-[9px] font-black uppercase tracking-widest text-white/35 print:text-gray-500">
-                Order
+          {/* Customer + order details (print-friendly) */}
+          <div className="space-y-3 print:space-y-2">
+            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 sm:p-4 print:border-gray-300 print:bg-gray-50">
+              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#B38B21] print:text-[#8a6a1a] mb-2">
+                Bill to / Customer
               </p>
-              <p>
-                <span className="text-white/50 print:text-gray-600">Status</span>{' '}
-                <span className="font-semibold text-white print:text-black">{order.status}</span>
-              </p>
-              {order.payment_status != null && (
+              <div className="space-y-2 text-[11px] print:text-[10px]">
+                <div className="flex items-start gap-2.5 min-w-0">
+                  <User size={14} className="shrink-0 mt-0.5 text-white/40 print:text-gray-500" aria-hidden />
+                  <div className="min-w-0">
+                    <p className="text-[9px] font-black uppercase tracking-wider text-white/35 print:text-gray-500">Name</p>
+                    <p className="font-semibold text-white print:text-black break-words">{displayName}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2.5 min-w-0">
+                  <Mail size={14} className="shrink-0 mt-0.5 text-white/40 print:text-gray-500" aria-hidden />
+                  <div className="min-w-0">
+                    <p className="text-[9px] font-black uppercase tracking-wider text-white/35 print:text-gray-500">Email</p>
+                    <p className="text-white/85 print:text-gray-900 break-all">{displayEmail ?? '—'}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2.5 min-w-0">
+                  <Phone size={14} className="shrink-0 mt-0.5 text-white/40 print:text-gray-500" aria-hidden />
+                  <div className="min-w-0">
+                    <p className="text-[9px] font-black uppercase tracking-wider text-white/35 print:text-gray-500">Phone</p>
+                    <p className="text-white/85 print:text-gray-900">{displayPhone ?? '—'}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2.5 min-w-0">
+                  <MapPin size={14} className="shrink-0 mt-0.5 text-white/40 print:text-gray-500" aria-hidden />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[9px] font-black uppercase tracking-wider text-white/35 print:text-gray-500">
+                      Shipping / pickup
+                    </p>
+                    {addressSegments.length > 0 ? (
+                      <ul className="mt-0.5 space-y-0.5 text-white/80 print:text-gray-800 list-none pl-0">
+                        {addressSegments.map((line, i) => (
+                          <li key={i} className="break-words leading-snug">
+                            {line}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-white/50 print:text-gray-600">—</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-x-8 text-[11px] leading-snug print:text-[10px]">
+              <div className="space-y-1.5 rounded-xl border border-white/10 bg-white/[0.02] p-3 print:border-gray-300 print:bg-white">
+                <p className="text-[9px] font-black uppercase tracking-widest text-white/35 print:text-gray-500">Order</p>
                 <p>
-                  <span className="text-white/50 print:text-gray-600">Payment</span>{' '}
-                  <span className="font-semibold text-white print:text-black">{String(order.payment_status)}</span>
+                  <span className="text-white/50 print:text-gray-600">Status</span>{' '}
+                  <span className="font-semibold text-white print:text-black">{order.status}</span>
                 </p>
-              )}
+                {order.payment_status != null && (
+                  <p>
+                    <span className="text-white/50 print:text-gray-600">Payment status</span>{' '}
+                    <span className="font-semibold text-white print:text-black">{String(order.payment_status)}</span>
+                  </p>
+                )}
+                <p>
+                  <span className="text-white/50 print:text-gray-600">Pay method</span>{' '}
+                  <span className="font-medium capitalize text-white print:text-black">{payMethod}</span>
+                </p>
+              </div>
+              <div className="space-y-1.5 rounded-xl border border-white/10 bg-white/[0.02] p-3 print:border-gray-300 print:bg-white">
+                <p className="text-[9px] font-black uppercase tracking-widest text-white/35 print:text-gray-500">
+                  Fulfillment
+                </p>
+                <p className="flex items-start gap-2">
+                  <Truck size={14} className="shrink-0 mt-0.5 text-white/40 print:text-gray-500" aria-hidden />
+                  <span>
+                    <span className="text-white/50 print:text-gray-600">Ship method</span>{' '}
+                    <span className="font-medium capitalize text-white print:text-black">{shipMethod}</span>
+                  </span>
+                </p>
+                {order.tracking_number ? (
+                  <p>
+                    <span className="text-white/50 print:text-gray-600">Tracking</span>{' '}
+                    <span className="font-mono font-semibold text-white print:text-black break-all">
+                      {order.tracking_number}
+                    </span>
+                  </p>
+                ) : null}
+                {etaLabel ? (
+                  <p>
+                    <span className="text-white/50 print:text-gray-600">Est. delivery</span>{' '}
+                    <span className="font-medium text-white print:text-black">{etaLabel}</span>
+                  </p>
+                ) : null}
+                {order.actual_delivery ? (
+                  <p>
+                    <span className="text-white/50 print:text-gray-600">Delivered</span>{' '}
+                    <span className="font-medium text-white print:text-black">{formatDate(order.actual_delivery)}</span>
+                  </p>
+                ) : null}
+              </div>
             </div>
-            <div className="space-y-1">
-              <p className="text-[9px] font-black uppercase tracking-widest text-white/35 print:text-gray-500">
-                Customer &amp; delivery
-              </p>
-              <p className="font-semibold text-white print:text-black">{order.userName}</p>
-              {order.shipping_address ? (
-                <p className="text-white/70 print:text-gray-700 break-words">{order.shipping_address}</p>
-              ) : null}
-              <p>
-                <span className="text-white/50 print:text-gray-600">Ship</span>{' '}
-                <span className="font-medium capitalize">{shipMethod}</span>
-                {' · '}
-                <span className="text-white/50 print:text-gray-600">Pay</span>{' '}
-                <span className="font-medium capitalize">{payMethod}</span>
-              </p>
-            </div>
+
+            {order.notes ? (
+              <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3 print:border-gray-300 print:bg-white">
+                <p className="text-[9px] font-black uppercase tracking-widest text-white/35 print:text-gray-500 mb-1">
+                  Notes
+                </p>
+                <p className="text-[11px] text-white/75 print:text-gray-800 whitespace-pre-wrap break-words leading-relaxed">
+                  {order.notes}
+                </p>
+              </div>
+            ) : null}
           </div>
 
           {/* Line items — table stays on one page for typical orders */}

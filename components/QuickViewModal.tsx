@@ -4,6 +4,7 @@ import { X, Minus, Plus, ShoppingCart, Star, ShieldCheck, ArrowLeft, Package } f
 import { Product } from '../types';
 import { formatCurrency } from '../lib/utils';
 import { getProductOptionGroups, initialSelectedFromGroups, toOptionString } from '../lib/productOptions';
+import { useAppContext } from '../App';
 
 interface QuickViewModalProps {
   product: Product | null;
@@ -13,6 +14,8 @@ interface QuickViewModalProps {
 }
 
 export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen, onClose, onAddToCart }) => {
+  const { theme } = useAppContext();
+  const isLight = theme === 'light';
   const groupedVariants = useMemo(() => getProductOptionGroups(product), [product]);
 
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
@@ -43,11 +46,17 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
       />
 
       <div
-        className="relative w-full max-w-5xl border border-white/10 rounded-[2rem] sm:rounded-[3rem] shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-500 max-h-[95vh] md:max-h-[85vh]"
+        className={`relative w-full max-w-5xl border rounded-[2rem] sm:rounded-[3rem] shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-500 max-h-[95vh] md:max-h-[85vh] ${
+          isLight ? 'border-black/10' : 'border-white/10'
+        }`}
         style={{ backgroundColor: 'var(--bb-surface)', color: 'var(--bb-text)' }}
       >
         {/* Header - Full Width */}
-        <div className="flex items-center justify-between gap-4 p-4 sm:p-6 border-b border-white/5 bg-black/5 shrink-0">
+        <div
+          className={`flex items-center justify-between gap-4 p-4 sm:p-6 border-b shrink-0 ${
+            isLight ? 'border-black/10 bg-black/[0.03]' : 'border-white/5 bg-black/5'
+          }`}
+        >
           <div className="min-w-0">
             <h2 className="text-[10px] sm:text-xs font-black uppercase tracking-[0.4em] text-[#CDA032]">
               Terminal Quick-View
@@ -58,7 +67,11 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
           </div>
           <button
             onClick={onClose}
-            className="p-3 bg-white/5 hover:bg-white hover:text-black rounded-2xl transition-all border border-white/5 shadow-lg group"
+            className={`p-3 rounded-2xl transition-all border shadow-lg group ${
+              isLight
+                ? 'bg-black/[0.04] border-black/10 hover:bg-black hover:text-white'
+                : 'bg-white/5 border-white/5 hover:bg-white hover:text-black'
+            }`}
           >
             <X size={20} className="transition-transform group-hover:rotate-90" />
           </button>
@@ -83,7 +96,11 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
                 <span className="px-3 py-1 bg-[#CDA032]/10 text-[#CDA032] text-[8px] font-black uppercase tracking-widest rounded-full border border-[#CDA032]/20">
                   {product.category}
                 </span>
-                <div className="flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded-full border border-white/5">
+                <div
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full border ${
+                    isLight ? 'bg-black/[0.04] border-black/10' : 'bg-white/5 border-white/5'
+                  }`}
+                >
                   <Star size={10} className="fill-[#CDA032] text-[#CDA032]" />
                   <span className="text-[9px] font-black" style={{ color: 'var(--bb-muted)' }}>
                     {product.rating || '4.5'}
@@ -152,7 +169,9 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
                         onClick={() => setSelectedOptions(prev => ({ ...prev, [variant.name]: opt }))}
                         className={`group relative px-4 sm:px-6 py-3 rounded-2xl border text-[9px] sm:text-[11px] font-black transition-all duration-300 ${selectedOptions[variant.name] === opt
                           ? 'border-[#CDA032] bg-[#CDA032] text-black shadow-2xl shadow-[#CDA032]/20'
-                          : 'border-[color:var(--bb-border)] bg-[color:var(--bb-surface-2)] text-[color:var(--bb-text)] opacity-75 hover:opacity-100'
+                          : isLight
+                            ? 'border-black/15 bg-zinc-100 text-black/90 shadow-sm hover:border-black/25 hover:bg-zinc-200'
+                            : 'border-[color:var(--bb-border)] bg-[color:var(--bb-surface-2)] text-[color:var(--bb-text)] opacity-75 hover:opacity-100'
                           }`}
                       >
                         {variant.name === 'Color' ? (
@@ -188,17 +207,33 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
 
               {/* Action Bar */}
               <div className="flex flex-col sm:flex-row items-stretch gap-4 pt-6">
-                <div className="flex items-center justify-between sm:justify-center gap-8 bg-white/5 border border-white/5 rounded-2xl px-6 py-4">
+                <div
+                  className={`flex items-center justify-between sm:justify-center gap-8 rounded-2xl border px-6 py-4 ${
+                    isLight ? 'bg-zinc-100 border-black/12' : 'bg-white/5 border-white/5'
+                  }`}
+                >
                   <button
+                    type="button"
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="p-1 text-white/20 hover:text-[#CDA032] transition-colors"
+                    className={`p-1 transition-colors ${
+                      isLight ? 'text-black/40 hover:text-[#CDA032]' : 'text-white/20 hover:text-[#CDA032]'
+                    }`}
                   >
                     <Minus size={20} />
                   </button>
-                  <span className="text-xl font-black w-8 text-center tabular-nums">{quantity}</span>
+                  <span
+                    className={`text-xl font-black w-8 text-center tabular-nums ${
+                      isLight ? 'text-black' : 'text-white'
+                    }`}
+                  >
+                    {quantity}
+                  </span>
                   <button
+                    type="button"
                     onClick={() => setQuantity(quantity + 1)}
-                    className="p-1 text-white/20 hover:text-[#CDA032] transition-colors"
+                    className={`p-1 transition-colors ${
+                      isLight ? 'text-black/40 hover:text-[#CDA032]' : 'text-white/20 hover:text-[#CDA032]'
+                    }`}
                   >
                     <Plus size={20} />
                   </button>
@@ -216,7 +251,11 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
               </div>
 
               {/* Quality Flags */}
-              <div className="pt-8 border-t border-white/5 flex flex-wrap gap-6 opacity-30">
+              <div
+                className={`pt-8 border-t flex flex-wrap gap-6 opacity-30 ${
+                  isLight ? 'border-black/10 text-black' : 'border-white/5 text-white'
+                }`}
+              >
                 <div className="flex items-center gap-2">
                   <ShieldCheck size={14} className="text-[#CDA032]" />
                   <span className="text-[8px] font-black uppercase tracking-widest">Global Warranty</span>

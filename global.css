@@ -61,6 +61,15 @@ html[data-theme="light"] .text-white\/40 {
   color: rgba(29, 29, 31, 0.40) !important;
 }
 
+/* Common Tailwind opacity steps missing above — fixes white-on-white on cards */
+html[data-theme="light"] .text-white\/45 {
+  color: rgba(29, 29, 31, 0.52) !important;
+}
+
+html[data-theme="light"] .text-white\/55 {
+  color: rgba(29, 29, 31, 0.62) !important;
+}
+
 html[data-theme="light"] .text-white\/35 {
   color: rgba(29, 29, 31, 0.35) !important;
 }
@@ -107,6 +116,26 @@ html[data-theme="light"] .placeholder\:text-white\/20::placeholder {
 
 html[data-theme="light"] .border-white\/30 {
   border-color: rgba(0, 0, 0, 0.30) !important;
+}
+
+html[data-theme="light"] .border-white\/25 {
+  border-color: rgba(0, 0, 0, 0.18) !important;
+}
+
+html[data-theme="light"] .border-white\/35 {
+  border-color: rgba(0, 0, 0, 0.24) !important;
+}
+
+html[data-theme="light"] .border-white\/45 {
+  border-color: rgba(0, 0, 0, 0.30) !important;
+}
+
+html[data-theme="light"] .hover\:border-white\/45:hover {
+  border-color: rgba(0, 0, 0, 0.32) !important;
+}
+
+html[data-theme="light"] .hover\:border-white\/35:hover {
+  border-color: rgba(0, 0, 0, 0.28) !important;
 }
 
 html[data-theme="light"] .border-white\/20 {

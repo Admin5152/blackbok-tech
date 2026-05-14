@@ -129,20 +129,37 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
 
         {/* Breadcrumb */}
         <nav className="mb-8">
-          <ol className="flex items-center space-x-2 text-sm text-white/60">
+          <ol
+            className={`flex items-center space-x-2 text-sm ${
+              isLight ? 'text-black/50' : 'text-white/60'
+            }`}
+          >
             <li>
               <button
                 onClick={() => navigateTo('home')}
-                className="flex items-center gap-1 hover:text-white transition-colors"
+                type="button"
+                className={`flex items-center gap-1 transition-colors ${
+                  isLight ? 'hover:text-black' : 'hover:text-white'
+                }`}
               >
                 <ArrowLeft size={16} />
                 <span>Back</span>
               </button>
             </li>
             <li>/</li>
-            <li><button onClick={() => navigateTo('store')} className="hover:text-white transition-colors">Store</button></li>
+            <li>
+              <button
+                type="button"
+                onClick={() => navigateTo('store')}
+                className={isLight ? 'hover:text-black transition-colors' : 'hover:text-white transition-colors'}
+              >
+                Store
+              </button>
+            </li>
             <li>/</li>
-            <li className="text-white">{product.name}</li>
+            <li className={isLight ? 'text-black font-medium truncate max-w-[min(28rem,55vw)]' : 'text-white truncate max-w-[min(28rem,55vw)]'}>
+              {product.name}
+            </li>
           </ol>
         </nav>
 
@@ -317,7 +334,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                                 isSelected
                                   ? 'border-[#B38B21] bg-[#B38B21]/15 text-[#B38B21]'
                                   : isLight
-                                    ? 'border-black/10 bg-black/[0.02] text-black/75 hover:border-black/25'
+                                    ? 'border-black/15 bg-zinc-100 text-black/90 hover:border-black/30 hover:bg-zinc-200'
                                     : 'border-white/12 bg-white/[0.04] text-white/80 hover:border-white/28'
                               }`}
                             >
@@ -348,22 +365,32 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
 
             {/* Quantity */}
             <div className="flex items-center gap-6 flex-wrap">
-              <div className="flex items-center border border-white/20 rounded-full overflow-hidden">
+              <div
+                className={`flex items-center rounded-full overflow-hidden border ${
+                  isLight ? 'border-black/15 bg-white' : 'border-white/20'
+                }`}
+              >
                 <button
+                  type="button"
                   onClick={decrementQuantity}
-                  className="px-4 py-2 hover:bg-white/10 transition"
+                  className={`px-4 py-2 transition ${
+                    isLight ? 'hover:bg-black/[0.06] text-black' : 'hover:bg-white/10 text-white'
+                  }`}
                 >
                   <Minus size={16} />
                 </button>
-                <span className="px-6">{quantity}</span>
+                <span className={`px-6 tabular-nums ${isLight ? 'text-black font-semibold' : 'text-white'}`}>{quantity}</span>
                 <button
+                  type="button"
                   onClick={incrementQuantity}
-                  className="px-4 py-2 hover:bg-white/10 transition"
+                  className={`px-4 py-2 transition ${
+                    isLight ? 'hover:bg-black/[0.06] text-black' : 'hover:bg-white/10 text-white'
+                  }`}
                 >
                   <Plus size={16} />
                 </button>
               </div>
-              <span className="text-white/50 text-sm">
+              <span className={`text-sm ${isLight ? 'text-black/50' : 'text-white/50'}`}>
                 {product.stock} available
               </span>
             </div>
@@ -378,18 +405,26 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               </button>
 
               <button
+                type="button"
                 onClick={() => onToggleWishlist(product.id)}
                 className={`p-4 rounded-full border transition ${isWishlisted
                   ? 'border-[#B38B21] text-[#B38B21] bg-[#B38B21]/10'
-                  : 'border-white/20 hover:border-white/40'
+                  : isLight
+                    ? 'border-black/15 text-black hover:border-black/30'
+                    : 'border-white/20 hover:border-white/40 text-white'
                   }`}
               >
                 <Heart size={20} className={isWishlisted ? 'fill-current' : ''} />
               </button>
 
               <button
+                type="button"
                 onClick={() => setIsShareModalOpen(true)}
-                className="p-4 rounded-full border border-white/20 hover:border-white/40 transition group"
+                className={`p-4 rounded-full border transition group ${
+                  isLight
+                    ? 'border-black/15 text-black hover:border-black/30'
+                    : 'border-white/20 hover:border-white/40 text-white'
+                }`}
               >
                 <Share2 size={20} className="group-hover:scale-110 transition-transform" />
               </button>
@@ -412,19 +447,30 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             </div>
 
             {/* Specs (anchor for navigation) */}
-            <div ref={specsRef as any} className="pt-8 border-t border-white/10">
+            <div ref={specsRef as any} className={`pt-8 border-t ${isLight ? 'border-black/10' : 'border-white/10'}`}>
               <h2 className="text-sm font-black uppercase tracking-[0.35em] text-[#B38B21] mb-6">Specifications</h2>
               {product.specs && product.specs.length > 0 ? (
                 <ul className="space-y-4">
                   {product.specs.map((s, i) => (
-                    <li key={i} className="flex items-start gap-4 p-4 rounded-2xl bg-white/5 border border-white/10">
+                    <li
+                      key={i}
+                      className={`flex items-start gap-4 p-4 rounded-2xl border ${
+                        isLight ? 'bg-white border-black/10' : 'bg-white/5 border-white/10'
+                      }`}
+                    >
                       <span className="mt-1 w-2 h-2 rounded-full bg-[#B38B21] shadow-[0_0_8px_rgba(179,139,33,0.5)] shrink-0" />
-                      <span className="text-sm text-white/90 leading-relaxed font-bold tracking-wide">{s}</span>
+                      <span
+                        className={`text-sm leading-relaxed font-bold tracking-wide ${
+                          isLight ? 'text-black/85' : 'text-white/90'
+                        }`}
+                      >
+                        {s}
+                      </span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-white/40 italic text-sm">
+                <p className={`italic text-sm ${isLight ? 'text-black/45' : 'text-white/40'}`}>
                   No specifications have been added for this product yet.
                 </p>
               )}
@@ -434,17 +480,23 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
         </div>
 
         {/* Reviews */}
-        <div ref={reviewsRef as any} className="mt-16 border-t border-white/10 pt-12">
+        <div ref={reviewsRef as any} className={`mt-16 border-t pt-12 ${isLight ? 'border-black/10' : 'border-white/10'}`}>
           <div className="flex items-end justify-between gap-6 flex-wrap">
             <div>
-              <h2 className="text-2xl sm:text-3xl font-bold">Reviews</h2>
+              <h2 className={`text-2xl sm:text-3xl font-bold ${isLight ? 'text-black' : 'text-white'}`}>Reviews</h2>
             </div>
             {/* Review submission UI intentionally hidden until feature scope is approved */}
           </div>
 
           <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-1 rounded-2xl border border-white/10 p-6 bg-black/30">
-              <p className="text-[10px] font-black uppercase tracking-[0.35em] text-white/40">Overall rating</p>
+            <div
+              className={`lg:col-span-1 rounded-2xl border p-6 ${
+                isLight ? 'border-black/10 bg-white' : 'border-white/10 bg-black/30'
+              }`}
+            >
+              <p className={`text-[10px] font-black uppercase tracking-[0.35em] ${isLight ? 'text-black/45' : 'text-white/40'}`}>
+                Overall rating
+              </p>
               <div className="mt-3 flex items-center gap-3">
                 <div className="text-4xl font-extrabold text-[#B38B21]">
                   {averageRating.toFixed(1)}
@@ -456,24 +508,48 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                         key={i}
                         className={`w-4 h-4 ${i < Math.round(averageRating)
                           ? 'fill-yellow-400 text-yellow-400'
-                          : 'text-white/20'
+                          : isLight
+                            ? 'text-black/15'
+                            : 'text-white/20'
                           }`}
                       />
                     ))}
                   </div>
-                  <p className="text-sm text-white/50 mt-1">
+                  <p className={`text-sm mt-1 ${isLight ? 'text-black/50' : 'text-white/50'}`}>
                     {totalReviews} reviews
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="lg:col-span-2 rounded-2xl border border-white/10 p-6 bg-black/30">
+            <div
+              className={`lg:col-span-2 rounded-2xl border p-6 ${
+                isLight ? 'border-black/10 bg-white' : 'border-white/10 bg-black/30'
+              }`}
+            >
               <div className="flex items-center justify-between gap-3 flex-wrap">
-                <p className="text-[10px] font-black uppercase tracking-[0.35em] text-white/40">Review feed</p>
+                <p className={`text-[10px] font-black uppercase tracking-[0.35em] ${isLight ? 'text-black/45' : 'text-white/40'}`}>
+                  Review feed
+                </p>
                 <div className="flex gap-2">
-                  <button className="px-3 py-2 rounded-full bg-white/10 border border-white/10 text-[9px] font-black uppercase tracking-widest">Top</button>
-                  <button className="px-3 py-2 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/60 hover:text-white transition">Recent</button>
+                  <button
+                    type="button"
+                    className={`px-3 py-2 rounded-full border text-[9px] font-black uppercase tracking-widest ${
+                      isLight ? 'bg-black/[0.06] border-black/10 text-black' : 'bg-white/10 border-white/10 text-white'
+                    }`}
+                  >
+                    Top
+                  </button>
+                  <button
+                    type="button"
+                    className={`px-3 py-2 rounded-full border text-[9px] font-black uppercase tracking-widest transition ${
+                      isLight
+                        ? 'bg-black/[0.03] border-black/10 text-black/60 hover:text-black'
+                        : 'bg-white/5 border-white/10 text-white/60 hover:text-white'
+                    }`}
+                  >
+                    Recent
+                  </button>
                 </div>
               </div>
               <div className="mt-6">
@@ -481,14 +557,16 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                   {mockReviews.map((review) => (
                     <div
                       key={review.id}
-                      className="rounded-2xl border border-white/10 bg-black/40 p-4 sm:p-5"
+                      className={`rounded-2xl border p-4 sm:p-5 ${
+                        isLight ? 'border-black/10 bg-zinc-50' : 'border-white/10 bg-black/40'
+                      }`}
                     >
                       <div className="flex items-center justify-between gap-3 flex-wrap">
                         <div>
-                          <p className="text-sm font-semibold text-white">
+                          <p className={`text-sm font-semibold ${isLight ? 'text-black' : 'text-white'}`}>
                             {review.name}
                           </p>
-                          <p className="text-[11px] text-white/40">
+                          <p className={`text-[11px] ${isLight ? 'text-black/45' : 'text-white/40'}`}>
                             {review.date}
                           </p>
                         </div>
@@ -498,19 +576,21 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                               key={i}
                               className={`w-3.5 h-3.5 ${i < review.rating
                                 ? 'fill-yellow-400 text-yellow-400'
-                                : 'text-white/15'
+                                : isLight
+                                  ? 'text-black/12'
+                                  : 'text-white/15'
                                 }`}
                             />
                           ))}
-                          <span className="text-xs text-white/60 ml-1">
+                          <span className={`text-xs ml-1 ${isLight ? 'text-black/55' : 'text-white/60'}`}>
                             {review.rating}.0
                           </span>
                         </div>
                       </div>
-                      <h3 className="mt-3 text-sm font-semibold text-white">
+                      <h3 className={`mt-3 text-sm font-semibold ${isLight ? 'text-black' : 'text-white'}`}>
                         {review.title}
                       </h3>
-                      <p className="mt-2 text-sm text-white/70 leading-relaxed">
+                      <p className={`mt-2 text-sm leading-relaxed ${isLight ? 'text-black/75' : 'text-white/70'}`}>
                         {review.body}
                       </p>
                     </div>
@@ -530,14 +610,18 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
           const visibleRelated = relatedProducts.filter(p => p.id !== product.id).slice(0, 4);
           if (visibleRelated.length === 0) return null;
           return (
-          <div className="mt-20 border-t border-white/10 pt-16">
+          <div className={`mt-20 border-t pt-16 ${isLight ? 'border-black/10' : 'border-white/10'}`}>
             <div className="flex items-end justify-between mb-10 px-2">
               <div>
-                <h2 className="text-3xl md:text-4xl font-black italic tracking-tighter uppercase">Products You <span className="text-[#B38B21]">May Like</span></h2>
+                <h2 className={`text-3xl md:text-4xl font-black italic tracking-tighter uppercase ${isLight ? 'text-black' : 'text-white'}`}>
+                  Products You <span className="text-[#B38B21]">May Like</span>
+                </h2>
               </div>
               <button
                 onClick={() => navigateTo('store')}
-                className="hidden md:flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-[#B38B21] transition-colors"
+                className={`hidden md:flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-colors ${
+                  isLight ? 'text-black/45 hover:text-[#B38B21]' : 'text-white/40 hover:text-[#B38B21]'
+                }`}
                 type="button"
               >
                 View Collection <ChevronRight size={14} />
@@ -578,7 +662,9 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             <div className="md:hidden flex justify-center pb-8">
               <button
                 onClick={() => navigateTo('store')}
-                className="px-8 py-3 rounded-full border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/60"
+                className={`px-8 py-3 rounded-full border text-[9px] font-black uppercase tracking-widest ${
+                  isLight ? 'border-black/15 text-black/70' : 'border-white/10 text-white/60'
+                }`}
                 type="button"
               >
                 Explore Full Catalog

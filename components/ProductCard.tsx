@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from '@tanstack/react-router';
 import { ShoppingCart, Heart, Eye, Star, Scale, FileText } from 'lucide-react';
 import { Product } from '../types';
-import { formatCurrency } from '../lib/utils';
+import { formatCurrency, TW_DARK_BTN_DEPTH, TW_DARK_GOLD_BTN_DEPTH } from '../lib/utils';
 import { useAppContext } from '../App';
 import { getProductOptionGroups, initialSelectedFromGroups, toOptionString } from '../lib/productOptions';
 
@@ -27,6 +27,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onToggleCompare
 }) => {
   const { theme } = useAppContext();
+  const isLight = theme === 'light';
   const optionGroups = useMemo(() => getProductOptionGroups(product), [product]);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
 
@@ -45,7 +46,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
   return (
     <div
-      className={`group border rounded-xl overflow-hidden transition-all duration-700 flex flex-col h-full cursor-pointer relative ${isCompared ? 'border-[#CDA032]' : 'border-white/[0.03] hover:border-[#CDA032]/20 shadow-2xl'}`}
+      className={`group border rounded-xl overflow-hidden transition-all duration-700 flex flex-col h-full cursor-pointer relative ${isCompared ? 'border-[#CDA032]' : isLight ? 'border-black/10 hover:border-[#CDA032]/35 shadow-lg' : 'border-white/[0.03] hover:border-[#CDA032]/20 shadow-2xl'}`}
       style={{ backgroundColor: 'var(--bb-surface)' }}
     >
       {/* Corner frame borders */}
@@ -64,14 +65,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
       <div className="absolute top-2 right-2 z-30 flex flex-col gap-1 opacity-100 translate-x-0">
         <button
-          className={`transition-all p-2 backdrop-blur-xl rounded-full border border-white/5 hover:bg-[#CDA032] hover:text-black ${isWishlisted ? 'text-[#CDA032]' : 'text-white/40'}`}
+          className={`transition-all p-2 backdrop-blur-xl rounded-full border hover:bg-[#CDA032] hover:text-black ${isLight ? 'border-black/10 bg-black/[0.03]' : 'border-white/5'} ${isWishlisted ? 'text-[#CDA032]' : isLight ? 'text-black/45' : 'text-white/40'} ${TW_DARK_BTN_DEPTH}`}
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleWishlist(product.id); }}
           aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
         >
           <Heart size={12} className={isWishlisted ? 'fill-[#CDA032]' : ''} />
         </button>
         <button
-          className={`transition-all p-2 backdrop-blur-xl rounded-full border border-white/5 hover:bg-[#CDA032] hover:text-black ${isCompared ? 'text-[#CDA032]' : 'text-white/40'}`}
+          className={`transition-all p-2 backdrop-blur-xl rounded-full border hover:bg-[#CDA032] hover:text-black ${isLight ? 'border-black/10 bg-black/[0.03]' : 'border-white/5'} ${isCompared ? 'text-[#CDA032]' : isLight ? 'text-black/45' : 'text-white/40'} ${TW_DARK_BTN_DEPTH}`}
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleCompare(product.id); }}
           aria-label={isCompared ? 'Remove from compare' : 'Add to compare'}
         >
@@ -95,7 +96,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center p-4">
             <button
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); onQuickView(product); }}
-              className="w-full py-2 bg-white text-black text-[7px] font-black uppercase tracking-[0.4em] rounded-xl transform translate-y-8 group-hover:translate-y-0 transition-all duration-500 shadow-2xl flex items-center justify-center gap-2"
+              className={`w-full py-2 bg-white text-black text-[7px] font-black uppercase tracking-[0.4em] rounded-xl transform translate-y-8 group-hover:translate-y-0 transition-all duration-500 shadow-2xl flex items-center justify-center gap-2 ${TW_DARK_GOLD_BTN_DEPTH}`}
             >
               <Eye size={10} /> QUICK VIEW
             </button>
@@ -104,15 +105,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
         <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
           <div className="space-y-2">
-            <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/20 italic">{product.category}</p>
-            <h3 className="text-[10px] font-black text-white leading-tight uppercase italic line-clamp-2 tracking-wide group-hover:text-[#CDA032] transition-colors">{product.name}</h3>
+            <p className={`text-[8px] font-black uppercase tracking-[0.2em] italic ${isLight ? 'text-black/45' : 'text-white/20'}`}>{product.category}</p>
+            <h3 className={`text-[10px] font-black leading-tight uppercase italic line-clamp-2 tracking-wide group-hover:text-[#CDA032] transition-colors ${isLight ? 'text-black' : 'text-white'}`}>{product.name}</h3>
             <div className="flex items-center gap-1 pt-1">
               <div className="flex gap-0.5">
                 {[...Array(5)].map((_, i) => (
-                  <Star key={i} size={7} className={i < Math.floor(product.rating || 4) ? 'fill-[#CDA032] text-[#CDA032]' : 'text-white/5'} />
+                  <Star key={i} size={7} className={i < Math.floor(product.rating || 4) ? 'fill-[#CDA032] text-[#CDA032]' : isLight ? 'text-black/15' : 'text-white/5'} />
                 ))}
               </div>
-              <span className="text-[8px] text-white/10 font-black italic">({product.reviewCount || 0})</span>
+              <span className={`text-[8px] font-black italic ${isLight ? 'text-black/40' : 'text-white/10'}`}>({product.reviewCount || 0})</span>
             </div>
           </div>
 
@@ -136,7 +137,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
               return (
                 <div key={variant.name} className="min-w-0 flex flex-col gap-1">
-                  <span className="text-[7px] text-white/45 font-black uppercase tracking-wider truncate">
+                  <span className={`text-[7px] font-black uppercase tracking-wider truncate ${isLight ? 'text-black/55' : 'text-white/45'}`}>
                     {variant.name}
                   </span>
 
@@ -157,15 +158,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                           }}
                           className={
                             isColor
-                              ? `shrink-0 w-5 h-5 rounded-full border-2 transition-all ${ol === 'white' ? 'ring-1 ring-white/35 ' : ''}${
+                              ? `shrink-0 w-5 h-5 rounded-full border-2 transition-all ${ol === 'white' ? (isLight ? 'ring-1 ring-black/20 ' : 'ring-1 ring-white/35 ') : ''}${
                                   selectedValue === o
                                     ? 'border-[#CDA032] ring-1 ring-[#CDA032]/50 scale-105'
-                                    : 'border-white/25 hover:border-white/45'
+                                    : isLight
+                                      ? 'border-black/25 hover:border-black/45'
+                                      : 'border-white/25 hover:border-white/45'
                                 }`
                               : `shrink-0 min-w-0 max-w-full px-1.5 py-0.5 rounded-md text-[7px] font-black tracking-wide transition-all border truncate ${
                                   selectedValue === o
                                     ? 'border-[#CDA032] bg-[#CDA032]/15 text-[#CDA032]'
-                                    : 'border-white/15 text-white/55 hover:border-white/35 hover:text-white'
+                                    : isLight
+                                      ? 'border-black/20 bg-zinc-100 text-black/85 hover:border-black/40 hover:bg-zinc-200 hover:text-black'
+                                      : 'border-white/15 text-white/55 hover:border-white/35 hover:text-white'
                                 }`
                           }
                           style={
@@ -211,9 +216,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
           <div className="space-y-3">
             <div className="flex items-baseline gap-2">
-              <span className="text-base font-black text-white tracking-tighter">{formatCurrency(product.price)}</span>
+              <span className={`text-base font-black tracking-tighter ${isLight ? 'text-black' : 'text-white'}`}>{formatCurrency(product.price)}</span>
               {product.discount && (
-                <span className="text-[8px] text-white/30 line-through font-bold">
+                <span className={`text-[8px] line-through font-bold ${isLight ? 'text-black/40' : 'text-white/30'}`}>
                   {formatCurrency(product.price * (1 + product.discount / 100))}
                 </span>
               )}
@@ -231,7 +236,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 to="/product/$productId"
                 params={{ productId: product.id } as any}
                 onClick={(e) => e.stopPropagation()}
-                className="w-full py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[8px] font-black uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-2 border border-white/10 hover:border-white/20 active:scale-95"
+                className={`w-full py-3 rounded-xl text-[8px] font-black uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-2 border active:scale-95 ${isLight ? 'bg-black/[0.04] hover:bg-black/[0.08] text-black border-black/12 hover:border-black/20' : 'bg-white/5 hover:bg-white/10 text-white border-white/10 hover:border-white/20'}`}
               >
                 <FileText size={11} className="text-[#CDA032]" /> VIEW DETAILS
               </Link>

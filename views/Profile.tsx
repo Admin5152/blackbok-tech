@@ -17,6 +17,7 @@ import { DeleteAccountModal } from '../components/DeleteAccountModal';
 import AuthService from '../lib/auth';
 import { updateUserProfile } from '../lib/api';
 import { getSupabaseClient } from '../lib/supabase';
+import { Link } from '@tanstack/react-router';
 
 interface ProfileProps {
   user: User | null;
@@ -300,12 +301,12 @@ export const Profile: React.FC<ProfileProps> = ({
                       >
                         Edit Profile
                       </button>
-                      <button
-                        onClick={() => navigateTo('support' as any)}
-                        className={`flex-1 sm:flex-initial px-4 sm:px-8 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${isLight ? 'bg-white text-black border-gray-200 hover:bg-gray-50' : 'bg-white/5 text-white border-white/10 hover:bg-white/10'}`}
+                      <Link
+                        to="/faq"
+                        className={`flex-1 sm:flex-initial px-4 sm:px-8 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border text-center ${isLight ? 'bg-white text-black border-gray-200 hover:bg-gray-50' : 'bg-white/5 text-white border-white/10 hover:bg-white/10'}`}
                       >
                         Support Terminal
-                      </button>
+                      </Link>
                     </div>
                   </div>
                 </div>

@@ -160,6 +160,8 @@ export interface Order {
   paymentMethod?: string;
   shipping_address_display?: string;
   tracking_updates?: TrackingUpdate[];
+  /** Checkout / staff notes stored on the order row. */
+  notes?: string;
 }
 
 export interface OrderItem {
