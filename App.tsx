@@ -1038,6 +1038,10 @@ function RootComponent() {
             notify(`Trade-in update: ${payload.new.status}`, 'info');
           }
           refetchTrades();
+          const ns = String(payload?.new?.status ?? '').trim().toLowerCase();
+          if (ns === 'completed') {
+            void refreshProducts();
+          }
         })
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'repair_requests', filter: `user_id=eq.${user.id}` },
@@ -1052,7 +1056,7 @@ function RootComponent() {
     return () => {
       if (supabase) supabase.removeChannel(channel);
     };
-  }, [user?.id]);
+  }, [user?.id, refreshProducts]);
 
   // Hydrate per-user orders / trades / repairs from Supabase so admin
   // dashboard changes are reflected on the customer side and vice versa.

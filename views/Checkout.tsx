@@ -264,7 +264,7 @@ const InlineAuthForm: React.FC<InlineAuthFormProps> = ({ onAuthenticated, notify
 // Main Checkout view
 // ============================================================
 export const Checkout: React.FC = () => {
-  const { user, cart, setCart, orders, setOrders, notify, setUser, theme } = useAppContext();
+  const { user, cart, setCart, orders, setOrders, notify, setUser, theme, refreshProducts } = useAppContext();
   const navigate = useNavigate();
   const { placeOrder: rpcPlaceOrder, loading: checkoutLoading } = useCheckout();
 
@@ -437,6 +437,8 @@ export const Checkout: React.FC = () => {
         console.warn('clearCartItems failed:', err);
       }
       setCart([]);
+
+      void refreshProducts();
 
       const serverTotal =
         typeof result.total === 'number' ? result.total : total;
