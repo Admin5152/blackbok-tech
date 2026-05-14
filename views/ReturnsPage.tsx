@@ -361,9 +361,11 @@ const ReturnRow: React.FC<ReturnRowProps> = ({ item, isLight }) => {
 // Request form modal
 // ---------------------------------------------------------------------------
 
-interface RequestReturnModalProps {
+export interface RequestReturnModalProps {
   isLight: boolean;
   eligibleOrders: Array<{ id: string; display_id?: string; date?: string; total?: number }>;
+  /** When set, pre-select this order if it is still eligible. */
+  initialOrderId?: string | null;
   onClose: () => void;
   onSubmit: (payload: {
     order_id: string;
@@ -373,18 +375,28 @@ interface RequestReturnModalProps {
   }) => Promise<void>;
 }
 
-const RequestReturnModal: React.FC<RequestReturnModalProps> = ({
+export const RequestReturnModal: React.FC<RequestReturnModalProps> = ({
   isLight,
   eligibleOrders,
+  initialOrderId,
   onClose,
   onSubmit,
 }) => {
-  const [orderId, setOrderId] = useState<string>(eligibleOrders[0]?.id ?? '');
+  const resolvedDefaultOrderId = useMemo(() => {
+    if (initialOrderId && eligibleOrders.some((o) => o.id === initialOrderId)) return initialOrderId;
+    return eligibleOrders[0]?.id ?? '';
+  }, [initialOrderId, eligibleOrders]);
+
+  const [orderId, setOrderId] = useState<string>(resolvedDefaultOrderId);
   const [reason, setReason] = useState('');
   const [condition, setCondition] = useState<ReturnCondition>('unopened');
   const [refundMethod, setRefundMethod] = useState<RefundMethod>('original_payment');
   const [submitting, setSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setOrderId(resolvedDefaultOrderId);
+  }, [resolvedDefaultOrderId]);
 
   // Lock body scroll while modal is open.
   useEffect(() => {

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   LogOut, Package, Wrench, Clock, CheckCircle2,
   MapPin, Mail, ChevronRight, Activity, Shield, CreditCard as CardIcon,
@@ -18,6 +18,8 @@ import AuthService from '../lib/auth';
 import { updateUserProfile } from '../lib/api';
 import { getSupabaseClient } from '../lib/supabase';
 import { Link } from '@tanstack/react-router';
+import { useReturns } from '../hooks/useReturns';
+import { RequestReturnModal } from './ReturnsPage';
 
 interface ProfileProps {
   user: User | null;
@@ -68,6 +70,8 @@ export const Profile: React.FC<ProfileProps> = ({
     repairCount: number;
     tradeCount: number;
   } | null>(null);
+  const [purchaseReturnOpen, setPurchaseReturnOpen] = useState(false);
+  const [purchaseReturnPresetOrderId, setPurchaseReturnPresetOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     if (activeTab !== 'settings' || !user) return;
@@ -141,6 +145,54 @@ export const Profile: React.FC<ProfileProps> = ({
       repairs: byDate(repairs).slice(0, 5),
     };
   }, [orders, trades, repairs]);
+
+  const { returns: userReturns, submitReturn: submitUserReturn, refetch: refetchUserReturns } = useReturns();
+
+  const eligibleRefundOrders = useMemo(() => {
+    const referenced = new Set(userReturns.map((r) => r.order_id));
+    return (orders ?? []).filter((o) => {
+      const status = String(o.status ?? '').toLowerCase();
+      if (status !== 'delivered') return false;
+      if (referenced.has(o.id)) return false;
+      return true;
+    });
+  }, [orders, userReturns]);
+
+  const orderEligibleForRefund = useCallback(
+    (orderId: string) => eligibleRefundOrders.some((o) => o.id === orderId),
+    [eligibleRefundOrders],
+  );
+
+  type PurchaseLedgerKind = 'purchase' | 'repair' | 'trade_credit' | 'trade_active';
+
+  const purchaseHistoryLedger = useMemo(() => {
+    const rows: Array<{
+      key: string;
+      kind: PurchaseLedgerKind;
+      id: string;
+      date: string;
+      order?: Order;
+      repair?: RepairRequest;
+      trade?: TradeRequest;
+    }> = [];
+    for (const o of orders) {
+      rows.push({ key: `p-${o.id}`, kind: 'purchase', id: o.id, date: o.date, order: o });
+    }
+    for (const r of repairs) {
+      rows.push({ key: `r-${r.id}`, kind: 'repair', id: r.id, date: r.date, repair: r });
+    }
+    for (const t of trades) {
+      const kind: PurchaseLedgerKind = t.status === 'Completed' ? 'trade_credit' : 'trade_active';
+      rows.push({ key: `t-${t.id}`, kind, id: t.id, date: t.date, trade: t });
+    }
+    rows.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return rows;
+  }, [orders, repairs, trades]);
+
+  const openPurchaseReturnModal = useCallback((presetOrderId: string | null) => {
+    setPurchaseReturnPresetOrderId(presetOrderId);
+    setPurchaseReturnOpen(true);
+  }, []);
 
   const saveDisplayName = async () => {
     if (!user) return;
@@ -767,64 +819,176 @@ export const Profile: React.FC<ProfileProps> = ({
         return (
           <div className="space-y-10 animate-in fade-in duration-700">
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
+              <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-6 pb-2">
                 <div className="space-y-2">
-                  <h3 className={`text-4xl font-black italic tracking-tighter uppercase ${isLight ? 'text-black' : 'text-white'}`}>Financial <span className="text-[#B38B21]">Ledger</span></h3>
-                  <p className={`text-xs font-bold uppercase tracking-[0.2em] ${isLight ? 'text-gray-400' : 'text-white/40'}`}>Complete transaction history and accumulated credits</p>
+                  <h3 className={`text-4xl font-black italic tracking-tighter uppercase ${isLight ? 'text-black' : 'text-white'}`}>Purchases & <span className="text-[#B38B21]">History</span></h3>
+                  <p className={`text-xs font-bold uppercase tracking-[0.2em] ${isLight ? 'text-gray-400' : 'text-white/40'}`}>
+                    All orders, trade-ins, and repairs — receipts, tracking, and refund requests for eligible delivered orders
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3 shrink-0">
+                  {eligibleRefundOrders.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => openPurchaseReturnModal(null)}
+                      className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-colors ${isLight ? 'bg-black text-white border-black hover:bg-black/90' : 'bg-[#B38B21]/15 text-[#B38B21] border-[#B38B21]/30 hover:bg-[#B38B21]/25'}`}
+                    >
+                      <RotateCcw size={14} />
+                      Request refund
+                    </button>
+                  ) : null}
+                  <Link
+                    to="/returns"
+                    className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-colors ${isLight ? 'bg-white text-black border-gray-200 hover:bg-gray-50' : 'bg-white/5 text-white border-white/10 hover:bg-white/10'}`}
+                  >
+                    Returns & status
+                  </Link>
                 </div>
               </div>
 
               <div className="grid gap-6">
-                {[
-                  ...orders.map(o => ({ ...o, type: 'Purchase' as const })),
-                  ...repairs.filter(r => r.status === 'Completed').map(r => ({ ...r, type: 'Service' as const, total: parseFloat(r.estimatedCost?.replace(/[^0-9.]/g, '') || '0') })),
-                  ...trades.filter(t => t.status === 'Completed').map(t => ({ ...t, type: 'Credit' as const, total: -(t.finalValue || t.estimatedValue) }))
-                ]
-                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                  .map((entry) => {
-                    const eid = (entry as { id: string }).id;
-                    const receiptTo =
-                      entry.type === 'Purchase'
-                        ? (`/receipt/${eid}?print=1` as const)
-                        : entry.type === 'Service'
-                          ? (`/receipt/repair/${eid}?print=1` as const)
-                          : (`/receipt/trade/${eid}?print=1` as const);
-                    return (
-                    <div key={`${entry.type}-${eid}`} className={`p-6 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] border flex flex-col sm:flex-row items-center justify-between gap-6 group transition-all shadow-xl ${isLight ? 'bg-gray-50 border-gray-100' : 'bg-[#0a0a0a] border-white/5 hover:border-[#B38B21]/20'}`}>
+                {purchaseHistoryLedger.map((row) => {
+                  const receiptTo =
+                    row.kind === 'purchase'
+                      ? `/receipt/${row.id}?print=1`
+                      : row.kind === 'repair'
+                        ? `/receipt/repair/${row.id}?print=1`
+                        : `/receipt/trade/${row.id}?print=1`;
+                  const typeLabel =
+                    row.kind === 'purchase'
+                      ? 'Purchase'
+                      : row.kind === 'repair'
+                        ? 'Repair'
+                        : row.kind === 'trade_credit'
+                          ? 'Credit'
+                          : 'Trade-in';
+                  const iconWrap =
+                    row.kind === 'purchase'
+                      ? 'bg-indigo-500/10 text-indigo-400'
+                      : row.kind === 'trade_credit'
+                        ? 'bg-green-500/10 text-green-400'
+                        : row.kind === 'trade_active'
+                          ? 'bg-amber-500/10 text-amber-400'
+                          : 'bg-[#B38B21]/10 text-[#B38B21]';
+                  const title =
+                    row.kind === 'purchase'
+                      ? row.order?.items[0]?.name || 'Order'
+                      : row.kind === 'repair'
+                        ? row.repair?.device || 'Repair'
+                        : row.trade?.device || 'Trade-in';
+                  const subStatus =
+                    row.kind === 'purchase' && row.order
+                      ? displayOrderStatusLabel(row.order.status)
+                      : row.kind === 'repair' && row.repair
+                        ? String(row.repair.status || '')
+                        : row.trade
+                          ? String(row.trade.status || '')
+                          : '';
+                  let amountNode: React.ReactNode;
+                  let amountClass = isLight ? 'text-black' : 'text-white';
+                  if (row.kind === 'purchase' && row.order) {
+                    amountNode = formatCurrency(row.order.total);
+                  } else if (row.kind === 'repair' && row.repair) {
+                    const costNum = parseFloat(row.repair.estimatedCost?.replace(/[^0-9.]/g, '') || '0');
+                    if (row.repair.status === 'Completed') {
+                      amountNode = formatCurrency(costNum);
+                    } else {
+                      amountNode = row.repair.estimatedCost?.trim() || 'Pending';
+                      amountClass = isLight ? 'text-black/60' : 'text-white/50';
+                    }
+                  } else if (row.trade) {
+                    const val = Number(row.trade.finalValue ?? row.trade.estimatedValue ?? 0) || 0;
+                    if (row.kind === 'trade_credit') {
+                      amountNode = <>+{formatCurrency(val)}</>;
+                      amountClass = 'text-green-500';
+                    } else {
+                      amountNode = <>Est. {formatCurrency(val)}</>;
+                      amountClass = isLight ? 'text-black/70' : 'text-white/60';
+                    }
+                  } else {
+                    amountNode = '—';
+                  }
+                  const trackTo =
+                    row.kind === 'purchase'
+                      ? `/tracking/order/${row.id}`
+                      : row.kind === 'repair'
+                        ? `/tracking/repair/${row.id}`
+                        : `/tracking/trade/${row.id}`;
+                  const showRefund =
+                    row.kind === 'purchase' && row.order && orderEligibleForRefund(row.order.id);
+                  return (
+                    <div
+                      key={row.key}
+                      className={`p-6 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] border flex flex-col sm:flex-row items-center justify-between gap-6 group transition-all shadow-xl ${isLight ? 'bg-gray-50 border-gray-100' : 'bg-[#0a0a0a] border-white/5 hover:border-[#B38B21]/20'}`}
+                    >
                       <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 text-center sm:text-left">
-                        <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center ${entry.type === 'Purchase' ? 'bg-indigo-500/10 text-indigo-400' : entry.type === 'Credit' ? 'bg-green-500/10 text-green-400' : 'bg-[#B38B21]/10 text-[#B38B21]'}`}>
-                          {entry.type === 'Purchase' ? <ShoppingBag size={24} /> : entry.type === 'Credit' ? <RefreshCw size={24} /> : <Wrench size={24} />}
+                        <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center ${iconWrap}`}>
+                          {row.kind === 'purchase' ? (
+                            <ShoppingBag size={24} />
+                          ) : row.kind === 'repair' ? (
+                            <Wrench size={24} />
+                          ) : (
+                            <RefreshCw size={24} />
+                          )}
                         </div>
                         <div>
-                          <h4 className={`text-base sm:text-lg font-black uppercase tracking-widest italic flex flex-wrap items-center justify-center sm:justify-start gap-3 text-center sm:text-left ${isLight ? 'text-black' : 'text-white'}`}>
-                            {entry.type === 'Purchase' ? (entry as any).items[0]?.name : (entry as any).device}
-                            <span className={`text-[10px] px-3 py-1 rounded-lg border font-black uppercase tracking-widest ${isLight ? 'bg-black/5 border-black/5 text-black/40' : 'bg-white/5 border-white/5 text-white/30'}`}>{entry.type}</span>
+                          <h4
+                            className={`text-base sm:text-lg font-black uppercase tracking-widest italic flex flex-wrap items-center justify-center sm:justify-start gap-3 text-center sm:text-left ${isLight ? 'text-black' : 'text-white'}`}
+                          >
+                            {title}
+                            <span
+                              className={`text-[10px] px-3 py-1 rounded-lg border font-black uppercase tracking-widest ${isLight ? 'bg-black/5 border-black/5 text-black/40' : 'bg-white/5 border-white/5 text-white/30'}`}
+                            >
+                              {typeLabel}
+                            </span>
+                            {subStatus ? (
+                              <span
+                                className={`text-[9px] px-2.5 py-0.5 rounded-full font-black uppercase tracking-widest shrink-0 ${historyStatusBadge(subStatus)}`}
+                              >
+                                {subStatus}
+                              </span>
+                            ) : null}
                           </h4>
-                          <p className={`text-xs font-bold mt-1 uppercase tracking-widest ${isLight ? 'text-gray-400' : 'text-white/40'}`}>{formatDate(entry.date)}</p>
+                          <p className={`text-xs font-bold mt-1 uppercase tracking-widest ${isLight ? 'text-gray-400' : 'text-white/40'}`}>{formatDate(row.date)}</p>
                         </div>
                       </div>
-                      <div className="text-center sm:text-right space-y-2">
-                        <p className={`text-xl sm:text-2xl font-black italic tracking-tighter ${entry.type === 'Credit' ? 'text-green-500' : (isLight ? 'text-black' : 'text-white')}`}>
-                          {entry.type === 'Credit' ? '+' : ''}{formatCurrency(Math.abs(entry.total))}
-                        </p>
-                        <Link
-                          to={receiptTo as any}
-                          className="inline-block text-[9px] font-black uppercase tracking-widest text-[#B38B21] border-b border-[#B38B21]/20 hover:border-[#B38B21] transition-all"
-                        >
-                          Download receipt
-                        </Link>
+                      <div className="text-center sm:text-right space-y-3 w-full sm:w-auto">
+                        <p className={`text-xl sm:text-2xl font-black italic tracking-tighter ${amountClass}`}>{amountNode}</p>
+                        <div className="flex flex-wrap items-center justify-center sm:justify-end gap-x-4 gap-y-2">
+                          <Link
+                            to={receiptTo as any}
+                            className="text-[9px] font-black uppercase tracking-widest text-[#B38B21] border-b border-[#B38B21]/20 hover:border-[#B38B21] transition-all"
+                          >
+                            Download receipt
+                          </Link>
+                          <Link
+                            to={trackTo as any}
+                            className="text-[9px] font-black uppercase tracking-widest text-[#B38B21]/80 border-b border-[#B38B21]/10 hover:border-[#B38B21]/40 transition-all"
+                          >
+                            Track
+                          </Link>
+                          {showRefund ? (
+                            <button
+                              type="button"
+                              onClick={() => openPurchaseReturnModal(row.order!.id)}
+                              className={`text-[9px] font-black uppercase tracking-widest border-b transition-all ${isLight ? 'text-emerald-800 border-emerald-200 hover:border-emerald-600' : 'text-emerald-400 border-emerald-500/30 hover:border-emerald-400'}`}
+                            >
+                              Request refund
+                            </button>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
-                    );
-                  })}
+                  );
+                })}
 
-                {orders.length === 0 && repairs.filter(r => r.status === 'Completed').length === 0 && trades.filter(t => t.status === 'Completed').length === 0 && (
+                {purchaseHistoryLedger.length === 0 && (
                   <div className={`p-20 text-center rounded-[3rem] border border-dashed ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-white/[0.02] border-white/10'}`}>
                     <div className="w-20 h-20 mx-auto bg-[#B38B21]/10 rounded-3xl flex items-center justify-center mb-6 text-[#B38B21]">
                       <FileText size={40} />
                     </div>
-                    <h4 className={`text-xl font-black italic uppercase tracking-widest ${isLight ? 'text-black/40' : 'text-white/20'}`}>Ledger is empty</h4>
-                    <p className={`text-[10px] font-black uppercase tracking-widest mt-2 ${isLight ? 'text-black/20' : 'text-white/10'}`}>Your transaction history will be documented here.</p>
+                    <h4 className={`text-xl font-black italic uppercase tracking-widest ${isLight ? 'text-black/40' : 'text-white/20'}`}>No activity yet</h4>
+                    <p className={`text-[10px] font-black uppercase tracking-widest mt-2 ${isLight ? 'text-black/20' : 'text-white/10'}`}>Orders, trade-ins, and repairs will show here.</p>
                   </div>
                 )}
               </div>
@@ -837,7 +1001,7 @@ export const Profile: React.FC<ProfileProps> = ({
                     Activity <span className="text-[#B38B21]">History</span>
                   </h3>
                   <p className={`text-[10px] font-bold uppercase tracking-widest ${isLight ? 'text-gray-400' : 'text-white/40'}`}>
-                    Live status for orders, trade-ins, and repairs — same as your full history page
+                    Same lists as history — delivered orders without a return can request a refund from the ledger above or here
                   </p>
                 </div>
                 <Link
@@ -881,12 +1045,29 @@ export const Profile: React.FC<ProfileProps> = ({
                             {order.items.length} {order.items.length === 1 ? 'item' : 'items'} · {formatCurrency(order.total)}
                           </p>
                           <p className={`text-[9px] font-bold uppercase tracking-widest ${isLight ? 'text-gray-400' : 'text-white/35'}`}>{formatDate(order.date)}</p>
-                          <Link
-                            to={`/receipt/${order.id}` as any}
-                            className="text-[9px] font-black uppercase tracking-widest text-[#B38B21] hover:underline inline-flex items-center gap-1"
-                          >
-                            Receipt <ChevronRight size={12} />
-                          </Link>
+                          <div className="flex flex-wrap items-center gap-3">
+                            <Link
+                              to={`/receipt/${order.id}` as any}
+                              className="text-[9px] font-black uppercase tracking-widest text-[#B38B21] hover:underline inline-flex items-center gap-1"
+                            >
+                              Receipt <ChevronRight size={12} />
+                            </Link>
+                            <Link
+                              to={`/tracking/order/${order.id}` as any}
+                              className="text-[9px] font-black uppercase tracking-widest text-[#B38B21]/80 hover:underline inline-flex items-center gap-1"
+                            >
+                              Track <ChevronRight size={12} />
+                            </Link>
+                            {orderEligibleForRefund(order.id) ? (
+                              <button
+                                type="button"
+                                onClick={() => openPurchaseReturnModal(order.id)}
+                                className={`text-[9px] font-black uppercase tracking-widest underline-offset-2 hover:underline ${isLight ? 'text-emerald-800' : 'text-emerald-400'}`}
+                              >
+                                Refund
+                              </button>
+                            ) : null}
+                          </div>
                         </div>
                       ))
                     )}
@@ -1233,6 +1414,29 @@ export const Profile: React.FC<ProfileProps> = ({
       <main className="flex-1 min-h-[600px] relative z-10 p-2 md:p-0">
         {renderContent()}
       </main>
+
+      {purchaseReturnOpen && eligibleRefundOrders.length > 0 && (
+        <RequestReturnModal
+          isLight={isLight}
+          eligibleOrders={eligibleRefundOrders}
+          initialOrderId={purchaseReturnPresetOrderId}
+          onClose={() => {
+            setPurchaseReturnOpen(false);
+            setPurchaseReturnPresetOrderId(null);
+          }}
+          onSubmit={async (payload) => {
+            const result = await submitUserReturn(payload);
+            if (result) {
+              notify?.('Return request submitted', 'success');
+              setPurchaseReturnOpen(false);
+              setPurchaseReturnPresetOrderId(null);
+              void refetchUserReturns();
+            } else {
+              notify?.('Failed to submit return', 'error');
+            }
+          }}
+        />
+      )}
 
       {/* Delete Account Modal */}
       <DeleteAccountModal
