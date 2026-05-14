@@ -1,11 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-  ChevronRight, ChevronLeft, ArrowRight, Smartphone, Laptop as LaptopIcon, Gamepad2, Package, Settings,
+  ChevronRight, ChevronLeft, ArrowRight, Settings,
   Users, Award, TrendingUp, Star, Quote, ArrowLeftRight, Wrench, Mail, Phone, MapPin, Heart, Eye
 } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import { Product, Category } from '../types';
-import { ProductCard } from '../components/ProductCard';
 import { HERO_COLLAGE_FILENAMES, getImagesForTheme } from '../data/heroImages';
 import { formatCurrency } from '../lib/utils';
 import { ShoppingCart } from 'lucide-react';
@@ -111,6 +110,11 @@ export const Home: React.FC<HomeProps> = ({
     [products]
   );
 
+  const featuredSliderProducts = useMemo(() => {
+    if (featuredProducts.length > 0) return featuredProducts.slice(0, 12);
+    return products.slice(0, 12);
+  }, [products, featuredProducts]);
+
   const highlights = useMemo(() => {
     const combined = [...featuredProducts, ...products.filter(p => !featuredProducts.find(f => f.id === p.id))];
     return combined
@@ -122,37 +126,6 @@ export const Home: React.FC<HomeProps> = ({
   const prevHighlight = () => setCurrentHighlightsIndex((prev) => (prev - 1 + highlights.length) % highlights.length);
 
   if (!products || products.length === 0) return null;
-
-  const categories = [
-    {
-      name: "iPhone" as Category,
-      desc: "Latest iPhone models and premium hardware",
-      img: "/iPhone.jpeg",
-      icon: Smartphone,
-      products: products.filter(p => matchesCategory(p.category, 'iPhone')).slice(0, 3)
-    },
-    {
-      name: "Laptop" as Category,
-      desc: "Elite MacBooks and pro performance machines",
-      img: "https://images.unsplash.com/photo-1671777560821-707c83d0305f",
-      icon: LaptopIcon,
-      products: products.filter(p => matchesCategory(p.category, 'Laptop')).slice(0, 3)
-    },
-    {
-      name: "Gaming" as Category,
-      desc: "Next-gen consoles and immersive controllers",
-      img: "/ps5.jpeg",
-      icon: Gamepad2,
-      products: products.filter(p => matchesCategory(p.category, 'Gaming')).slice(0, 3)
-    },
-    {
-      name: "Accessories" as Category,
-      desc: "Premium accessories and tech essentials",
-      img: "/cases.jpeg",
-      icon: Package,
-      products: products.filter(p => matchesCategory(p.category, 'Accessories')).slice(0, 3)
-    }
-  ];
 
   const customerReviews = [
     { name: "Kwame Asante", text: "Excellent service and quality products. BlackBox is my go-to for all tech needs.", rating: 5 },
@@ -288,115 +261,156 @@ export const Home: React.FC<HomeProps> = ({
         </div>
       </section>
 
-      {/* Retail Section */}
-      <section className="py-12 md:py-16 px-8 bg-gradient-to-b from-black to-gray-950 section-connector">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-heading font-bold text-white tracking-wider mb-4">
-              Featured Products
-            </h2>
-            <div className="w-32 h-0.5 bg-[#D4AF37] mx-auto mb-6"></div>
-            <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-              Discover our curated selection of tech finds
-            </p>
-            <div className="flex justify-center items-center gap-2 mt-4">
-              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-              <span className="text-xs text-red-500 font-heading font-semibold tracking-wider"></span>
+      {/* Featured Products — horizontal scroll + quick view (same pattern as accessories / laptop) */}
+      <section className={`section-connector py-6 md:py-10 overflow-hidden ${theme === 'dark' ? 'bg-gradient-to-b from-black to-gray-950' : 'bg-white'}`}>
+        <div className="max-w-screen-2xl mx-auto">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6 px-4 md:px-8">
+            <div className="min-w-0">
+              <h2 className={`text-3xl md:text-4xl font-heading font-bold tracking-wider ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+                Featured Products
+              </h2>
+              <p className={`text-sm md:text-base mt-1 max-w-xl ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                Curated picks — scroll, tap a card or the eye icon for a quick look.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => document.getElementById('featured-products-slider')?.scrollBy({ left: -400, behavior: 'smooth' })}
+                className={`w-12 h-12 rounded-full border flex items-center justify-center transition-colors ${theme === 'dark' ? 'border-white/20 text-white hover:bg-white hover:text-black' : 'border-black/20 text-black hover:bg-black hover:text-white'}`}
+                aria-label="Scroll featured products left"
+              >
+                <ChevronLeft size={24} />
+              </button>
+              <button
+                type="button"
+                onClick={() => document.getElementById('featured-products-slider')?.scrollBy({ left: 400, behavior: 'smooth' })}
+                className={`w-12 h-12 rounded-full border flex items-center justify-center transition-colors ${theme === 'dark' ? 'border-white/20 text-white hover:bg-white hover:text-black' : 'border-black/20 text-black hover:bg-black hover:text-white'}`}
+                aria-label="Scroll featured products right"
+              >
+                <ChevronRight size={24} />
+              </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {categories.map((category, index) => (
-              <Link
-                key={category.name}
-                to="/store"
-                search={{ category: category.name } as any}
-                className="group relative rounded-2xl overflow-hidden border border-gray-800 hover:border-[#D4AF37]/50 transition-all duration-300 hover:transform hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]/50"
-                style={{ animationDelay: `${index * 100}ms` }}
-                aria-label={`Explore ${category.name}`}
+          <div
+            id="featured-products-slider"
+            className="flex items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar snap-x snap-mandatory px-4 md:px-8 pb-8"
+            style={{ scrollPaddingLeft: 'max(1rem, env(safe-area-inset-left))' }}
+          >
+            <div className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#111]' : 'bg-[#f5f5f7]'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between snap-start flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5`}>
+              <div>
+                <h2 className="text-3xl md:text-5xl font-bold mb-4 tracking-tight">Featured picks</h2>
+                <p className={`text-lg md:text-xl ${theme === 'dark' ? 'text-white/70' : 'text-black/70'}`}>
+                  Staff favorites and new arrivals.<br />Same quick-view flow as the rows below.
+                </p>
+              </div>
+              <div className="flex justify-center mt-8">
+                <img src="/iPhone.jpeg" alt="" className="h-40 md:h-56 w-40 md:w-56 object-cover rounded-2xl drop-shadow-xl" />
+              </div>
+            </div>
+
+            {featuredSliderProducts.map((p) => (
+              <div
+                key={p.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => onQuickView(p)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onQuickView(p);
+                  }
+                }}
+                className={`w-[260px] md:w-[300px] h-[360px] md:h-[420px] rounded-[2rem] snap-start flex-shrink-0 flex flex-col group cursor-pointer overflow-hidden relative shadow-lg ${theme === 'dark' ? 'bg-[#111]' : 'bg-[#ffffff]'}`}
               >
-                {/* Full-bleed image */}
-                <div className="relative h-[320px] sm:h-[360px] lg:h-[420px]">
-                  <img
-                    src={category.img}
-                    alt={category.name}
-                    className="absolute inset-0 w-full h-full object-cover object-center"
-                    loading="lazy"
-                  />
+                <div className="pointer-events-none absolute inset-0 z-10">
+                  <div className={`absolute bottom-2 left-2 w-12 h-12 border-b-2 border-l-2 rounded-bl-[1.5rem] transition-colors ${theme === 'dark' ? 'border-white/20' : 'border-[#B38B21]/40'}`} />
+                  <div className={`absolute bottom-2 right-2 w-12 h-12 border-b-2 border-r-2 rounded-br-[1.5rem] transition-colors ${theme === 'dark' ? 'border-white/20' : 'border-[#B38B21]/40'}`} />
+                </div>
 
-                  {/* Overlays for readability */}
-                  <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors duration-300" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
+                <div className="absolute top-0 inset-x-0 h-[60%] pt-8 px-8 transform group-hover:scale-105 transition-transform duration-700 flex items-center justify-center">
+                  <img src={p.image} alt={p.name} className="w-full h-full object-contain filter drop-shadow-lg" />
+                </div>
 
-                  {/* Icon */}
-                  <div className="absolute top-4 right-4 w-11 h-11 bg-[#D4AF37]/20 backdrop-blur-sm rounded-full flex items-center justify-center group-hover:bg-[#D4AF37] transition-colors">
-                    <category.icon size={18} className="bb-force-white group-hover:text-black" />
+                <button
+                  type="button"
+                  aria-label={`Quick view ${p.name}`}
+                  title="Quick view"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onQuickView(p);
+                  }}
+                  className={`absolute top-4 right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full border shadow-lg backdrop-blur-md transition-all hover:scale-105 active:scale-95 ${theme === 'dark'
+                    ? 'border-white/25 bg-black/55 text-white hover:bg-[#CDA032] hover:text-black hover:border-transparent'
+                    : 'border-black/12 bg-white/90 text-black hover:bg-[#CDA032] hover:border-transparent'
+                    }`}
+                >
+                  <Eye size={18} strokeWidth={2.25} />
+                </button>
+
+                <div className="absolute inset-x-0 bottom-0 p-6 flex flex-col z-20 bg-gradient-to-t from-black/5 to-transparent dark:from-black/80 dark:to-transparent">
+                  <div className="flex items-center gap-2 mb-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-y-2 group-hover:translate-y-0">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} size={8} className={`${i < Math.floor(p.rating || 4) ? 'text-[#CDA032] fill-current' : theme === 'dark' ? 'text-white/20' : 'text-black/20'}`} />
+                    ))}
+                    <span className={`text-[9px] font-bold ml-1 ${theme === 'dark' ? 'text-white/50' : 'text-black/50'}`}>({p.reviewCount || 678})</span>
                   </div>
 
-                  {/* Text overlay */}
-                  <div className="absolute inset-x-0 bottom-0 p-6">
-                    <h3 className="text-3xl font-heading font-bold bb-force-white tracking-wide">
-                      {category.name}
-                    </h3>
-                    <p className="mt-2 bb-force-white-70 text-sm leading-relaxed max-w-[26ch]">
-                      {category.desc}
-                    </p>
-                    <div className="mt-6 inline-flex items-center gap-2 text-[#D4AF37] group-hover:text-[#F4E4C1] transition-colors text-sm font-heading font-semibold">
-                      Explore {category.name}
-                      <ChevronRight size={16} className="translate-x-0 group-hover:translate-x-0.5 transition-transform" />
+                  <h3 className={`font-black uppercase italic tracking-wider text-sm leading-tight mb-1 line-clamp-2 drop-shadow-sm ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+                    {p.name}
+                  </h3>
+
+                  <div className="flex items-end justify-between mt-2">
+                    <div>
+                      <span className={`text-[9px] mb-0.5 block uppercase tracking-widest italic ${theme === 'dark' ? 'text-white/60' : 'text-black/60'}`}>{p.category}</span>
+                      <p className="font-black text-xl tracking-tighter text-[#CDA032] drop-shadow-sm">
+                        {formatCurrency(p.price)}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (navigateTo) navigateTo('product', p.id);
+                        }}
+                        className={`w-10 h-10 rounded-full backdrop-blur-md transition-all flex items-center justify-center border hover:border-transparent hover:scale-110 active:scale-95 group/nav ${theme === 'dark' ? 'bg-black/40 text-white hover:bg-[#CDA032] border-white/20' : 'bg-white/40 text-black hover:bg-[#CDA032] border-black/10 shadow-sm'}`}
+                        aria-label={`View ${p.name}`}
+                      >
+                        <ArrowRight size={16} className="group-hover/nav:-rotate-45 transition-transform" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAddToCart(p);
+                        }}
+                        className={`w-10 h-10 rounded-full backdrop-blur-md transition-all flex items-center justify-center group/btn border hover:border-transparent hover:scale-110 active:scale-95 ${theme === 'dark' ? 'bg-white/10 text-white hover:bg-[#CDA032] hover:text-black border-white/20' : 'bg-black/5 text-black hover:bg-[#CDA032] border-black/10 shadow-sm'}`}
+                        aria-label={`Add ${p.name} to cart`}
+                      >
+                        <ShoppingCart size={16} className="group-hover/btn:-translate-x-0.5 transition-transform" />
+                      </button>
                     </div>
                   </div>
                 </div>
-              </Link>
+              </div>
             ))}
           </div>
 
-          <div className="text-center mt-12">
+          <div className="flex justify-center mt-6 px-4">
             <Link
               to="/store"
-              className="relative inline-flex px-10 py-4 border-2 border-[#D4AF37] text-[#D4AF37] rounded-full text-sm font-heading font-semibold tracking-wider items-center gap-3 transition-all duration-300 hover:bg-[#D4AF37] hover:text-black hover:scale-105 group"
+              className="group relative inline-flex items-center gap-4 px-10 py-4 border-2 border-[#D4AF37] text-[#D4AF37] rounded-full text-sm font-heading font-semibold tracking-wider transition-all duration-300 hover:bg-[#D4AF37] hover:text-black hover:scale-105"
             >
               <ArrowRight className="absolute -left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-[#D4AF37] group-hover:text-black transition-colors" size={16} />
-              Explore More
+              Explore full store
             </Link>
           </div>
         </div>
       </section>
-
-      {/* Dynamic Featured Products Section */}
-      {featuredProducts.length > 0 && (
-        <section className={`py-12 md:py-20 px-8 ${theme === 'dark' ? 'bg-black' : 'bg-white'}`}>
-          <div className="max-w-7xl mx-auto">
-            <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
-              <div>
-                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#CDA032] mb-2 block">Premium Finds</span>
-                <h2 className={`text-4xl md:text-6xl font-black italic tracking-tighter uppercase leading-tight ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
-                  Featured Arrivals
-                </h2>
-              </div>
-              <Link to="/store" className="text-sm font-bold text-[#CDA032] hover:underline flex items-center gap-2">
-                View catalog <ArrowRight size={16} />
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {featuredProducts.slice(0, 8).map(p => (
-                <ProductCard
-                  key={p.id}
-                  product={p}
-                  isWishlisted={wishlist.includes(p.id)}
-                  onToggleWishlist={toggleWishlist}
-                  onQuickView={onQuickView}
-                  onAddToCart={onAddToCart}
-                  isCompared={compareIds.includes(p.id)}
-                  onToggleCompare={onToggleCompare}
-                  theme={theme}
-                />
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* Quick Access / Accessories Slider */}
       <section className={`py-6 md:py-10 overflow-hidden ${theme === 'dark' ? 'bg-black' : 'bg-[#f5f5f7]'}`}>

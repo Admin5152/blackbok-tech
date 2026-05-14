@@ -22,7 +22,6 @@ export default defineConfig(({ mode }) => {
               vendor: ['react', 'react-dom'],
               router: ['@tanstack/react-router'],
               supabase: ['@supabase/supabase-js'],
-              ai: ['@google/genai'],
               icons: ['lucide-react']
             }
           }

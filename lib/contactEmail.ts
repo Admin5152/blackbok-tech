@@ -21,7 +21,7 @@ export async function sendContactFormEmail(
     return {
       ok: false,
       error:
-        'Contact email is not configured yet. Add VITE_WEB3FORMS_ACCESS_KEY to your environment (see .env.example).',
+        'Contact email is not configured yet. Add VITE_WEB3FORMS_ACCESS_KEY to your environment (e.g. `.env.local`).',
     };
   }
 
