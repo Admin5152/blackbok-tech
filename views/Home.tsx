@@ -133,45 +133,19 @@ export const Home: React.FC<HomeProps> = ({
       {/* Main Content */}
       {/* Hero Section */}
       <section className="relative flex min-h-hero-viewport items-center justify-center overflow-hidden pt-24 pb-12 sm:pt-32">
-        {/* Background with tech accessories — full bleed; horizontal padding lives on inner content only */}
+        {/* Static hero backdrop (slideshow lives in its own panel so promos stay legible) */}
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-black to-black subtle-texture"></div>
-
-          {/* Single Background Image with Slideshow */}
-          {themeImages.length > 0 && (
-            <div className="absolute inset-0 overflow-hidden bg-black">
-              {themeImages.map((img, index) => (
-                <img
-                  key={img.filename}
-                  src={`/${img.filename}`}
-                  alt={img.description}
-                  className={`pointer-events-none absolute inset-0 box-border h-full w-full max-w-none min-h-full min-w-full object-cover object-center transition-opacity duration-2000 ease-in-out ${index === currentImageIndex
-                    ? 'opacity-100 z-[1]'
-                    : 'opacity-0 z-0'
-                    }`}
-                  style={{
-                    filter: theme === 'light' && img.filename === 'BlackBox.jpeg' ? 'invert(1) brightness(1.2)' : undefined
-                  }}
-                  loading="lazy"
-                  decoding="async"
-                  sizes="100vw"
-                />
-              ))}
-            </div>
+          {theme === 'light' && (
+            <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/25 to-transparent" aria-hidden />
           )}
-
-          {/* Dark or light overlay for text readability */}
-          <div className={`absolute inset-0 ${theme === 'dark'
-            ? 'bg-transparent'
-            : 'bg-gradient-to-r from-black/60 via-black/30 to-transparent'
-            }`}></div>
         </div>
 
         <div className="relative z-10 mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-            {/* Left Side - Main Content */}
-            <div className="space-y-8">
-              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-[5rem] font-heading font-bold tracking-wider leading-[1.1] lg:leading-[0.9] lg:min-h-[2.7em] text-off-white">
+          <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-14 xl:gap-16">
+            {/* Left — copy on its own surface (does not cover promo art) */}
+            <div className="space-y-8 rounded-3xl border border-white/10 bg-black/55 p-6 shadow-2xl backdrop-blur-md sm:p-8 lg:bg-black/40">
+              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-[4.25rem] xl:text-[5rem] font-heading font-bold tracking-wider leading-[1.1] lg:leading-[0.95] text-off-white">
                 Redefining Your
                 <br />
                 <span className="bg-gradient-to-r bg-clip-text text-transparent from-[#D4AF37] to-[#F4E4C1]">
@@ -211,12 +185,31 @@ export const Home: React.FC<HomeProps> = ({
               </div>
             </div>
 
-            {/* Right Side - Empty space for visual balance */}
+            {/* Right — promo slideshow contained so full poster + pricing stays visible */}
             <div className="relative animate-in fade-in slide-in-from-right-10 duration-1000 delay-200">
-              <div className="w-full h-96 flex items-center justify-center">
-                {/* Subtle glow effect */}
-                <div className="w-64 h-64 bg-[#D4AF37]/10 rounded-full blur-[100px] animate-pulse-slow"></div>
-              </div>
+              {themeImages.length > 0 ? (
+                <div className="relative mx-auto aspect-[4/5] w-full max-h-[68svh] max-w-md overflow-hidden rounded-2xl border border-white/10 bg-zinc-950 shadow-2xl sm:max-w-lg sm:aspect-[3/4] lg:mx-0 lg:ml-auto lg:aspect-auto lg:max-h-none lg:h-[min(32rem,52vh)] lg:max-w-none xl:h-[min(36rem,56vh)]">
+                  {themeImages.map((img, index) => (
+                    <img
+                      key={img.filename}
+                      src={`/${img.filename}`}
+                      alt={img.description}
+                      className={`pointer-events-none absolute inset-0 box-border h-full w-full object-contain object-center p-2 transition-opacity duration-2000 ease-in-out sm:p-3 ${index === currentImageIndex ? 'opacity-100 z-[1]' : 'opacity-0 z-0'
+                        }`}
+                      style={{
+                        filter: theme === 'light' && img.filename === 'BlackBox.jpeg' ? 'invert(1) brightness(1.2)' : undefined
+                      }}
+                      loading="lazy"
+                      decoding="async"
+                      sizes="(min-width: 1024px) 42vw, 100vw"
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="flex h-72 w-full items-center justify-center rounded-2xl border border-white/10 bg-zinc-950/80 lg:h-96">
+                  <div className="h-48 w-48 rounded-full bg-[#D4AF37]/10 blur-[80px] animate-pulse-slow" aria-hidden />
+                </div>
+              )}
             </div>
           </div>
         </div>
