@@ -139,20 +139,18 @@ export const Home: React.FC<HomeProps> = ({
 
           {/* Single Background Image with Slideshow */}
           {themeImages.length > 0 && (
-            <div className="absolute inset-0 overflow-hidden">
+            <div className="absolute inset-0 overflow-hidden bg-zinc-950">
               {themeImages.map((img, index) => (
                 <img
                   key={img.filename}
                   src={`/${img.filename}`}
                   alt={img.description}
-                  className={`absolute inset-0 w-full h-full object-cover object-center transition-all duration-2000 ease-in-out ${index === currentImageIndex
-                    ? 'opacity-100 scale-100'
-                    : 'opacity-0 scale-105'
+                  className={`absolute inset-0 h-full w-full object-contain object-center p-3 sm:p-5 md:p-8 transition-opacity duration-2000 ease-in-out ${index === currentImageIndex
+                    ? 'opacity-100 z-[1]'
+                    : 'opacity-0 z-0 pointer-events-none'
                     }`}
                   style={{
-                    filter: `${theme === 'light' && img.filename === 'BlackBox.jpeg' ? 'invert(1) brightness(1.2)' : ''
-                      }`,
-                    transform: index === currentImageIndex ? 'scale(1)' : 'scale(1.1)'
+                    filter: theme === 'light' && img.filename === 'BlackBox.jpeg' ? 'invert(1) brightness(1.2)' : undefined
                   }}
                   loading="lazy"
                 />
