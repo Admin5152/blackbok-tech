@@ -232,6 +232,83 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
     setSubStep(1);
   };
 
+  const modelPickerSubStep = () =>
+    formData.brand === 'Apple' && formData.deviceType === 'smartphone' ? 4 : 3;
+
+  const undoToDeviceTypeStep = () => {
+    setFormData((f) => ({ ...f, brand: '', model: '' }));
+    setSelectedSeries('');
+    setSubStep(1);
+    setTransitionKey((k) => k + 1);
+  };
+
+  const reopenModelPickerKeepTypeBrand = () => {
+    const target = modelPickerSubStep();
+    setFormData((f) => ({ ...f, model: '' }));
+    setSelectedSeries('');
+    setSubStep(target);
+    setTransitionKey((k) => k + 1);
+  };
+
+  const changeDeviceTypeSection = () => {
+    const applePhone = formData.brand === 'Apple' && formData.deviceType === 'smartphone';
+    const mps = applePhone ? 4 : 3;
+    if (subStep >= mps && formData.deviceType && formData.brand) {
+      reopenModelPickerKeepTypeBrand();
+      return;
+    }
+    if (applePhone && subStep === 3) {
+      setFormData((f) => ({ ...f, brand: '', model: '' }));
+      setSelectedSeries('');
+      setSubStep(1);
+      setTransitionKey((k) => k + 1);
+      return;
+    }
+    if (subStep === 2 && formData.deviceType) {
+      setFormData((f) => ({ ...f, brand: '', model: '' }));
+      setSelectedSeries('');
+      setSubStep(1);
+      setTransitionKey((k) => k + 1);
+      return;
+    }
+    setFormData((f) => ({ ...f, brand: '', model: '' }));
+    setSelectedSeries('');
+    setSubStep(1);
+    setTransitionKey((k) => k + 1);
+  };
+
+  const changeBrandSection = () => {
+    setFormData((f) => ({ ...f, brand: '', model: '' }));
+    setSelectedSeries('');
+    setSubStep(2);
+    setTransitionKey((k) => k + 1);
+  };
+
+  const reopenDeviceWizardFromLaterStep = () => {
+    setStep(1);
+    if (formData.deviceType && formData.brand) {
+      setFormData((f) => ({ ...f, model: '' }));
+      setSelectedSeries('');
+      setSubStep(modelPickerSubStep());
+    } else if (formData.deviceType) {
+      setFormData((f) => ({ ...f, brand: '', model: '' }));
+      setSelectedSeries('');
+      setSubStep(2);
+    } else {
+      setFormData((f) => ({ ...f, deviceType: '', brand: '', model: '' }));
+      setSelectedSeries('');
+      setSubStep(1);
+    }
+    setTransitionKey((k) => k + 1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const openRepairStep = (n: number) => {
+    setStep(n);
+    setTransitionKey((k) => k + 1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const deviceTypes = [
     { id: 'smartphone', label: 'Smartphone', icon: Smartphone },
     { id: 'tablet', label: 'Tablet', icon: Tablet },
@@ -382,7 +459,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                   <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032]">Device Details</p>
                   <h3 className="text-xl font-black text-white">{formData.brand} {formData.model}</h3>
                 </div>
-                <button onClick={() => setStep(1)} className="text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors">
+                <button type="button" onClick={reopenDeviceWizardFromLaterStep} className="text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors">
                   Change
                 </button>
               </div>
@@ -395,8 +472,12 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                     <h3 className="text-lg font-bold">
                       {deviceTypes.find(d => d.id === formData.deviceType)?.label}
                     </h3>
-                    <button onClick={() => setSubStep(1)} className="text-sm font-bold text-blue-500 hover:text-blue-400">
-                      Change
+                    <button type="button" onClick={changeDeviceTypeSection} className="text-sm font-bold text-blue-500 hover:text-blue-400">
+                      {subStep >= modelPickerSubStep() && formData.deviceType && formData.brand
+                        ? 'Change model'
+                        : formData.brand === 'Apple' && formData.deviceType === 'smartphone' && subStep === 3
+                          ? 'Change category'
+                          : 'Change'}
                     </button>
                   </div>
                 ) : subStep === 1 && (
@@ -407,6 +488,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                         <button key={type.id}
                           onClick={() => {
                             setFormData({ ...formData, deviceType: type.id, brand: '', model: '' });
+                            setSelectedSeries('');
                             setSubStep(2);
                           }}
                           className={`flex flex-col items-center justify-center p-6 sm:p-8 rounded-3xl border transition-all duration-300 ${formData.deviceType === type.id
@@ -423,11 +505,21 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
 
                 {/* 1b: Brand */}
                 {subStep > 2 ? (
-                  <div className="flex justify-between items-center py-5 border-b border-[var(--bb-border)] animate-in fade-in">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between py-5 border-b border-[var(--bb-border)] animate-in fade-in">
                     <h3 className="text-lg font-bold">{formData.brand}</h3>
-                    <button onClick={() => setSubStep(2)} className="text-sm font-bold text-blue-500 hover:text-blue-400">
-                      Change
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                      <button
+                        type="button"
+                        onClick={reopenModelPickerKeepTypeBrand}
+                        className="text-xs font-bold text-white/40 hover:text-[#CDA032] transition-colors px-2 py-1 rounded-lg border border-transparent hover:border-[#CDA032]/30"
+                        title="Keep brand; pick a different model"
+                      >
+                        Different model
+                      </button>
+                      <button type="button" onClick={changeBrandSection} className="text-sm font-bold text-blue-500 hover:text-blue-400">
+                        Change brand
+                      </button>
+                    </div>
                   </div>
                 ) : subStep === 2 && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300 pt-4">
@@ -438,7 +530,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                         </p>
                         <h2 className="text-2xl font-bold tracking-tight">Which brand?</h2>
                       </div>
-                      <button onClick={() => setSubStep(1)} className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-white/40 hover:text-[#CDA032] transition-colors">
+                      <button type="button" onClick={undoToDeviceTypeStep} className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-white/40 hover:text-[#CDA032] transition-colors">
                         <ArrowLeft size={14} /> Back
                       </button>
                     </div>
@@ -534,7 +626,15 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                         </p>
                         <h2 className="text-2xl font-bold tracking-tight">Select your {formData.brand === 'Apple' ? 'iPhone' : 'specific'} model</h2>
                       </div>
-                      <button onClick={() => setSubStep(isApple && formData.deviceType === 'smartphone' ? 3 : 2)} className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-white/40 hover:text-[#CDA032] transition-colors">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData((f) => ({ ...f, model: '' }));
+                          setSubStep(isApple && formData.deviceType === 'smartphone' ? 3 : 2);
+                          setTransitionKey((k) => k + 1);
+                        }}
+                        className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-white/40 hover:text-[#CDA032] transition-colors"
+                      >
                         <ArrowLeft size={14} /> Back
                       </button>
                     </div>
@@ -676,7 +776,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                     {Array.from(selectedIssueKeys).map(k => repairServicesMap[k as keyof typeof repairServicesMap].label).join(' + ')}
                   </h3>
                 </div>
-                <button onClick={() => setStep(2)} className="text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors">
+                <button type="button" onClick={() => openRepairStep(2)} className="text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors">
                   Change
                 </button>
               </div>
@@ -905,7 +1005,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                     {formData.date} at {timeSlots.find(t => t.id === formData.timeSlot)?.time}
                   </h3>
                 </div>
-                <button onClick={() => setStep(3)} className="text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors">
+                <button type="button" onClick={() => openRepairStep(3)} className="text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors">
                   Change
                 </button>
               </div>

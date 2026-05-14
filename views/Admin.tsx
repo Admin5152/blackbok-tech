@@ -20,7 +20,7 @@ import { AdminUsers } from './admin/AdminUsers';
 // import { AdminInbox } from './admin/AdminInbox';
 import {
   Home, Users, Package, ShoppingCart, RefreshCcw,
-  Wrench, LogOut, Menu, X, Shield, Store
+  Wrench, LogOut, Menu, X, Shield, Store, RotateCcw,
 } from 'lucide-react';
 
 interface AdminProps {
@@ -32,13 +32,13 @@ interface AdminProps {
 
 export type AdminSection = 'overview' | 'inbox' | 'orders' | 'customers' | 'products' | 'trades' | 'returns' | 'repairs' | 'users';
 
-// ADM-OV-01: exactly seven primary destinations (Returns stays available via Overview quick actions + direct URL if needed).
 const NAV_ITEMS: { id: AdminSection; label: string; icon: any }[] = [
   { id: 'overview', label: 'Overview', icon: Home },
   { id: 'orders', label: 'Orders', icon: ShoppingCart },
   { id: 'customers', label: 'Customers', icon: Users },
   { id: 'products', label: 'Shop', icon: Package },
   { id: 'trades', label: 'Trade-Ins', icon: RefreshCcw },
+  { id: 'returns', label: 'Returns', icon: RotateCcw },
   { id: 'repairs', label: 'Repairs', icon: Wrench },
   { id: 'users', label: 'User Roles', icon: Shield },
 ];
@@ -292,7 +292,7 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
           {section === 'customers' && <AdminCustomers />}
           {section === 'products' && <AdminProducts canEdit={isSales} />}
           {section === 'trades' && <AdminTrades canEdit={isSales} />}
-          {section === 'returns' && <AdminReturns canEdit={isAdmin} />}
+          {section === 'returns' && <AdminReturns canEdit={isSales} />}
           {section === 'repairs' && <AdminRepairs canEdit={isRepair} />}
           {section === 'users' && <AdminUsers />}
         </main>
