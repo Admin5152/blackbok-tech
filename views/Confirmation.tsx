@@ -21,6 +21,8 @@ const POLL_TIMEOUT_MS = 5 * 60 * 1000;
 const AUTH_FLASH_KEY = 'auth.flash';
 
 export const Confirmation: React.FC<ConfirmationProps> = ({ theme, navigateTo, notify, email, setUser }) => {
+  // Auth route search is validated in App.tsx, but `useNavigate()` here is not
+  // inferred with that shape — use `navigateTo` for `/auth?` flows (typed as loose search).
   const location = useLocation();
   const navigate = useNavigate();
   const isEmailConfirmPage = location.pathname === '/emailconfirm';
@@ -110,8 +112,8 @@ export const Confirmation: React.FC<ConfirmationProps> = ({ theme, navigateTo, n
 
     flashAuthMessage('Email confirmed! Please sign in to continue.');
     notify?.('Email confirmed! Please sign in to continue.', 'success');
-    navigate({ to: '/auth', search: { message: 'Email confirmed! Please sign in to continue.' } });
-  }, [email, isEmailConfirmPage, navigate, notify, trySessionVerifiedLogin]);
+    navigateTo('/auth', { search: { message: 'Email confirmed! Please sign in to continue.' } });
+  }, [email, isEmailConfirmPage, navigate, navigateTo, notify, trySessionVerifiedLogin]);
 
   const goToAuthPage = async () => {
     const loggedIn = await trySessionVerifiedLogin();
@@ -121,7 +123,7 @@ export const Confirmation: React.FC<ConfirmationProps> = ({ theme, navigateTo, n
       return;
     }
     flashAuthMessage('Account verified. Please sign in to continue.');
-    navigate({ to: '/auth', search: { message: 'Account verified. Please sign in to continue.' } });
+    navigateTo('/auth', { search: { message: 'Account verified. Please sign in to continue.' } });
   };
 
   // After Supabase processes the redirect URL, try to sign the user in if the
