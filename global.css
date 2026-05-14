@@ -394,3 +394,24 @@ body {
   -ms-overflow-style: none !important; /* IE and Edge */
   scrollbar-width: none !important; /* Firefox */
 }
+
+/* Receipt: compact print / PDF (route /receipt/:id) */
+@media print {
+  @page {
+    margin: 0.45in;
+    size: auto;
+  }
+  .receipt-print-root {
+    box-shadow: none !important;
+  }
+  .receipt-print-root table {
+    page-break-inside: auto;
+  }
+  .receipt-print-root thead {
+    display: table-header-group;
+  }
+  .receipt-print-root tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

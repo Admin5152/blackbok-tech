@@ -37,11 +37,56 @@ export const heroImages: HeroImage[] = [
     blur: 'low'
   },
   {
-    filename: 'BlackRun.jpeg',
-    title: 'BlackBox Running',
-    description: 'Dynamic action scene',
+    filename: 'IMG_9008.JPG',
+    title: 'Apple Watch Series 11',
+    description: 'Apple Watch Series 11 promotional banner',
     theme_usage: 'both',
-    position: 'top-left',
+    position: 'center',
+    opacity: 0.55,
+    blur: 'low'
+  },
+  {
+    filename: 'IMG_9009.JPG',
+    title: 'PS5 Slim Series',
+    description: 'PlayStation 5 Slim promotional banner',
+    theme_usage: 'both',
+    position: 'center',
+    opacity: 0.55,
+    blur: 'low'
+  },
+  {
+    filename: 'IMG_9010.JPG',
+    title: 'iPhone 17 Pro Max',
+    description: 'iPhone 17 Pro Max promotional banner',
+    theme_usage: 'both',
+    position: 'center',
+    opacity: 0.55,
+    blur: 'low'
+  },
+  {
+    filename: 'IMG_9011.JPG',
+    title: 'Apple AirPods Max',
+    description: 'AirPods Max promotional banner',
+    theme_usage: 'both',
+    position: 'center',
+    opacity: 0.55,
+    blur: 'low'
+  },
+  {
+    filename: 'IMG_9012.JPG',
+    title: 'PlayStation Portal',
+    description: 'PlayStation Portal promotional banner',
+    theme_usage: 'both',
+    position: 'center',
+    opacity: 0.55,
+    blur: 'low'
+  },
+  {
+    filename: 'IMG_9013.JPG',
+    title: 'BlackBox featured',
+    description: 'BlackBox promotional hero image',
+    theme_usage: 'both',
+    position: 'center',
     opacity: 0.55,
     blur: 'low'
   },

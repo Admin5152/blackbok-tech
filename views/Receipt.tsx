@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from '@tanstack/react-router';
-import { ArrowLeft, Package, Calendar, MapPin, CreditCard, User, Phone, Mail, Download, Share2, Check } from 'lucide-react';
+import { ArrowLeft, Download, Share2 } from 'lucide-react';
 import { Order } from '../types';
 import { formatCurrency, formatDate } from '../lib/utils';
 import { supabase } from '../lib/supabase';
@@ -9,6 +9,7 @@ import {
   mergeVariantSkuFallback,
   normalizeOrderItemOptions,
 } from '../lib/orderItemOptions';
+import { BlackBoxReceiptLogo } from '../components/BlackBoxReceiptLogo';
 
 export const Receipt: React.FC = () => {
   const { orderId } = useParams({ from: '/receipt/$orderId' });
@@ -21,7 +22,6 @@ export const Receipt: React.FC = () => {
       if (!orderId) return;
 
       try {
-        // Try to fetch from database first
         const { data: orderData, error } = await supabase
           .from('orders')
           .select(`
@@ -46,16 +46,16 @@ export const Receipt: React.FC = () => {
         if (error) throw error;
 
         if (orderData) {
-          // Transform database data to Order type
           const transformedOrder: Order = {
             id: orderData.id,
+            display_id: orderData.display_id,
             userId: orderData.user_id,
             userName: orderData.customer_name || 'Customer',
             items: orderData.order_items?.map((item: any) => ({
               id: item.product_id,
               name: item.products?.name || item.product_name || 'Product',
-              price: item.price ?? item.unit_price ?? 0,
-              quantity: item.quantity,
+              price: Number(item.price ?? item.unit_price ?? 0),
+              quantity: Number(item.quantity ?? 1),
               image: item.products?.image_url || item.product_image || '/placeholder.png',
               category: 'Accessories' as any,
               stock: 0,
@@ -66,23 +66,25 @@ export const Receipt: React.FC = () => {
               ),
               configurationLine: getOrderItemConfigurationLine(item.product_options),
             })) || [],
-            total: orderData.total_price,
-            status: orderData.status.charAt(0).toUpperCase() + orderData.status.slice(1),
+            total: Number(orderData.total_price ?? 0),
+            status: String(orderData.status || '')
+              .charAt(0)
+              .toUpperCase() + String(orderData.status || '').slice(1),
             date: orderData.created_at,
             paymentMethod: orderData.payment_method || 'card',
             payment_method: orderData.payment_method || 'card',
-            shipping_address: orderData.delivery_location,
-            payment_status: 'paid' as any,
-            shipping_method: orderData.notes?.includes('pickup') ? 'pickup' : 'deliver',
-            shipping_cost: 0
+            shipping_address:
+              orderData.shipping_address || orderData.delivery_location || undefined,
+            payment_status: orderData.payment_status,
+            shipping_method: orderData.shipping_method,
+            shipping_cost: Number(orderData.shipping_cost ?? 0),
           };
 
           setOrder(transformedOrder);
         }
       } catch (error) {
         console.error('Error fetching order:', error);
-        // Fallback to local storage or mock data
-        const mockOrder: Order = {
+        setOrder({
           id: orderId,
           userId: 'local',
           userName: 'Customer',
@@ -95,9 +97,8 @@ export const Receipt: React.FC = () => {
           shipping_address: 'Store Pickup',
           payment_status: 'paid',
           shipping_method: 'pickup',
-          shipping_cost: 0
-        };
-        setOrder(mockOrder);
+          shipping_cost: 0,
+        });
       } finally {
         setLoading(false);
       }
@@ -114,9 +115,9 @@ export const Receipt: React.FC = () => {
     if (navigator.share && order) {
       try {
         await navigator.share({
-          title: `Order Receipt #${order.id.slice(-8).toUpperCase()}`,
-          text: `Order Total: ${formatCurrency(order.total)}`,
-          url: window.location.href
+          title: `BlackBox receipt ${order.display_id || `#${order.id.slice(-8).toUpperCase()}`}`,
+          text: `Total: ${formatCurrency(order.total)}`,
+          url: window.location.href,
         });
       } catch (error) {
         console.error('Error sharing:', error);
@@ -127,10 +128,7 @@ export const Receipt: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-center">
-          <Package size={48} className="text-[#B38B21] animate-pulse mx-auto mb-4" />
-          <p>Loading receipt...</p>
-        </div>
+        <p className="text-sm text-white/60">Loading receipt…</p>
       </div>
     );
   }
@@ -138,176 +136,197 @@ export const Receipt: React.FC = () => {
   if (!order) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Order not found</h2>
+        <div className="text-center space-y-4">
+          <h2 className="text-xl font-bold">Order not found</h2>
           <button
             onClick={() => navigate({ to: '/profile' })}
-            className="px-6 py-3 bg-[#B38B21] text-black rounded-lg font-medium"
+            className="px-6 py-2 bg-[#B38B21] text-black rounded-lg text-sm font-bold"
           >
-            Back to Profile
+            Back to profile
           </button>
         </div>
       </div>
     );
   }
 
-  const subtotal = order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const subtotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const shippingCost = order.shipping_cost || 0;
   const total = subtotal + shippingCost;
+  const orderRef = order.display_id || `#${order.id.slice(-8).toUpperCase()}`;
+  const payMethod = String(order.paymentMethod || order.payment_method || '—');
+  const shipMethod = String(order.shipping_method || '—');
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      {/* Header */}
-      <div className="border-b border-white/10">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-black text-white print:bg-white print:text-black print:min-h-0">
+      {/* Screen toolbar — hidden when printing */}
+      <div className="no-print border-b border-white/10">
+        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => navigate({ to: '/profile' })}
+            className="flex items-center gap-2 text-sm text-white/70 hover:text-white"
+          >
+            <ArrowLeft size={18} />
+            Back
+          </button>
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => navigate({ to: '/profile' })}
-              className="flex items-center gap-2 text-white/60 hover:text-white transition-colors"
+              type="button"
+              onClick={handleShare}
+              className="p-2 rounded-lg bg-white/10 hover:bg-white/15"
+              aria-label="Share receipt"
             >
-              <ArrowLeft size={20} />
-              Back to Profile
+              <Share2 size={18} />
             </button>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleShare}
-                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-              >
-                <Share2 size={18} />
-              </button>
-              <button
-                onClick={handleDownload}
-                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-              >
-                <Download size={18} />
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleDownload}
+              className="p-2 rounded-lg bg-[#B38B21] text-black hover:opacity-90"
+              aria-label="Print or save PDF"
+            >
+              <Download size={18} />
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Receipt Content */}
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-white/5 border border-white/10 rounded-3xl p-8" id="receipt-content">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <div className="w-20 h-20 bg-[#B38B21]/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Check size={40} className="text-[#B38B21]" />
+      <div className="max-w-3xl mx-auto px-3 py-5 print:max-w-none print:px-4 print:py-2">
+        <div
+          id="receipt-content"
+          className="receipt-print-root rounded-2xl border border-white/10 bg-white/[0.04] p-5 sm:p-6 space-y-4 print:rounded-none print:border-gray-300 print:bg-white print:p-3 print:space-y-2 print:shadow-none"
+        >
+          {/* Brand + reference — single compact band */}
+          <header className="flex flex-wrap items-center gap-3 sm:gap-4 border-b border-white/10 pb-3 print:border-gray-300 print:pb-2">
+            <BlackBoxReceiptLogo className="h-9 w-[200px] sm:h-10 sm:w-[220px] shrink-0 text-white print:text-black" />
+            <div className="min-w-0 flex-1 text-right sm:text-left">
+              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#B38B21] print:text-[#8a6a1a]">
+                Receipt
+              </p>
+              <p className="text-sm font-mono font-bold text-white print:text-black">{orderRef}</p>
+              <p className="text-[11px] text-white/45 print:text-gray-600">{formatDate(order.date)}</p>
             </div>
-            <h1 className="text-3xl font-black text-white mb-2">Order Receipt</h1>
-            <p className="text-gray-400">Thank you for your purchase!</p>
-          </div>
+          </header>
 
-          {/* Order Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-            <div className="space-y-4">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Package size={20} className="text-[#B38B21]" />
-                Order Details
-              </h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Order Number</span>
-                  <span className="text-white font-mono">#{order.id.slice(-8).toUpperCase()}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Date</span>
-                  <span className="text-white">{formatDate(order.date)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Status</span>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    order.status === 'Delivered' ? 'bg-green-500/20 text-green-400' :
-                    order.status === 'Ready' ? 'bg-blue-500/20 text-blue-400' :
-                    order.status === 'Processing' ? 'bg-yellow-500/20 text-yellow-400' :
-                    'bg-gray-500/20 text-gray-400'
-                  }`}>
-                    {order.status}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <User size={20} className="text-[#B38B21]" />
-                Customer Information
-              </h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2">
-                  <User size={16} className="text-gray-400" />
-                  <span className="text-white">{order.userName}</span>
-                </div>
-                {order.shipping_address && (
-                  <div className="flex items-center gap-2">
-                    <MapPin size={16} className="text-gray-400" />
-                    <span className="text-white">{order.shipping_address}</span>
-                  </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <CreditCard size={16} className="text-gray-400" />
-                  <span className="text-white capitalize">{order.paymentMethod}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Items */}
-          <div className="mb-8">
-            <h3 className="text-lg font-bold text-white mb-4">Items Ordered</h3>
-            <div className="space-y-3">
-              {order.items.map((item, index) => (
-                <div key={index} className="flex items-center justify-between p-4 bg-white/5 rounded-xl">
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 bg-white/10 rounded-lg flex items-center justify-center">
-                      <Package size={24} className="text-[#B38B21]" />
-                    </div>
-                    <div>
-                      <h4 className="text-white font-medium">{item.name}</h4>
-                      {item.configurationLine ? (
-                        <p className="text-[#B38B21] text-sm font-semibold mt-1">{item.configurationLine}</p>
-                      ) : null}
-                      <p className="text-gray-400 text-sm">Quantity: {item.quantity}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-white font-medium">{formatCurrency(item.price)}</p>
-                    <p className="text-gray-400 text-sm">{formatCurrency(item.price * item.quantity)}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Price Summary */}
-          <div className="border-t border-white/10 pt-6">
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-400">Subtotal</span>
-                <span className="text-white">{formatCurrency(subtotal)}</span>
-              </div>
-              {shippingCost > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-400">Delivery Fee</span>
-                  <span className="text-white">{formatCurrency(shippingCost)}</span>
-                </div>
+          {/* Dense meta — two columns, minimal vertical space */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1 text-[11px] leading-snug print:text-[10px] print:gap-y-0.5">
+            <div className="space-y-1">
+              <p className="text-[9px] font-black uppercase tracking-widest text-white/35 print:text-gray-500">
+                Order
+              </p>
+              <p>
+                <span className="text-white/50 print:text-gray-600">Status</span>{' '}
+                <span className="font-semibold text-white print:text-black">{order.status}</span>
+              </p>
+              {order.payment_status != null && (
+                <p>
+                  <span className="text-white/50 print:text-gray-600">Payment</span>{' '}
+                  <span className="font-semibold text-white print:text-black">{String(order.payment_status)}</span>
+                </p>
               )}
-              <div className="flex justify-between text-lg font-bold pt-2 border-t border-white/10">
-                <span className="text-[#B38B21]">Total</span>
-                <span className="text-[#B38B21]">{formatCurrency(total)}</span>
-              </div>
+            </div>
+            <div className="space-y-1">
+              <p className="text-[9px] font-black uppercase tracking-widest text-white/35 print:text-gray-500">
+                Customer &amp; delivery
+              </p>
+              <p className="font-semibold text-white print:text-black">{order.userName}</p>
+              {order.shipping_address ? (
+                <p className="text-white/70 print:text-gray-700 break-words">{order.shipping_address}</p>
+              ) : null}
+              <p>
+                <span className="text-white/50 print:text-gray-600">Ship</span>{' '}
+                <span className="font-medium capitalize">{shipMethod}</span>
+                {' · '}
+                <span className="text-white/50 print:text-gray-600">Pay</span>{' '}
+                <span className="font-medium capitalize">{payMethod}</span>
+              </p>
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="mt-8 pt-6 border-t border-white/10 text-center">
-            <p className="text-gray-400 text-sm">
-              If you have any questions about your order, please contact our support team.
+          {/* Line items — table stays on one page for typical orders */}
+          <div>
+            <p className="text-[9px] font-black uppercase tracking-widest text-white/35 print:text-gray-500 mb-1.5 print:mb-1">
+              Items
             </p>
-            <p className="text-gray-500 text-xs mt-2">
-              This is a computer-generated receipt and does not require a signature.
-            </p>
+            <div className="overflow-x-auto print:overflow-visible">
+              <table className="w-full text-left text-[11px] print:text-[10px] border-collapse">
+                <thead>
+                  <tr className="border-b border-white/15 text-[9px] font-black uppercase tracking-wider text-white/40 print:border-gray-400 print:text-gray-600">
+                    <th className="py-1.5 pr-2 w-10">Qty</th>
+                    <th className="py-1.5 pr-2">Item</th>
+                    <th className="py-1.5 pr-2 text-right w-20">Each</th>
+                    <th className="py-1.5 text-right w-24">Line</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {order.items.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="py-3 text-white/40 print:text-gray-500">
+                        No line items on this receipt.
+                      </td>
+                    </tr>
+                  ) : (
+                    order.items.map((item, index) => {
+                      const cfg =
+                        item.configurationLine ||
+                        (Object.keys(item.selectedOptions || {}).length
+                          ? Object.entries(item.selectedOptions || {})
+                              .filter(([, v]) => v)
+                              .map(([k, v]) => `${k}: ${v}`)
+                              .join(' · ')
+                          : '');
+                      return (
+                        <tr
+                          key={index}
+                          className="border-b border-white/[0.06] last:border-0 print:border-gray-200"
+                        >
+                          <td className="py-1.5 pr-2 align-top font-bold text-white print:text-black">
+                            {item.quantity}
+                          </td>
+                          <td className="py-1.5 pr-2 align-top min-w-0">
+                            <div className="font-medium text-white print:text-black leading-tight">{item.name}</div>
+                            {cfg ? (
+                              <div className="mt-0.5 text-[10px] print:text-[9px] text-[#B38B21]/90 print:text-gray-700 leading-snug">
+                                {cfg}
+                              </div>
+                            ) : null}
+                          </td>
+                          <td className="py-1.5 pr-2 align-top text-right tabular-nums text-white/80 print:text-gray-800">
+                            {formatCurrency(item.price)}
+                          </td>
+                          <td className="py-1.5 align-top text-right tabular-nums font-semibold text-white print:text-black">
+                            {formatCurrency(item.price * item.quantity)}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
+
+          {/* Totals — compact */}
+          <div className="border-t border-white/10 pt-3 space-y-1 text-[11px] print:border-gray-300 print:pt-2 print:text-[10px]">
+            <div className="flex justify-between text-white/60 print:text-gray-600">
+              <span>Subtotal</span>
+              <span className="tabular-nums">{formatCurrency(subtotal)}</span>
+            </div>
+            {shippingCost > 0 && (
+              <div className="flex justify-between text-white/60 print:text-gray-600">
+                <span>Shipping</span>
+                <span className="tabular-nums">{formatCurrency(shippingCost)}</span>
+              </div>
+            )}
+            <div className="flex justify-between items-baseline pt-1 border-t border-white/10 text-base font-black text-[#B38B21] print:border-gray-300 print:text-black">
+              <span>Total</span>
+              <span className="tabular-nums">{formatCurrency(total)}</span>
+            </div>
+          </div>
+
+          <footer className="pt-2 border-t border-white/10 text-[9px] leading-relaxed text-white/35 text-center print:border-gray-200 print:text-gray-500">
+            Questions? Contact BlackBox support with your order reference above. Computer-generated receipt — no
+            signature required.
+          </footer>
         </div>
       </div>
     </div>

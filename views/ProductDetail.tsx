@@ -591,27 +591,44 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
         })()}
       </div>
 
-      {/* YouTube Style Share Modal */}
+      {/* Share modal — explicit colors so light/dark page theme never leaves text on same tone as panel */}
       {isShareModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
           <div
             className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300"
             onClick={() => setIsShareModalOpen(false)}
           />
-          <div className="relative bg-[#1a1a1a] border border-white/10 w-full max-w-md rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 border-b border-white/5">
-              <h3 className="text-lg font-bold tracking-tight">Share</h3>
+          <div
+            className={`relative w-full max-w-md rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden border ${
+              isLight
+                ? 'bg-white border-black/10 text-[#1d1d1f]'
+                : 'bg-[#141414] border-white/15 text-white'
+            }`}
+            role="dialog"
+            aria-labelledby="share-modal-title"
+          >
+            <div
+              className={`flex items-center justify-between p-4 border-b ${
+                isLight ? 'border-black/10' : 'border-white/10'
+              }`}
+            >
+              <h3 id="share-modal-title" className="text-lg font-bold tracking-tight">
+                Share
+              </h3>
               <button
+                type="button"
                 onClick={() => setIsShareModalOpen(false)}
-                className="p-2 hover:bg-white/5 rounded-full transition-colors"
+                className={`p-2 rounded-full transition-colors ${
+                  isLight
+                    ? 'text-black/70 hover:bg-black/5 hover:text-black'
+                    : 'text-white/80 hover:bg-white/10 hover:text-white'
+                }`}
                 aria-label="Close"
               >
                 <X size={20} />
               </button>
             </div>
 
-            {/* Social Icons */}
             <div className="p-6">
               <div className="flex items-center justify-between gap-4 overflow-x-auto pb-4 no-scrollbar">
                 {shareLinks.map((link) => (
@@ -622,32 +639,58 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                     rel="noopener noreferrer"
                     className="flex flex-col items-center gap-2 group shrink-0"
                   >
-                    <div className={`w-14 h-14 ${link.color} rounded-full flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform`}>
+                    <div
+                      className={`w-14 h-14 ${link.color} rounded-full flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform`}
+                    >
                       {link.icon}
                     </div>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-white/60 group-hover:text-white transition-colors">
+                    <span
+                      className={`text-[10px] font-black uppercase tracking-widest transition-colors ${
+                        isLight
+                          ? 'text-black/55 group-hover:text-black'
+                          : 'text-white/85 group-hover:text-white'
+                      }`}
+                    >
                       {link.name}
                     </span>
                   </a>
                 ))}
               </div>
 
-              {/* URL Copy Row */}
               <div className="mt-6">
-                <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3 ml-1">Copy Link</p>
-                <div className="flex items-center gap-2 bg-black/50 border border-white/10 p-1.5 rounded-xl">
+                <p
+                  className={`text-[10px] font-black uppercase tracking-widest mb-3 ml-1 ${
+                    isLight ? 'text-black/45' : 'text-white/70'
+                  }`}
+                >
+                  Copy link
+                </p>
+                <div
+                  className={`flex items-center gap-2 p-1.5 rounded-xl border ${
+                    isLight ? 'bg-[#f5f5f7] border-black/10' : 'bg-black/60 border-white/15'
+                  }`}
+                >
                   <input
                     type="text"
                     readOnly
                     value={shareUrl}
-                    className="flex-1 bg-transparent border-none text-[11px] font-medium text-white/80 px-3 focus:outline-none truncate"
+                    className={`flex-1 min-w-0 bg-transparent border-none text-[12px] font-medium px-3 py-1.5 focus:outline-none truncate ${
+                      isLight ? 'text-black placeholder:text-black/40' : 'text-white placeholder:text-white/40'
+                    }`}
                   />
                   <button
+                    type="button"
                     onClick={handleCopyLink}
-                    className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${isCopied ? 'bg-emerald-500 text-white' : 'bg-[#CDA032] text-black hover:bg-[#B38B21]'}`}
+                    className={`shrink-0 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                      isCopied
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-[#CDA032] text-black hover:bg-[#B38B21]'
+                    }`}
                   >
                     {isCopied ? (
-                      <span className="flex items-center gap-2"><Check size={12} /> Copied</span>
+                      <span className="flex items-center gap-2">
+                        <Check size={12} /> Copied
+                      </span>
                     ) : (
                       'Copy'
                     )}
@@ -656,10 +699,17 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               </div>
             </div>
 
-            {/* Modal Footer / Hint */}
-            <div className="bg-black/20 p-4 text-center">
-              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/30 italic italic">
-                Spread the word about blackbox premium
+            <div
+              className={`p-4 text-center border-t ${
+                isLight ? 'bg-black/[0.03] border-black/8' : 'bg-black/40 border-white/10'
+              }`}
+            >
+              <p
+                className={`text-[9px] font-bold uppercase tracking-[0.2em] ${
+                  isLight ? 'text-black/50' : 'text-white/60'
+                }`}
+              >
+                Share this product from BlackBox
               </p>
             </div>
           </div>
