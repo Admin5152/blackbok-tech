@@ -528,7 +528,7 @@ body {
 /* Receipt: compact print / PDF (route /receipt/:id) */
 @media print {
   @page {
-    margin: 0.45in;
+    margin: 0.35in;
     size: auto;
   }
   .receipt-print-root {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from '@tanstack/react-router';
-import { ArrowLeft, Download, Share2, User, Mail, Phone, MapPin, Truck } from 'lucide-react';
+import { ArrowLeft, Download, Share2 } from 'lucide-react';
 import { Order } from '../types';
 import { formatCurrency, formatDate } from '../lib/utils';
 import { supabase } from '../lib/supabase';
@@ -180,10 +180,10 @@ export const Receipt: React.FC = () => {
   const etaLabel = order.estimated_delivery ? formatDate(order.estimated_delivery) : null;
 
   return (
-    <div className="min-h-screen bg-black text-white print:bg-white print:text-black print:min-h-0">
+    <div className="flex min-h-0 flex-1 flex-col bg-black text-white print:min-h-0 print:bg-white print:text-black">
       {/* Screen toolbar — hidden when printing */}
       <div className="no-print border-b border-white/10">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-3xl mx-auto px-4 py-2 flex items-center justify-between">
           <button
             type="button"
             onClick={() => navigate({ to: '/profile' })}
@@ -213,156 +213,124 @@ export const Receipt: React.FC = () => {
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-3 py-5 print:max-w-none print:px-4 print:py-2">
+      <div className="mx-auto max-w-3xl flex-1 px-3 py-3 print:max-w-none print:px-3 print:py-1">
         <div
           id="receipt-content"
-          className="receipt-print-root rounded-2xl border border-white/10 bg-white/[0.04] p-5 sm:p-6 space-y-4 print:rounded-none print:border-gray-300 print:bg-white print:p-3 print:space-y-2 print:shadow-none"
+          className="receipt-print-root space-y-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 sm:p-5 print:space-y-1.5 print:rounded-none print:border-gray-300 print:bg-white print:p-2.5 print:shadow-none"
         >
           {/* Brand + reference — single compact band */}
-          <header className="flex flex-wrap items-center gap-3 sm:gap-4 border-b border-white/10 pb-3 print:border-gray-300 print:pb-2">
-            <BlackBoxReceiptLogo className="h-9 w-[200px] sm:h-10 sm:w-[220px] shrink-0 text-white print:text-black" />
-            <div className="min-w-0 flex-1 text-right sm:text-left">
-              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#B38B21] print:text-[#8a6a1a]">
+          <header className="flex flex-wrap items-end justify-between gap-2 border-b border-white/10 pb-2 print:border-gray-300 print:pb-1.5">
+            <BlackBoxReceiptLogo className="h-8 w-[180px] shrink-0 text-white sm:h-9 sm:w-[200px] print:h-7 print:w-[170px] print:text-black" />
+            <div className="min-w-0 text-right">
+              <p className="text-[9px] font-black uppercase tracking-[0.25em] text-[#B38B21] print:text-[#8a6a1a]">
                 Receipt
               </p>
-              <p className="text-sm font-mono font-bold text-white print:text-black">{orderRef}</p>
-              <p className="text-[11px] text-white/45 print:text-gray-600">{formatDate(order.date)}</p>
+              <p className="font-mono text-sm font-bold text-white print:text-black">{orderRef}</p>
+              <p className="text-[10px] text-white/45 print:text-gray-600">{formatDate(order.date)}</p>
             </div>
           </header>
 
-          {/* Customer + order details (print-friendly) */}
-          <div className="space-y-3 print:space-y-2">
-            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 sm:p-4 print:border-gray-300 print:bg-gray-50">
-              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#B38B21] print:text-[#8a6a1a] mb-2">
-                Bill to / Customer
-              </p>
-              <div className="space-y-2 text-[11px] print:text-[10px]">
-                <div className="flex items-start gap-2.5 min-w-0">
-                  <User size={14} className="shrink-0 mt-0.5 text-white/40 print:text-gray-500" aria-hidden />
-                  <div className="min-w-0">
-                    <p className="text-[9px] font-black uppercase tracking-wider text-white/35 print:text-gray-500">Name</p>
-                    <p className="font-semibold text-white print:text-black break-words">{displayName}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2.5 min-w-0">
-                  <Mail size={14} className="shrink-0 mt-0.5 text-white/40 print:text-gray-500" aria-hidden />
-                  <div className="min-w-0">
-                    <p className="text-[9px] font-black uppercase tracking-wider text-white/35 print:text-gray-500">Email</p>
-                    <p className="text-white/85 print:text-gray-900 break-all">{displayEmail ?? '—'}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2.5 min-w-0">
-                  <Phone size={14} className="shrink-0 mt-0.5 text-white/40 print:text-gray-500" aria-hidden />
-                  <div className="min-w-0">
-                    <p className="text-[9px] font-black uppercase tracking-wider text-white/35 print:text-gray-500">Phone</p>
-                    <p className="text-white/85 print:text-gray-900">{displayPhone ?? '—'}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2.5 min-w-0">
-                  <MapPin size={14} className="shrink-0 mt-0.5 text-white/40 print:text-gray-500" aria-hidden />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[9px] font-black uppercase tracking-wider text-white/35 print:text-gray-500">
-                      Shipping / pickup
-                    </p>
+          {/* Customer + order + fulfillment — one dense band for screen + single print page */}
+          <div className="overflow-hidden rounded-xl border border-white/10 print:border-gray-300">
+            <div className="grid grid-cols-1 divide-y divide-white/10 md:grid-cols-12 md:divide-x md:divide-y-0 print:grid-cols-12 print:divide-x print:divide-y-0 print:divide-gray-200">
+              <div className="bg-white/[0.03] p-2.5 md:col-span-5 print:bg-gray-50 print:p-2">
+                <p className="mb-1.5 text-[8px] font-black uppercase tracking-[0.28em] text-[#B38B21] print:text-[#8a6a1a]">
+                  Customer
+                </p>
+                <dl className="grid grid-cols-[4.5rem_1fr] gap-x-1.5 gap-y-0.5 text-[10px] leading-snug print:grid-cols-[4rem_1fr] print:text-[8.5px]">
+                  <dt className="text-white/40 print:text-gray-500">Name</dt>
+                  <dd className="min-w-0 font-medium text-white print:text-black break-words">{displayName}</dd>
+                  <dt className="text-white/40 print:text-gray-500">Email</dt>
+                  <dd className="min-w-0 break-all text-white/85 print:text-gray-900">{displayEmail ?? '—'}</dd>
+                  <dt className="text-white/40 print:text-gray-500">Phone</dt>
+                  <dd className="text-white/85 print:text-gray-900">{displayPhone ?? '—'}</dd>
+                  <dt className="align-top text-white/40 print:text-gray-500">Address</dt>
+                  <dd className="min-w-0 text-white/80 print:text-gray-800">
                     {addressSegments.length > 0 ? (
-                      <ul className="mt-0.5 space-y-0.5 text-white/80 print:text-gray-800 list-none pl-0">
-                        {addressSegments.map((line, i) => (
-                          <li key={i} className="break-words leading-snug">
-                            {line}
-                          </li>
-                        ))}
-                      </ul>
+                      <span className="block leading-snug">{addressSegments.join(' · ')}</span>
                     ) : (
-                      <p className="text-white/50 print:text-gray-600">—</p>
+                      <span className="text-white/50 print:text-gray-600">—</span>
                     )}
-                  </div>
-                </div>
+                  </dd>
+                </dl>
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-x-8 text-[11px] leading-snug print:text-[10px]">
-              <div className="space-y-1.5 rounded-xl border border-white/10 bg-white/[0.02] p-3 print:border-gray-300 print:bg-white">
-                <p className="text-[9px] font-black uppercase tracking-widest text-white/35 print:text-gray-500">Order</p>
+              <div className="space-y-1 p-2.5 text-[10px] leading-snug md:col-span-3 print:col-span-3 print:p-2 print:text-[8.5px]">
+                <p className="text-[8px] font-black uppercase tracking-widest text-white/35 print:text-gray-500">Order</p>
                 <p>
                   <span className="text-white/50 print:text-gray-600">Status</span>{' '}
                   <span className="font-semibold text-white print:text-black">{order.status}</span>
                 </p>
                 {order.payment_status != null && (
                   <p>
-                    <span className="text-white/50 print:text-gray-600">Payment status</span>{' '}
+                    <span className="text-white/50 print:text-gray-600">Payment</span>{' '}
                     <span className="font-semibold text-white print:text-black">{String(order.payment_status)}</span>
                   </p>
                 )}
                 <p>
-                  <span className="text-white/50 print:text-gray-600">Pay method</span>{' '}
+                  <span className="text-white/50 print:text-gray-600">Pay</span>{' '}
                   <span className="font-medium capitalize text-white print:text-black">{payMethod}</span>
                 </p>
               </div>
-              <div className="space-y-1.5 rounded-xl border border-white/10 bg-white/[0.02] p-3 print:border-gray-300 print:bg-white">
-                <p className="text-[9px] font-black uppercase tracking-widest text-white/35 print:text-gray-500">
+              <div className="space-y-1 p-2.5 text-[10px] leading-snug md:col-span-4 print:col-span-4 print:p-2 print:text-[8.5px]">
+                <p className="text-[8px] font-black uppercase tracking-widest text-white/35 print:text-gray-500">
                   Fulfillment
                 </p>
-                <p className="flex items-start gap-2">
-                  <Truck size={14} className="shrink-0 mt-0.5 text-white/40 print:text-gray-500" aria-hidden />
-                  <span>
-                    <span className="text-white/50 print:text-gray-600">Ship method</span>{' '}
-                    <span className="font-medium capitalize text-white print:text-black">{shipMethod}</span>
-                  </span>
+                <p>
+                  <span className="text-white/50 print:text-gray-600">Ship</span>{' '}
+                  <span className="font-medium capitalize text-white print:text-black">{shipMethod}</span>
                 </p>
                 {order.tracking_number ? (
-                  <p>
+                  <p className="break-all">
                     <span className="text-white/50 print:text-gray-600">Tracking</span>{' '}
-                    <span className="font-mono font-semibold text-white print:text-black break-all">
-                      {order.tracking_number}
-                    </span>
+                    <span className="font-mono font-semibold text-white print:text-black">{order.tracking_number}</span>
                   </p>
                 ) : null}
                 {etaLabel ? (
                   <p>
-                    <span className="text-white/50 print:text-gray-600">Est. delivery</span>{' '}
-                    <span className="font-medium text-white print:text-black">{etaLabel}</span>
+                    <span className="text-white/50 print:text-gray-600">Est.</span>{' '}
+                    <span className="text-white print:text-black">{etaLabel}</span>
                   </p>
                 ) : null}
                 {order.actual_delivery ? (
                   <p>
                     <span className="text-white/50 print:text-gray-600">Delivered</span>{' '}
-                    <span className="font-medium text-white print:text-black">{formatDate(order.actual_delivery)}</span>
+                    <span className="text-white print:text-black">{formatDate(order.actual_delivery)}</span>
                   </p>
                 ) : null}
               </div>
             </div>
-
-            {order.notes ? (
-              <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3 print:border-gray-300 print:bg-white">
-                <p className="text-[9px] font-black uppercase tracking-widest text-white/35 print:text-gray-500 mb-1">
-                  Notes
-                </p>
-                <p className="text-[11px] text-white/75 print:text-gray-800 whitespace-pre-wrap break-words leading-relaxed">
-                  {order.notes}
-                </p>
-              </div>
-            ) : null}
           </div>
 
-          {/* Line items — table stays on one page for typical orders */}
+          {order.notes ? (
+            <div className="rounded-lg border border-white/10 bg-white/[0.02] p-2 print:border-gray-300 print:bg-white print:p-1.5">
+              <p className="mb-0.5 text-[8px] font-black uppercase tracking-widest text-white/35 print:text-gray-500">
+                Notes
+              </p>
+              <p className="max-h-16 overflow-y-auto text-[10px] leading-snug text-white/75 print:max-h-none print:text-[8px] print:text-gray-800 whitespace-pre-wrap break-words">
+                {order.notes}
+              </p>
+            </div>
+          ) : null}
+
+          {/* Line items */}
           <div>
-            <p className="text-[9px] font-black uppercase tracking-widest text-white/35 print:text-gray-500 mb-1.5 print:mb-1">
+            <p className="mb-1 text-[8px] font-black uppercase tracking-widest text-white/35 print:text-gray-500 print:mb-0.5">
               Items
             </p>
             <div className="overflow-x-auto print:overflow-visible">
-              <table className="w-full text-left text-[11px] print:text-[10px] border-collapse">
+              <table className="w-full border-collapse text-left text-[10px] print:text-[8.5px]">
                 <thead>
-                  <tr className="border-b border-white/15 text-[9px] font-black uppercase tracking-wider text-white/40 print:border-gray-400 print:text-gray-600">
-                    <th className="py-1.5 pr-2 w-10">Qty</th>
-                    <th className="py-1.5 pr-2">Item</th>
-                    <th className="py-1.5 pr-2 text-right w-20">Each</th>
-                    <th className="py-1.5 text-right w-24">Line</th>
+                  <tr className="border-b border-white/15 text-[8px] font-black uppercase tracking-wider text-white/40 print:border-gray-400 print:text-gray-600">
+                    <th className="w-8 py-1 pr-1 print:py-0.5">Qty</th>
+                    <th className="py-1 pr-1 print:py-0.5">Item</th>
+                    <th className="w-[4.5rem] py-1 pr-1 text-right print:py-0.5">Each</th>
+                    <th className="w-[4.5rem] py-1 text-right print:py-0.5">Line</th>
                   </tr>
                 </thead>
                 <tbody>
                   {order.items.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="py-3 text-white/40 print:text-gray-500">
+                      <td colSpan={4} className="py-2 text-white/40 print:py-1 print:text-gray-500">
                         No line items on this receipt.
                       </td>
                     </tr>
@@ -381,21 +349,21 @@ export const Receipt: React.FC = () => {
                           key={index}
                           className="border-b border-white/[0.06] last:border-0 print:border-gray-200"
                         >
-                          <td className="py-1.5 pr-2 align-top font-bold text-white print:text-black">
+                          <td className="py-1 pr-1 align-top font-bold text-white print:py-0.5 print:text-black">
                             {item.quantity}
                           </td>
-                          <td className="py-1.5 pr-2 align-top min-w-0">
-                            <div className="font-medium text-white print:text-black leading-tight">{item.name}</div>
+                          <td className="min-w-0 py-1 pr-1 align-top print:py-0.5">
+                            <div className="font-medium leading-tight text-white print:text-black">{item.name}</div>
                             {cfg ? (
-                              <div className="mt-0.5 text-[10px] print:text-[9px] text-[#B38B21]/90 print:text-gray-700 leading-snug">
+                              <div className="mt-0.5 text-[9px] leading-snug text-[#B38B21]/90 print:text-[7.5px] print:text-gray-700">
                                 {cfg}
                               </div>
                             ) : null}
                           </td>
-                          <td className="py-1.5 pr-2 align-top text-right tabular-nums text-white/80 print:text-gray-800">
+                          <td className="py-1 pr-1 align-top text-right tabular-nums text-white/80 print:py-0.5 print:text-gray-800">
                             {formatCurrency(item.price)}
                           </td>
-                          <td className="py-1.5 align-top text-right tabular-nums font-semibold text-white print:text-black">
+                          <td className="py-1 align-top text-right tabular-nums font-semibold text-white print:py-0.5 print:text-black">
                             {formatCurrency(item.price * item.quantity)}
                           </td>
                         </tr>
@@ -408,7 +376,7 @@ export const Receipt: React.FC = () => {
           </div>
 
           {/* Totals — compact */}
-          <div className="border-t border-white/10 pt-3 space-y-1 text-[11px] print:border-gray-300 print:pt-2 print:text-[10px]">
+          <div className="space-y-0.5 border-t border-white/10 pt-2 text-[10px] print:border-gray-300 print:pt-1 print:text-[8.5px]">
             <div className="flex justify-between text-white/60 print:text-gray-600">
               <span>Subtotal</span>
               <span className="tabular-nums">{formatCurrency(subtotal)}</span>
@@ -419,15 +387,14 @@ export const Receipt: React.FC = () => {
                 <span className="tabular-nums">{formatCurrency(shippingCost)}</span>
               </div>
             )}
-            <div className="flex justify-between items-baseline pt-1 border-t border-white/10 text-base font-black text-[#B38B21] print:border-gray-300 print:text-black">
+            <div className="flex items-baseline justify-between border-t border-white/10 pt-1 text-sm font-black text-[#B38B21] print:border-gray-300 print:pt-0.5 print:text-xs print:text-black">
               <span>Total</span>
               <span className="tabular-nums">{formatCurrency(total)}</span>
             </div>
           </div>
 
-          <footer className="pt-2 border-t border-white/10 text-[9px] leading-relaxed text-white/35 text-center print:border-gray-200 print:text-gray-500">
-            Questions? Contact BlackBox support with your order reference above. Computer-generated receipt — no
-            signature required.
+          <footer className="border-t border-white/10 pt-1.5 text-center text-[7px] leading-snug text-white/35 print:border-gray-200 print:text-[6.5px] print:text-gray-500">
+            Questions? Contact BlackBox with your order reference. Computer-generated receipt — no signature required.
           </footer>
         </div>
       </div>

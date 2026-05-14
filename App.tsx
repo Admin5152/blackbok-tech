@@ -50,6 +50,8 @@ import { History } from './views/History';
 import { Tracking } from './views/Tracking';
 import { OrderReceipt } from './views/OrderReceipt';
 import { Receipt } from './views/Receipt';
+import { TradeReceipt } from './views/TradeReceipt';
+import { RepairReceipt } from './views/RepairReceipt';
 import { ReturnsPage } from './views/ReturnsPage';
 // import { orders } from './data/orders'; 
 import { QuickViewModal } from './components/QuickViewModal';
@@ -610,6 +612,18 @@ const trackingRoute = createRoute({
   },
 });
 
+const receiptTradeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/receipt/trade/$tradeId',
+  component: () => <TradeReceipt />,
+});
+
+const receiptRepairRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/receipt/repair/$repairId',
+  component: () => <RepairReceipt />,
+});
+
 const receiptRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/receipt/$orderId',
@@ -729,6 +743,8 @@ const routeTree = rootRoute.addChildren([
   contactRoute,
   historyRoute,
   trackingRoute,
+  receiptTradeRoute,
+  receiptRepairRoute,
   receiptRoute,
   returnsRoute,
   promotionsRoute,
@@ -798,6 +814,8 @@ function RootComponent() {
   const isConfirmationRoute = location.pathname === '/confirmation';
   const isEmailConfirmRoute = location.pathname === '/emailconfirm';
   const isStandaloneRoute = isAdminRoute || isForgotPasswordRoute || isResetPasswordRoute || isConfirmationRoute || isEmailConfirmRoute;
+  /** Order / trade / repair receipt pages — no site chrome; minimal wordmark footer only. */
+  const isReceiptRoute = location.pathname.startsWith('/receipt/');
 
   // Memoized so the context value identity is stable and admin views
   // can call it directly (or fire the `products:refresh` window event
@@ -1184,6 +1202,20 @@ function RootComponent() {
         <div className={`min-h-screen ${isLight ? 'bg-[#FAFAFA] text-black' : 'bg-[#060606] text-white'}`}>
           <Outlet />
         </div>
+      ) : isReceiptRoute ? (
+        <div
+          className={`flex min-h-screen flex-col ${showWelcomeScreen ? 'pointer-events-none opacity-0' : 'opacity-100'} bg-black text-white print:bg-white print:text-black`}
+        >
+          <main className="flex min-h-0 flex-1 flex-col">
+            <Outlet />
+          </main>
+          <footer
+            className="shrink-0 border-t border-white/10 py-3 text-center text-[10px] font-black uppercase tracking-[0.45em] text-white/45 print:border-gray-200 print:text-gray-500 print:py-2"
+            aria-label="BlackBox"
+          >
+            BLACKBOX
+          </footer>
+        </div>
       ) : (
         <div className={`flex flex-col min-h-screen selection:bg-[#B38B21] selection:text-black ${showWelcomeScreen ? 'opacity-0 pointer-events-none' : 'opacity-100'} ${isLight ? 'bg-[#F0F0F0] text-black' : 'bg-black text-white'}`}>
           <Navbar
@@ -1196,6 +1228,7 @@ function RootComponent() {
             trades={trades}
             theme={theme}
             setTheme={setTheme}
+            searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             setUser={setUser}
           />
