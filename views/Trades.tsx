@@ -8,6 +8,7 @@ import { useNavigate } from '@tanstack/react-router';
 import type { Product, TradeRequest } from '../types';
 import { useAppContext } from '../App';
 import { TRADE_DEVICES_KEY } from './admin/adminUtils';
+import { DEFAULT_TRADE_DEVICES, mergeTradeDevicesFromStorageArray } from '../data/tradeInDevices';
 import { createTradeRequest, getTradeRequests, updateTradeRequest } from '../lib/api';
 import { saveResumeAfterAuth, peekRestorePayload, clearRestorePayload } from '../lib/resumeAfterAuth';
 
@@ -40,34 +41,6 @@ const BRANDS_WITH_IMGS = [
   { id: 'HP',        label: 'HP',        img: '/hp_laptop.png'       },
   { id: 'Lenovo',    label: 'Lenovo',    img: '/lenovo_laptop.png'   },
   { id: 'Other',     label: 'Other',     img: '/other_device.png'    },
-];
-
-// ── Full device/model catalogue ────────────────────────────────────────────────
-const DEFAULT_TRADE_DEVICES = [
-  // Smartphones
-  { id: 'iphone',      deviceType: 'smartphone', brand: 'Apple',     name: 'iPhone',          img: '/iphone_modern.png',   variants: ['iPhone 16 Pro Max','iPhone 16 Pro','iPhone 16','iPhone 15 Pro Max','iPhone 15 Pro','iPhone 15','iPhone 14 Pro Max','iPhone 14 Pro','iPhone 14','iPhone 13','iPhone 12','iPhone 11','iPhone X','iPhone SE','Other iPhone'] },
-  { id: 'galaxy',      deviceType: 'smartphone', brand: 'Samsung',   name: 'Galaxy Phone',    img: '/galaxy_s24.png',      variants: ['Galaxy S25 Ultra','Galaxy S24 Ultra','Galaxy S24+','Galaxy S24','Galaxy S23 Ultra','Galaxy S23','Galaxy Z Fold 6','Galaxy Z Flip 6','Galaxy A55','Galaxy A35','Other Samsung'] },
-  { id: 'pixel',       deviceType: 'smartphone', brand: 'Google',    name: 'Google Pixel',    img: '/pixel_phone.png',     variants: ['Pixel 9 Pro XL','Pixel 9 Pro','Pixel 9','Pixel 8 Pro','Pixel 8','Pixel 7 Pro','Pixel 7','Pixel 6','Other Pixel'] },
-  { id: 'xperia',      deviceType: 'smartphone', brand: 'Sony',      name: 'Xperia',          img: '/sony_phone.png',      variants: ['Xperia 1 VI','Xperia 5 VI','Xperia 10 VI','Other Xperia'] },
-  { id: 'phone_other', deviceType: 'smartphone', brand: 'Other',     name: 'Other Phone',     img: '/other_device.png',    variants: ['Other Smartphone'] },
-  // Laptops
-  { id: 'macbook',     deviceType: 'laptop',     brand: 'Apple',     name: 'MacBook',         img: '/iphone_modern.png',   variants: ['MacBook Pro M4','MacBook Pro M3','MacBook Air M3','MacBook Air M2','MacBook Air M1','MacBook Pro M1','Older MacBook'] },
-  { id: 'surface',     deviceType: 'laptop',     brand: 'Microsoft', name: 'Surface',         img: '/surface.png',         variants: ['Surface Pro 11','Surface Pro 10','Surface Laptop 6','Surface Laptop 5','Surface Book','Other Surface'] },
-  { id: 'dell_lap',    deviceType: 'laptop',     brand: 'Dell',      name: 'Dell Laptop',     img: '/dell_laptop.png',     variants: ['XPS 15','XPS 13','Inspiron 15','Inspiron 13','Latitude','Other Dell'] },
-  { id: 'hp_lap',      deviceType: 'laptop',     brand: 'HP',        name: 'HP Laptop',       img: '/hp_laptop.png',       variants: ['Spectre x360','Envy','Pavilion','EliteBook','ProBook','Other HP'] },
-  { id: 'lenovo',      deviceType: 'laptop',     brand: 'Lenovo',    name: 'Lenovo Laptop',   img: '/lenovo_laptop.png',   variants: ['ThinkPad X1','ThinkPad E Series','IdeaPad','Legion','Yoga','Other Lenovo'] },
-  // Tablets
-  { id: 'ipad',        deviceType: 'tablet',     brand: 'Apple',     name: 'iPad',            img: '/iphone_modern.png',   variants: ['iPad Pro M4','iPad Pro M2','iPad Air M2','iPad Air M1','iPad (10th gen)','iPad mini','Older iPad'] },
-  { id: 'galaxy_tab',  deviceType: 'tablet',     brand: 'Samsung',   name: 'Galaxy Tab',      img: '/galaxy_s24.png',      variants: ['Galaxy Tab S10 Ultra','Galaxy Tab S9','Galaxy Tab S8','Galaxy Tab A9','Other Galaxy Tab'] },
-  // Gaming
-  { id: 'ps',          deviceType: 'gaming',     brand: 'Sony',      name: 'PlayStation',     img: '/sony_phone.png',      variants: ['PS5 Disc Edition','PS5 Digital Edition','PS4 Pro','PS4 Slim','PS4','PS VR2','Other PlayStation'] },
-  { id: 'xbox',        deviceType: 'gaming',     brand: 'Microsoft', name: 'Xbox',            img: '/surface.png',         variants: ['Xbox Series X','Xbox Series S','Xbox One X','Xbox One S','Xbox One','Other Xbox'] },
-  { id: 'switch',      deviceType: 'gaming',     brand: 'Nintendo',  name: 'Nintendo Switch', img: '/nintendo_switch.png', variants: ['Switch OLED','Switch V2','Switch Lite','Original Switch'] },
-  // Watches
-  { id: 'awatch',      deviceType: 'watch',      brand: 'Apple',     name: 'Apple Watch',     img: '/iphone_modern.png',   variants: ['Apple Watch Series 10','Apple Watch Ultra 2','Apple Watch Series 9','Apple Watch SE','Older Apple Watch'] },
-  { id: 'gwatch',      deviceType: 'watch',      brand: 'Samsung',   name: 'Galaxy Watch',    img: '/galaxy_s24.png',      variants: ['Galaxy Watch 7','Galaxy Watch Ultra','Galaxy Watch 6','Galaxy Watch 5','Other Galaxy Watch'] },
-  // Other
-  { id: 'other_dev',   deviceType: 'other',      brand: 'Other',     name: 'Other Device',    img: '/other_device.png',    variants: ['Headphones / Earbuds','Smart Speaker','Camera','Drone','Other'] },
 ];
 
 // ── Status badge ───────────────────────────────────────────────────────────────
@@ -153,18 +126,15 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     }
   }, [step, subStep]);
 
-  // Admin device list override
+  // Admin device list override (merged onto catalog so deviceType/brand/img stay valid)
   useEffect(() => {
     try {
       const d = localStorage.getItem(TRADE_DEVICES_KEY);
       if (d) {
         const parsed = JSON.parse(d);
-        setTradeDevices(parsed.map((dev: any) => {
-          const def = DEFAULT_TRADE_DEVICES.find(x => x.id === dev.id);
-          return { ...def, ...dev };
-        }));
+        setTradeDevices(mergeTradeDevicesFromStorageArray(parsed));
       }
-    } catch {}
+    } catch { /* keep DEFAULT_TRADE_DEVICES */ }
   }, []);
 
   // Load past trades
@@ -231,8 +201,16 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
 
   // Brands that have devices of the selected type
   const brandsForType = useMemo(() => {
-    const brandsInUse = new Set(tradeDevices.filter(d => d.deviceType === selectedDeviceType).map(d => d.brand));
-    return BRANDS_WITH_IMGS.filter(b => brandsInUse.has(b.id));
+    const brandsInUse = new Set(
+      tradeDevices.filter((d) => d.deviceType === selectedDeviceType).map((d) => d.brand),
+    );
+    const rows: { id: string; label: string; img: string }[] = [];
+    brandsInUse.forEach((bid) => {
+      const preset = BRANDS_WITH_IMGS.find((b) => b.id === bid);
+      if (preset) rows.push(preset);
+      else rows.push({ id: bid, label: bid, img: '/other_device.png' });
+    });
+    return rows.sort((a, b) => a.label.localeCompare(b.label));
   }, [tradeDevices, selectedDeviceType]);
 
   // Devices filtered by type + brand

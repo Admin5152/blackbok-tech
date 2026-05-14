@@ -4,18 +4,13 @@ import { Badge, SearchInput, Modal, ModalClose, EmptyState, Td, Th, TableWrapper
 import { getTradeRequests, updateTradeRequest } from '../../lib/api';
 import type { TradeRequest } from '../../types';
 import { formatCurrency } from '../../lib/utils';
-
-const DEFAULT_TRADE_DEVICES = [
-    { id: 'iphone', name: 'iPhone', variants: ['iPhone 16 Pro Max', 'iPhone 16 Pro', 'iPhone 16', 'iPhone 15 Pro Max', 'iPhone 15 Pro', 'iPhone 15', 'iPhone 14 Pro Max', 'iPhone 14 Pro', 'iPhone 14', 'iPhone 13', 'iPhone 12', 'iPhone 11', 'iPhone X', 'Other iPhone'] },
-    { id: 'samsung', name: 'Samsung Phone', variants: ['Galaxy S25 Ultra', 'Galaxy S24 Ultra', 'Galaxy S24+', 'Galaxy S24', 'Galaxy S23', 'Galaxy Z Fold', 'Galaxy Z Flip', 'Galaxy A Series', 'Other Samsung'] },
-    { id: 'pixel', name: 'Google Pixel', variants: ['Pixel 9 Pro', 'Pixel 9', 'Pixel 8 Pro', 'Pixel 8', 'Pixel 7 Pro', 'Pixel 7', 'Other Pixel'] },
-    { id: 'macbook', name: 'MacBook', variants: ['MacBook Pro M4', 'MacBook Pro M3', 'MacBook Air M3', 'MacBook Air M2', 'MacBook Air M1', 'MacBook Pro M1', 'Older MacBook'] },
-    { id: 'ipad', name: 'iPad', variants: ['iPad Pro M4', 'iPad Pro M2', 'iPad Air M2', 'iPad Air M1', 'iPad (10th gen)', 'iPad mini', 'Older iPad'] },
-    { id: 'laptop', name: 'Laptop', variants: ['Dell XPS', 'HP Spectre', 'Lenovo ThinkPad', 'Microsoft Surface', 'Asus ZenBook', 'Other Laptop'] },
-    { id: 'gaming', name: 'Gaming Console', variants: ['PS5', 'PS4 Pro', 'PS4', 'Xbox Series X', 'Xbox Series S', 'Xbox One', 'Nintendo Switch OLED', 'Nintendo Switch'] },
-    { id: 'watch', name: 'Smartwatch', variants: ['Apple Watch Series 10', 'Apple Watch Ultra 2', 'Apple Watch SE', 'Galaxy Watch 7', 'Pixel Watch 3', 'Other Smartwatch'] },
-    { id: 'other', name: 'Other Device', variants: ['AirPods Pro', 'AirPods', 'Headphones', 'Camera', 'Monitor', 'Other'] },
-];
+import {
+  DEFAULT_TRADE_DEVICES,
+  mergeTradeDevicesFromStorageArray,
+  type TradeInCatalogDevice,
+  TRADE_DEVICE_TYPE_OPTIONS,
+  TRADE_BRAND_OPTIONS,
+} from '../../data/tradeInDevices';
 
 const CONDITION_OPTIONS = ['Like New', 'Excellent', 'Good', 'Fair', 'Poor'];
 const TRADE_STATUS_LABELS: Record<string, string> = {
@@ -51,7 +46,7 @@ interface Props { canEdit?: boolean; }
 
 export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
     const [trades, setTrades] = useState<TradeRequest[]>([]);
-    const [devices, setDevices] = useState(DEFAULT_TRADE_DEVICES);
+    const [devices, setDevices] = useState<TradeInCatalogDevice[]>(DEFAULT_TRADE_DEVICES);
     const [loading, setLoading] = useState(true);
     const [q, setQ] = useState('');
     const [statusF, setStatusF] = useState('All');
@@ -62,6 +57,8 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
     const [saving, setSaving] = useState(false);
     const [showDevMgr, setShowDevMgr] = useState(false);
     const [newDevName, setNewDevName] = useState('');
+    const [newDevType, setNewDevType] = useState<TradeInCatalogDevice['deviceType']>('other');
+    const [newDevBrand, setNewDevBrand] = useState<string>('Other');
     const [newVariant, setNewVariant] = useState('');
     const [editDevId, setEditDevId] = useState<string | null>(null);
 
@@ -73,11 +70,14 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
             .finally(() => setLoading(false));
         try {
             const d = localStorage.getItem(TRADE_DEVICES_KEY);
-            if (d) setDevices(JSON.parse(d));
-        } catch { }
+            if (d) {
+                const parsed = JSON.parse(d);
+                setDevices(mergeTradeDevicesFromStorageArray(parsed));
+            }
+        } catch { /* keep DEFAULT_TRADE_DEVICES */ }
     }, []);
 
-    const saveDevices = (d: typeof devices) => {
+    const saveDevices = (d: TradeInCatalogDevice[]) => {
         setDevices(d);
         localStorage.setItem(TRADE_DEVICES_KEY, JSON.stringify(d));
     };
@@ -147,9 +147,28 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
         modalOfferRaw != null && modalOfferRaw !== '' && Number.isFinite(Number(modalOfferRaw));
     const showOfferReviewCard = !!sel && (modalHasOfferAmount || !!sel.condition);
 
-    const addDevice = () => { if (!newDevName.trim()) return; saveDevices([...devices, { id: `dev_${Date.now()}`, name: newDevName.trim(), variants: [] }]); setNewDevName(''); };
+    const addDevice = () => {
+        if (!newDevName.trim()) return;
+        const row: TradeInCatalogDevice = {
+            id: `dev_${Date.now()}`,
+            name: newDevName.trim(),
+            deviceType: newDevType,
+            brand: newDevBrand,
+            img: '/other_device.png',
+            variants: [],
+        };
+        saveDevices([...devices, row]);
+        setNewDevName('');
+        setNewDevType('other');
+        setNewDevBrand('Other');
+    };
     const rmDevice = (id: string) => saveDevices(devices.filter(d => d.id !== id));
-    const addVariant = (devId: string) => { if (!newVariant.trim()) return; saveDevices(devices.map(d => d.id === devId ? { ...d, variants: [...d.variants, newVariant.trim()] } : d)); setNewVariant(''); setEditDevId(null); };
+    const addVariant = (devId: string) => {
+        if (!newVariant.trim()) return;
+        saveDevices(devices.map(d => d.id === devId ? { ...d, variants: [...d.variants, newVariant.trim()] } : d));
+        setNewVariant('');
+        setEditDevId(null);
+    };
     const rmVariant = (devId: string, v: string) => saveDevices(devices.map(d => d.id === devId ? { ...d, variants: d.variants.filter(x => x !== v) } : d));
 
     return (
@@ -329,35 +348,91 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                     <ModalClose onClose={() => setShowDevMgr(false)} />
                     <div className="p-6">
                         <h3 className="text-base font-black text-white mb-1">Manage Trade-In Devices</h3>
-                        <p className="text-[10px] text-white/30 mb-5">These devices will appear in the user-facing trade-in form.</p>
+                        <p className="text-[10px] text-white/30 mb-4">
+                            Edits save to this browser&apos;s storage and sync to the customer trade-in flow. Each row needs a <strong className="text-white/50">type</strong> and <strong className="text-white/50">brand</strong> so devices show under the right steps.
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2 mb-4">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (!window.confirm('Reset catalog to built-in defaults? Your custom devices will be removed from this browser.')) return;
+                                    saveDevices([...DEFAULT_TRADE_DEVICES]);
+                                }}
+                                className="text-[10px] font-black uppercase text-white/40 hover:text-[#B38B21] border border-white/10 rounded-lg px-2 py-1.5"
+                            >
+                                Restore defaults
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
+                            <input
+                                value={newDevName}
+                                onChange={e => setNewDevName(e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addDevice(); } }}
+                                placeholder="Device line name (e.g. Surface Pro)"
+                                className="sm:col-span-2 bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:border-[#B38B21]/50 focus:outline-none"
+                            />
+                            <select
+                                value={newDevType}
+                                onChange={e => setNewDevType(e.target.value as TradeInCatalogDevice['deviceType'])}
+                                className="bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:border-[#B38B21]/50 focus:outline-none"
+                            >
+                                {TRADE_DEVICE_TYPE_OPTIONS.map(opt => (
+                                    <option key={opt.id} value={opt.id}>{opt.label}</option>
+                                ))}
+                            </select>
+                            <select
+                                value={newDevBrand}
+                                onChange={e => setNewDevBrand(e.target.value)}
+                                className="bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:border-[#B38B21]/50 focus:outline-none"
+                            >
+                                {TRADE_BRAND_OPTIONS.map(b => (
+                                    <option key={b} value={b}>{b}</option>
+                                ))}
+                            </select>
+                        </div>
                         <div className="flex gap-2 mb-5">
-                            <input value={newDevName} onChange={e => setNewDevName(e.target.value)} placeholder="New device category"
-                                className="flex-1 bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:border-[#B38B21]/50 focus:outline-none" />
-                            <button onClick={addDevice} className="px-4 py-2 bg-[#B38B21] text-black font-black text-xs uppercase rounded-xl hover:bg-[#D4AF37] transition-all flex items-center gap-1"><Plus size={13} />Add</button>
+                            <button type="button" onClick={addDevice} className="w-full sm:w-auto px-4 py-2 bg-[#B38B21] text-black font-black text-xs uppercase rounded-xl hover:bg-[#D4AF37] transition-all flex items-center justify-center gap-1">
+                                <Plus size={13} /> Add device line
+                            </button>
                         </div>
                         <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
                             {devices.map(dev => (
                                 <div key={dev.id} className="bg-black/40 border border-white/5 rounded-xl p-4">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <span className="text-sm font-black text-white">{dev.name}</span>
-                                        <div className="flex items-center gap-2">
-                                            <button onClick={() => setEditDevId(editDevId === dev.id ? null : dev.id)} className="text-[10px] text-[#B38B21] font-black uppercase">+ Variant</button>
-                                            <button onClick={() => rmDevice(dev.id)} className="p-1 rounded-lg bg-red-500/10 text-red-400"><Trash2 size={12} /></button>
+                                    <div className="flex items-start justify-between gap-2 mb-2">
+                                        <div className="min-w-0">
+                                            <span className="text-sm font-black text-white block truncate">{dev.name}</span>
+                                            <span className="text-[9px] text-white/35 uppercase tracking-wider">{dev.deviceType} · {dev.brand}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <button type="button" onClick={() => setEditDevId(editDevId === dev.id ? null : dev.id)} className="text-[10px] text-[#B38B21] font-black uppercase whitespace-nowrap">+ Variant</button>
+                                            <button type="button" onClick={() => rmDevice(dev.id)} className="p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20" aria-label={`Remove ${dev.name}`}><Trash2 size={12} /></button>
                                         </div>
                                     </div>
                                     {editDevId === dev.id && (
                                         <div className="flex gap-2 mb-2">
-                                            <input value={newVariant} onChange={e => setNewVariant(e.target.value)} placeholder="e.g. iPhone 17 Pro"
-                                                className="flex-1 bg-black/50 border border-white/10 rounded-lg px-2.5 py-1.5 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none" />
-                                            <button onClick={() => addVariant(dev.id)} className="px-2.5 py-1.5 bg-[#B38B21] text-black font-black text-[10px] rounded-lg"><Check size={12} /></button>
-                                            <button onClick={() => setEditDevId(null)} className="px-2.5 py-1.5 bg-white/5 text-white/40 text-[10px] rounded-lg"><X size={12} /></button>
+                                            <input
+                                                value={newVariant}
+                                                onChange={e => setNewVariant(e.target.value)}
+                                                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addVariant(dev.id); } }}
+                                                placeholder="e.g. iPhone 17 Pro"
+                                                className="flex-1 bg-black/50 border border-white/10 rounded-lg px-2.5 py-1.5 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none"
+                                            />
+                                            <button type="button" onClick={() => addVariant(dev.id)} className="px-2.5 py-1.5 bg-[#B38B21] text-black font-black text-[10px] rounded-lg shrink-0" aria-label="Add variant"><Check size={12} /></button>
+                                            <button type="button" onClick={() => { setEditDevId(null); setNewVariant(''); }} className="px-2.5 py-1.5 bg-white/5 text-white/40 text-[10px] rounded-lg shrink-0" aria-label="Cancel"><X size={12} /></button>
                                         </div>
                                     )}
                                     <div className="flex flex-wrap gap-1.5">
                                         {dev.variants.map(v => (
-                                            <div key={v} className="flex items-center gap-1 bg-white/5 rounded-lg px-2 py-1 group">
+                                            <div key={`${dev.id}-${v}`} className="flex items-center gap-1 bg-white/5 rounded-lg px-2 py-1">
                                                 <span className="text-[10px] text-white/50">{v}</span>
-                                                <button onClick={() => rmVariant(dev.id, v)} className="opacity-0 group-hover:opacity-100 text-red-400 transition-opacity"><X size={10} /></button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => rmVariant(dev.id, v)}
+                                                    className="text-red-400/90 hover:text-red-300 p-0.5 shrink-0"
+                                                    aria-label={`Remove variant ${v}`}
+                                                >
+                                                    <X size={10} />
+                                                </button>
                                             </div>
                                         ))}
                                     </div>
