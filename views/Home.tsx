@@ -274,14 +274,11 @@ export const Home: React.FC<HomeProps> = ({
       {/* Featured Products — horizontal scroll + quick view (same pattern as accessories / laptop) */}
       <section className={`section-connector py-6 md:py-10 overflow-hidden ${isDark ? 'bg-gradient-to-b from-[#050508] via-[#0a0a12] to-[#050508]' : 'bg-white'}`}>
         <div className="max-w-screen-2xl mx-auto">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6 px-4 md:px-8">
+          <div className="mb-6 flex flex-col gap-4 px-4 sm:flex-row sm:items-center sm:justify-between md:px-8">
             <div className="min-w-0">
-              <h2 className={`text-3xl md:text-4xl font-heading font-bold tracking-wider ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+              <h2 className={`text-3xl font-heading font-bold tracking-wider md:text-4xl ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                 Featured Products
               </h2>
-              <p className={`text-sm md:text-base mt-1 max-w-xl ${isDark ? 'text-zinc-400' : 'text-gray-600'}`}>
-                Curated picks — scroll, tap a card or the eye icon for a quick look.
-              </p>
             </div>
             <div className="flex items-center justify-end gap-3 shrink-0">
               <button
