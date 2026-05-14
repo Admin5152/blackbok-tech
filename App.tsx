@@ -344,6 +344,9 @@ const profileRoute = createRoute({
 const authRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/auth',
+  validateSearch: (search: Record<string, unknown>) => ({
+    message: typeof search.message === 'string' ? search.message : undefined,
+  }),
   component: () => {
     const context = useAppContext();
     return <Auth setUser={context.setUser} navigateTo={context.navigateTo} notify={context.notify} />;
@@ -639,7 +642,15 @@ const confirmationRoute = createRoute({
   component: () => {
     const context = useAppContext();
     const { email } = confirmationRoute.useSearch();
-    return <Confirmation theme={context.theme} navigateTo={context.navigateTo} notify={context.notify} email={email} />;
+    return (
+      <Confirmation
+        theme={context.theme}
+        navigateTo={context.navigateTo}
+        notify={context.notify}
+        email={email}
+        setUser={context.setUser}
+      />
+    );
   },
   validateSearch: (search: Record<string, unknown>) => {
     return {
@@ -654,7 +665,15 @@ const emailConfirmRoute = createRoute({
   component: () => {
     const context = useAppContext();
     const { email } = emailConfirmRoute.useSearch();
-    return <Confirmation theme={context.theme} navigateTo={context.navigateTo} notify={context.notify} email={email} />;
+    return (
+      <Confirmation
+        theme={context.theme}
+        navigateTo={context.navigateTo}
+        notify={context.notify}
+        email={email}
+        setUser={context.setUser}
+      />
+    );
   },
   validateSearch: (search: Record<string, unknown>) => {
     return {
@@ -1063,9 +1082,19 @@ function RootComponent() {
       console.log('Opening external URL:', to);
       window.open(to, '_blank', 'noopener,noreferrer');
     } else {
-      const path = to === 'home' ? '/' : (to.startsWith('/') ? to : `/${to}`);
-      console.log('Navigating to path:', path);
-      navigate({ to: path as any });
+      let path = to === 'home' ? '/' : (to.startsWith('/') ? to : `/${to}`);
+      let searchFromPath: Record<string, string> | undefined;
+      const qIdx = path.indexOf('?');
+      if (qIdx !== -1) {
+        const qs = path.slice(qIdx + 1);
+        path = path.slice(0, qIdx) || '/';
+        searchFromPath = Object.fromEntries(new URLSearchParams(qs).entries());
+      }
+      if (searchFromPath && Object.keys(searchFromPath).length > 0) {
+        navigate({ to: path as any, search: searchFromPath as any });
+      } else {
+        navigate({ to: path as any });
+      }
     }
     setIsMobileMenuOpen(false);
     scrollToDocumentTop();

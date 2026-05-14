@@ -52,37 +52,46 @@ export class EmailConfirmationService {
     }
   }
 
-  // Check email confirmation by email address
+  // Check email confirmation for the **current browser session** only.
+  // The anon client cannot look up arbitrary emails; after the user clicks
+  // the Supabase link, `getSession()` exposes their user (including
+  // `email_confirmed_at`) so "Check status" and polling can work.
   static async checkEmailConfirmationByEmail(email: string): Promise<EmailConfirmationStatus | null> {
     try {
       console.log('Checking email confirmation status for email:', email);
-      
+
       if (!isSupabaseConfigured()) {
         console.error('Supabase not configured');
         return null;
       }
 
       const client = getSupabaseClient();
-      
-      // Find user by email - use a different approach since admin.listUsers might not be available
-      const { data: { user }, error } = await client.auth.getUser();
-      
+      const { data: { session }, error } = await client.auth.getSession();
+
       if (error) {
-        console.error('Error fetching user:', error);
+        console.error('Error reading session:', error);
         return null;
       }
-      
-      if (!user || user.email !== email) {
-        console.log('User not found with email:', email);
+
+      const user = session?.user;
+      if (!user) {
+        console.log('No active session — user has not opened the confirmation link in this browser yet');
+        return null;
+      }
+
+      const sessionEmail = (user.email || '').trim().toLowerCase();
+      const target = (email || '').trim().toLowerCase();
+      if (target && sessionEmail !== target) {
+        console.log('Session email does not match confirmation page email');
         return null;
       }
 
       const status: EmailConfirmationStatus = {
-        isEmailConfirmed: user.email_confirmed_at ? true : false,
+        isEmailConfirmed: Boolean(user.email_confirmed_at),
         email: user.email || '',
         createdAt: user.created_at,
         lastSignInAt: user.last_sign_in_at,
-        needsConfirmation: !user.email_confirmed_at
+        needsConfirmation: !user.email_confirmed_at,
       };
 
       console.log('Email confirmation status:', status);
@@ -162,21 +171,37 @@ export class EmailConfirmationService {
     }
   }
 
-  // Check if user clicked confirmation link in current session
+  // Best-effort: Supabase may put tokens in `search`, in the hash before the
+  // router path (`#access_token=...`), or after it (`#/route?...`).
   static checkConfirmationClickFromUrl(): { confirmed: boolean; email?: string } {
     try {
-      const urlParams = new URLSearchParams(window.location.search);
+      const search = window.location.search || '';
+      const hash = window.location.hash || '';
+      const urlParams = new URLSearchParams(search);
       const confirmed = urlParams.get('confirmed');
-      const access_token = urlParams.get('access_token');
-      const refresh_token = urlParams.get('refresh_token');
-      
-      console.log('Checking URL for confirmation params:', { confirmed, hasAccessToken: !!access_token, hasRefreshToken: !!refresh_token });
-      
-      if (confirmed === 'true' && access_token) {
-        // Extract email from token or get from current user
+      const accessInSearch = urlParams.get('access_token');
+      const accessInHash = /access_token=/.test(hash);
+      const looksLikeSignup =
+        /(^|[?&#])type=signup(?:&|$)/i.test(search + '&' + hash) ||
+        /(^|[?&#])type=email_confirm(?:&|$)/i.test(search + '&' + hash);
+
+      console.log('Checking URL for confirmation params:', {
+        confirmed,
+        hasAccessTokenSearch: !!accessInSearch,
+        hasAccessTokenHash: accessInHash,
+        looksLikeSignup,
+      });
+
+      if (confirmed === 'true' && accessInSearch) {
         return { confirmed: true };
       }
-      
+      if (accessInSearch && looksLikeSignup) {
+        return { confirmed: true };
+      }
+      if (accessInHash && looksLikeSignup) {
+        return { confirmed: true };
+      }
+
       return { confirmed: false };
     } catch (error) {
       console.error('Error checking confirmation from URL:', error);
