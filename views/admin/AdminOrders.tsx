@@ -177,7 +177,11 @@ export const AdminOrders: React.FC = () => {
                 shortTail.includes(query) ||
                 (o.shipping_address || '').toLowerCase().includes(query) ||
                 dateStr.includes(query) ||
-                o.items.some(item => (item.name || '').toLowerCase().includes(query));
+                o.items.some(item => {
+                    const cfg = (item.configurationLine || '').toLowerCase();
+                    const optBlob = Object.values(item.selectedOptions || {}).join(' ').toLowerCase();
+                    return (item.name || '').toLowerCase().includes(query) || cfg.includes(query) || optBlob.includes(query);
+                });
 
             const matchS = statusFilter === 'All' || o.status === statusFilter;
 
@@ -300,9 +304,16 @@ export const AdminOrders: React.FC = () => {
                                 <Td>
                                     <div className="flex flex-col gap-1 max-w-[150px] sm:max-w-[200px]">
                                         {o.items.slice(0, 2).map((item, i) => (
-                                            <p key={i} className="text-[11px] text-white/70 truncate group-hover:text-white transition-colors">
-                                                <span className="font-black text-[#B38B21]">{item.quantity}x</span> {item.name}
-                                            </p>
+                                            <div key={i} className="min-w-0">
+                                                <p className="text-[11px] text-white/70 truncate group-hover:text-white transition-colors">
+                                                    <span className="font-black text-[#B38B21]">{item.quantity}x</span> {item.name}
+                                                </p>
+                                                {item.configurationLine ? (
+                                                    <p className="text-[9px] text-[#B38B21]/80 font-bold truncate mt-0.5" title={item.configurationLine}>
+                                                        {item.configurationLine}
+                                                    </p>
+                                                ) : null}
+                                            </div>
                                         ))}
                                         {o.items.length > 2 && (
                                             <p className="text-[9px] font-bold text-white/30 uppercase mt-0.5">
@@ -404,7 +415,23 @@ export const AdminOrders: React.FC = () => {
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <h4 className="text-sm font-bold text-white truncate">{item.name}</h4>
-                                                <p className="text-xs text-white/40 truncate">{item.description || item.category}</p>
+                                                {item.configurationLine ? (
+                                                    <p className="text-[11px] font-bold text-[#B38B21] mt-1.5 leading-snug" title={item.configurationLine}>
+                                                        {item.configurationLine}
+                                                    </p>
+                                                ) : item.selectedOptions && Object.keys(item.selectedOptions).length > 0 ? (
+                                                    <div className="flex flex-wrap gap-1.5 mt-2">
+                                                        {Object.entries(item.selectedOptions).map(([k, v]) => (
+                                                            v ? (
+                                                                <span key={k} className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-[#B38B21]/15 text-[#B38B21] border border-[#B38B21]/25">
+                                                                    {k}: {v}
+                                                                </span>
+                                                            ) : null
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-xs text-white/40 truncate mt-0.5">{item.description || item.category}</p>
+                                                )}
                                             </div>
                                             <div className="text-right flex-shrink-0">
                                                 <p className="text-sm font-black text-white">{formatCurrency(item.price)}</p>

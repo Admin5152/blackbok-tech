@@ -118,6 +118,8 @@ export interface CartItem {
   description?: string;
   stock: number;
   selectedOptions?: Record<string, string>;
+  /** Staff-facing one line from checkout (Color: … · Storage: …). */
+  configurationLine?: string;
 }
 
 export interface Wishlist {

@@ -172,7 +172,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-14">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
 
           {/* Image Section */}
           <div className="relative">
@@ -190,37 +190,39 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             )}
           </div>
 
-          {/* Info Section */}
-          <div className="space-y-8">
+          {/* Info Section — tight vertical rhythm; options in one card */}
+          <div className="space-y-5">
 
-            <div>
-              <h1 className="text-4xl lg:text-5xl font-extrabold tracking-tight">
+            <div className="space-y-1.5">
+              <p className={`text-[10px] font-black uppercase tracking-[0.35em] ${isLight ? 'text-black/45' : 'text-white/45'}`}>
+                {product.category}
+              </p>
+              <h1 className={`text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-[1.1] ${isLight ? 'text-black' : 'text-white'}`}>
                 {product.name}
               </h1>
-              <p className="text-white/60 mt-2">{product.category}</p>
             </div>
 
-            {/* Price */}
-            <div className="flex items-center gap-5 flex-wrap">
-              <span className="text-3xl font-bold text-[#B38B21]">
+            {/* Price + rating */}
+            <div className="flex items-center gap-4 flex-wrap">
+              <span className="text-2xl sm:text-3xl font-bold text-[#B38B21]">
                 ${product.discount
                   ? (product.price * (1 - product.discount / 100)).toFixed(2)
                   : product.price}
               </span>
 
               {product.discount && (
-                <span className="text-lg text-white/40 line-through">
+                <span className={`text-base line-through ${isLight ? 'text-black/35' : 'text-white/40'}`}>
                   ${product.price}
                 </span>
               )}
 
               {product.rating && (
-                <div className="flex items-center gap-1 text-yellow-400">
-                  <Star className="w-5 h-5 fill-yellow-400" />
-                  <span className="text-white">{product.rating}</span>
+                <div className="flex items-center gap-1.5 text-yellow-400">
+                  <Star className="w-5 h-5 fill-yellow-400 shrink-0" />
+                  <span className={isLight ? 'text-black' : 'text-white'}>{product.rating}</span>
                   <button
                     onClick={() => scrollTo(reviewsRef)}
-                    className="text-white/40 text-sm hover:text-white/70 transition-colors"
+                    className={`text-sm transition-colors ${isLight ? 'text-black/40 hover:text-black/70' : 'text-white/40 hover:text-white/70'}`}
                     aria-label="Jump to reviews"
                     type="button"
                   >
@@ -230,90 +232,119 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               )}
             </div>
 
-            {/* Overview */}
-            <div ref={overviewRef as any} className="pt-6">
-              <h2 className="text-sm font-black uppercase tracking-[0.35em] text-[#B38B21] mb-4">Overview</h2>
+            {normalizedVariants.length > 0 && (
+              <div
+                className={`rounded-2xl border p-4 sm:p-5 space-y-3.5 ${
+                  isLight ? 'border-black/10 bg-white shadow-sm' : 'border-white/10 bg-white/[0.03]'
+                }`}
+              >
+                {normalizedVariants.map((variant) => {
+                  const isColorGroup = variant.name.trim().toLowerCase() === 'color';
+                  const sel = (selectedOptions[variant.name] || '').trim();
+                  return (
+                    <div key={variant.name} className="space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className={`text-[10px] font-black uppercase tracking-[0.2em] shrink-0 ${isLight ? 'text-black/45' : 'text-white/45'}`}>
+                          {variant.name}
+                        </span>
+                        {sel ? (
+                          <span
+                            className="text-xs font-bold text-[#B38B21] truncate text-right max-w-[58%]"
+                            title={sel}
+                          >
+                            {sel}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className={`flex flex-wrap ${isColorGroup ? 'gap-2.5' : 'gap-2'}`}>
+                        {variant.options.map((option, optIdx) => {
+                          const opt = toOptionString(option);
+                          const ol = opt.toLowerCase();
+                          const isSelected = selectedOptions[variant.name] === opt;
+                          if (isColorGroup) {
+                            return (
+                              <button
+                                key={`${variant.name}-${optIdx}-${opt}`}
+                                type="button"
+                                title={opt}
+                                aria-label={`${variant.name}: ${opt}${isSelected ? ', selected' : ''}`}
+                                aria-pressed={isSelected}
+                                onClick={() => handleOptionChange(variant.name, opt)}
+                                className={`relative shrink-0 w-10 h-10 rounded-full border-2 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B38B21] ${
+                                  isLight ? 'focus-visible:ring-offset-2 focus-visible:ring-offset-white' : 'focus-visible:ring-offset-2 focus-visible:ring-offset-[#060605]'
+                                } ${ol === 'white' ? (isLight ? 'ring-1 ring-black/25' : 'ring-1 ring-white/30') : ''} ${
+                                  isSelected
+                                    ? 'border-[#B38B21] ring-2 ring-[#B38B21]/35 scale-[1.03]'
+                                    : isLight
+                                      ? 'border-black/20 hover:border-black/40'
+                                      : 'border-white/30 hover:border-white/55'
+                                }`}
+                                style={{
+                                  backgroundColor:
+                                    ol === 'black'
+                                      ? '#000'
+                                      : ol === 'white'
+                                        ? '#fff'
+                                        : ol === 'red'
+                                          ? '#ef4444'
+                                          : ol === 'blue'
+                                            ? '#3b82f6'
+                                            : ol === 'green'
+                                              ? '#10b981'
+                                              : ol === 'yellow'
+                                                ? '#eab308'
+                                                : ol === 'purple'
+                                                  ? '#a855f7'
+                                                  : ol === 'pink'
+                                                    ? '#ec4899'
+                                                    : ol === 'gray' || ol === 'grey'
+                                                      ? '#6b7280'
+                                                      : ol === 'silver'
+                                                        ? '#9ca3af'
+                                                        : ol === 'gold' || ol === 'golden'
+                                                          ? '#f59e0b'
+                                                          : '#6b7280',
+                                }}
+                              />
+                            );
+                          }
+                          return (
+                            <button
+                              key={`${variant.name}-${optIdx}-${opt}`}
+                              type="button"
+                              onClick={() => handleOptionChange(variant.name, opt)}
+                              className={`shrink-0 min-w-[2.5rem] px-3.5 py-2 rounded-xl text-xs font-bold tracking-wide transition-all border ${
+                                isSelected
+                                  ? 'border-[#B38B21] bg-[#B38B21]/15 text-[#B38B21]'
+                                  : isLight
+                                    ? 'border-black/10 bg-black/[0.02] text-black/75 hover:border-black/25'
+                                    : 'border-white/12 bg-white/[0.04] text-white/80 hover:border-white/28'
+                              }`}
+                            >
+                              {opt}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Overview — after buy box so options + CTA stay above the fold */}
+            <div ref={overviewRef as any} className="pt-1">
+              <h2 className="text-sm font-black uppercase tracking-[0.35em] text-[#B38B21] mb-3">Overview</h2>
               {product.description ? (
-                <p className="text-white/80 leading-relaxed max-w-xl text-lg font-medium">
+                <p className={`leading-relaxed max-w-xl text-base sm:text-lg font-medium ${isLight ? 'text-black/80' : 'text-white/80'}`}>
                   {product.description}
                 </p>
               ) : (
-                <p className="text-white/40 italic max-w-xl text-sm">
+                <p className={`italic max-w-xl text-sm ${isLight ? 'text-black/40' : 'text-white/40'}`}>
                   No description has been added for this product yet.
                 </p>
               )}
             </div>
-
-            {normalizedVariants.length > 0 && (
-              <div className="space-y-6">
-                {normalizedVariants.map((variant) => (
-                  <div key={variant.name}>
-                    <h3 className="text-lg font-bold text-white mb-4 uppercase tracking-wider">
-                      {variant.name}
-                    </h3>
-                    <div className="flex flex-wrap gap-4">
-                      {variant.options.map((option, optIdx) => {
-                        const opt = toOptionString(option);
-                        const ol = opt.toLowerCase();
-                        return (
-                        <button
-                          key={`${variant.name}-${optIdx}-${opt}`}
-                          onClick={() => handleOptionChange(variant.name, opt)}
-                          className={`relative group transition-all duration-300 ${selectedOptions[variant.name] === opt
-                            ? 'scale-110'
-                            : 'hover:scale-105'
-                            }`}
-                        >
-                          {variant.name === 'Color' ? (
-                            <div className="flex flex-col items-center gap-3">
-                              <div
-                                className={`w-12 h-12 rounded-full border-4 shadow-lg transition-all ${selectedOptions[variant.name] === opt
-                                  ? 'border-white ring-4 ring-[#B38B21]/30'
-                                  : 'border-gray-300 hover:border-gray-200'
-                                  }`}
-                                style={{
-                                  backgroundColor: ol === 'black' ? '#000' :
-                                    ol === 'white' ? '#fff' :
-                                      ol === 'red' ? '#ef4444' :
-                                        ol === 'blue' ? '#3b82f6' :
-                                          ol === 'green' ? '#10b981' :
-                                            ol === 'yellow' ? '#eab308' :
-                                              ol === 'purple' ? '#a855f7' :
-                                                ol === 'pink' ? '#ec4899' :
-                                                  ol === 'gray' || ol === 'grey' ? '#6b7280' :
-                                                    ol === 'silver' ? '#9ca3af' :
-                                                      ol === 'gold' || ol === 'golden' ? '#f59e0b' :
-                                                        '#6b7280'
-                                }}
-                              />
-                              <span className={`text-sm font-medium transition-colors ${selectedOptions[variant.name] === opt
-                                ? 'text-[#B38B21]'
-                                : 'text-white/60 group-hover:text-white/80'
-                                }`}>
-                                {opt}
-                              </span>
-                              {selectedOptions[variant.name] === opt && (
-                                <div className="absolute -top-1 -right-1 w-4 h-4 bg-[#B38B21] rounded-full flex items-center justify-center">
-                                  <div className="w-2 h-2 bg-white rounded-full"></div>
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <div className={`px-6 py-3 rounded-full border text-sm font-medium transition-all ${selectedOptions[variant.name] === opt
-                              ? 'border-[#B38B21] bg-[#B38B21]/20 text-[#B38B21] shadow-lg shadow-[#B38B21]/20'
-                              : 'border-white/20 hover:border-white/40 hover:bg-white/5 text-white/80'
-                              }`}>
-                              {opt}
-                            </div>
-                          )}
-                        </button>
-                      );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
 
             {/* Quantity */}
             <div className="flex items-center gap-6 flex-wrap">
@@ -365,18 +396,18 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             </div>
 
             {/* Features */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 pt-8 border-t border-white/10 text-center">
+            <div className={`grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 pt-5 border-t text-center ${isLight ? 'border-black/10' : 'border-white/10'}`}>
               <div>
                 <Truck className="mx-auto mb-2 text-[#B38B21]" />
-                <p className="text-xs text-white/60">Free Shipping</p>
+                <p className={`text-xs ${isLight ? 'text-black/50' : 'text-white/60'}`}>Free Shipping</p>
               </div>
               <div>
                 <Shield className="mx-auto mb-2 text-[#B38B21]" />
-                <p className="text-xs text-white/60">1 Year Warranty</p>
+                <p className={`text-xs ${isLight ? 'text-black/50' : 'text-white/60'}`}>1 Year Warranty</p>
               </div>
               <div>
                 <RefreshCw className="mx-auto mb-2 text-[#B38B21]" />
-                <p className="text-xs text-white/60">30 Day Returns</p>
+                <p className={`text-xs ${isLight ? 'text-black/50' : 'text-white/60'}`}>30 Day Returns</p>
               </div>
             </div>
 

@@ -23,6 +23,7 @@ import { OrderCompletePopup } from '../components/OrderCompletePopup';
 import { CouponInput } from '../components/checkout/CouponInput';
 import type { AppliedCoupon } from '../hooks/useCoupons';
 import { useCheckout, type CheckoutCartItem } from '../hooks/useCheckout';
+import { buildProductOptionsForRpc } from '../lib/orderItemOptions';
 import { normalizeCanonicalRole } from '../lib/roles';
 
 // ============================================================
@@ -68,7 +69,7 @@ function toCheckoutCartItem(item: CartItem): CheckoutCartItem {
     unit_price: Number(item.price || 0),
     product_name: item.name ?? null,
     product_image: item.image ?? item.image_url ?? null,
-    product_options: item.selectedOptions ?? null,
+    product_options: buildProductOptionsForRpc(item.selectedOptions),
   };
 }
 

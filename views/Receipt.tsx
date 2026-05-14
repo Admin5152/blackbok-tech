@@ -4,6 +4,11 @@ import { ArrowLeft, Package, Calendar, MapPin, CreditCard, User, Phone, Mail, Do
 import { Order } from '../types';
 import { formatCurrency, formatDate } from '../lib/utils';
 import { supabase } from '../lib/supabase';
+import {
+  getOrderItemConfigurationLine,
+  mergeVariantSkuFallback,
+  normalizeOrderItemOptions,
+} from '../lib/orderItemOptions';
 
 export const Receipt: React.FC = () => {
   const { orderId } = useParams({ from: '/receipt/$orderId' });
@@ -25,6 +30,10 @@ export const Receipt: React.FC = () => {
               product_id,
               quantity,
               price,
+              unit_price,
+              product_name,
+              product_image,
+              product_options,
               products (
                 name,
                 image_url
@@ -44,13 +53,18 @@ export const Receipt: React.FC = () => {
             userName: orderData.customer_name || 'Customer',
             items: orderData.order_items?.map((item: any) => ({
               id: item.product_id,
-              name: item.products?.name || 'Product',
-              price: item.price,
+              name: item.products?.name || item.product_name || 'Product',
+              price: item.price ?? item.unit_price ?? 0,
               quantity: item.quantity,
-              image: item.products?.image_url || '/placeholder.png',
+              image: item.products?.image_url || item.product_image || '/placeholder.png',
               category: 'Accessories' as any,
               stock: 0,
-              description: ''
+              description: '',
+              selectedOptions: mergeVariantSkuFallback(
+                normalizeOrderItemOptions(item.product_options),
+                item.product_variants,
+              ),
+              configurationLine: getOrderItemConfigurationLine(item.product_options),
             })) || [],
             total: orderData.total_price,
             status: orderData.status.charAt(0).toUpperCase() + orderData.status.slice(1),
@@ -250,6 +264,9 @@ export const Receipt: React.FC = () => {
                     </div>
                     <div>
                       <h4 className="text-white font-medium">{item.name}</h4>
+                      {item.configurationLine ? (
+                        <p className="text-[#B38B21] text-sm font-semibold mt-1">{item.configurationLine}</p>
+                      ) : null}
                       <p className="text-gray-400 text-sm">Quantity: {item.quantity}</p>
                     </div>
                   </div>

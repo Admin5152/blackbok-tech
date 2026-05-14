@@ -25,6 +25,12 @@ import { formatCurrency } from './utils';
 import { normalizeCanonicalRole } from './roles';
 import { resolveUserDisplayName } from './userDisplayName';
 import type { AdminNavBadgeKey } from './navBadgeWatermarks';
+import {
+  buildProductOptionsForRpc,
+  getOrderItemConfigurationLine,
+  mergeVariantSkuFallback,
+  normalizeOrderItemOptions,
+} from './orderItemOptions';
 
 // Normalizes admin-entered category strings (e.g. "Mobile Phones",
 // "Laptops & Notebooks", "Apple iPhones") to one of the canonical
@@ -476,7 +482,7 @@ export const placeOrder = async (
         // works for cart items coming from seed/local products.
         product_name: item.name || item.title || null,
         product_image: item.image || item.image_url || null,
-        product_options: item.selectedOptions || {},
+        product_options: buildProductOptionsForRpc(item.selectedOptions) ?? {},
       };
     });
 
@@ -589,7 +595,11 @@ export const getOrders = async (userId?: string): Promise<Order[]> => {
       ...i,
       name: i.products?.name || i.product_name || 'Item',
       image: i.products?.image_url || i.product_image || null,
-      selectedOptions: i.product_options || (i.product_variants ? { variant: i.product_variants.sku } : {}),
+      selectedOptions: mergeVariantSkuFallback(
+        normalizeOrderItemOptions(i.product_options),
+        i.product_variants,
+      ),
+      configurationLine: getOrderItemConfigurationLine(i.product_options),
       quantity: Number(i.quantity || 1),
       price: Number(i.price ?? i.unit_price ?? 0),
     })),
@@ -640,7 +650,11 @@ export const getAdminOrdersFromItems = async (): Promise<Order[]> => {
       image: row.products?.image_url || row.product_image || null,
       quantity: Number(row.quantity ?? 1),
       price: Number(row.unit_price ?? row.price ?? 0),
-      selectedOptions: row.product_variants ? { variant: row.product_variants.sku } : {}
+      selectedOptions: mergeVariantSkuFallback(
+        normalizeOrderItemOptions(row.product_options),
+        row.product_variants,
+      ),
+      configurationLine: getOrderItemConfigurationLine(row.product_options),
     });
   }
 
@@ -714,7 +728,11 @@ export const getUserOrdersFromItems = async (userId: string): Promise<Order[]> =
       image: row.products?.image_url || row.product_image || null,
       quantity: Number(row.quantity ?? 1),
       price: Number(row.unit_price ?? row.price ?? 0),
-      selectedOptions: row.product_variants ? { variant: row.product_variants.sku } : {}
+      selectedOptions: mergeVariantSkuFallback(
+        normalizeOrderItemOptions(row.product_options),
+        row.product_variants,
+      ),
+      configurationLine: getOrderItemConfigurationLine(row.product_options),
     });
   }
 
@@ -766,6 +784,11 @@ export const getOrder = async (id: string): Promise<Order | null> => {
       image: i.products?.image_url || i.product_image || null,
       quantity: Number(i.quantity ?? 1),
       price: Number(i.price ?? i.unit_price ?? 0),
+      selectedOptions: mergeVariantSkuFallback(
+        normalizeOrderItemOptions(i.product_options),
+        i.product_variants,
+      ),
+      configurationLine: getOrderItemConfigurationLine(i.product_options),
     })),
     total: Number(data.total_price),
     date: data.created_at
