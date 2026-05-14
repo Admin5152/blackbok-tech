@@ -125,6 +125,8 @@ export const Home: React.FC<HomeProps> = ({
   const nextHighlight = () => setCurrentHighlightsIndex((prev) => (prev + 1) % highlights.length);
   const prevHighlight = () => setCurrentHighlightsIndex((prev) => (prev - 1 + highlights.length) % highlights.length);
 
+  const isDark = theme === 'dark';
+
   if (!products || products.length === 0) return null;
 
   const customerReviews = [
@@ -136,7 +138,7 @@ export const Home: React.FC<HomeProps> = ({
   ];
 
   return (
-    <div className="view-transition w-full min-w-0 overflow-hidden bg-black no-print">
+    <div className={`view-transition w-full min-w-0 overflow-hidden no-print ${isDark ? 'bg-[#030308]' : 'bg-[#f5f5f7]'}`}>
       {/* Main Content */}
       {/* Hero — collage + headline; box CTAs; slider */}
       <section className="relative min-h-hero-viewport w-full min-w-0 overflow-hidden bg-[#030303]">
@@ -171,7 +173,10 @@ export const Home: React.FC<HomeProps> = ({
         </div>
 
         <div
-          className="pointer-events-none absolute inset-0 z-[8] bg-gradient-to-b from-black/85 via-black/45 to-black/90 sm:from-black/75 sm:via-black/35 sm:to-black/85"
+          className={`pointer-events-none absolute inset-0 z-[8] ${isDark
+            ? 'bg-gradient-to-b from-black/92 via-zinc-950/55 to-black sm:from-black/88 sm:via-zinc-950/45 sm:to-black'
+            : 'bg-gradient-to-b from-black/85 via-black/45 to-black/90 sm:from-black/75 sm:via-black/35 sm:to-black/85'
+            }`}
           aria-hidden
         />
 
@@ -207,7 +212,7 @@ export const Home: React.FC<HomeProps> = ({
                   </span>
                 </span>
               </h1>
-              <p className="mx-auto mt-3 max-w-[min(100%,22rem)] text-pretty text-sm font-light leading-relaxed text-gray-200/95 drop-shadow-[0_1px_12px_rgba(0,0,0,0.75)] sm:mt-4 sm:max-w-lg sm:text-base md:text-lg">
+              <p className="mx-auto mt-3 max-w-[min(100%,22rem)] text-pretty text-sm font-light leading-relaxed text-zinc-200/95 drop-shadow-[0_1px_14px_rgba(0,0,0,0.85)] sm:mt-4 sm:max-w-lg sm:text-base md:text-lg">
                 Premium tech products, expert repairs, and seamless trade-ins for the modern enthusiast.
               </p>
             </div>
@@ -227,7 +232,10 @@ export const Home: React.FC<HomeProps> = ({
 
               <Link
                 to="/about"
-                className="btn-press inline-flex min-h-[3.25rem] flex-1 items-center justify-center gap-3 rounded-lg border-2 border-white/90 bg-black/55 px-8 py-4 text-center text-sm font-heading font-semibold tracking-wider text-off-white shadow-lg backdrop-blur-md transition-all duration-300 hover:scale-[1.01] hover:border-white hover:bg-black/70 active:scale-[0.99] sm:px-10 sm:py-5"
+                className={`btn-press inline-flex min-h-[3.25rem] flex-1 items-center justify-center gap-3 rounded-lg border-2 px-8 py-4 text-center text-sm font-heading font-semibold tracking-wider shadow-lg backdrop-blur-md transition-all duration-300 hover:scale-[1.01] active:scale-[0.99] sm:px-10 sm:py-5 ${isDark
+                  ? 'border-[#CDA032]/40 bg-black/60 text-off-white hover:border-[#CDA032]/70 hover:bg-black/75'
+                  : 'border-white/90 bg-black/55 text-off-white hover:border-white hover:bg-black/70'
+                  }`}
               >
                 About Us
                 <ArrowRight className="shrink-0 transition-transform group-hover:translate-x-1" size={18} />
@@ -250,7 +258,9 @@ export const Home: React.FC<HomeProps> = ({
                       aria-selected={heroSlide === d}
                       aria-label={`Go to slide ${d + 1} of ${heroSlideCount}`}
                       onClick={() => setHeroSlide(d)}
-                      className={`h-2 shrink-0 rounded-full transition-all duration-500 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${heroSlide === d ? 'w-8 bg-white/95' : 'w-2 bg-white/30 hover:bg-white/50'
+                      className={`h-2 shrink-0 rounded-full transition-all duration-500 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${heroSlide === d
+                        ? `w-8 ${isDark ? 'bg-[#D4AF37] shadow-[0_0_16px_rgba(212,175,55,0.45)]' : 'bg-white/95'}`
+                        : `w-2 ${isDark ? 'bg-white/25 hover:bg-white/45' : 'bg-white/30 hover:bg-white/50'}`
                         }`}
                     />
                   ))}
@@ -262,14 +272,14 @@ export const Home: React.FC<HomeProps> = ({
       </section>
 
       {/* Featured Products — horizontal scroll + quick view (same pattern as accessories / laptop) */}
-      <section className={`section-connector py-6 md:py-10 overflow-hidden ${theme === 'dark' ? 'bg-gradient-to-b from-black to-gray-950' : 'bg-white'}`}>
+      <section className={`section-connector py-6 md:py-10 overflow-hidden ${isDark ? 'bg-gradient-to-b from-[#050508] via-[#0a0a12] to-[#050508]' : 'bg-white'}`}>
         <div className="max-w-screen-2xl mx-auto">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6 px-4 md:px-8">
             <div className="min-w-0">
               <h2 className={`text-3xl md:text-4xl font-heading font-bold tracking-wider ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                 Featured Products
               </h2>
-              <p className={`text-sm md:text-base mt-1 max-w-xl ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+              <p className={`text-sm md:text-base mt-1 max-w-xl ${isDark ? 'text-zinc-400' : 'text-gray-600'}`}>
                 Curated picks — scroll, tap a card or the eye icon for a quick look.
               </p>
             </div>
@@ -277,7 +287,7 @@ export const Home: React.FC<HomeProps> = ({
               <button
                 type="button"
                 onClick={() => document.getElementById('featured-products-slider')?.scrollBy({ left: -400, behavior: 'smooth' })}
-                className={`w-12 h-12 rounded-full border flex items-center justify-center transition-colors ${theme === 'dark' ? 'border-white/20 text-white hover:bg-white hover:text-black' : 'border-black/20 text-black hover:bg-black hover:text-white'}`}
+                className={`w-12 h-12 rounded-full border flex items-center justify-center transition-colors backdrop-blur-sm ${theme === 'dark' ? 'border-white/15 bg-white/[0.04] text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-black/20 text-black hover:bg-black hover:text-white'}`}
                 aria-label="Scroll featured products left"
               >
                 <ChevronLeft size={24} />
@@ -285,7 +295,7 @@ export const Home: React.FC<HomeProps> = ({
               <button
                 type="button"
                 onClick={() => document.getElementById('featured-products-slider')?.scrollBy({ left: 400, behavior: 'smooth' })}
-                className={`w-12 h-12 rounded-full border flex items-center justify-center transition-colors ${theme === 'dark' ? 'border-white/20 text-white hover:bg-white hover:text-black' : 'border-black/20 text-black hover:bg-black hover:text-white'}`}
+                className={`w-12 h-12 rounded-full border flex items-center justify-center transition-colors backdrop-blur-sm ${theme === 'dark' ? 'border-white/15 bg-white/[0.04] text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-black/20 text-black hover:bg-black hover:text-white'}`}
                 aria-label="Scroll featured products right"
               >
                 <ChevronRight size={24} />
@@ -298,7 +308,7 @@ export const Home: React.FC<HomeProps> = ({
             className="flex items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar snap-x snap-mandatory px-4 md:px-8 pb-8"
             style={{ scrollPaddingLeft: 'max(1rem, env(safe-area-inset-left))' }}
           >
-            <div className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#111]' : 'bg-[#f5f5f7]'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between snap-start flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5`}>
+            <div className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#16161f] ring-1 ring-inset ring-white/[0.06]' : 'bg-[#f5f5f7]'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between snap-start flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5`}>
               <div>
                 <h2 className="text-3xl md:text-5xl font-bold mb-4 tracking-tight">Featured picks</h2>
                 <p className={`text-lg md:text-xl ${theme === 'dark' ? 'text-white/70' : 'text-black/70'}`}>
@@ -322,7 +332,7 @@ export const Home: React.FC<HomeProps> = ({
                     onQuickView(p);
                   }
                 }}
-                className={`w-[260px] md:w-[300px] h-[360px] md:h-[420px] rounded-[2rem] snap-start flex-shrink-0 flex flex-col group cursor-pointer overflow-hidden relative shadow-lg ${theme === 'dark' ? 'bg-[#111]' : 'bg-[#ffffff]'}`}
+                className={`w-[260px] md:w-[300px] h-[360px] md:h-[420px] rounded-[2rem] snap-start flex-shrink-0 flex flex-col group cursor-pointer overflow-hidden relative shadow-lg ${theme === 'dark' ? 'bg-[#14141c] border border-white/[0.07] shadow-[0_20px_48px_-14px_rgba(0,0,0,0.6)]' : 'bg-[#ffffff]'}`}
               >
                 <div className="pointer-events-none absolute inset-0 z-10">
                   <div className={`absolute bottom-2 left-2 w-12 h-12 border-b-2 border-l-2 rounded-bl-[1.5rem] transition-colors ${theme === 'dark' ? 'border-white/20' : 'border-[#B38B21]/40'}`} />
@@ -349,7 +359,7 @@ export const Home: React.FC<HomeProps> = ({
                   <Eye size={18} strokeWidth={2.25} />
                 </button>
 
-                <div className="absolute inset-x-0 bottom-0 p-6 flex flex-col z-20 bg-gradient-to-t from-black/5 to-transparent dark:from-black/80 dark:to-transparent">
+                <div className={`absolute inset-x-0 bottom-0 p-6 flex flex-col z-20 bg-gradient-to-t ${theme === 'dark' ? 'from-[#050508]/95 via-[#050508]/35 to-transparent' : 'from-black/5 to-transparent'}`}>
                   <div className="flex items-center gap-2 mb-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-y-2 group-hover:translate-y-0">
                     {[...Array(5)].map((_, i) => (
                       <Star key={i} size={8} className={`${i < Math.floor(p.rating || 4) ? 'text-[#CDA032] fill-current' : theme === 'dark' ? 'text-white/20' : 'text-black/20'}`} />
@@ -413,19 +423,19 @@ export const Home: React.FC<HomeProps> = ({
       </section>
 
       {/* Quick Access / Accessories Slider */}
-      <section className={`py-6 md:py-10 overflow-hidden ${theme === 'dark' ? 'bg-black' : 'bg-[#f5f5f7]'}`}>
+      <section className={`py-6 md:py-10 overflow-hidden ${isDark ? 'bg-[#030308]' : 'bg-[#f5f5f7]'}`}>
         <div className="max-w-screen-2xl mx-auto">
 
           <div className="flex items-center justify-end mb-6 px-4 md:px-8 gap-3">
             <button
               onClick={() => document.getElementById('accessories-slider')?.scrollBy({ left: -400, behavior: 'smooth' })}
-              className={`w-12 h-12 rounded-full border flex items-center justify-center transition-colors ${theme === 'dark' ? 'border-white/20 text-white hover:bg-white hover:text-black' : 'border-black/20 text-black hover:bg-black hover:text-white'}`}
+              className={`w-12 h-12 rounded-full border flex items-center justify-center transition-colors backdrop-blur-sm ${theme === 'dark' ? 'border-white/15 bg-white/[0.04] text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-black/20 text-black hover:bg-black hover:text-white'}`}
             >
               <ChevronLeft size={24} />
             </button>
             <button
               onClick={() => document.getElementById('accessories-slider')?.scrollBy({ left: 400, behavior: 'smooth' })}
-              className={`w-12 h-12 rounded-full border flex items-center justify-center transition-colors ${theme === 'dark' ? 'border-white/20 text-white hover:bg-white hover:text-black' : 'border-black/20 text-black hover:bg-black hover:text-white'}`}
+              className={`w-12 h-12 rounded-full border flex items-center justify-center transition-colors backdrop-blur-sm ${theme === 'dark' ? 'border-white/15 bg-white/[0.04] text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-black/20 text-black hover:bg-black hover:text-white'}`}
             >
               <ChevronRight size={24} />
             </button>
@@ -433,7 +443,7 @@ export const Home: React.FC<HomeProps> = ({
 
           <div id="accessories-slider" className="flex items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar snap-x snap-mandatory px-4 md:px-8 pb-8" style={{ scrollPaddingLeft: 'max(1rem, env(safe-area-inset-left))' }}>
             {/* Promo Card */}
-            <div className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#111]' : 'bg-white'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between snap-start flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5`}>
+            <div className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#16161f] ring-1 ring-inset ring-white/[0.06]' : 'bg-white'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between snap-start flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5`}>
               <div>
                 <h2 className="text-3xl md:text-5xl font-bold mb-4 tracking-tight">Take a peek</h2>
                 <p className={`text-lg md:text-xl ${theme === 'dark' ? 'text-white/70' : 'text-black/70'}`}>The accessories you love.<br />In a fresh mix of colors.</p>
@@ -448,7 +458,7 @@ export const Home: React.FC<HomeProps> = ({
               <div
                 key={p.id}
                 onClick={() => onQuickView(p)}
-                className={`w-[260px] md:w-[300px] h-[360px] md:h-[420px] rounded-[2rem] snap-start flex-shrink-0 flex flex-col group cursor-pointer overflow-hidden relative shadow-lg ${theme === 'dark' ? 'bg-[#111]' : 'bg-[#ffffff]'}`}
+                className={`w-[260px] md:w-[300px] h-[360px] md:h-[420px] rounded-[2rem] snap-start flex-shrink-0 flex flex-col group cursor-pointer overflow-hidden relative shadow-lg ${theme === 'dark' ? 'bg-[#14141c] border border-white/[0.07] shadow-[0_20px_48px_-14px_rgba(0,0,0,0.6)]' : 'bg-[#ffffff]'}`}
               >
                 <div className="pointer-events-none absolute inset-0 z-10">
                   <div className={`absolute bottom-2 left-2 w-12 h-12 border-b-2 border-l-2 rounded-bl-[1.5rem] transition-colors ${theme === 'dark' ? 'border-white/20' : 'border-[#B38B21]/40'}`} />
@@ -475,7 +485,7 @@ export const Home: React.FC<HomeProps> = ({
                   <Eye size={18} strokeWidth={2.25} />
                 </button>
 
-                <div className="absolute inset-x-0 bottom-0 p-6 flex flex-col z-20 bg-gradient-to-t from-black/5 to-transparent dark:from-black/80 dark:to-transparent">
+                <div className={`absolute inset-x-0 bottom-0 p-6 flex flex-col z-20 bg-gradient-to-t ${theme === 'dark' ? 'from-[#050508]/95 via-[#050508]/35 to-transparent' : 'from-black/5 to-transparent'}`}>
                   <div className="flex items-center gap-2 mb-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-y-2 group-hover:translate-y-0">
                     {[...Array(5)].map((_, i) => (
                       <Star key={i} size={8} className={`${i < Math.floor(p.rating || 4) ? 'text-[#CDA032] fill-current' : theme === 'dark' ? 'text-white/20' : 'text-black/20'}`} />
@@ -533,19 +543,19 @@ export const Home: React.FC<HomeProps> = ({
       </section>
 
       {/* Quick Access / Laptop Slider */}
-      <section className={`py-6 md:py-10 overflow-hidden ${theme === 'dark' ? 'bg-black' : 'bg-white'}`}>
+      <section className={`py-6 md:py-10 overflow-hidden ${isDark ? 'bg-[#08080f]' : 'bg-white'}`}>
         <div className="max-w-screen-2xl mx-auto">
 
           <div className="flex items-center justify-end mb-6 px-4 md:px-8 gap-3">
             <button
               onClick={() => document.getElementById('laptop-slider')?.scrollBy({ left: -400, behavior: 'smooth' })}
-              className={`w-12 h-12 rounded-full border flex items-center justify-center transition-colors ${theme === 'dark' ? 'border-white/20 text-white hover:bg-white hover:text-black' : 'border-black/20 text-black hover:bg-black hover:text-white'}`}
+              className={`w-12 h-12 rounded-full border flex items-center justify-center transition-colors backdrop-blur-sm ${theme === 'dark' ? 'border-white/15 bg-white/[0.04] text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-black/20 text-black hover:bg-black hover:text-white'}`}
             >
               <ChevronLeft size={24} />
             </button>
             <button
               onClick={() => document.getElementById('laptop-slider')?.scrollBy({ left: 400, behavior: 'smooth' })}
-              className={`w-12 h-12 rounded-full border flex items-center justify-center transition-colors ${theme === 'dark' ? 'border-white/20 text-white hover:bg-white hover:text-black' : 'border-black/20 text-black hover:bg-black hover:text-white'}`}
+              className={`w-12 h-12 rounded-full border flex items-center justify-center transition-colors backdrop-blur-sm ${theme === 'dark' ? 'border-white/15 bg-white/[0.04] text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-black/20 text-black hover:bg-black hover:text-white'}`}
             >
               <ChevronRight size={24} />
             </button>
@@ -553,7 +563,7 @@ export const Home: React.FC<HomeProps> = ({
 
           <div id="laptop-slider" className="flex items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar snap-x snap-mandatory px-4 md:px-8 pb-8" style={{ scrollPaddingLeft: 'max(1rem, env(safe-area-inset-left))' }}>
             {/* Promo Card */}
-            <div className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#0A0A0A]' : 'bg-[#F2F4F7]'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between snap-start flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5 relative overflow-hidden group`}>
+            <div className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#16161f] ring-1 ring-inset ring-white/[0.06]' : 'bg-[#F2F4F7]'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between snap-start flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5 relative overflow-hidden group`}>
               <div className="relative z-10">
                 <h2 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase leading-tight mb-4">Laptops.</h2>
                 <p className={`text-lg md:text-xl font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-white/40' : 'text-black/40'}`}>Elite MacBooks and<br />Performance machines.</p>
@@ -573,7 +583,7 @@ export const Home: React.FC<HomeProps> = ({
               <div
                 key={p.id}
                 onClick={() => onQuickView(p)}
-                className={`w-[260px] md:w-[300px] h-[360px] md:h-[420px] rounded-[2rem] snap-start flex-shrink-0 flex flex-col group cursor-pointer overflow-hidden relative shadow-lg ${theme === 'dark' ? 'bg-[#111]' : 'bg-[#ffffff]'}`}
+                className={`w-[260px] md:w-[300px] h-[360px] md:h-[420px] rounded-[2rem] snap-start flex-shrink-0 flex flex-col group cursor-pointer overflow-hidden relative shadow-lg ${theme === 'dark' ? 'bg-[#14141c] border border-white/[0.07] shadow-[0_20px_48px_-14px_rgba(0,0,0,0.6)]' : 'bg-[#ffffff]'}`}
               >
                 <div className="pointer-events-none absolute inset-0 z-10">
                   <div className={`absolute bottom-2 left-2 w-12 h-12 border-b-2 border-l-2 rounded-bl-[1.5rem] transition-colors ${theme === 'dark' ? 'border-white/20' : 'border-[#CDA032]/40'}`} />
@@ -600,7 +610,7 @@ export const Home: React.FC<HomeProps> = ({
                   <Eye size={18} strokeWidth={2.25} />
                 </button>
 
-                <div className="absolute inset-x-0 bottom-0 p-6 flex flex-col z-20 bg-gradient-to-t from-black/5 to-transparent dark:from-black/80 dark:to-transparent">
+                <div className={`absolute inset-x-0 bottom-0 p-6 flex flex-col z-20 bg-gradient-to-t ${theme === 'dark' ? 'from-[#050508]/95 via-[#050508]/35 to-transparent' : 'from-black/5 to-transparent'}`}>
                   <div className="flex items-center gap-2 mb-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-y-2 group-hover:translate-y-0">
                     {[...Array(5)].map((_, i) => (
                       <Star key={i} size={8} className={`${i < Math.floor(p.rating || 4) ? 'text-[#CDA032] fill-current' : theme === 'dark' ? 'text-white/20' : 'text-black/20'}`} />
@@ -658,7 +668,7 @@ export const Home: React.FC<HomeProps> = ({
 
 
       {/* Trade-In Section */}
-      <section className="py-12 md:py-16 px-8 relative overflow-hidden bg-black text-white">
+      <section className={`py-12 md:py-16 px-8 relative overflow-hidden border-t ${isDark ? 'border-white/[0.06] bg-gradient-to-b from-[#0a0a10] via-black to-[#050508] text-white' : 'border-black/5 bg-zinc-100 text-zinc-900'}`}>
         {/* Decorative Background Icons */}
         <div className="absolute left-[-5%] top-1/2 -translate-y-1/2 opacity-10 -rotate-12 pointer-events-none">
           <ArrowLeftRight size={300} className="text-[#CDA032]" />
@@ -668,7 +678,7 @@ export const Home: React.FC<HomeProps> = ({
         </div>
 
         <div className="max-w-4xl mx-auto text-center relative z-10 flex flex-col items-center">
-          <h2 className="text-4xl md:text-6xl font-black tracking-tight mb-4">
+          <h2 className={`text-4xl md:text-6xl font-black tracking-tight mb-4 ${isDark ? 'text-white' : 'text-zinc-900'}`}>
             Trade-In & Upgrade
           </h2>
           <div className="w-24 h-1 bg-[#CDA032] mb-12"></div>
@@ -677,7 +687,7 @@ export const Home: React.FC<HomeProps> = ({
             <p className="text-2xl md:text-4xl text-[#CDA032] font-black tracking-tight leading-tight">
               Get up to GHC500 toward your next upgrade
             </p>
-            <p className="text-lg md:text-xl text-white/60 font-medium">
+            <p className={`text-lg md:text-xl font-medium ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
               Your old tech has value. Trade in eligible devices and save instantly.
             </p>
           </div>
@@ -695,7 +705,7 @@ export const Home: React.FC<HomeProps> = ({
       </section>
 
       {/* Repair Section */}
-      <section className={`relative flex flex-col lg:flex-row min-h-[600px] w-full overflow-hidden border-t ${theme === 'dark' ? 'bg-[#0a0a0a] border-white/5' : 'bg-[#F4F4F4] border-black/5'}`}>
+      <section className={`relative flex flex-col lg:flex-row min-h-[600px] w-full overflow-hidden border-t ${isDark ? 'bg-[#0b0b12] border-white/[0.06]' : 'bg-[#F4F4F4] border-black/5'}`}>
         {/* Left Content */}
         <div className="w-full lg:w-1/2 p-8 md:p-12 lg:px-24 lg:py-20 flex flex-col justify-center relative">
           <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
@@ -745,7 +755,7 @@ export const Home: React.FC<HomeProps> = ({
       </section>
 
       {/* Explore Grid Section (Bento-Box Layout) */}
-      <section className={`py-12 md:py-16 px-8 overflow-hidden transition-colors duration-500 ${theme === 'light' ? 'bg-[#F2F4F7]' : 'bg-[#0A0A0A]'
+      <section className={`py-12 md:py-16 px-8 overflow-hidden transition-colors duration-500 ${theme === 'light' ? 'bg-[#F2F4F7]' : 'bg-[#08080e]'
         }`}>
         <div className="max-w-[1440px] mx-auto">
           {/* Header */}
@@ -758,7 +768,7 @@ export const Home: React.FC<HomeProps> = ({
               <div className="w-20 h-1 bg-[#D4AF37]"></div>
             </div>
             {/* Filters / Navigation */}
-            <div className={`flex flex-wrap items-center gap-2 md:gap-4 p-2 rounded-full border ${theme === 'light' ? 'bg-white border-black/10' : 'bg-[#111] border-white/10'
+            <div className={`flex flex-wrap items-center gap-2 md:gap-4 p-2 rounded-full border ${theme === 'light' ? 'bg-white border-black/10' : 'bg-[#14141c] border-white/[0.08]'
               }`}>
               {['All Gear', 'Pro Series', 'Essentials'].map((filter) => {
                 const isActive = exploreFilter === filter;
@@ -807,7 +817,7 @@ export const Home: React.FC<HomeProps> = ({
             )}
 
             {(exploreFilter === 'All Gear' || exploreFilter === 'Essentials') && (
-              <Link to="/store" search={{ category: 'Accessories' } as any} className={`col-span-1 md:col-span-1 row-span-1 md:row-span-2 rounded-[2rem] p-6 flex flex-col justify-between relative overflow-hidden group transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl ${theme === 'light' ? 'bg-white' : 'bg-[#111] border border-white/5'}`}>
+              <Link to="/store" search={{ category: 'Accessories' } as any} className={`col-span-1 md:col-span-1 row-span-1 md:row-span-2 rounded-[2rem] p-6 flex flex-col justify-between relative overflow-hidden group transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl ${theme === 'light' ? 'bg-white' : 'bg-[#14141c] border border-white/[0.07] shadow-[0_12px_40px_-8px_rgba(0,0,0,0.5)]'}`}>
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 z-10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
 
                 <div className="flex justify-between items-start z-20">
@@ -896,7 +906,7 @@ export const Home: React.FC<HomeProps> = ({
             )}
 
             {(exploreFilter === 'All Gear' || exploreFilter === 'Essentials') && (
-              <Link to="/trades" className={`col-span-1 md:col-span-1 row-span-1 rounded-[2rem] p-8 relative overflow-hidden group transition-transform duration-500 hover:-translate-y-1 hover:shadow-xl flex flex-col justify-end ${theme === 'light' ? 'bg-[#F9FAFB] shadow-inner' : 'bg-[#111] shadow-inner border border-white/5'}`}>
+              <Link to="/trades" className={`col-span-1 md:col-span-1 row-span-1 rounded-[2rem] p-8 relative overflow-hidden group transition-transform duration-500 hover:-translate-y-1 hover:shadow-xl flex flex-col justify-end ${theme === 'light' ? 'bg-[#F9FAFB] shadow-inner' : 'bg-[#14141c] shadow-inner border border-white/[0.07]'}`}>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent z-10 opacity-70"></div>
                 <div className="absolute inset-0 bg-gradient-to-br from-[#CDA032]/20 to-transparent z-20 mix-blend-overlay"></div>
                 <img src="/iPhone.jpeg" alt="Trade In Promo" className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-[2s] z-0 filter saturate-150" />
@@ -915,7 +925,7 @@ export const Home: React.FC<HomeProps> = ({
             )}
 
             {(exploreFilter === 'All Gear' || exploreFilter === 'Pro Series') && (
-              <div className={`col-span-1 md:col-span-1 row-span-1 rounded-[2rem] p-6 flex flex-col relative overflow-hidden transition-all duration-500 hover:shadow-xl ${theme === 'light' ? 'bg-white' : 'bg-[#111] border border-white/5'}`}>
+              <div className={`col-span-1 md:col-span-1 row-span-1 rounded-[2rem] p-6 flex flex-col relative overflow-hidden transition-all duration-500 hover:shadow-xl ${theme === 'light' ? 'bg-white' : 'bg-[#14141c] border border-white/[0.07]'}`}>
                 <div className="flex items-center justify-between mb-4">
                   <span className={`text-[10px] font-black uppercase tracking-widest ${theme === 'light' ? 'text-black' : 'text-white'}`}>Highlights</span>
                   <div className="flex gap-1">
@@ -994,7 +1004,7 @@ export const Home: React.FC<HomeProps> = ({
       </section>
 
       {/* Catalog Marquee Section (Duplicate products effect) */}
-      <section className={`py-12 border-y ${theme === 'light' ? 'bg-white border-black/5' : 'bg-black/50 border-white/5'}`}>
+      <section className={`py-12 border-y ${theme === 'light' ? 'bg-white border-black/5' : 'bg-[#07070c] border-white/[0.06]'}`}>
         <div className="flex flex-col gap-8">
           <div className="text-center px-8">
             <h3 className={`text-[10px] font-black uppercase tracking-[0.5em] italic ${theme === 'light' ? 'text-black/30' : 'text-white/20'}`}>
@@ -1005,7 +1015,7 @@ export const Home: React.FC<HomeProps> = ({
             <div className="flex py-4 animate-scroll whitespace-nowrap">
               {products.filter(p => matchesCategory(p.category, 'Laptop')).map((p, i) => (
                 <div key={`${p.id}-${i}`} className="inline-flex items-center gap-4 px-8 group cursor-default">
-                  <span className={`text-4xl md:text-6xl font-black italic tracking-tighter uppercase transition-colors duration-500 hover:text-[#D4AF37] ${theme === 'light' ? 'text-black/5' : 'text-white/5'
+                  <span className={`text-4xl md:text-6xl font-black italic tracking-tighter uppercase transition-colors duration-500 hover:text-[#D4AF37] ${theme === 'light' ? 'text-black/5' : 'text-white/[0.09]'
                     }`}>
                     {p.name}
                   </span>
@@ -1015,7 +1025,7 @@ export const Home: React.FC<HomeProps> = ({
               {/* Duplicate for seamless scroll */}
               {products.filter(p => matchesCategory(p.category, 'Laptop')).map((p, i) => (
                 <div key={`${p.id}-dup-${i}`} className="inline-flex items-center gap-4 px-8 group cursor-default">
-                  <span className={`text-4xl md:text-6xl font-black italic tracking-tighter uppercase transition-colors duration-500 hover:text-[#D4AF37] ${theme === 'light' ? 'text-black/5' : 'text-white/5'
+                  <span className={`text-4xl md:text-6xl font-black italic tracking-tighter uppercase transition-colors duration-500 hover:text-[#D4AF37] ${theme === 'light' ? 'text-black/5' : 'text-white/[0.09]'
                     }`}>
                     {p.name}
                   </span>
@@ -1028,12 +1038,12 @@ export const Home: React.FC<HomeProps> = ({
       </section>
 
       {/* About Us Banner */}
-      <section className={`py-20 px-8 ${theme === 'dark' ? 'bg-[#111]' : 'bg-white'} border-t border-b ${theme === 'dark' ? 'border-white/5' : 'border-black/5'} overflow-hidden`}>
+      <section className={`py-20 px-8 ${isDark ? 'bg-gradient-to-b from-[#101018] to-[#0a0a10]' : 'bg-white'} border-t border-b ${theme === 'dark' ? 'border-white/[0.07]' : 'border-black/5'} overflow-hidden`}>
         <div className="max-w-4xl mx-auto text-center space-y-8">
           <h2 className={`text-4xl md:text-5xl font-bold ${theme === 'dark' ? 'text-white' : 'text-black'} tracking-tight`}>
             WHO WE ARE?
           </h2>
-          <p className={`text-xl ${theme === 'dark' ? 'text-white/60' : 'text-black/60'} max-w-2xl mx-auto`}>
+          <p className={`text-xl ${isDark ? 'text-zinc-400' : 'text-black/60'} max-w-2xl mx-auto`}>
             Discover who we are, our mission for precision, and why thousands trust BlackBox for their digital excellence.
           </p>
           <div className="pt-4">
