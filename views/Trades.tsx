@@ -267,7 +267,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  /** Step 1 wizard: Back / Change should drop downstream state so picks do not stick. */
+  /** Step 1 wizard: Back drops downstream picks; Change only reopens that slice (keeps other choices / later steps). */
   const undoToDeviceTypeStep = () => {
     setSelectedBrand('');
     setSelectedDevice(null);
@@ -276,15 +276,36 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     setTransitionKey((k) => k + 1);
   };
 
-  const undoToBrandStep = () => {
+  /** Back from model step — keep type + brand, clear device line + variant. */
+  const backFromModelStep = () => {
     setSelectedDevice(null);
     setSelectedVariant('');
     setSubStep(2);
     setTransitionKey((k) => k + 1);
   };
 
-  const undoDeviceTypeAndRestart = () => {
-    setSelectedDeviceType('');
+  /** Same category + brand; clear only device line + variant (re-pick model). */
+  const reopenModelPickerKeepTypeAndBrand = () => {
+    setSelectedDevice(null);
+    setSelectedVariant('');
+    setSubStep(3);
+    setTransitionKey((k) => k + 1);
+  };
+
+  /** Change on device-type summary — model step: new device/variant only. Brand step: new category only (keeps type). Else: full category re-pick from type grid. */
+  const changeDeviceTypeSection = () => {
+    if (subStep === 3 && selectedDeviceType && selectedBrand) {
+      reopenModelPickerKeepTypeAndBrand();
+      return;
+    }
+    if (subStep === 2 && selectedDeviceType) {
+      setSelectedBrand('');
+      setSelectedDevice(null);
+      setSelectedVariant('');
+      setSubStep(1);
+      setTransitionKey((k) => k + 1);
+      return;
+    }
     setSelectedBrand('');
     setSelectedDevice(null);
     setSelectedVariant('');
@@ -292,13 +313,40 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     setTransitionKey((k) => k + 1);
   };
 
-  const reopenDeviceWizardFromLaterStep = () => {
-    setStep(1);
-    setSubStep(1);
-    setSelectedDeviceType('');
+  /** Change on brand summary — re-pick brand; keep device category (type). */
+  const changeBrandSection = () => {
     setSelectedBrand('');
     setSelectedDevice(null);
     setSelectedVariant('');
+    setSubStep(2);
+    setTransitionKey((k) => k + 1);
+  };
+
+  /** From step 2+ — edit device: keep brand & category when possible; only clear model picks. */
+  const reopenDeviceWizardFromLaterStep = () => {
+    setStep(1);
+    if (selectedDeviceType && selectedBrand) {
+      setSelectedDevice(null);
+      setSelectedVariant('');
+      setSubStep(3);
+    } else if (selectedDeviceType) {
+      setSelectedBrand('');
+      setSelectedDevice(null);
+      setSelectedVariant('');
+      setSubStep(2);
+    } else {
+      setSelectedDeviceType('');
+      setSelectedBrand('');
+      setSelectedDevice(null);
+      setSelectedVariant('');
+      setSubStep(1);
+    }
+    setTransitionKey((k) => k + 1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const openStep = (n: number) => {
+    setStep(n);
     setTransitionKey((k) => k + 1);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -464,7 +512,14 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                 {subStep > 1 ? (
                   <div className="flex justify-between items-center py-5 border-b border-[var(--bb-border)] animate-in fade-in">
                     <h3 className="text-lg font-bold">{DEVICE_TYPES.find(d => d.id === selectedDeviceType)?.label}</h3>
-                    <button onClick={undoDeviceTypeAndRestart} className="text-sm font-bold text-blue-500 hover:text-blue-400">Change</button>
+                    <button
+                      type="button"
+                      onClick={changeDeviceTypeSection}
+                      className="text-sm font-bold text-blue-500 hover:text-blue-400"
+                      title={subStep === 3 ? 'Pick a different device category' : 'Change category (keeps your current type selected until you pick again)'}
+                    >
+                      {subStep === 3 ? 'Change category' : 'Change'}
+                    </button>
                   </div>
                 ) : subStep === 1 && (
                   <div className="space-y-4">
@@ -496,9 +551,26 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
 
                 {/* ── subStep 1b: Brand (image cards — same as Repair) ── */}
                 {subStep > 2 ? (
-                  <div className="flex justify-between items-center py-5 border-b border-[var(--bb-border)] animate-in fade-in">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between py-5 border-b border-[var(--bb-border)] animate-in fade-in">
                     <h3 className="text-lg font-bold">{selectedBrand}</h3>
-                    <button onClick={undoToBrandStep} className="text-sm font-bold text-blue-500 hover:text-blue-400">Change</button>
+                    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                      <button
+                        type="button"
+                        onClick={reopenModelPickerKeepTypeAndBrand}
+                        className="text-xs font-bold text-[color:var(--bb-muted)] hover:text-[#CDA032] transition-colors px-2 py-1 rounded-lg border border-transparent hover:border-[#CDA032]/30"
+                        title="Keep this brand; pick a different device or model"
+                      >
+                        Different model
+                      </button>
+                      <button
+                        type="button"
+                        onClick={changeBrandSection}
+                        className="text-sm font-bold text-blue-500 hover:text-blue-400"
+                        title="Choose a different brand (same category)"
+                      >
+                        Change brand
+                      </button>
+                    </div>
                   </div>
                 ) : subStep === 2 && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300 pt-4">
@@ -549,7 +621,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                         </p>
                         <h2 className="text-2xl font-bold tracking-tight">Select your device & model</h2>
                       </div>
-                      <button type="button" onClick={undoToBrandStep} className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-[color:var(--bb-muted)] hover:text-[#CDA032] transition-colors">
+                      <button type="button" onClick={backFromModelStep} className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-[color:var(--bb-muted)] hover:text-[#CDA032] transition-colors">
                         <ArrowLeft size={14} /> Back
                       </button>
                     </div>
@@ -671,7 +743,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                   <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032]">Device Details</p>
                   <h3 className="text-xl font-black text-[color:var(--bb-text)]">{targetProduct ? `Upgrading to ${targetProduct.name}` : 'Details recorded'}</h3>
                 </div>
-                <button onClick={() => setStep(2)} className="text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors">Change</button>
+                <button type="button" onClick={() => openStep(2)} className="text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors">Change</button>
               </div>
             ) : step === 2 && (
               <div key={`step-2-${transitionKey}`} className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-4 active-form-section">
@@ -785,7 +857,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                     {formData.date} at {timeSlots.find(t => t.id === formData.timeSlot)?.time}
                   </h3>
                 </div>
-                <button onClick={() => setStep(3)} className="text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors">Change</button>
+                <button type="button" onClick={() => openStep(3)} className="text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors">Change</button>
               </div>
             ) : step === 3 && (
               <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-4 active-form-section">
