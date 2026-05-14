@@ -132,27 +132,29 @@ export const Home: React.FC<HomeProps> = ({
     <div className="view-transition bg-black overflow-hidden no-print">
       {/* Main Content */}
       {/* Hero Section */}
-      <section className="relative min-h-[100svh] flex items-center justify-center pt-24 sm:pt-32 pb-12 px-4 sm:px-6 lg:px-8 overflow-hidden">
-        {/* Background with tech accessories */}
+      <section className="relative flex min-h-hero-viewport items-center justify-center overflow-hidden pt-24 pb-12 sm:pt-32">
+        {/* Background with tech accessories — full bleed; horizontal padding lives on inner content only */}
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-black to-black subtle-texture"></div>
 
           {/* Single Background Image with Slideshow */}
           {themeImages.length > 0 && (
-            <div className="absolute inset-0 overflow-hidden bg-zinc-950">
+            <div className="absolute inset-0 overflow-hidden bg-black">
               {themeImages.map((img, index) => (
                 <img
                   key={img.filename}
                   src={`/${img.filename}`}
                   alt={img.description}
-                  className={`absolute inset-0 h-full w-full object-contain object-center p-3 sm:p-5 md:p-8 transition-opacity duration-2000 ease-in-out ${index === currentImageIndex
+                  className={`pointer-events-none absolute inset-0 box-border h-full w-full max-w-none min-h-full min-w-full object-cover object-center transition-opacity duration-2000 ease-in-out ${index === currentImageIndex
                     ? 'opacity-100 z-[1]'
-                    : 'opacity-0 z-0 pointer-events-none'
+                    : 'opacity-0 z-0'
                     }`}
                   style={{
                     filter: theme === 'light' && img.filename === 'BlackBox.jpeg' ? 'invert(1) brightness(1.2)' : undefined
                   }}
                   loading="lazy"
+                  decoding="async"
+                  sizes="100vw"
                 />
               ))}
             </div>
@@ -165,7 +167,7 @@ export const Home: React.FC<HomeProps> = ({
             }`}></div>
         </div>
 
-        <div className="max-w-7xl mx-auto w-full relative z-10">
+        <div className="relative z-10 mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             {/* Left Side - Main Content */}
             <div className="space-y-8">

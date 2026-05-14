@@ -381,6 +381,12 @@ body {
   overflow: auto;
 }
 
+/* Home hero: fill viewport on mobile (dynamic URL bar) and desktop */
+.min-h-hero-viewport {
+  min-height: 100svh;
+  min-height: 100dvh;
+}
+
 /* Proper Hiding Utilities */
 .scrollbar-hide::-webkit-scrollbar,
 .no-scrollbar::-webkit-scrollbar {
