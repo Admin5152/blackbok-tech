@@ -116,78 +116,94 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </div>
           </div>
 
-          {/* Variant Selection */}
-          <div className="space-y-3">
+          {/* Variant selection — compact row: Color | Storage | RAM side by side */}
+          <div
+            className={`grid gap-2 sm:gap-2.5 ${
+              optionGroups.length > 3
+                ? 'grid-cols-[repeat(auto-fit,minmax(3.75rem,1fr))]'
+                : optionGroups.length === 3
+                  ? 'grid-cols-3'
+                  : optionGroups.length === 2
+                    ? 'grid-cols-2'
+                    : optionGroups.length === 1
+                      ? 'grid-cols-1'
+                      : 'hidden'
+            }`}
+          >
             {optionGroups.map((variant) => {
               const selectedValue = toOptionString(selectedOptions[variant.name] || '');
               const isColor = variant.name.toLowerCase() === 'color';
 
               return (
-                <div key={variant.name} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[8px] text-white/50 font-medium italic">{variant.name}</span>
-                  </div>
+                <div key={variant.name} className="min-w-0 flex flex-col gap-1">
+                  <span className="text-[7px] text-white/45 font-black uppercase tracking-wider truncate">
+                    {variant.name}
+                  </span>
 
-                  <div className="flex flex-wrap gap-1.5">
-                      {variant.options.map((opt, optIdx) => {
-                        const o = toOptionString(opt);
-                        const ol = o.toLowerCase();
-                        return (
+                  <div className="flex flex-wrap gap-1 content-start">
+                    {variant.options.map((opt, optIdx) => {
+                      const o = toOptionString(opt);
+                      const ol = o.toLowerCase();
+                      return (
                         <button
                           key={`${variant.name}-${optIdx}-${o}`}
+                          type="button"
+                          title={o}
+                          aria-label={`${variant.name} ${o}${selectedValue === o ? ', selected' : ''}`}
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            setSelectedOptions(prev => ({ ...prev, [variant.name]: o }));
+                            setSelectedOptions((prev) => ({ ...prev, [variant.name]: o }));
                           }}
-                          className={isColor
-                            ? `w-5 h-5 rounded-full border-2 transition-all ${selectedValue === o ? 'border-white scale-110' : 'border-gray-400 hover:border-gray-300'}`
-                            : `px-2 py-0.5 rounded text-[8px] font-black tracking-widest transition-all border ${selectedValue === o ? 'border-[#CDA032] bg-[#CDA032]/20 text-[#CDA032]' : 'border-white/20 hover:border-white/40 text-white/60 hover:text-white'}`
+                          className={
+                            isColor
+                              ? `shrink-0 w-5 h-5 rounded-full border-2 transition-all ${ol === 'white' ? 'ring-1 ring-white/35 ' : ''}${
+                                  selectedValue === o
+                                    ? 'border-[#CDA032] ring-1 ring-[#CDA032]/50 scale-105'
+                                    : 'border-white/25 hover:border-white/45'
+                                }`
+                              : `shrink-0 min-w-0 max-w-full px-1.5 py-0.5 rounded-md text-[7px] font-black tracking-wide transition-all border truncate ${
+                                  selectedValue === o
+                                    ? 'border-[#CDA032] bg-[#CDA032]/15 text-[#CDA032]'
+                                    : 'border-white/15 text-white/55 hover:border-white/35 hover:text-white'
+                                }`
                           }
-                          style={isColor ? {
-                            backgroundColor: ol === 'black' ? '#000' :
-                              ol === 'white' ? '#fff' :
-                                ol === 'red' ? '#ef4444' :
-                                  ol === 'blue' ? '#3b82f6' :
-                                    ol === 'green' ? '#10b981' :
-                                      ol === 'purple' ? '#a855f7' :
-                                        ol === 'pink' ? '#ec4899' :
-                                          ol === 'gold' ? '#f59e0b' :
-                                            ol === 'silver' ? '#9ca3af' :
-                                              ol.includes('space gray') ? '#4B4B4D' :
-                                                ol.includes('midnight') ? '#1C2938' :
-                                                  '#6b7280'
-                          } : {}}
+                          style={
+                            isColor
+                              ? {
+                                  backgroundColor:
+                                    ol === 'black'
+                                      ? '#000'
+                                      : ol === 'white'
+                                        ? '#fff'
+                                        : ol === 'red'
+                                          ? '#ef4444'
+                                          : ol === 'blue'
+                                            ? '#3b82f6'
+                                            : ol === 'green'
+                                              ? '#10b981'
+                                              : ol === 'purple'
+                                                ? '#a855f7'
+                                                : ol === 'pink'
+                                                  ? '#ec4899'
+                                                  : ol === 'gold'
+                                                    ? '#f59e0b'
+                                                    : ol === 'silver'
+                                                      ? '#9ca3af'
+                                                      : ol.includes('space gray')
+                                                        ? '#4B4B4D'
+                                                        : ol.includes('midnight')
+                                                          ? '#1C2938'
+                                                          : '#6b7280',
+                                }
+                              : {}
+                          }
                         >
                           {!isColor && o}
                         </button>
                       );
-                      })}
-                    </div>
-                  {selectedValue && (
-                    <div className="flex items-center gap-1.5 pt-1">
-                      {isColor && (
-                        <div
-                          className="w-3 h-3 rounded-full border border-white/30"
-                          style={{
-                            backgroundColor: selectedValue.toLowerCase() === 'black' ? '#000' :
-                              selectedValue.toLowerCase() === 'white' ? '#fff' :
-                                selectedValue.toLowerCase() === 'red' ? '#ef4444' :
-                                  selectedValue.toLowerCase() === 'blue' ? '#3b82f6' :
-                                    selectedValue.toLowerCase() === 'green' ? '#10b981' :
-                                      selectedValue.toLowerCase() === 'purple' ? '#a855f7' :
-                                        selectedValue.toLowerCase() === 'pink' ? '#ec4899' :
-                                          selectedValue.toLowerCase() === 'gold' ? '#f59e0b' :
-                                            selectedValue.toLowerCase() === 'silver' ? '#9ca3af' :
-                                              selectedValue.toLowerCase().includes('space gray') ? '#4B4B4D' :
-                                                selectedValue.toLowerCase().includes('midnight') ? '#1C2938' :
-                                                  '#6b7280'
-                          }}
-                        />
-                      )}
-                      <span className="text-[8px] text-white/60 font-bold tracking-wider">{selectedValue}</span>
-                    </div>
-                  )}
+                    })}
+                  </div>
                 </div>
               );
             })}
