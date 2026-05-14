@@ -33,15 +33,15 @@ import {
 } from './orderItemOptions';
 
 // Normalizes admin-entered category strings (e.g. "Mobile Phones",
-// "Laptops & Notebooks", "Apple iPhones") to one of the canonical
-// values used by the UI (`iPhone`, `Laptop`, `Accessories`, `Gaming`,
-// `Audio`, `Tablet`). Uses substring matching rather than strict
-// equality so that minor variations and combined names still map to
-// the right canonical bucket. This is what fixes the home-page sliders
-// returning empty when the DB has e.g. "Mobile Devices" or "Laptops".
-const normalizeCategory = (category?: string): string => {
-  if (!category) return 'Accessories';
-  const value = category.trim().toLowerCase();
+// "Laptops & Notebooks", "Apple iPhones") to canonical values used by
+// the UI (`iPhone`, `Laptop`, …) plus any extra DB labels (e.g.
+// `Trades`) passed through trimmed when no rule matches. Keep in sync
+// with store filters (`views/Store.tsx`).
+export function normalizeProductCategory(category?: string | null): string {
+  if (category == null || category === '') return 'Accessories';
+  const raw = String(category).trim();
+  if (!raw) return 'Accessories';
+  const value = raw.toLowerCase();
 
   // Order matters: more specific matches first.
   if (value.includes('iphone')) return 'iPhone';
@@ -59,9 +59,10 @@ const normalizeCategory = (category?: string): string => {
   if (value.includes('accessor') || value.includes('case') || value.includes('wearable') || value.includes('charger') || value.includes('cable')) {
     return 'Accessories';
   }
+  if (value.includes('trades')) return 'Trades';
 
-  return category;
-};
+  return raw;
+}
 
 /** Maps `orders.status` from Postgres (usually lowercase) to UI labels (Pascal Case). */
 export function normalizeOrderStatusForUi(status?: string | null): string {
@@ -327,7 +328,7 @@ export function mapProductFromDb(p: any): Product {
     const ramChips = coerceTextArray(p.ram);
     return {
     ...p,
-    category: normalizeCategory(p.category),
+    category: normalizeProductCategory(p.category),
     image: p.image_url,
     new: isNew,
     is_new: isNew,
@@ -1073,6 +1074,7 @@ const TRADE_DB_COLUMNS = new Set([
   'accessories',
   'target_device',
   'target_product_id',
+  'target_variant_id',
   'estimated_value',
   'offered_price',
   'final_value',
@@ -1108,6 +1110,7 @@ export const mapTradeFromDb = (t: any): TradeInRequest => {
     offeredPrice: num(t.offered_price),
     adminNote: t.admin_notes,
     targetDevice: t.target_device,
+    targetVariantId: t.target_variant_id,
     userDescription: t.user_description,
     preferredDate: t.preferred_date,
     preferredTime: t.preferred_time,

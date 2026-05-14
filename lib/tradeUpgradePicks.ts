@@ -1,4 +1,5 @@
 import type { Product } from '../types';
+import { normalizeProductCategory } from './api';
 
 export const TRADE_UPGRADE_PRODUCT_IDS_KEY = 'bb_v4_trade_upgrade_product_ids';
 export const TRADE_UPGRADE_PICKS_UPDATED_EVENT = 'bb_trade_upgrade_targets_updated';
@@ -29,7 +30,7 @@ export function resolveUpgradeTargetProducts(products: Product[]): Product[] {
     }
     if (out.length > 0) return out;
   }
-  return products.filter((p) => FALLBACK_CATEGORIES.includes(String(p.category || '')));
+  return products.filter((p) => FALLBACK_CATEGORIES.includes(normalizeProductCategory(p.category ?? '')));
 }
 
 export function persistUpgradeProductIds(ids: string[]): void {

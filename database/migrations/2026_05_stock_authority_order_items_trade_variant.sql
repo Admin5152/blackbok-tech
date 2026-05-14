@@ -1,41 +1,33 @@
 -- ============================================================
--- Inventory: decrement on order line insert + trade complete
+-- Phase 4: Authoritative inventory + optional trade SKU
 --
--- 1) order_items trigger: when a line has Color/Storage/RAM in
---    product_options matching a product_variants row, decrement
---    that variant's stock (sync_product_from_variants updates
---    products.stock if present). Otherwise decrement products.stock
---    only (legacy / no SKU rows).
+-- A) order_items: decrement only when stock >= quantity; otherwise
+--    RAISE (prevents silent clamp-to-zero oversell vs concurrent carts).
+-- B) trade_in_requests: optional target_variant_id (UUID). When set and
+--    valid for target_product_id, completion decrements that variant
+--    (sync_product_stock_from_variants updates products.stock). Else
+--    legacy products.stock decrement by 1.
+-- C) Customer write guard: block non-staff from changing
+--    target_variant_id after it is set.
 --
--- 2) trade_in_requests: when status becomes Completed, decrement
---    target_variant_id row if set, else products.stock by 1 once
---    (target_inventory_applied_at). Phase-4 strict stock: see also
---    2026_05_stock_authority_order_items_trade_variant.sql for DBs
---    that already ran an older copy of this file.
---
--- Run after: 2026_05_section25_db_backend.sql, 2026_05_trade_in_requests.sql
--- Idempotent: CREATE OR REPLACE functions; ADD COLUMN IF NOT EXISTS.
+-- Run after: 2026_05_inventory_decrement_orders_and_trades.sql,
+--            2026_05_trade_customer_guard_and_rls.sql,
+--            gapfillmitigation (product_variants + sync trigger).
+-- Idempotent.
 -- ============================================================
 BEGIN;
 
 -- -----------------------------------------------------------------
--- Trade target: one-time flag so we do not double-decrement if
--- status is toggled away and back to Completed.
+-- B) Optional staff column for trade target SKU
 -- -----------------------------------------------------------------
-ALTER TABLE public.trade_in_requests
-  ADD COLUMN IF NOT EXISTS target_inventory_applied_at TIMESTAMPTZ;
-
 ALTER TABLE public.trade_in_requests
   ADD COLUMN IF NOT EXISTS target_variant_id UUID;
 
-COMMENT ON COLUMN public.trade_in_requests.target_inventory_applied_at IS
-  'Set when target_product_id stock was decremented on trade completion.';
-
 COMMENT ON COLUMN public.trade_in_requests.target_variant_id IS
-  'Optional product_variants.id (must belong to target_product_id); completion decrements variant stock.';
+  'When staff sets this to a product_variants.id for target_product_id, completing the trade decrements variant stock (and aggregate product stock via sync).';
 
 -- -----------------------------------------------------------------
--- DB-07 (revised): order_items → variant stock or product stock
+-- A) order_items → strict decrement (matches place_order pre-check)
 -- -----------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.fn_order_items_decrement_stock()
 RETURNS TRIGGER
@@ -120,7 +112,7 @@ END;
 $$;
 
 -- -----------------------------------------------------------------
--- Trade-in completed → reduce target catalog product by 1
+-- B+C) Trade completion + customer guard (variant lock)
 -- -----------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.fn_trade_target_inventory_on_complete()
 RETURNS TRIGGER
@@ -191,10 +183,60 @@ BEGIN
 END;
 $$;
 
-DROP TRIGGER IF EXISTS trg_trade_target_inventory_on_complete ON public.trade_in_requests;
-CREATE TRIGGER trg_trade_target_inventory_on_complete
-  BEFORE UPDATE OF status ON public.trade_in_requests
-  FOR EACH ROW
-  EXECUTE FUNCTION public.fn_trade_target_inventory_on_complete();
+CREATE OR REPLACE FUNCTION public.fn_trade_in_requests_customer_write_guard()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_staff BOOLEAN;
+BEGIN
+  IF TG_OP <> 'UPDATE' THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT EXISTS (
+    SELECT 1
+      FROM public.profiles p
+     WHERE p.id = auth.uid()
+       AND lower(coalesce(p.role::text, '')) IN ('admin', 'staff')
+  )
+  OR EXISTS (
+    SELECT 1
+      FROM public.user_roles ur
+     WHERE ur.user_id = auth.uid()
+       AND lower(ur.role::text) IN ('admin', 'staff')
+  )
+  INTO v_staff;
+
+  IF COALESCE(v_staff, false) THEN
+    RETURN NEW;
+  END IF;
+
+  IF NEW.user_id IS DISTINCT FROM auth.uid() THEN
+    RETURN NEW;
+  END IF;
+
+  IF lower(btrim(coalesce(NEW.status, ''))) = 'completed' THEN
+    RAISE EXCEPTION 'Only staff can mark a trade as completed.'
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF OLD.target_product_id IS NOT NULL
+     AND NEW.target_product_id IS DISTINCT FROM OLD.target_product_id THEN
+    RAISE EXCEPTION 'Trade target product cannot be changed.'
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF OLD.target_variant_id IS NOT NULL
+     AND NEW.target_variant_id IS DISTINCT FROM OLD.target_variant_id THEN
+    RAISE EXCEPTION 'Trade target variant cannot be changed.'
+      USING ERRCODE = '42501';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
 
 COMMIT;

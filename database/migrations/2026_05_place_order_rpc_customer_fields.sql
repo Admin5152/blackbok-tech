@@ -138,6 +138,8 @@ BEGIN
 
   v_total := GREATEST(0, v_subtotal + COALESCE(p_shipping_cost, 0) - v_discount);
 
+  PERFORM public.fn_place_order_validate_cart_stock(p_cart_items);
+
   SELECT COALESCE(
     MAX(NULLIF(REGEXP_REPLACE(COALESCE(o.display_id, ''), '\D', '', 'g'), '')::INTEGER),
     0

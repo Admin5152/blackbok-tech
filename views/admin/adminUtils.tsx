@@ -48,10 +48,10 @@ export const Badge = ({ status }: { status: string }) => {
 };
 
 export const SearchInput = ({ value, onChange, placeholder = 'Search...' }: { value: string; onChange: (v: string) => void; placeholder?: string }) => (
-    <div className="relative">
+    <div className="relative min-w-0 w-full max-w-full sm:max-w-xs md:max-w-sm">
         <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="11" cy="11" r="8" strokeWidth="2" /><path d="M21 21l-4.35-4.35" strokeWidth="2" strokeLinecap="round" /></svg>
         <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-            className="pl-9 pr-4 py-1.5 bg-black/40 border border-white/10 rounded-2xl text-white text-xs focus:border-[#B38B21]/50 focus:outline-none w-48" />
+            className="min-w-0 w-full pl-9 pr-4 py-2 sm:py-1.5 bg-black/40 border border-white/10 rounded-2xl text-white text-xs focus:border-[#B38B21]/50 focus:outline-none" />
     </div>
 );
 

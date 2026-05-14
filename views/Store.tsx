@@ -1,9 +1,10 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { Search, Filter, Grid3x3, List, Smartphone, Laptop as LaptopIcon, Tablet as TabletIcon, Headphones, Watch, Gamepad2, LayoutGrid, X, ChevronDown, ArrowLeft, Plus, Minus, Tag, Menu } from 'lucide-react';
+import { Search, Filter, Grid3x3, List, Smartphone, Laptop as LaptopIcon, Tablet as TabletIcon, Headphones, Watch, Gamepad2, LayoutGrid, X, ChevronDown, ArrowLeft, Plus, Minus, Tag, Menu, Repeat2 } from 'lucide-react';
 import { Product, Category } from '../types';
 import { ProductCard } from '../components/ProductCard';
 import { formatCurrency } from '../lib/utils';
+import { normalizeProductCategory } from '../lib/api';
 import type { Theme } from '../App';
 
 interface StoreProps {
@@ -42,29 +43,6 @@ export const Store: React.FC<StoreProps> = ({
   categoriesFromUrl,
   searchFromUrl,
 }) => {
-  // Keep this in sync with the matching helper in `lib/api.ts`. Uses
-  // substring matching so admin-entered category strings like
-  // "Mobile Phones", "Laptops & Notebooks", or "Apple iPhones" all map
-  // to a canonical bucket. Order matters — more-specific matches first.
-  const normalizeCategory = (category?: string): Category | null => {
-    if (!category) return null;
-    const value = category.trim().toLowerCase();
-
-    if (value.includes('iphone')) return 'iPhone';
-    if (value.includes('tablet') || value.includes('ipad')) return 'Tablet';
-    if (value.includes('laptop') || value.includes('notebook') || value.includes('macbook') || value.includes('computer')) return 'Laptop';
-    if (value.includes('phone') || value.includes('mobile') || value.includes('smartphone')) return 'iPhone';
-    if (value.includes('gam') || value.includes('console')) return 'Gaming';
-    if (value.includes('audio') || value.includes('headphone') || value.includes('earbud') || value.includes('speaker')) return 'Audio';
-    if (value.includes('accessor') || value.includes('case') || value.includes('wearable') || value.includes('charger') || value.includes('cable')) return 'Accessories';
-    return category as Category;
-  };
-
-  /** Category tokens that can match a search word to the product's normalized category (e.g. "phone" → iPhone). */
-  const CANONICAL_CATEGORY_BUCKETS = new Set<string>([
-    'iPhone', 'Laptop', 'Tablet', 'Gaming', 'Audio', 'Accessories',
-  ]);
-
   const productTextHaystack = (p: Product) =>
     [
       p.name,
@@ -83,19 +61,12 @@ export const Store: React.FC<StoreProps> = ({
     const q = qRaw.trim().toLowerCase();
     if (!q) return true;
     const hay = productTextHaystack(p);
-    const productCat = normalizeCategory(p.category);
+    const productNorm = normalizeProductCategory(p.category);
     const words = q.split(/\s+/).filter(Boolean);
     return words.every((word) => {
       if (hay.includes(word)) return true;
-      const implied = normalizeCategory(word);
-      if (
-        implied &&
-        CANONICAL_CATEGORY_BUCKETS.has(String(implied)) &&
-        productCat === implied
-      ) {
-        return true;
-      }
-      return false;
+      const wordNorm = normalizeProductCategory(word);
+      return wordNorm === productNorm;
     });
   };
 
@@ -140,7 +111,7 @@ export const Store: React.FC<StoreProps> = ({
     if (rawCategories.length > 0) {
       const normalizedCategories = rawCategories
         .flatMap((cat) => String(cat).split(',').map((s) => s.trim()))
-        .map((cat) => normalizeCategory(cat))
+        .map((cat) => (cat ? normalizeProductCategory(cat) : null))
         .filter((cat): cat is Category => Boolean(cat));
       setSelectedCategories(Array.from(new Set(normalizedCategories)));
     }
@@ -195,6 +166,93 @@ export const Store: React.FC<StoreProps> = ({
     return 0;
   };
 
+  /** Search + price + promotions-only — must match `filteredProducts` logic so chip counts equal visible rows when that chip applies. */
+  const productPassesStoreBaseFilters = (p: Product): boolean => {
+    const q = String(searchTerm ?? '').trim();
+    if (!productMatchesSearchWords(p, q)) return false;
+    const price = Number(p.price ?? 0);
+    if (!Number.isFinite(price) || price < priceRange.min || price > priceRange.max) return false;
+    if (showPromotionsOnly && getDiscountValue(p.discount) <= 0) return false;
+    return true;
+  };
+
+  const baseFilteredProducts = useMemo(
+    () => products.filter(productPassesStoreBaseFilters),
+    [products, searchTerm, priceRange.min, priceRange.max, showPromotionsOnly]
+  );
+
+  type StoreCategoryRow =
+    | { key: string; label: string; value: 'All'; icon: React.ReactNode; count: number }
+    | { key: string; label: string; value: Category; icon: React.ReactNode; count: number }
+    | { key: string; label: string; value: '__promotions__'; icon: React.ReactNode; count: number };
+
+  const categoryOptions: StoreCategoryRow[] = useMemo(() => {
+    const catalogKeys: Record<string, true> = {};
+    products.forEach((p) => {
+      catalogKeys[normalizeProductCategory(p.category)] = true;
+    });
+    const preferred = ['iPhone', 'Laptop', 'Tablet', 'Gaming', 'Audio', 'Accessories', 'Trades'] as const;
+    const remaining = new Set(Object.keys(catalogKeys));
+    const ordered: string[] = [];
+    preferred.forEach((p) => {
+      if (remaining.has(p)) {
+        ordered.push(p);
+        remaining.delete(p);
+      }
+    });
+    [...remaining].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' })).forEach((k) => ordered.push(k));
+
+    const countInBucket = (bucket: string) =>
+      baseFilteredProducts.filter((p) => normalizeProductCategory(p.category) === bucket).length;
+
+    const iconFor = (cat: string): React.ReactNode => {
+      switch (cat) {
+        case 'iPhone':
+          return <Smartphone size={14} />;
+        case 'Laptop':
+          return <LaptopIcon size={14} />;
+        case 'Tablet':
+          return <TabletIcon size={14} />;
+        case 'Accessories':
+          return <Watch size={14} />;
+        case 'Gaming':
+          return <Gamepad2 size={14} />;
+        case 'Audio':
+          return <Headphones size={14} />;
+        case 'Trades':
+          return <Repeat2 size={14} />;
+        default:
+          return <LayoutGrid size={14} />;
+      }
+    };
+
+    const promoCount = baseFilteredProducts.filter((p) => getDiscountValue(p.discount) > 0).length;
+
+    return [
+      { key: 'all', label: 'SHOP ALL', value: 'All' as const, icon: <LayoutGrid size={14} />, count: baseFilteredProducts.length },
+      ...ordered.map((cat) => ({
+        key: `cat-${cat}`,
+        label: String(cat).toUpperCase(),
+        value: cat as Category,
+        icon: iconFor(cat),
+        count: countInBucket(cat),
+      })),
+      {
+        key: 'promotions',
+        label: 'PROMOTIONS',
+        value: '__promotions__' as const,
+        icon: <Tag size={14} className="text-[#CDA032]" />,
+        count: promoCount,
+      },
+    ];
+  }, [products, baseFilteredProducts]);
+
+  const isCategoryRowActive = (cat: StoreCategoryRow): boolean => {
+    if (cat.value === '__promotions__') return showPromotionsOnly;
+    if (cat.value === 'All') return selectedCategories.length === 0;
+    return selectedCategories.includes(cat.value);
+  };
+
   const toggleCategory = (cat: Category | 'All') => {
     if (cat === 'All') {
       setSelectedCategories([]);
@@ -208,56 +266,23 @@ export const Store: React.FC<StoreProps> = ({
   };
 
   const filteredProducts = useMemo(() => {
-    const q = String(searchTerm ?? '').trim();
-    let results = products.filter(p => {
-      const normalizedProductCategory = normalizeCategory(p.category);
-      const matchesSearch = productMatchesSearchWords(p, q);
+    const results = baseFilteredProducts.filter((p) => {
+      const normalizedProductCategory = normalizeProductCategory(p.category);
       const matchesCategory =
         selectedCategories.length === 0 ||
-        (normalizedProductCategory ? selectedCategories.includes(normalizedProductCategory) : false);
-      const matchesPrice = p.price >= priceRange.min && p.price <= priceRange.max;
-      const matchesPromotions = !showPromotionsOnly || getDiscountValue(p.discount) > 0;
-
-      return matchesSearch && matchesCategory && matchesPrice && matchesPromotions;
+        selectedCategories.some((sel) => normalizeProductCategory(sel) === normalizedProductCategory);
+      return matchesCategory;
     });
 
     return results.sort((a, b) => b.stock - a.stock);
-  }, [products, searchTerm, selectedCategories, priceRange, showPromotionsOnly]);
+  }, [baseFilteredProducts, selectedCategories]);
 
-
-  const categoryCounts = useMemo(() => {
-    const counts: Record<string, number> = {
-      iPhone: 0,
-      Laptop: 0,
-      Tablet: 0,
-      Accessories: 0,
-      Gaming: 0,
-      Audio: 0,
-    };
-    products.forEach((product) => {
-      const normalized = normalizeCategory(product.category);
-      if (normalized && counts[normalized] !== undefined) {
-        counts[normalized] += 1;
-      }
-    });
-    return counts;
-  }, [products]);
-
-  const categoryOptions: { label: string; value: Category | 'All'; icon: React.ReactNode; count?: number }[] = [
-    { label: 'SHOP ALL', value: 'All', icon: <LayoutGrid size={14} />, count: products.length },
-    { label: 'IPHONE', value: 'iPhone', icon: <Smartphone size={14} />, count: categoryCounts.iPhone },
-    { label: 'LAPTOP', value: 'Laptop', icon: <LaptopIcon size={14} />, count: categoryCounts.Laptop },
-    { label: 'TABLET', value: 'Tablet', icon: <TabletIcon size={14} />, count: categoryCounts.Tablet },
-    { label: 'ACCESSORIES', value: 'Accessories', icon: <Watch size={14} />, count: categoryCounts.Accessories },
-    { label: 'GAMING', value: 'Gaming', icon: <Gamepad2 size={14} />, count: categoryCounts.Gaming },
-    { label: 'AUDIO', value: 'Audio', icon: <Headphones size={14} />, count: categoryCounts.Audio },
-    { label: 'PROMOTIONS', value: 'All', icon: <Tag size={14} className="text-[#CDA032]" />, count: products.filter(p => getDiscountValue(p.discount) > 0).length },
-  ];
 
   const activeFiltersCount = [
     selectedCategories.length > 0,
     priceRange.min > 0,
-    priceRange.max < 15000
+    priceRange.max < 15000,
+    showPromotionsOnly,
   ].filter(Boolean).length;
 
   const clearAllFilters = () => {
@@ -265,6 +290,7 @@ export const Store: React.FC<StoreProps> = ({
     setPriceRange({ min: 0, max: 15000 });
     setSearchTerm('');
     setSearchQuery('');
+    setShowPromotionsOnly(false);
   };
 
   const pageBg = isLight ? '#F0F0F0' : '#060605';
@@ -280,35 +306,37 @@ export const Store: React.FC<StoreProps> = ({
       <div className="sticky top-16 sm:top-20 lg:top-24 z-40 border-b backdrop-blur-md" style={{ backgroundColor: `${pageBg}e6`, borderColor: borderFaint }}>
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3">
           <div className="flex min-w-0 flex-col gap-2">
-            {/* Single toolbar row: back + search + view / categories / filters */}
-            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-              <button
-                onClick={() => navigateTo('home')}
-                className="flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 px-2 py-2 transition-colors hover:border-white/20 sm:gap-2 sm:px-3"
-                style={{ backgroundColor: panelBg, color: isLight ? '#000' : '#fff' }}
-              >
-                <ArrowLeft size={16} />
-                <span className="hidden text-sm font-medium sm:inline">Back</span>
-              </button>
+            {/* Toolbar: on small screens stack so search keeps a full row of width */}
+            <div className="flex min-w-0 flex-col gap-2 min-[480px]:flex-row min-[480px]:items-center sm:gap-3">
+              <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+                <button
+                  onClick={() => navigateTo('home')}
+                  className="flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 px-2 py-2 transition-colors hover:border-white/20 sm:gap-2 sm:px-3"
+                  style={{ backgroundColor: panelBg, color: isLight ? '#000' : '#fff' }}
+                >
+                  <ArrowLeft size={16} />
+                  <span className="hidden text-sm font-medium sm:inline">Back</span>
+                </button>
 
-              <div className="relative min-w-0 flex-1">
-                <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 sm:left-3" style={{ color: textMuted }} aria-hidden />
-                <input
-                  type="search"
-                  enterKeyHint="search"
-                  placeholder="Search shop…"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full rounded-lg py-2 pl-8 pr-3 text-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032]/40 sm:rounded-xl sm:py-2.5 sm:pl-10"
-                  style={{
-                    backgroundColor: panelBg,
-                    border: `1px solid ${borderSubtle}`,
-                    color: isLight ? '#000' : '#fff',
-                  }}
-                />
+                <div className="relative min-w-0 flex-1">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 sm:left-3" style={{ color: textMuted }} aria-hidden />
+                  <input
+                    type="search"
+                    enterKeyHint="search"
+                    placeholder="Search shop…"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full min-w-0 rounded-lg py-2.5 pl-8 pr-3 text-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032]/40 sm:rounded-xl sm:py-2.5 sm:pl-10"
+                    style={{
+                      backgroundColor: panelBg,
+                      border: `1px solid ${borderSubtle}`,
+                      color: isLight ? '#000' : '#fff',
+                    }}
+                  />
+                </div>
               </div>
 
-              <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
+              <div className="flex shrink-0 items-center justify-end gap-1 sm:justify-start sm:gap-1.5">
                 {/* View mode — all breakpoints (compact on mobile) */}
                 <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ borderColor: borderSubtle }}>
                   <button
@@ -414,10 +442,16 @@ export const Store: React.FC<StoreProps> = ({
                 <div className="space-y-2">
                   {categoryOptions.map((cat) => (
                     <button
-                      key={cat.value}
-                      onClick={() => toggleCategory(cat.value)}
+                      key={cat.key}
+                      onClick={() => {
+                        if (cat.value === '__promotions__') {
+                          setShowPromotionsOnly((v) => !v);
+                          return;
+                        }
+                        toggleCategory(cat.value);
+                      }}
                       className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 group
-                    ${(cat.value === 'All' && selectedCategories.length === 0) || (cat.value !== 'All' && selectedCategories.includes(cat.value))
+                    ${isCategoryRowActive(cat)
                           ? 'bg-[#CDA032] border-[#CDA032] text-black shadow-lg shadow-[#CDA032]/20'
                           : 'bg-white/5 border-white/5 hover:border-white/10'
                         }`}
@@ -426,7 +460,7 @@ export const Store: React.FC<StoreProps> = ({
                         {cat.icon}
                         <span>{cat.label}</span>
                       </div>
-                      <span className={`text-xs ${(cat.value === 'All' && selectedCategories.length === 0) || (cat.value !== 'All' && selectedCategories.includes(cat.value)) ? 'opacity-80' : 'opacity-40'}`}>{cat.count}</span>
+                      <span className={`text-xs ${isCategoryRowActive(cat) ? 'opacity-80' : 'opacity-40'}`}>{cat.count}</span>
                     </button>
                   ))}
                 </div>
@@ -547,21 +581,26 @@ export const Store: React.FC<StoreProps> = ({
           <div className={`lg:hidden w-full transition-all duration-300 overflow-hidden ${showMobileNav ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
             <div className="py-3 sm:py-4 mb-4">
               <div className="flex flex-col gap-2">
-                {categoryOptions.map(cat => (
+                {categoryOptions.map((cat) => (
                   <button
-                    key={cat.value}
+                    key={cat.key}
                     onClick={() => {
+                      if (cat.value === '__promotions__') {
+                        setShowPromotionsOnly((v) => !v);
+                        setShowMobileNav(false);
+                        return;
+                      }
                       toggleCategory(cat.value);
                       setShowMobileNav(false); // Close nav after selection
                     }}
-                    className={`flex items-center gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all border ${(cat.value === 'All' && selectedCategories.length === 0) || (cat.value !== 'All' && selectedCategories.includes(cat.value))
+                    className={`flex items-center gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all border ${isCategoryRowActive(cat)
                       ? 'bg-[#CDA032] border-[#CDA032] text-black shadow-lg shadow-[#CDA032]/20'
                       : 'bg-white/5 border-white/5 text-white/40'
                       }`}
                   >
                     {cat.icon}
                     <span className="flex-1 text-left text-xs sm:text-sm">{cat.label}</span>
-                    <span className={`text-[9px] sm:text-xs ${(cat.value === 'All' && selectedCategories.length === 0) || (cat.value !== 'All' && selectedCategories.includes(cat.value))
+                    <span className={`text-[9px] sm:text-xs ${isCategoryRowActive(cat)
                       ? 'opacity-80'
                       : 'opacity-40'
                       }`}>

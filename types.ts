@@ -258,6 +258,8 @@ export interface TradeInRequest {
   accessories?: string[];
   target_device?: string;
   target_product_id?: string;
+  /** When set (staff), completion decrements this SKU row in product_variants. */
+  target_variant_id?: string | null;
   estimated_value?: number;
   offered_price?: number;
   final_value?: number;
@@ -283,6 +285,7 @@ export interface TradeInRequest {
   adminNote?: string;
   imageUrl?: string;
   targetDevice?: string;
+  targetVariantId?: string | null;
   userDescription?: string;
   preferredDate?: string;
   preferredTime?: string;

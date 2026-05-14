@@ -8,6 +8,7 @@ import { Link } from '@tanstack/react-router';
 import { Product, Category } from '../types';
 import { HERO_COLLAGE_FILENAMES, getImagesForTheme } from '../data/heroImages';
 import { formatCurrency, TW_DARK_BTN_DEPTH, TW_DARK_GOLD_BTN_DEPTH } from '../lib/utils';
+import { normalizeProductCategory } from '../lib/api';
 
 /** Editorial overlap positions (sizes bumped so flyers fill the hero). Rotation = CSS animation per tile. */
 const HERO_COLLAGE_FRAMES = [
@@ -90,27 +91,9 @@ export const Home: React.FC<HomeProps> = ({
     setHeroSlide((s) => (s + 1) % heroSlideCount);
   };
 
-  // Defensive category matcher — covers DB rows that didn't get
-  // normalized (e.g. "Mobile Phones", "Laptops & Notebooks"). Order
-  // matters: more specific matches first.
-  const matchesCategory = (productCategory: string | undefined, target: Category): boolean => {
-    if (!productCategory) return false;
-    const value = String(productCategory).trim().toLowerCase();
-    switch (target) {
-      case 'iPhone':
-        return value === 'iphone' || value.includes('iphone') || value.includes('phone') || value.includes('mobile') || value.includes('smartphone');
-      case 'Laptop':
-        return value === 'laptop' || value.includes('laptop') || value.includes('notebook') || value.includes('macbook') || value.includes('computer');
-      case 'Accessories':
-        return value === 'accessories' || value.includes('accessor') || value.includes('case') || value.includes('wearable') || value.includes('charger') || value.includes('cable');
-      case 'Gaming':
-        return value === 'gaming' || value.includes('gam') || value.includes('console');
-      case 'Audio':
-        return value === 'audio' || value.includes('audio') || value.includes('headphone') || value.includes('earbud') || value.includes('speaker');
-      default:
-        return productCategory === target;
-    }
-  };
+  /** Same rules as the store and `mapProductFromDb` — DB labels map to one bucket (e.g. "Laptops & Notebooks" → Laptop). */
+  const matchesCategory = (productCategory: string | undefined, target: Category): boolean =>
+    normalizeProductCategory(productCategory) === normalizeProductCategory(String(target));
 
   // Featured Arrivals: explicit boolean coercion so `null`/`undefined`/`'false'`
   // (Postgres returns booleans as JS booleans normally, but be safe) don't
@@ -128,7 +111,14 @@ export const Home: React.FC<HomeProps> = ({
   const highlights = useMemo(() => {
     const combined = [...featuredProducts, ...products.filter(p => !featuredProducts.find(f => f.id === p.id))];
     return combined
-      .filter(p => matchesCategory(p.category, 'Accessories') || matchesCategory(p.category, 'Gaming') || matchesCategory(p.category, 'Audio') || matchesCategory(p.category, 'iPhone'))
+      .filter(
+        (p) =>
+          matchesCategory(p.category, 'Accessories') ||
+          matchesCategory(p.category, 'Gaming') ||
+          matchesCategory(p.category, 'Audio') ||
+          matchesCategory(p.category, 'iPhone') ||
+          matchesCategory(p.category, 'Tablet')
+      )
       .slice(0, 10);
   }, [products, featuredProducts]);
 

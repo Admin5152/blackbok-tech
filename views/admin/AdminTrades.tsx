@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { RefreshCcw, Smartphone, Plus, Trash2, Check, X, Send, DollarSign, Package, ChevronUp, ChevronDown } from 'lucide-react';
 import { Badge, SearchInput, Modal, ModalClose, EmptyState, Td, Th, TableWrapper, TRADE_DEVICES_KEY } from './adminUtils';
 import { useAppContext } from '../../App';
 import { getTradeRequests, updateTradeRequest } from '../../lib/api';
 import { readStoredUpgradeProductIds, persistUpgradeProductIds } from '../../lib/tradeUpgradePicks';
-import type { TradeRequest } from '../../types';
+import type { TradeRequest, ProductVariant } from '../../types';
 import { formatCurrency } from '../../lib/utils';
 import {
   DEFAULT_TRADE_DEVICES,
@@ -44,6 +44,14 @@ const toTradeStatusLabel = (status?: string) => {
     return TRADE_STATUS_LABELS[dbStatus] || status || 'Pending';
 };
 
+const formatCatalogVariantLabel = (v: ProductVariant): string => {
+    const parts = [v.color, v.storage, v.ram].filter(Boolean) as string[];
+    const head = parts.length > 0 ? parts.join(' · ') : (v.name || v.sku || 'Variant');
+    const sku = v.sku && !head.includes(v.sku) ? ` · ${v.sku}` : '';
+    const st = v.stock != null ? ` — stock ${v.stock}` : '';
+    return `${head}${sku}${st}`;
+};
+
 interface Props { canEdit?: boolean; }
 
 export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
@@ -67,6 +75,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
     const [showUpgradeMgr, setShowUpgradeMgr] = useState(false);
     const [upgradeMgrQ, setUpgradeMgrQ] = useState('');
     const [upgradePickDraftIds, setUpgradePickDraftIds] = useState<string[]>([]);
+    const [draftTargetVariantId, setDraftTargetVariantId] = useState('');
 
     // load trades from Supabase, devices from localStorage (admin-managed list)
     useEffect(() => {
@@ -89,12 +98,30 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
         setUpgradeMgrQ('');
     }, [showUpgradeMgr]);
 
+    useEffect(() => {
+        if (!sel) {
+            setDraftTargetVariantId('');
+            return;
+        }
+        const pid = (sel as { target_product_id?: string }).target_product_id;
+        const product = pid ? products.find((p) => p.id === pid) : null;
+        const validVariants = (product?.variants || []).filter((v): v is ProductVariant & { id: string } => Boolean(v.id));
+        const saved = (sel.targetVariantId ?? (sel as { target_variant_id?: string }).target_variant_id ?? '').trim();
+
+        if (validVariants.length > 0) {
+            const savedOk = Boolean(saved && validVariants.some((v) => v.id === saved));
+            setDraftTargetVariantId(savedOk ? saved : validVariants[0].id);
+        } else {
+            setDraftTargetVariantId('');
+        }
+    }, [sel, products]);
+
     const saveDevices = (d: TradeInCatalogDevice[]) => {
         setDevices(d);
         localStorage.setItem(TRADE_DEVICES_KEY, JSON.stringify(d));
     };
 
-    const patchTrade = async (id: string, updates: Record<string, any>) => {
+    const patchTrade = useCallback(async (id: string, updates: Record<string, any>) => {
         setSaving(true);
         try {
             const payload = { ...updates, ...(updates.status ? { status: toDbTradeStatus(updates.status) } : {}) };
@@ -107,7 +134,20 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
             });
         } catch (e) { console.error(e); }
         finally { setSaving(false); }
-    };
+    }, []);
+
+    // When the linked catalogue product has SKUs but the trade row has none yet, default the first variant server-side so completion cannot slip through on a null.
+    useEffect(() => {
+        if (!sel) return;
+        const pid = (sel as { target_product_id?: string }).target_product_id;
+        const product = pid ? products.find((p) => p.id === pid) : null;
+        const validVariants = (product?.variants || []).filter((v): v is ProductVariant & { id: string } => Boolean(v.id));
+        if (validVariants.length === 0) return;
+        const saved = (sel.targetVariantId ?? (sel as { target_variant_id?: string }).target_variant_id ?? '').trim();
+        const savedOk = Boolean(saved && validVariants.some((v) => v.id === saved));
+        if (savedOk) return;
+        void patchTrade(sel.id, { target_variant_id: validVariants[0].id });
+    }, [sel, products, patchTrade]);
 
     const sendOffer = async () => {
         if (!sel || !offer || !condition) return;
@@ -194,6 +234,49 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
     }).slice(0, 250);
 
     const productById = new Map(products.map((p) => [p.id, p]));
+
+    const targetProductForReview = sel
+        ? products.find((p) => p.id === (sel as { target_product_id?: string }).target_product_id) ?? null
+        : null;
+
+    const catalogTargetVariants = useMemo((): (ProductVariant & { id: string })[] => {
+        if (!targetProductForReview) return [];
+        return (targetProductForReview.variants || []).filter((v): v is ProductVariant & { id: string } => Boolean(v.id));
+    }, [targetProductForReview]);
+
+    const savedTargetVariantOnSel = (t: TradeRequest) =>
+        (t.targetVariantId ?? (t as { target_variant_id?: string }).target_variant_id ?? '').trim();
+
+    const persistTradeTargetVariantId = async (variantId: string | null) => {
+        if (!sel) return;
+        const trimmed = variantId && String(variantId).trim() ? String(variantId).trim() : null;
+        await patchTrade(sel.id, { target_variant_id: trimmed });
+    };
+
+    const saveTradeTargetVariant = async () => {
+        if (!sel) return;
+        if (catalogTargetVariants.length > 0) {
+            if (!draftTargetVariantId.trim()) {
+                window.alert('This catalogue product has variants — pick a target variant before saving.');
+                return;
+            }
+            await persistTradeTargetVariantId(draftTargetVariantId.trim());
+            return;
+        }
+        await persistTradeTargetVariantId(null);
+    };
+
+    const applyQuickTradeStatus = async (s: 'submitted' | 'inspecting' | 'completed' | 'rejected') => {
+        if (!sel) return;
+        if (s === 'completed' && catalogTargetVariants.length > 0 && !savedTargetVariantOnSel(sel)) {
+            window.alert(
+                'This catalogue product has variants. Pick a target variant (it saves when you change the dropdown) before completing the trade.',
+            );
+            return;
+        }
+        await patchTrade(sel.id, { status: s });
+    };
+
     const addUpgradePick = (id: string) => {
         setUpgradePickDraftIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
     };
@@ -230,7 +313,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
             </div>
 
             {/* Filters */}
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2 flex-wrap">
                     {statuses.map(s => (
                         <button key={s} onClick={() => setStatusF(s)}
@@ -239,8 +322,10 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                         </button>
                     ))}
                 </div>
-                <div className="flex gap-2 items-center">
+                <div className="flex min-w-0 w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-2">
+                    <div className="min-w-0 w-full sm:min-w-[12rem] sm:max-w-md sm:flex-1">
                     <SearchInput value={q} onChange={setQ} placeholder="Search trades..." />
+                    </div>
                     {canEdit && (
                         <>
                             <button type="button" onClick={() => setShowUpgradeMgr(true)}
@@ -276,7 +361,12 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                     <p className="text-xs font-black text-white">{t.userName || '—'}</p>
                                     <p className="text-[10px] text-white/30">{t.userEmail}</p>
                                 </Td>
-                                <Td><p className="text-xs text-white/50">{(t as any).targetDevice || '—'}</p></Td>
+                                <Td>
+                                    <p className="text-xs text-white/50">{(t as any).targetDevice || '—'}</p>
+                                    {(t.targetVariantId || (t as any).target_variant_id) && (
+                                        <p className="text-[9px] text-emerald-400/90 font-bold uppercase tracking-wider mt-0.5">SKU linked</p>
+                                    )}
+                                </Td>
                                 <Td><p className="text-xs font-black text-[#B38B21]">{offerDisplay(t)}</p></Td>
                                 <Td><p className="text-xs text-white/50">{t.condition || <span className="text-white/20 italic">Pending</span>}</p></Td>
                                 <Td><p className="text-[10px] text-white/30">{formatTradeDate(t.date)}</p></Td>
@@ -321,6 +411,14 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                     <p className="text-xs text-white font-bold break-words">{v}</p>
                                 </div>
                             ))}
+                            {Boolean((sel as { target_product_id?: string }).target_product_id) && (
+                                <div className="bg-black/40 rounded-xl p-2.5 col-span-2">
+                                    <p className="text-[9px] text-white/30 uppercase tracking-widest mb-0.5">Catalogue product</p>
+                                    <p className="text-xs text-white font-bold break-words">
+                                        {targetProductForReview?.name || (sel as { target_product_id?: string }).target_product_id || '—'}
+                                    </p>
+                                </div>
+                            )}
                         </div>
 
                         {/* Approved offer */}
@@ -339,12 +437,75 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
 
                         {canEdit && (
                             <div className="border-t border-white/5 pt-4 space-y-4">
+                                {/* Target SKU for inventory on completion */}
+                                <div className="bg-black/40 rounded-xl p-4 space-y-3">
+                                    <p className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2">
+                                        <Package size={12} className="text-[#B38B21]" /> Target stock (completed trade)
+                                    </p>
+                                    <p className="text-[9px] text-white/40 leading-relaxed">
+                                        When you mark this trade <span className="text-white/60">Completed</span>, inventory decrements on the catalogue SKU below. If the linked product has no variant rows, stock uses product-level totals instead.
+                                    </p>
+                                    {targetProductForReview ? (
+                                        <>
+                                            {catalogTargetVariants.length > 0 ? (
+                                                <>
+                                                    <p className="text-[9px] text-white/40 leading-relaxed">
+                                                        This product has multiple SKUs — a specific variant is required. The first SKU is selected by default; change it if stock should come from another row. Updates save immediately when you change the dropdown.
+                                                    </p>
+                                                    <div>
+                                                        <label className="text-[9px] text-white/30 uppercase tracking-widest block mb-1">Variant / SKU</label>
+                                                        <select
+                                                            value={draftTargetVariantId || catalogTargetVariants[0]?.id || ''}
+                                                            onChange={(e) => {
+                                                                const next = e.target.value;
+                                                                setDraftTargetVariantId(next);
+                                                                void persistTradeTargetVariantId(next);
+                                                            }}
+                                                            disabled={saving}
+                                                            className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:border-[#B38B21]/50 focus:outline-none disabled:opacity-40"
+                                                        >
+                                                            {catalogTargetVariants.map((v) => (
+                                                                <option key={v.id} value={v.id}>
+                                                                    {formatCatalogVariantLabel(v)}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <p className="text-[9px] text-white/40 leading-relaxed">
+                                                        This catalogue product has no variant rows — completed trades use <span className="text-white/60">product-level</span> stock only.
+                                                    </p>
+                                                    {savedTargetVariantOnSel(sel) ? (
+                                                        <p className="text-[9px] text-amber-400/90">
+                                                            A variant ID is still stored on this trade. Save to clear it and align with product-level inventory.
+                                                        </p>
+                                                    ) : null}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => void saveTradeTargetVariant()}
+                                                        disabled={saving}
+                                                        className="w-full py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white/10 text-white border border-white/10 hover:bg-[#B38B21]/20 hover:border-[#B38B21]/40 transition-all disabled:opacity-40"
+                                                    >
+                                                        {saving ? 'Saving…' : 'Save product-level target'}
+                                                    </button>
+                                                </>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <p className="text-[10px] text-white/35">
+                                            No catalogue product linked yet — the customer has not chosen an upgrade target on the trade-in flow.
+                                        </p>
+                                    )}
+                                </div>
+
                                 {/* Quick status */}
                                 <div>
                                     <p className="text-[9px] text-white/30 uppercase tracking-widest mb-2">Quick Status</p>
                                     <div className="flex flex-wrap gap-2">
                                         {(['submitted', 'inspecting', 'completed', 'rejected'] as const).map(s => (
-                                            <button key={s} onClick={() => patchTrade(sel.id, { status: s })} disabled={saving}
+                                            <button key={s} onClick={() => void applyQuickTradeStatus(s)} disabled={saving}
                                                 className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${toDbTradeStatus(sel.status) === s ? 'bg-[#B38B21] text-black' : 'bg-white/5 text-white/40 hover:text-white border border-white/10'}`}>
                                                 {TRADE_STATUS_LABELS[s]}
                                             </button>

@@ -184,7 +184,7 @@ export const Navbar: React.FC<{
 
               <form
                 onSubmit={(e) => handleCatalogSearch(e)}
-                className="relative hidden min-w-0 flex-1 md:block max-w-md lg:max-w-lg xl:max-w-xl"
+                className="relative hidden min-w-0 flex-1 md:block md:max-w-none lg:max-w-xl xl:max-w-2xl"
                 role="search"
               >
                 <label htmlFor="nav-catalog-search" className="sr-only">
@@ -201,7 +201,7 @@ export const Navbar: React.FC<{
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search store…"
-                  className={`w-full rounded-xl border py-2 pl-10 pr-24 text-sm outline-none transition placeholder:opacity-50 focus-visible:ring-2 sm:rounded-2xl sm:py-2.5 sm:pl-11 sm:text-[13px] ${
+                  className={`w-full rounded-xl border py-2 pl-10 pr-[3.25rem] text-sm outline-none transition placeholder:opacity-50 focus-visible:ring-2 sm:rounded-2xl sm:py-2.5 sm:pl-11 sm:pr-24 sm:text-[13px] ${
                     isLight
                       ? 'border-black/15 bg-white text-black ring-[#B38B21]/45 ring-offset-2 ring-offset-[#FAFAFA] focus-visible:border-[#B38B21]/40'
                       : 'border-white/12 bg-white/[0.06] text-white ring-[#CDA032]/50 ring-offset-2 ring-offset-black/80 focus-visible:border-white/25'
@@ -209,7 +209,7 @@ export const Navbar: React.FC<{
                 />
                 <button
                   type="submit"
-                  className={`absolute right-1.5 top-1/2 z-[1] -translate-y-1/2 rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition sm:px-4 sm:py-2 sm:text-[11px] ${TW_DARK_GOLD_BTN_DEPTH} bg-[#B38B21] text-black hover:bg-[#CDA032]`}
+                  className={`absolute right-1 top-1/2 z-[1] -translate-y-1/2 rounded-lg px-2.5 py-1.5 text-[9px] font-black uppercase tracking-widest transition sm:right-1.5 sm:px-4 sm:py-2 sm:text-[11px] ${TW_DARK_GOLD_BTN_DEPTH} bg-[#B38B21] text-black hover:bg-[#CDA032]`}
                 >
                   Go
                 </button>
