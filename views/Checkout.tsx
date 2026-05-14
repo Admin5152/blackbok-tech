@@ -163,14 +163,14 @@ const InlineAuthForm: React.FC<InlineAuthFormProps> = ({ onAuthenticated, notify
   };
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-5">
+    <div className="bg-neutral-100/90 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl p-6 space-y-5">
       <div className="flex items-center gap-2">
         <Lock className="w-5 h-5 text-[#B38B21]" />
         <h2 className="text-xl font-bold">
           {mode === 'login' ? 'Sign in to continue' : 'Create an account'}
         </h2>
       </div>
-      <p className="text-sm text-white/60">
+      <p className="text-sm text-black/60 dark:text-white/60">
         You need a registered BlackBox account to place an order. New or deleted accounts: use Create an account first, then sign in.
       </p>
 
@@ -183,7 +183,7 @@ const InlineAuthForm: React.FC<InlineAuthFormProps> = ({ onAuthenticated, notify
               required
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none"
+              className="w-full bg-neutral-100 dark:bg-black/50 border border-black/15 dark:border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none text-black placeholder:text-black/45 dark:text-white dark:placeholder:text-white/35"
               placeholder="Jane Doe"
             />
           </div>
@@ -195,7 +195,7 @@ const InlineAuthForm: React.FC<InlineAuthFormProps> = ({ onAuthenticated, notify
             required
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
-            className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none"
+            className="w-full bg-neutral-100 dark:bg-black/50 border border-black/15 dark:border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none text-black placeholder:text-black/45 dark:text-white dark:placeholder:text-white/35"
             placeholder="you@example.com"
           />
         </div>
@@ -207,7 +207,7 @@ const InlineAuthForm: React.FC<InlineAuthFormProps> = ({ onAuthenticated, notify
             minLength={6}
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
-            className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none"
+            className="w-full bg-neutral-100 dark:bg-black/50 border border-black/15 dark:border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none text-black placeholder:text-black/45 dark:text-white dark:placeholder:text-white/35"
             placeholder="At least 6 characters"
           />
         </div>
@@ -231,7 +231,7 @@ const InlineAuthForm: React.FC<InlineAuthFormProps> = ({ onAuthenticated, notify
         </button>
       </form>
 
-      <div className="text-center text-sm text-white/70">
+      <div className="text-center text-sm text-black/65 dark:text-white/70">
         {mode === 'login' ? (
           <>
             New here?{' '}
@@ -264,7 +264,7 @@ const InlineAuthForm: React.FC<InlineAuthFormProps> = ({ onAuthenticated, notify
 // Main Checkout view
 // ============================================================
 export const Checkout: React.FC = () => {
-  const { user, cart, setCart, orders, setOrders, notify, setUser } = useAppContext();
+  const { user, cart, setCart, orders, setOrders, notify, setUser, theme } = useAppContext();
   const navigate = useNavigate();
   const { placeOrder: rpcPlaceOrder, loading: checkoutLoading } = useCheckout();
 
@@ -478,11 +478,11 @@ export const Checkout: React.FC = () => {
   // ----------------------------------------------------------
   if (cart.length === 0 && !showOrderComplete) {
     return (
-      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 text-center">
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-[#EDEDED] text-[#121212] dark:bg-gradient-to-b dark:from-[#050508] dark:via-[#080810] dark:to-[#050508] dark:text-white">
         <div className="max-w-md w-full space-y-8 animate-in fade-in zoom-in duration-700">
           <div className="relative inline-block">
             <div className="absolute inset-0 bg-[#B38B21]/10 blur-3xl rounded-full scale-150"></div>
-            <div className="relative w-24 h-24 rounded-3xl border border-white/10 bg-white/5 flex items-center justify-center mx-auto shadow-2xl">
+            <div className="relative w-24 h-24 rounded-3xl border border-black/10 bg-white shadow-lg flex items-center justify-center mx-auto dark:border-white/10 dark:bg-white/5 dark:shadow-2xl">
               <ShoppingBag size={48} className="text-[#B38B21] opacity-30" />
             </div>
           </div>
@@ -491,7 +491,7 @@ export const Checkout: React.FC = () => {
             <h2 className="text-4xl font-black uppercase tracking-tighter italic">
               Checkout <span className="text-[#B38B21]">Aborted</span>
             </h2>
-            <p className="text-xs font-black uppercase tracking-[0.4em] opacity-40 leading-relaxed">
+            <p className="text-xs font-black uppercase tracking-[0.4em] text-black/45 dark:text-white/40 leading-relaxed">
               No active payload detected in the transaction buffer. Return to the store to capture units.
             </p>
           </div>
@@ -513,13 +513,13 @@ export const Checkout: React.FC = () => {
   // Main checkout layout
   // ----------------------------------------------------------
   return (
-    <div className="min-h-screen bg-black text-white py-10 sm:py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen py-10 sm:py-12 px-4 sm:px-6 lg:px-8 bg-[#EDEDED] text-[#121212] dark:bg-gradient-to-b dark:from-[#050508] dark:via-[#080810] dark:to-[#050508] dark:text-white transition-colors">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
           <button
             onClick={() => (step === 2 ? setStep(1) : navigate({ to: '/cart' }))}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            className="p-2 rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/10"
             aria-label="Back"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -530,15 +530,15 @@ export const Checkout: React.FC = () => {
 
           {/* Step indicator */}
           <div className="hidden sm:flex items-center gap-3 text-xs">
-            <div className={`flex items-center gap-2 ${step === 1 ? 'text-[#B38B21]' : 'text-white/40'}`}>
-              <span className={`w-6 h-6 rounded-full flex items-center justify-center border ${step === 1 ? 'border-[#B38B21] bg-[#B38B21]/10' : 'border-white/20'}`}>
+            <div className={`flex items-center gap-2 ${step === 1 ? 'text-[#B38B21]' : 'text-black/40 dark:text-white/40'}`}>
+              <span className={`w-6 h-6 rounded-full flex items-center justify-center border ${step === 1 ? 'border-[#B38B21] bg-[#B38B21]/10' : 'border-black/20 dark:border-white/20'}`}>
                 {step > 1 ? <Check className="w-3 h-3" /> : '1'}
               </span>
               <span className="font-bold uppercase tracking-widest">Shipping</span>
             </div>
-            <span className="w-8 h-px bg-white/20" />
-            <div className={`flex items-center gap-2 ${step === 2 ? 'text-[#B38B21]' : 'text-white/40'}`}>
-              <span className={`w-6 h-6 rounded-full flex items-center justify-center border ${step === 2 ? 'border-[#B38B21] bg-[#B38B21]/10' : 'border-white/20'}`}>
+            <span className="w-8 h-px bg-black/15 dark:bg-white/20" />
+            <div className={`flex items-center gap-2 ${step === 2 ? 'text-[#B38B21]' : 'text-black/40 dark:text-white/40'}`}>
+              <span className={`w-6 h-6 rounded-full flex items-center justify-center border ${step === 2 ? 'border-[#B38B21] bg-[#B38B21]/10' : 'border-black/20 dark:border-white/20'}`}>
                 2
               </span>
               <span className="font-bold uppercase tracking-widest">Payment</span>
@@ -582,7 +582,7 @@ export const Checkout: React.FC = () => {
 
           {/* ----- Order Summary (always visible) ----- */}
           <div className="lg:col-span-1 space-y-6">
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 sticky top-6">
+            <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm sticky top-6 dark:border-white/10 dark:bg-white/5 dark:shadow-none">
               <h3 className="text-lg font-bold mb-4">Order Summary</h3>
 
               <div className="space-y-3 mb-4 max-h-60 overflow-y-auto pr-1">
@@ -594,15 +594,15 @@ export const Checkout: React.FC = () => {
                 ))}
               </div>
 
-              <div className="border-t border-white/10 pt-4 mb-4">
+              <div className="border-t border-black/10 dark:border-white/10 pt-4 mb-4">
                 <CouponInput
                   orderTotal={subtotal}
                   onCouponApplied={setAppliedCoupon}
-                  theme="dark"
+                  theme={theme}
                 />
               </div>
 
-              <div className="border-t border-white/10 pt-4 space-y-2">
+              <div className="border-t border-black/10 dark:border-white/10 pt-4 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>Subtotal</span>
                   <span>{formatCurrency(subtotal)}</span>
@@ -617,7 +617,7 @@ export const Checkout: React.FC = () => {
                   <span>Shipping</span>
                   <span>{shippingCost === 0 ? 'Free' : formatCurrency(shippingCost)}</span>
                 </div>
-                <div className="flex justify-between font-bold text-lg pt-2 border-t border-white/10">
+                <div className="flex justify-between font-bold text-lg pt-2 border-t border-black/10 dark:border-white/10">
                   <span>Total</span>
                   <span className="text-[#B38B21]">{formatCurrency(total)}</span>
                 </div>
@@ -676,7 +676,7 @@ const ShippingStep: React.FC<ShippingStepProps> = ({
   return (
     <div className="space-y-6">
       {/* Shipping method selector */}
-      <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+      <div className="bg-neutral-100/90 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl p-6">
         <h2 className="text-xl font-bold flex items-center gap-2 mb-4">
           <Truck className="w-5 h-5 text-[#B38B21]" />
           How would you like to receive your order?
@@ -689,14 +689,14 @@ const ShippingStep: React.FC<ShippingStepProps> = ({
             className={`text-left p-4 rounded-xl border transition-all ${
               !isDelivery
                 ? 'border-[#B38B21] bg-[#B38B21]/10'
-                : 'border-white/10 hover:border-white/30'
+                : 'border-black/10 dark:border-white/10 hover:border-black/25 dark:hover:border-white/30'
             }`}
           >
             <div className="flex items-center gap-3">
               <Store className="w-5 h-5 text-[#B38B21]" />
               <div>
                 <p className="font-bold">Pick up from store</p>
-                <p className="text-xs text-white/60">Free · Ready in 24h</p>
+                <p className="text-xs text-black/60 dark:text-white/60">Free · Ready in 24h</p>
               </div>
             </div>
           </button>
@@ -707,14 +707,14 @@ const ShippingStep: React.FC<ShippingStepProps> = ({
             className={`text-left p-4 rounded-xl border transition-all ${
               isDelivery
                 ? 'border-[#B38B21] bg-[#B38B21]/10'
-                : 'border-white/10 hover:border-white/30'
+                : 'border-black/10 dark:border-white/10 hover:border-black/25 dark:hover:border-white/30'
             }`}
           >
             <div className="flex items-center gap-3">
               <Truck className="w-5 h-5 text-[#B38B21]" />
               <div>
                 <p className="font-bold">Deliver</p>
-                <p className="text-xs text-white/60">From GH₵50 · Free over GH₵5,000</p>
+                <p className="text-xs text-black/60 dark:text-white/60">From GH₵50 · Free over GH₵5,000</p>
               </div>
             </div>
           </button>
@@ -723,7 +723,7 @@ const ShippingStep: React.FC<ShippingStepProps> = ({
 
       {/* Pickup card */}
       {!isDelivery && (
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
+        <div className="bg-neutral-100/90 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl p-6 space-y-4">
           <div className="p-4 bg-[#B38B21]/10 border border-[#B38B21]/20 rounded-xl">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-[#B38B21]/20 flex items-center justify-center">
@@ -731,8 +731,8 @@ const ShippingStep: React.FC<ShippingStepProps> = ({
               </div>
               <div>
                 <p className="font-bold text-[#B38B21]">BlackBox HQ</p>
-                <p className="text-sm text-white/80">KNUST Campus, Kumasi</p>
-                <p className="text-xs text-white/50">Pickup within 24h of order confirmation</p>
+                <p className="text-sm text-black/75 dark:text-white/80">KNUST Campus, Kumasi</p>
+                <p className="text-xs text-black/50 dark:text-white/50">Pickup within 24h of order confirmation</p>
               </div>
             </div>
           </div>
@@ -746,8 +746,8 @@ const ShippingStep: React.FC<ShippingStepProps> = ({
               required
               value={form.phone}
               onChange={(e) => onFormChange({ ...form, phone: e.target.value })}
-              className={`w-full bg-black/50 border rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none ${
-                errors.phone ? 'border-red-500/60' : 'border-white/20'
+              className={`w-full bg-neutral-100 dark:bg-black/50 border rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none text-black placeholder:text-black/45 dark:text-white dark:placeholder:text-white/30 ${
+                errors.phone ? 'border-red-500/60' : 'border-black/15 dark:border-white/20'
               }`}
               placeholder="+233 XX XXX XXXX"
               aria-invalid={!!errors.phone}
@@ -761,7 +761,7 @@ const ShippingStep: React.FC<ShippingStepProps> = ({
 
       {/* Delivery fields */}
       {isDelivery && (
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
+        <div className="bg-neutral-100/90 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl p-6 space-y-4">
           <h3 className="font-bold flex items-center gap-2">
             <MapPin className="w-5 h-5 text-[#B38B21]" />
             Delivery Address
@@ -776,8 +776,8 @@ const ShippingStep: React.FC<ShippingStepProps> = ({
               required
               value={form.address}
               onChange={(e) => onFormChange({ ...form, address: e.target.value })}
-              className={`w-full bg-black/50 border rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none ${
-                errors.address ? 'border-red-500/60' : 'border-white/20'
+              className={`w-full bg-neutral-100 dark:bg-black/50 border rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none text-black placeholder:text-black/45 dark:text-white dark:placeholder:text-white/30 ${
+                errors.address ? 'border-red-500/60' : 'border-black/15 dark:border-white/20'
               }`}
               placeholder="123 Main St"
             />
@@ -794,8 +794,8 @@ const ShippingStep: React.FC<ShippingStepProps> = ({
                 required
                 value={form.city}
                 onChange={(e) => onFormChange({ ...form, city: e.target.value })}
-                className={`w-full bg-black/50 border rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none ${
-                  errors.city ? 'border-red-500/60' : 'border-white/20'
+                className={`w-full bg-neutral-100 dark:bg-black/50 border rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none text-black placeholder:text-black/45 dark:text-white dark:placeholder:text-white/30 ${
+                  errors.city ? 'border-red-500/60' : 'border-black/15 dark:border-white/20'
                 }`}
                 placeholder="Kumasi"
               />
@@ -810,13 +810,13 @@ const ShippingStep: React.FC<ShippingStepProps> = ({
                 required
                 value={form.region}
                 onChange={(e) => onFormChange({ ...form, region: e.target.value })}
-                className={`w-full bg-black/50 border rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none appearance-none ${
-                  errors.region ? 'border-red-500/60' : 'border-white/20'
+                className={`w-full bg-neutral-100 dark:bg-black/50 border rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none text-black placeholder:text-black/45 dark:text-white dark:placeholder:text-white/30 appearance-none ${
+                  errors.region ? 'border-red-500/60' : 'border-black/15 dark:border-white/20'
                 }`}
               >
-                <option value="" className="bg-black">Select a region</option>
+                <option value="" className="bg-white text-black dark:bg-neutral-900 dark:text-white">Select a region</option>
                 {GHANA_REGIONS.map((r) => (
-                  <option key={r} value={r} className="bg-black">
+                  <option key={r} value={r} className="bg-white text-black dark:bg-neutral-900 dark:text-white">
                     {r}
                   </option>
                 ))}
@@ -834,15 +834,15 @@ const ShippingStep: React.FC<ShippingStepProps> = ({
               required
               value={form.digitalAddress}
               onChange={(e) => onFormChange({ ...form, digitalAddress: e.target.value })}
-              className={`w-full bg-black/50 border rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none uppercase tracking-wider ${
-                errors.digitalAddress ? 'border-red-500/60' : 'border-white/20'
+              className={`w-full bg-neutral-100 dark:bg-black/50 border rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none text-black placeholder:text-black/45 dark:text-white dark:placeholder:text-white/30 uppercase tracking-wider ${
+                errors.digitalAddress ? 'border-red-500/60' : 'border-black/15 dark:border-white/20'
               }`}
               placeholder="GA-xxx-xxxx"
             />
             {errors.digitalAddress && (
               <p className="text-xs text-red-400 mt-1">{errors.digitalAddress}</p>
             )}
-            <p className="text-xs text-white/40 mt-1">
+            <p className="text-xs text-black/45 dark:text-white/40 mt-1">
               Don't have one? Look it up at{' '}
               <a
                 href="https://www.ghanapostgps.com"
@@ -864,8 +864,8 @@ const ShippingStep: React.FC<ShippingStepProps> = ({
               required
               value={form.phone}
               onChange={(e) => onFormChange({ ...form, phone: e.target.value })}
-              className={`w-full bg-black/50 border rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none ${
-                errors.phone ? 'border-red-500/60' : 'border-white/20'
+              className={`w-full bg-neutral-100 dark:bg-black/50 border rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none text-black placeholder:text-black/45 dark:text-white dark:placeholder:text-white/30 ${
+                errors.phone ? 'border-red-500/60' : 'border-black/15 dark:border-white/20'
               }`}
               placeholder="+233 XX XXX XXXX"
             />
@@ -920,7 +920,7 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
   const isPickup = shippingMethod === 'pickup';
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-6">
+    <div className="bg-neutral-100/90 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl p-6 space-y-6">
       <h2 className="text-xl font-bold flex items-center gap-2">
         <CreditCard className="w-5 h-5 text-[#B38B21]" />
         Payment Method
@@ -933,12 +933,12 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
           className={`p-4 rounded-xl border text-left transition-all ${
             paymentMethod === 'pickup_cash'
               ? 'border-[#B38B21] bg-[#B38B21]/10'
-              : 'border-white/10 hover:border-white/30'
+              : 'border-black/10 dark:border-white/10 hover:border-black/25 dark:hover:border-white/30'
           }`}
         >
           <Store className="w-5 h-5 text-[#B38B21] mb-2" />
           <p className="font-bold">Pay on Pickup</p>
-          <p className="text-xs text-white/60 mt-1">Pay in store on collection</p>
+          <p className="text-xs text-black/60 dark:text-white/60 mt-1">Pay in store on collection</p>
         </button>
 
         <button
@@ -948,12 +948,12 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
           className={`p-4 rounded-xl border text-left transition-all relative ${
             paymentMethod === 'card'
               ? 'border-[#B38B21] bg-[#B38B21]/10'
-              : 'border-white/10 hover:border-white/30'
+              : 'border-black/10 dark:border-white/10 hover:border-black/25 dark:hover:border-white/30'
           } ${isPickup ? 'opacity-40 cursor-not-allowed' : ''}`}
         >
           <CreditCard className="w-5 h-5 text-[#B38B21] mb-2" />
           <p className="font-bold">Credit Card</p>
-          <p className="text-xs text-white/60 mt-1">Visa / Mastercard</p>
+          <p className="text-xs text-black/60 dark:text-white/60 mt-1">Visa / Mastercard</p>
           <span className="absolute top-2 right-2 text-[9px] uppercase tracking-widest text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full">
             Soon
           </span>
@@ -966,12 +966,12 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
           className={`p-4 rounded-xl border text-left transition-all relative ${
             paymentMethod === 'mobile_money'
               ? 'border-[#B38B21] bg-[#B38B21]/10'
-              : 'border-white/10 hover:border-white/30'
+              : 'border-black/10 dark:border-white/10 hover:border-black/25 dark:hover:border-white/30'
           } ${isPickup ? 'opacity-40 cursor-not-allowed' : ''}`}
         >
           <Smartphone className="w-5 h-5 text-[#B38B21] mb-2" />
           <p className="font-bold">Mobile Money</p>
-          <p className="text-xs text-white/60 mt-1">MTN / Vodafone / AirtelTigo</p>
+          <p className="text-xs text-black/60 dark:text-white/60 mt-1">MTN / Vodafone / AirtelTigo</p>
           <span className="absolute top-2 right-2 text-[9px] uppercase tracking-widest text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full">
             Soon
           </span>
@@ -985,7 +985,7 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
             <Check className="w-5 h-5 text-emerald-400 mt-0.5 shrink-0" />
             <div className="text-sm">
               <p className="font-bold text-emerald-300">Pay on collection</p>
-              <p className="text-white/70 mt-1">
+              <p className="text-black/65 dark:text-white/70 mt-1">
                 We'll reserve your items and notify you when they're ready. Pay in
                 cash, by card, or via Mobile Money at the counter when you pick
                 them up.
@@ -1011,7 +1011,7 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
               maxLength={19}
               value={card.number}
               onChange={(e) => onCardChange({ ...card, number: e.target.value })}
-              className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none tracking-wider"
+              className="w-full bg-neutral-100 dark:bg-black/50 border border-black/15 dark:border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none text-black placeholder:text-black/40 dark:text-white dark:placeholder:text-white/35 tracking-wider"
               placeholder="4111 1111 1111 1111"
             />
           </div>
@@ -1022,7 +1022,7 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
               autoComplete="cc-name"
               value={card.name}
               onChange={(e) => onCardChange({ ...card, name: e.target.value })}
-              className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none"
+              className="w-full bg-neutral-100 dark:bg-black/50 border border-black/15 dark:border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none text-black placeholder:text-black/45 dark:text-white dark:placeholder:text-white/35"
               placeholder="JANE DOE"
             />
           </div>
@@ -1035,7 +1035,7 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
                 maxLength={5}
                 value={card.expiry}
                 onChange={(e) => onCardChange({ ...card, expiry: e.target.value })}
-                className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none"
+                className="w-full bg-neutral-100 dark:bg-black/50 border border-black/15 dark:border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none text-black placeholder:text-black/45 dark:text-white dark:placeholder:text-white/35"
                 placeholder="MM/YY"
               />
             </div>
@@ -1048,7 +1048,7 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
                 maxLength={4}
                 value={card.cvv}
                 onChange={(e) => onCardChange({ ...card, cvv: e.target.value })}
-                className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none"
+                className="w-full bg-neutral-100 dark:bg-black/50 border border-black/15 dark:border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none text-black placeholder:text-black/45 dark:text-white dark:placeholder:text-white/35"
                 placeholder="123"
               />
             </div>
@@ -1068,11 +1068,11 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
             <select
               value={momo.provider}
               onChange={(e) => onMomoChange({ ...momo, provider: e.target.value })}
-              className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none"
+              className="w-full bg-neutral-100 dark:bg-black/50 border border-black/15 dark:border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none text-black placeholder:text-black/45 dark:text-white dark:placeholder:text-white/35"
             >
-              <option value="MTN" className="bg-black">MTN Mobile Money</option>
-              <option value="Vodafone" className="bg-black">Vodafone Cash</option>
-              <option value="AirtelTigo" className="bg-black">AirtelTigo Money</option>
+              <option value="MTN" className="bg-white text-black dark:bg-neutral-900 dark:text-white">MTN Mobile Money</option>
+              <option value="Vodafone" className="bg-white text-black dark:bg-neutral-900 dark:text-white">Vodafone Cash</option>
+              <option value="AirtelTigo" className="bg-white text-black dark:bg-neutral-900 dark:text-white">AirtelTigo Money</option>
             </select>
           </div>
           <div>
@@ -1081,7 +1081,7 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
               type="tel"
               value={momo.number}
               onChange={(e) => onMomoChange({ ...momo, number: e.target.value })}
-              className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none"
+              className="w-full bg-neutral-100 dark:bg-black/50 border border-black/15 dark:border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none text-black placeholder:text-black/45 dark:text-white dark:placeholder:text-white/35"
               placeholder="+233 XX XXX XXXX"
             />
           </div>
@@ -1092,7 +1092,7 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
         <button
           type="button"
           onClick={onBack}
-          className="px-6 py-3 border border-white/10 rounded-lg font-bold hover:bg-white/5 transition-colors"
+          className="px-6 py-3 border border-black/10 dark:border-white/10 rounded-lg font-bold hover:bg-neutral-200/90 dark:hover:bg-white/10 transition-colors"
         >
           Back to Shipping
         </button>

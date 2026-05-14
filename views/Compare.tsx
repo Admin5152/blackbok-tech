@@ -57,7 +57,7 @@ export const Compare: React.FC = () => {
     const cardBg = isLight ? 'bg-black/[0.02]' : 'bg-white/[0.02]';
 
     return (
-        <div className={`min-h-screen pt-24 sm:pt-32 pb-20 px-4 sm:px-6 lg:px-8 transition-colors duration-500 ${isLight ? 'bg-[#F0F0F0]' : 'bg-black'}`}>
+        <div className={`min-h-screen pt-24 sm:pt-32 pb-20 px-4 sm:px-6 lg:px-8 transition-colors duration-500 ${isLight ? 'bg-[#F0F0F0]' : 'bg-gradient-to-b from-[#050508] via-[#0a0a12] to-[#050508]'}`}>
             <div className="max-w-[1440px] mx-auto">
 
                 {/* Header Section */}

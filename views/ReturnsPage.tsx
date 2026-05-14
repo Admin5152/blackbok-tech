@@ -101,7 +101,7 @@ export const ReturnsPage: React.FC = () => {
     return (
       <div
         className={`min-h-screen flex items-center justify-center p-6 ${
-          isLight ? 'bg-white' : 'bg-black'
+          isLight ? 'bg-white' : 'bg-gradient-to-b from-[#050508] via-[#08080f] to-[#050508]'
         }`}
       >
         <div className="text-center space-y-6">
@@ -142,7 +142,7 @@ export const ReturnsPage: React.FC = () => {
   return (
     <div
       className={`min-h-screen ${
-        isLight ? 'bg-[#F5F5F7] text-black' : 'bg-[#060606] text-white'
+        isLight ? 'bg-[#F5F5F7] text-black' : 'bg-gradient-to-b from-[#050508] via-[#0a0a10] to-[#050508] text-white'
       }`}
     >
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">

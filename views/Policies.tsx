@@ -91,7 +91,7 @@ export const Policies: React.FC<PoliciesProps> = ({ theme }) => {
     );
 
     return (
-        <div className={`min-h-screen pt-24 sm:pt-32 pb-20 px-4 sm:px-6 lg:px-8 transition-colors duration-500 ${isLight ? 'bg-[#F0F0F0] text-black' : 'bg-black text-white'}`}>
+        <div className={`min-h-screen pt-24 sm:pt-32 pb-20 px-4 sm:px-6 lg:px-8 transition-colors duration-500 ${isLight ? 'bg-[#F0F0F0] text-black' : 'bg-gradient-to-b from-[#050508] via-[#08080f] to-[#050508] text-white'}`}>
             <div className="max-w-5xl mx-auto">
 
                 {/* Header */}

@@ -56,7 +56,7 @@ export const Contact: React.FC = () => {
   return (
     <div
       className={`min-h-screen py-16 sm:py-24 lg:py-32 px-4 sm:px-6 lg:px-8 transition-colors duration-500 flex flex-col items-center ${
-        isLight ? 'bg-[#F9F9F9] text-black' : 'bg-[#0D0D0E] text-white'
+        isLight ? 'bg-[#F9F9F9] text-black' : 'bg-gradient-to-b from-[#050508] via-[#0c0c14] to-[#050508] text-white'
       }`}
     >
       <div className="w-full max-w-[1200px]">

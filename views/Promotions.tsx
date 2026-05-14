@@ -12,7 +12,7 @@ export const Promotions: React.FC = () => {
     const [isSubscribed, setIsSubscribed] = useState(false);
 
     return (
-        <div className={`min-h-screen pt-32 pb-20 px-4 md:px-8 transition-colors duration-500 ${isLight ? 'bg-[#FAFAFA]' : 'bg-black'}`}>
+        <div className={`min-h-screen pt-32 pb-20 px-4 md:px-8 transition-colors duration-500 ${isLight ? 'bg-[#FAFAFA]' : 'bg-gradient-to-b from-[#050508] via-[#0a0a12] to-[#050508]'}`}>
             <div className="max-w-7xl mx-auto space-y-16">
 
                 {/* Hero Header */}

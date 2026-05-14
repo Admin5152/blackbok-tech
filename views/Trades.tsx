@@ -56,7 +56,7 @@ const StatusBadge = ({ status }: { status: TradeRequest['status'] }) => {
     'Rejected':      'bg-red-500/10 text-red-400',
   };
   return (
-    <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${map[status] || 'bg-white/5 text-white/30'}`}>
+    <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${map[status] || 'bg-[var(--bb-surface-2)] text-[color:var(--bb-muted)] border border-[var(--bb-border)]'}`}>
       {status}
     </span>
   );
@@ -359,10 +359,10 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-purple-400 mb-1">🎉 You Have a Trade-In Offer!</p>
-                <p className="text-white font-black text-lg">{pendingOffer.device}</p>
-                {pendingOffer.condition && <p className="text-xs text-white/50 mt-0.5">Condition: <span className="text-white font-bold">{pendingOffer.condition}</span></p>}
-                {(pendingOffer as any).finalValue && <p className="text-2xl font-black text-[#B38B21] mt-2">${(pendingOffer as any).finalValue} <span className="text-xs text-white/40 font-normal">trade-in value</span></p>}
-                {(pendingOffer as any).adminNote && <p className="text-xs text-white/50 mt-1 bg-white/5 rounded-xl p-2">{(pendingOffer as any).adminNote}</p>}
+                <p className="text-[color:var(--bb-text)] font-black text-lg">{pendingOffer.device}</p>
+                {pendingOffer.condition && <p className="text-xs text-[color:var(--bb-muted)] mt-0.5">Condition: <span className="text-[color:var(--bb-text)] font-bold">{pendingOffer.condition}</span></p>}
+                {(pendingOffer as any).finalValue && <p className="text-2xl font-black text-[#B38B21] mt-2">${(pendingOffer as any).finalValue} <span className="text-xs text-[color:var(--bb-muted)] font-normal">trade-in value</span></p>}
+                {(pendingOffer as any).adminNote && <p className="text-xs text-[color:var(--bb-muted)] mt-1 bg-[var(--bb-surface-2)] border border-[var(--bb-border)] rounded-xl p-2">{(pendingOffer as any).adminNote}</p>}
               </div>
               <div className="flex gap-2">
                 <button onClick={() => handleOfferResponse(pendingOffer.id, true)}
@@ -370,7 +370,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                   <CheckCircle2 size={14} /> Accept
                 </button>
                 <button onClick={() => handleOfferResponse(pendingOffer.id, false)}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-white/10 text-white/70 font-black text-xs uppercase rounded-xl hover:bg-white/20 transition-all">
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white/10 text-[color:var(--bb-muted)] font-black text-xs uppercase rounded-xl hover:bg-white/20 transition-all">
                   <XCircle size={14} /> Decline
                 </button>
               </div>
@@ -396,7 +396,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
               <div className="flex justify-between items-center py-6 border-b border-[var(--bb-border)] animate-in fade-in transition-all">
                 <div className="space-y-1">
                   <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032]">Trading In</p>
-                  <h3 className="text-xl font-black text-white">{selectedDevice?.brand} {selectedDevice?.name} — {selectedVariant}</h3>
+                  <h3 className="text-xl font-black text-[color:var(--bb-text)]">{selectedDevice?.brand} {selectedDevice?.name} — {selectedVariant}</h3>
                 </div>
                 <button onClick={() => { setStep(1); setSubStep(1); }} className="text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors">
                   Change
@@ -454,7 +454,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                         </p>
                         <h2 className="text-2xl font-bold tracking-tight">Which brand?</h2>
                       </div>
-                      <button onClick={() => setSubStep(1)} className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-white/40 hover:text-[#CDA032] transition-colors">
+                      <button onClick={() => setSubStep(1)} className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-[color:var(--bb-muted)] hover:text-[#CDA032] transition-colors">
                         <ArrowLeft size={14} /> Back
                       </button>
                     </div>
@@ -475,7 +475,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                             <img src={brand.img} alt={brand.label}
                               className={`h-full w-auto object-contain transition-all duration-500 scale-90 group-hover:scale-105 ${selectedBrand === brand.id ? 'opacity-100' : 'opacity-40 group-hover:opacity-100'}`} />
                           </div>
-                          <span className={`text-xs font-black uppercase tracking-widest text-center ${selectedBrand === brand.id ? 'text-[#CDA032]' : 'text-white/60'}`}>
+                          <span className={`text-xs font-black uppercase tracking-widest text-center ${selectedBrand === brand.id ? 'text-[#CDA032]' : 'text-[color:var(--bb-muted)]'}`}>
                             {brand.label}
                           </span>
                         </button>
@@ -494,7 +494,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                         </p>
                         <h2 className="text-2xl font-bold tracking-tight">Select your device & model</h2>
                       </div>
-                      <button onClick={() => setSubStep(2)} className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-white/40 hover:text-[#CDA032] transition-colors">
+                      <button onClick={() => setSubStep(2)} className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-[color:var(--bb-muted)] hover:text-[#CDA032] transition-colors">
                         <ArrowLeft size={14} /> Back
                       </button>
                     </div>
@@ -614,7 +614,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
               <div className="flex justify-between items-center py-6 border-b border-[var(--bb-border)] animate-in fade-in transition-all">
                 <div className="space-y-1">
                   <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032]">Device Details</p>
-                  <h3 className="text-xl font-black text-white">{targetProduct ? `Upgrading to ${targetProduct.name}` : 'Details recorded'}</h3>
+                  <h3 className="text-xl font-black text-[color:var(--bb-text)]">{targetProduct ? `Upgrading to ${targetProduct.name}` : 'Details recorded'}</h3>
                 </div>
                 <button onClick={() => setStep(2)} className="text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors">Change</button>
               </div>
@@ -629,7 +629,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                 {/* Upgrade target */}
                 <div>
                   <h3 className="text-base font-bold mb-1">What would you like to upgrade to?</h3>
-                  <p className="text-xs text-white/40 mb-4">Optional — helps us tailor the offer.</p>
+                  <p className="text-xs text-[color:var(--bb-muted)] mb-4">Optional — helps us tailor the offer.</p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     <button onClick={() => setTargetProductId('')}
                       className={`py-3 px-4 rounded-xl border text-xs font-bold text-center transition-all ${!targetProductId
@@ -726,7 +726,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
               <div className="flex justify-between items-center py-6 border-b border-[var(--bb-border)] animate-in fade-in transition-all">
                 <div className="space-y-1">
                   <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032]">Booking Details</p>
-                  <h3 className="text-xl font-black text-white">
+                  <h3 className="text-xl font-black text-[color:var(--bb-text)]">
                     {formData.date} at {timeSlots.find(t => t.id === formData.timeSlot)?.time}
                   </h3>
                 </div>
@@ -867,7 +867,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                         <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032] mb-2">Trade-In Device</p>
                         <h3 className="text-2xl font-black">{selectedDevice?.brand} {selectedDevice?.name}</h3>
                         <p className="text-lg opacity-80">{selectedVariant}</p>
-                        {targetProduct && <p className="text-sm text-white/50 mt-1">Upgrading to: <span className="text-white font-bold">{targetProduct.name}</span></p>}
+                        {targetProduct && <p className="text-sm text-[color:var(--bb-muted)] mt-1">Upgrading to: <span className="text-[color:var(--bb-text)] font-bold">{targetProduct.name}</span></p>}
                       </div>
                     </div>
                   </div>
@@ -920,19 +920,19 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                   <CheckCircle2 size={40} className="text-green-400" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-black text-white mb-2">Request Submitted!</h2>
+                  <h2 className="text-2xl font-black text-[color:var(--bb-text)] mb-2">Request Submitted!</h2>
                   {lastSubmittedTrade?.display_id && (
                     <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#CDA032] mb-3">
                       Reference: {lastSubmittedTrade.display_id}
                     </p>
                   )}
-                  <p className="text-sm text-white/50 max-w-sm mx-auto">
+                  <p className="text-sm text-[color:var(--bb-muted)] max-w-sm mx-auto">
                     Our team will review your {selectedDevice?.brand} {selectedDevice?.name} — {selectedVariant} and send a personalised offer to{' '}
-                    <span className="text-white font-bold">{formData.email}</span>.
+                    <span className="text-[color:var(--bb-text)] font-bold">{formData.email}</span>.
                   </p>
                 </div>
-                <div className="bg-[var(--bb-surface)] border border-[var(--bb-border)] rounded-2xl p-4 text-left max-w-xs mx-auto space-y-2 text-xs text-white/50">
-                  <p className="font-black text-white text-sm mb-2">What happens next?</p>
+                <div className="bg-[var(--bb-surface)] border border-[var(--bb-border)] rounded-2xl p-4 text-left max-w-xs mx-auto space-y-2 text-xs text-[color:var(--bb-muted)]">
+                  <p className="font-black text-[color:var(--bb-text)] text-sm mb-2">What happens next?</p>
                   {['Our team reviews your request','We inspect & assess the condition','You receive an offer within 24h','Accept or decline — no pressure'].map((s, i) => (
                     <div key={i} className="flex items-center gap-2">
                       <div className="w-4 h-4 bg-[#CDA032] rounded-full flex items-center justify-center text-[8px] text-black font-black shrink-0">{i + 1}</div>
@@ -1048,7 +1048,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                 <div className="mt-4 rounded-3xl border border-[var(--bb-border)] bg-[var(--bb-surface)] p-6 shadow-xl">
                   <h3 className="text-[10px] font-black uppercase tracking-widest text-[#CDA032] mb-4 border-b border-[var(--bb-border)] pb-4">My Requests</h3>
                   {loadingTrades ? (
-                    <p className="text-xs text-white/30">Loading...</p>
+                    <p className="text-xs text-[color:var(--bb-muted)] opacity-80">Loading...</p>
                   ) : (
                     <div className="space-y-3">
                       {myTrades.slice(0, 5).map(t => (
@@ -1058,7 +1058,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                               {t.display_id}
                             </p>
                           )}
-                          <p className="text-xs font-black text-white truncate">{(t as any).device}</p>
+                          <p className="text-xs font-black text-[color:var(--bb-text)] truncate">{(t as any).device}</p>
                           <div className="flex items-center justify-between mt-1">
                             <StatusBadge status={t.status} />
                             {(t as any).finalValue && <span className="text-[10px] font-black text-[#CDA032]">${(t as any).finalValue}</span>}
@@ -1072,7 +1072,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                             </div>
                           )}
                           {(t as any).adminNote && (
-                            <p className="text-[10px] text-white/40 mt-1.5 bg-white/[0.03] rounded-lg p-2">{(t as any).adminNote}</p>
+                            <p className="text-[10px] text-[color:var(--bb-muted)] mt-1.5 bg-white/[0.03] rounded-lg p-2">{(t as any).adminNote}</p>
                           )}
                         </div>
                       ))}

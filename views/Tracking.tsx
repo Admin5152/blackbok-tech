@@ -173,22 +173,22 @@ export const Tracking: React.FC = () => {
 
     if (!trackingData) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
+            <div className={`min-h-screen flex items-center justify-center px-4 ${isLight ? 'bg-[#F0F0F0]' : 'bg-gradient-to-b from-[#050508] to-[#08080f]'}`}>
                 <div className="text-center space-y-6">
                     <AlertCircle size={64} className="mx-auto text-red-500 opacity-20" />
-                    <h2 className="text-3xl font-black italic uppercase text-white/40">Reference Not Found</h2>
-                    <Link to="/history" className="inline-flex px-8 py-4 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/10 transition-colors">Return to History</Link>
+                    <h2 className={`text-3xl font-black italic uppercase ${isLight ? 'text-black/40' : 'text-white/40'}`}>Reference Not Found</h2>
+                    <Link to="/history" className={`inline-flex px-8 py-4 rounded-full text-[10px] font-black uppercase tracking-widest transition-colors border ${isLight ? 'bg-white border-black/10 text-black hover:bg-black/5' : 'bg-white/5 border-white/10 text-white hover:bg-white/10'}`}>Return to History</Link>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className={`min-h-screen pt-32 pb-20 px-4 md:px-8 transition-colors duration-500 ${isLight ? 'bg-[#FAFAFA]' : 'bg-black'}`}>
+        <div className={`min-h-screen pt-32 pb-20 px-4 md:px-8 transition-colors duration-500 ${isLight ? 'bg-[#FAFAFA]' : 'bg-gradient-to-b from-[#050508] via-[#08080f] to-[#050508]'}`}>
             <div className="max-w-4xl mx-auto space-y-12">
 
                 {/* Back Button */}
-                <Link to="/history" className="group inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-[#CDA032] transition-colors">
+                <Link to="/history" className={`group inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-colors ${isLight ? 'text-black/45 hover:text-[#CDA032]' : 'text-white/40 hover:text-[#CDA032]'}`}>
                     <ChevronLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
                     Back to History
                 </Link>
@@ -207,7 +207,7 @@ export const Tracking: React.FC = () => {
                         </h1>
                     </div>
 
-                    <div className={`p-6 rounded-3xl border ${isLight ? 'bg-white border-black/5 shadow-sm' : 'bg-white/5 border-white/5'}`}>
+                    <div className={`p-6 rounded-3xl border ${isLight ? 'bg-white border-black/5 shadow-sm' : 'bg-[#16161f]/90 border-white/[0.07] shadow-lg shadow-black/30 ring-1 ring-inset ring-white/[0.04]'}`}>
                         <div className="grid grid-cols-2 gap-x-6 gap-y-4">
                             {trackingData.details.map((detail, idx) => (
                                 <div key={idx} className="space-y-1">
@@ -220,7 +220,7 @@ export const Tracking: React.FC = () => {
                 </div>
 
                 {/* Timeline UI */}
-                <div className={`p-8 md:p-12 rounded-[3rem] border backdrop-blur-3xl overflow-hidden relative ${isLight ? 'bg-white border-black/5 shadow-xl' : 'bg-white/5 border-white/5 shadow-2xl shadow-black'}`}>
+                    <div className={`p-8 md:p-12 rounded-[3rem] border backdrop-blur-3xl overflow-hidden relative ${isLight ? 'bg-white border-black/5 shadow-xl' : 'bg-[#12121a]/90 border-white/[0.08] shadow-2xl shadow-black/40 ring-1 ring-inset ring-white/[0.04]'}`}>
 
                     {/* Background Detail */}
                     <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
@@ -232,13 +232,13 @@ export const Tracking: React.FC = () => {
                             <div key={step.id} className="relative flex gap-8 group">
                                 {/* Connector Line */}
                                 {index !== trackingData.steps.length - 1 && (
-                                    <div className={`absolute left-7 top-14 bottom-[-3rem] w-1 transition-all duration-1000 ${step.status === 'completed' ? 'bg-[#CDA032]' : 'bg-white/10'}`}></div>
+                                    <div className={`absolute left-7 top-14 bottom-[-3rem] w-1 transition-all duration-1000 ${step.status === 'completed' ? 'bg-[#CDA032]' : isLight ? 'bg-black/10' : 'bg-white/10'}`}></div>
                                 )}
 
                                 {/* Status Icon */}
                                 <div className={`relative z-10 w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 border-2 ${step.status === 'completed' ? 'bg-[#CDA032] border-[#CDA032] text-black scale-110 shadow-lg shadow-[#CDA032]/20' :
-                                    step.status === 'current' ? 'bg-white/10 border-[#CDA032] text-[#CDA032] animate-pulse' :
-                                        'bg-white/5 border-white/5 text-white/20'
+                                    step.status === 'current' ? `${isLight ? 'bg-black/5 border-[#CDA032] text-[#CDA032]' : 'bg-white/10 border-[#CDA032] text-[#CDA032]'} animate-pulse` :
+                                        isLight ? 'bg-black/[0.04] border-black/10 text-black/25' : 'bg-white/5 border-white/5 text-white/20'
                                     }`}>
                                     <step.icon size={24} />
                                 </div>
@@ -246,8 +246,7 @@ export const Tracking: React.FC = () => {
                                 {/* Step Info */}
                                 <div className="space-y-2 pt-1 flex-1">
                                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
-                                        <h3 className={`text-xl font-black italic tracking-tight uppercase ${step.status === 'upcoming' ? 'opacity-20' : 'text-white'
-                                            }`}>
+                                        <h3 className={`text-xl font-black italic tracking-tight uppercase ${step.status === 'upcoming' ? 'opacity-20' : ''} ${isLight ? 'text-black' : 'text-white'}`}>
                                             {step.label}
                                         </h3>
                                         {step.date && (
@@ -256,8 +255,7 @@ export const Tracking: React.FC = () => {
                                             </span>
                                         )}
                                     </div>
-                                    <p className={`text-xs font-medium leading-relaxed max-w-md ${step.status === 'upcoming' ? 'opacity-10' : 'opacity-40'
-                                        }`}>
+                                    <p className={`text-xs font-medium leading-relaxed max-w-md ${step.status === 'upcoming' ? 'opacity-10' : isLight ? 'text-black/55' : 'opacity-40'}`}>
                                         {step.description}
                                     </p>
 
@@ -290,7 +288,7 @@ export const Tracking: React.FC = () => {
                                                         notify(e?.message || 'Update failed', 'error');
                                                     }
                                                 }}
-                                                className="px-6 py-2.5 bg-white/10 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-white/20 transition-all"
+                                                className={`px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${isLight ? 'bg-black/5 text-black hover:bg-black/10' : 'bg-white/10 text-white hover:bg-white/20'}`}
                                             >
                                                 Decline
                                             </button>
@@ -325,7 +323,7 @@ export const Tracking: React.FC = () => {
                                                         notify(e?.message || 'Update failed', 'error');
                                                     }
                                                 }}
-                                                className="px-6 py-2.5 bg-white/10 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-white/20 transition-all"
+                                                className={`px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${isLight ? 'bg-black/5 text-black hover:bg-black/10' : 'bg-white/10 text-white hover:bg-white/20'}`}
                                             >
                                                 Decline
                                             </button>

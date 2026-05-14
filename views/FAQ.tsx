@@ -85,7 +85,7 @@ export const FAQ: React.FC<FAQProps> = ({ theme }) => {
     };
 
     return (
-        <div className={`min-h-screen pt-20 pb-24 transition-colors duration-500 ${isLight ? 'bg-[#F0F0F0] text-black' : 'bg-black text-white'}`}>
+        <div className={`min-h-screen pt-20 pb-24 transition-colors duration-500 ${isLight ? 'bg-[#F0F0F0] text-black' : 'bg-gradient-to-b from-[#050508] via-[#08080f] to-[#050508] text-white'}`}>
             <div className="max-w-4xl mx-auto px-6">
 
                 {/* Header */}
