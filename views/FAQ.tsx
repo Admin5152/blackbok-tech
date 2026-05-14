@@ -7,12 +7,21 @@ interface FAQProps {
     theme?: Theme;
 }
 
+type FaqItem = {
+    question: string;
+    answer: string;
+    /** Optional numbered steps (shown below `answer` when the row is open). */
+    steps?: string[];
+};
+
+type FaqCategory = { category: string; items: FaqItem[] };
+
 export const FAQ: React.FC<FAQProps> = ({ theme: themeProp }) => {
     const { theme: ctxTheme } = useAppContext();
     const theme = themeProp ?? ctxTheme;
     const isLight = theme === 'light';
 
-    const faqs = [
+    const faqs: FaqCategory[] = [
         {
             category: "Orders & Shipping",
             items: [
@@ -57,6 +66,19 @@ export const FAQ: React.FC<FAQProps> = ({ theme: themeProp }) => {
                 {
                     question: "What is your return policy?",
                     answer: "We offer a 14-day hassle-free return policy for unopened/unused accessories. For open-box devices, returns are subject to a standard restocking fee."
+                },
+                {
+                    question: "How do I return something or request a refund?",
+                    answer: "Start from your account so we can match the return to your order. Eligibility, timelines, and fees follow our Returns and Refund policies (for example, many sealed items must be within 14 days of delivery).",
+                    steps: [
+                        "Sign in to your BlackBox account.",
+                        "Open Returns from the main menu or footer, or go to History → Orders and locate the order that contains the item you want to return.",
+                        "Submit a return request: select the item, choose a reason (e.g. change of mind, defective, wrong item), and add any notes or photos we ask for.",
+                        "Wait for our team to review the request. If it is approved, you will receive return instructions (for example in-store drop-off at our KNUST campus branch or courier details, depending on the case).",
+                        "Pack the product carefully in its original packaging when possible, include all accessories and bundled items, and include any paperwork we requested.",
+                        "Complete the return as instructed. After we receive and inspect the unit, an approved refund is sent back to your original payment method where possible; timing is usually a few business days after inspection, depending on your bank or wallet.",
+                        "If anything is unclear, use WhatsApp, email, or phone on this page and quote your order or return reference so we can help quickly."
+                    ]
                 },
                 {
                     question: "Are your products authentic?",
@@ -131,10 +153,19 @@ export const FAQ: React.FC<FAQProps> = ({ theme: themeProp }) => {
                                                 </div>
                                             </button>
 
-                                            <div className={`transition-all duration-300 ease-in-out px-6 ${isOpen ? 'max-h-96 pb-6 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                            <div className={`transition-all duration-300 ease-in-out px-6 overflow-y-auto ${isOpen ? 'max-h-[min(85vh,48rem)] pb-6 opacity-100' : 'max-h-0 opacity-0'}`}>
                                                 <p className={`leading-relaxed ${isLight ? 'text-black/70' : 'text-white/60'}`}>
                                                     {item.answer}
                                                 </p>
+                                                {item.steps && item.steps.length > 0 && (
+                                                    <ol className={`mt-4 list-decimal space-y-3 pl-5 text-left text-sm sm:text-base ${isLight ? 'text-black/80' : 'text-white/70'}`}>
+                                                        {item.steps.map((step, stepIdx) => (
+                                                            <li key={stepIdx} className="leading-relaxed pl-1 marker:font-bold marker:text-[#CDA032]">
+                                                                {step}
+                                                            </li>
+                                                        ))}
+                                                    </ol>
+                                                )}
                                             </div>
                                         </div>
                                     );

@@ -267,6 +267,42 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  /** Step 1 wizard: Back / Change should drop downstream state so picks do not stick. */
+  const undoToDeviceTypeStep = () => {
+    setSelectedBrand('');
+    setSelectedDevice(null);
+    setSelectedVariant('');
+    setSubStep(1);
+    setTransitionKey((k) => k + 1);
+  };
+
+  const undoToBrandStep = () => {
+    setSelectedDevice(null);
+    setSelectedVariant('');
+    setSubStep(2);
+    setTransitionKey((k) => k + 1);
+  };
+
+  const undoDeviceTypeAndRestart = () => {
+    setSelectedDeviceType('');
+    setSelectedBrand('');
+    setSelectedDevice(null);
+    setSelectedVariant('');
+    setSubStep(1);
+    setTransitionKey((k) => k + 1);
+  };
+
+  const reopenDeviceWizardFromLaterStep = () => {
+    setStep(1);
+    setSubStep(1);
+    setSelectedDeviceType('');
+    setSelectedBrand('');
+    setSelectedDevice(null);
+    setSelectedVariant('');
+    setTransitionKey((k) => k + 1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const submitRequest = async () => {
     if (!user) {
       saveResumeAfterAuth('trades', {
@@ -417,7 +453,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                   <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032]">Trading In</p>
                   <h3 className="text-xl font-black text-[color:var(--bb-text)]">{selectedDevice?.brand} {selectedDevice?.name} — {selectedVariant}</h3>
                 </div>
-                <button onClick={() => { setStep(1); setSubStep(1); }} className="text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors">
+                <button onClick={reopenDeviceWizardFromLaterStep} className="text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors">
                   Change
                 </button>
               </div>
@@ -428,7 +464,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                 {subStep > 1 ? (
                   <div className="flex justify-between items-center py-5 border-b border-[var(--bb-border)] animate-in fade-in">
                     <h3 className="text-lg font-bold">{DEVICE_TYPES.find(d => d.id === selectedDeviceType)?.label}</h3>
-                    <button onClick={() => setSubStep(1)} className="text-sm font-bold text-blue-500 hover:text-blue-400">Change</button>
+                    <button onClick={undoDeviceTypeAndRestart} className="text-sm font-bold text-blue-500 hover:text-blue-400">Change</button>
                   </div>
                 ) : subStep === 1 && (
                   <div className="space-y-4">
@@ -462,7 +498,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                 {subStep > 2 ? (
                   <div className="flex justify-between items-center py-5 border-b border-[var(--bb-border)] animate-in fade-in">
                     <h3 className="text-lg font-bold">{selectedBrand}</h3>
-                    <button onClick={() => setSubStep(2)} className="text-sm font-bold text-blue-500 hover:text-blue-400">Change</button>
+                    <button onClick={undoToBrandStep} className="text-sm font-bold text-blue-500 hover:text-blue-400">Change</button>
                   </div>
                 ) : subStep === 2 && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300 pt-4">
@@ -473,7 +509,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                         </p>
                         <h2 className="text-2xl font-bold tracking-tight">Which brand?</h2>
                       </div>
-                      <button onClick={() => setSubStep(1)} className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-[color:var(--bb-muted)] hover:text-[#CDA032] transition-colors">
+                      <button type="button" onClick={undoToDeviceTypeStep} className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-[color:var(--bb-muted)] hover:text-[#CDA032] transition-colors">
                         <ArrowLeft size={14} /> Back
                       </button>
                     </div>
@@ -513,7 +549,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                         </p>
                         <h2 className="text-2xl font-bold tracking-tight">Select your device & model</h2>
                       </div>
-                      <button onClick={() => setSubStep(2)} className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-[color:var(--bb-muted)] hover:text-[#CDA032] transition-colors">
+                      <button type="button" onClick={undoToBrandStep} className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-[color:var(--bb-muted)] hover:text-[#CDA032] transition-colors">
                         <ArrowLeft size={14} /> Back
                       </button>
                     </div>
