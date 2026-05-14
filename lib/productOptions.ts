@@ -58,13 +58,24 @@ function uniqFromRows(rows: any[], key: 'color' | 'storage' | 'ram'): string[] {
 
 /**
  * Builds Color / Storage / RAM selectors from, in order:
- * 1) Legacy `{ name, options }[]` variant groups (seed / constants)
- * 2) `products.colors` / `storage` / `ram` TEXT[] chips
- * 3) Distinct values from `product_variants` rows when chips are empty
+ * 1) **`products.colors` / `storage` / `ram` TEXT[]** (admin dashboard chips) — **first** so PDP matches what staff saved.
+ * 2) Legacy `{ name, options }[]` variant groups (seed / `INITIAL_PRODUCTS`).
+ * 3) Distinct values from `product_variants` rows when chips and legacy groups are empty.
  */
 export function getProductOptionGroups(product: Product | null | undefined): ProductOptionGroup[] {
   if (!product) return [];
+
   const asAny = product as unknown as Record<string, unknown>;
+
+  const fromColors = normalizeChipArray(asAny.colors);
+  const fromStorage = normalizeChipArray(asAny.storage);
+  const fromRam = normalizeChipArray(asAny.ram);
+
+  const chipGroups: ProductOptionGroup[] = [];
+  if (fromColors.length) chipGroups.push({ name: 'Color', options: fromColors });
+  if (fromStorage.length) chipGroups.push({ name: 'Storage', options: fromStorage });
+  if (fromRam.length) chipGroups.push({ name: 'RAM', options: fromRam });
+  if (chipGroups.length > 0) return chipGroups;
 
   if (Array.isArray(product.variants) && product.variants.length > 0) {
     const named = product.variants.filter(
@@ -75,10 +86,13 @@ export function getProductOptionGroups(product: Product | null | undefined): Pro
         Array.isArray((v as any).options)
     );
     if (named.length > 0) {
-      return named.map((v: any) => ({
-        name: String(v.name).trim() || 'Option',
-        options: coerceOptionStrings(v.options),
-      })).filter((g) => g.options.length > 0);
+      const legacyGroups = named
+        .map((v: any) => ({
+          name: String(v.name).trim() || 'Option',
+          options: coerceOptionStrings(v.options),
+        }))
+        .filter((g) => g.options.length > 0);
+      if (legacyGroups.length > 0) return legacyGroups;
     }
   }
 
@@ -89,23 +103,14 @@ export function getProductOptionGroups(product: Product | null | undefined): Pro
       !(typeof v.name === 'string' && Array.isArray((v as any).options))
   );
 
-  const groups: ProductOptionGroup[] = [];
-
-  const pushDim = (label: 'Color' | 'Storage' | 'RAM', chipKey: string, rowKey: 'color' | 'storage' | 'ram') => {
-    const fromChip = normalizeChipArray(asAny[chipKey]);
-    if (fromChip.length) {
-      groups.push({ name: label, options: fromChip });
-      return;
-    }
-    const fromSku = uniqFromRows(rows, rowKey);
-    if (fromSku.length) groups.push({ name: label, options: fromSku });
-  };
-
-  pushDim('Color', 'colors', 'color');
-  pushDim('Storage', 'storage', 'storage');
-  pushDim('RAM', 'ram', 'ram');
-
-  return groups;
+  const skuGroups: ProductOptionGroup[] = [];
+  const c = uniqFromRows(rows, 'color');
+  const s = uniqFromRows(rows, 'storage');
+  const r = uniqFromRows(rows, 'ram');
+  if (c.length) skuGroups.push({ name: 'Color', options: c });
+  if (s.length) skuGroups.push({ name: 'Storage', options: s });
+  if (r.length) skuGroups.push({ name: 'RAM', options: r });
+  return skuGroups;
 }
 
 export function initialSelectedFromGroups(groups: ProductOptionGroup[]): Record<string, string> {
