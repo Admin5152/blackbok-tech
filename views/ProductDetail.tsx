@@ -3,7 +3,7 @@ import { Product, ProductImage } from '../types';
 import { X, Plus, Minus, Heart, Share2, Star, Check, Truck, Shield, RefreshCw, ArrowLeft, Copy, Facebook, Twitter, ChevronRight } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
 import { ProductImageGallery } from '../components/product/ProductImageGallery';
-import { getProductOptionGroups, initialSelectedFromGroups, toOptionString } from '../lib/productOptions';
+import { getProductOptionGroups, initialSelectedFromGroups, toOptionString, getAvailableStock } from '../lib/productOptions';
 
 interface ProductDetailProps {
   product: Product;
@@ -28,6 +28,10 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
   const [quantity, setQuantity] = useState(1);
   const normalizedVariants = useMemo(() => getProductOptionGroups(product), [product]);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
+  const availableStock = useMemo(
+    () => getAvailableStock(product, selectedOptions),
+    [product, selectedOptions],
+  );
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const overviewRef = useRef<HTMLDivElement | null>(null);
@@ -70,6 +74,10 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
     setQuantity(1);
   }, [normalizedVariants, product.id]);
 
+  useEffect(() => {
+    setQuantity((q) => Math.min(q, Math.max(1, availableStock || 1)));
+  }, [availableStock]);
+
   const scrollTo = (ref: React.RefObject<HTMLElement | null>) => {
     ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -87,10 +95,14 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
       window.alert(`Please select: ${missing.map((g) => g.name).join(', ')}`);
       return;
     }
+    if (availableStock <= 0) {
+      window.alert('This configuration is out of stock.');
+      return;
+    }
     addToCart(product, selectedOptions, quantity);
   };
 
-  const incrementQuantity = () => setQuantity(prev => Math.min(prev + 1, product.stock));
+  const incrementQuantity = () => setQuantity((prev) => Math.min(prev + 1, Math.max(1, availableStock)));
   const decrementQuantity = () => setQuantity(prev => Math.max(1, prev - 1));
 
   const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
@@ -383,15 +395,16 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                 <button
                   type="button"
                   onClick={incrementQuantity}
+                  disabled={quantity >= availableStock}
                   className={`px-4 py-2 transition ${
                     isLight ? 'hover:bg-black/[0.06] text-black' : 'hover:bg-white/10 text-white'
-                  }`}
+                  } disabled:opacity-30 disabled:pointer-events-none`}
                 >
                   <Plus size={16} />
                 </button>
               </div>
               <span className={`text-sm ${isLight ? 'text-black/50' : 'text-white/50'}`}>
-                {product.stock} available
+                {availableStock} available
               </span>
             </div>
 
@@ -399,9 +412,10 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             <div className="flex gap-3 sm:gap-4 flex-wrap">
               <button
                 onClick={handleAddToCart}
-                className="w-full sm:flex-1 sm:min-w-[200px] bg-[#B38B21] text-black font-bold py-4 rounded-full hover:opacity-90 transition shadow-lg"
+                disabled={availableStock <= 0}
+                className="w-full sm:flex-1 sm:min-w-[200px] bg-[#B38B21] text-black font-bold py-4 rounded-full hover:opacity-90 transition shadow-lg disabled:opacity-40 disabled:pointer-events-none"
               >
-                Add to Cart
+                {availableStock <= 0 ? 'Out of stock' : 'Add to Cart'}
               </button>
 
               <button

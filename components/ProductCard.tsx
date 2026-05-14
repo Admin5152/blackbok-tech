@@ -4,7 +4,7 @@ import { ShoppingCart, Heart, Eye, Star, Scale, FileText } from 'lucide-react';
 import { Product } from '../types';
 import { formatCurrency, TW_DARK_BTN_DEPTH, TW_DARK_GOLD_BTN_DEPTH } from '../lib/utils';
 import { useAppContext } from '../App';
-import { getProductOptionGroups, initialSelectedFromGroups, toOptionString } from '../lib/productOptions';
+import { getProductOptionGroups, initialSelectedFromGroups, toOptionString, getAvailableStock } from '../lib/productOptions';
 
 interface ProductCardProps {
   product: Product;
@@ -31,6 +31,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const optionGroups = useMemo(() => getProductOptionGroups(product), [product]);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
 
+  const availableStock = useMemo(
+    () => getAvailableStock(product, selectedOptions),
+    [product, selectedOptions],
+  );
+
   useEffect(() => {
     setSelectedOptions(initialSelectedFromGroups(optionGroups));
   }, [product.id, optionGroups]);
@@ -39,6 +44,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     const missing = optionGroups.filter((g) => !selectedOptions[g.name]?.trim());
     if (missing.length > 0) {
       window.alert(`Select ${missing.map((m) => m.name).join(', ')} before adding to cart.`);
+      return;
+    }
+    if (availableStock <= 0) {
+      window.alert('This item is out of stock.');
       return;
     }
     onAddToCart(product, selectedOptions, 1);
@@ -226,10 +235,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
             <div className="flex flex-col gap-2">
               <button
+                type="button"
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleAddToCartWithOptions(); }}
-                className="w-full py-4 bg-[#CDA032] hover:bg-[#B38B21] text-black rounded-xl text-[9px] font-black uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-[#CDA032]/20 active:scale-95"
+                disabled={availableStock <= 0}
+                className="w-full py-4 bg-[#CDA032] hover:bg-[#B38B21] text-black rounded-xl text-[9px] font-black uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-[#CDA032]/20 active:scale-95 disabled:opacity-40 disabled:pointer-events-none disabled:hover:bg-[#CDA032]"
               >
-                <ShoppingCart size={13} strokeWidth={3} /> ADD TO CART
+                <ShoppingCart size={13} strokeWidth={3} /> {availableStock <= 0 ? 'Out of stock' : 'ADD TO CART'}
               </button>
 
               <Link

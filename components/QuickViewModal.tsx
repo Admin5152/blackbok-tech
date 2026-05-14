@@ -3,7 +3,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { X, Minus, Plus, ShoppingCart, Star, ShieldCheck, ArrowLeft, Package } from 'lucide-react';
 import { Product } from '../types';
 import { formatCurrency } from '../lib/utils';
-import { getProductOptionGroups, initialSelectedFromGroups, toOptionString } from '../lib/productOptions';
+import { getProductOptionGroups, initialSelectedFromGroups, toOptionString, getAvailableStock } from '../lib/productOptions';
 import { useAppContext } from '../App';
 
 interface QuickViewModalProps {
@@ -21,10 +21,19 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
 
+  const availableStock = useMemo(
+    () => (product ? getAvailableStock(product, selectedOptions) : 0),
+    [product, selectedOptions],
+  );
+
   useEffect(() => {
     setSelectedOptions(initialSelectedFromGroups(groupedVariants));
     setQuantity(1);
   }, [product, groupedVariants]);
+
+  useEffect(() => {
+    setQuantity((q) => Math.min(q, Math.max(1, availableStock || 1)));
+  }, [availableStock]);
 
   if (!product || !isOpen) return null;
 
@@ -32,6 +41,10 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
     const missing = groupedVariants.filter((g) => !selectedOptions[g.name]?.trim());
     if (missing.length > 0) {
       window.alert(`Please select: ${missing.map((g) => g.name).join(', ')}`);
+      return;
+    }
+    if (!product || availableStock <= 0) {
+      window.alert('This configuration is out of stock.');
       return;
     }
     onAddToCart(product, selectedOptions, quantity);
@@ -230,10 +243,11 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
                   </span>
                   <button
                     type="button"
-                    onClick={() => setQuantity(quantity + 1)}
+                    onClick={() => setQuantity((q) => Math.min(q + 1, Math.max(1, availableStock)))}
+                    disabled={quantity >= availableStock}
                     className={`p-1 transition-colors ${
                       isLight ? 'text-black/40 hover:text-[#CDA032]' : 'text-white/20 hover:text-[#CDA032]'
-                    }`}
+                    } disabled:opacity-30 disabled:pointer-events-none`}
                   >
                     <Plus size={20} />
                   </button>
@@ -241,12 +255,13 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
 
                 <button
                   onClick={handleAddToCart}
-                  className="flex-1 py-5 bg-white text-black font-black text-[11px] rounded-2xl shadow-2xl hover:bg-[#CDA032] hover:text-black transition-all uppercase tracking-[0.4em] flex items-center justify-center gap-4 active:scale-95 group"
+                  disabled={availableStock <= 0}
+                  className="flex-1 py-5 bg-white text-black font-black text-[11px] rounded-2xl shadow-2xl hover:bg-[#CDA032] hover:text-black transition-all uppercase tracking-[0.4em] flex items-center justify-center gap-4 active:scale-95 group disabled:opacity-40 disabled:pointer-events-none"
                 >
                   <div className="transition-transform group-hover:scale-125">
                     <ShoppingCart size={18} />
                   </div>
-                  Authorize Purchase
+                  {availableStock <= 0 ? 'Out of stock' : 'Authorize Purchase'}
                 </button>
               </div>
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, createContext, useContext } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, createContext, useContext } from 'react';
 import {
   createRootRoute,
   createRoute,
@@ -21,6 +21,7 @@ import { canAccessAdminDashboard, normalizeCanonicalRole } from './lib/roles';
 import { setupMobileBackButton, preventAppClose } from './lib/mobileNavigation';
 import { scrollToDocumentTop } from './lib/scrollToDocumentTop';
 import { INITIAL_PRODUCTS } from './constants';
+import { getAvailableStock } from './lib/productOptions';
 import { Navbar } from './components/Navbar';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { Footer } from './components/Footer';
@@ -1128,15 +1129,38 @@ function RootComponent() {
   };
 
   const addToCart = (product: Product, options: Record<string, string> = {}, qty: number = 1) => {
-    setCart(prev => {
-      const existingId = `${product.id}-${JSON.stringify(options)}`;
-      const existingIndex = prev.findIndex(p => `${p.id}-${JSON.stringify(p.selectedOptions)}` === existingId);
-      if (existingIndex > -1) {
-        const updated = [...prev];
-        updated[existingIndex].quantity += qty;
+    const safeQty = Math.max(1, Math.floor(Number(qty) || 1));
+    const available = getAvailableStock(product, options);
+    if (available <= 0) {
+      notify('This item is out of stock.', 'error');
+      return;
+    }
+
+    const prev = cartRef.current;
+    const existingId = `${product.id}-${JSON.stringify(options)}`;
+    const existingIndex = prev.findIndex(
+      (p) => `${p.id}-${JSON.stringify(p.selectedOptions)}` === existingId,
+    );
+    if (existingIndex > -1) {
+      const cur = prev[existingIndex].quantity;
+      if (cur + safeQty > available) {
+        notify(`Only ${available} in stock for this configuration.`, 'error');
+        return;
+      }
+    } else if (safeQty > available) {
+      notify(`Only ${available} in stock.`, 'error');
+      return;
+    }
+
+    setCart((prevCart) => {
+      const exId = `${product.id}-${JSON.stringify(options)}`;
+      const exIdx = prevCart.findIndex((p) => `${p.id}-${JSON.stringify(p.selectedOptions)}` === exId);
+      if (exIdx > -1) {
+        const updated = [...prevCart];
+        updated[exIdx] = { ...updated[exIdx], quantity: updated[exIdx].quantity + safeQty };
         return updated;
       }
-      return [...prev, { ...product, quantity: qty, selectedOptions: options }];
+      return [...prevCart, { ...product, quantity: safeQty, selectedOptions: options }];
     });
     notify(`${product.name} logged to repository.`);
   };
@@ -1158,12 +1182,23 @@ function RootComponent() {
   };
 
   const updateQuantity = (id: string, options: Record<string, string> | undefined, delta: number) => {
-    setCart(prev => prev.map(item => {
-      if (item.id === id && JSON.stringify(item.selectedOptions) === JSON.stringify(options)) {
-        return { ...item, quantity: Math.max(1, item.quantity + delta) };
-      }
-      return item;
-    }));
+    setCart((prev) =>
+      prev.map((item) => {
+        if (item.id !== id || JSON.stringify(item.selectedOptions) !== JSON.stringify(options)) {
+          return item;
+        }
+        const nextQty = item.quantity + delta;
+        if (delta > 0) {
+          const live = products.find((p) => p.id === id);
+          const cap = live ? getAvailableStock(live, item.selectedOptions || {}) : Math.max(0, Number(item.stock ?? 0));
+          if (nextQty > cap) {
+            notify(`Only ${cap} available for this item.`, 'error');
+            return item;
+          }
+        }
+        return { ...item, quantity: Math.max(1, nextQty) };
+      }),
+    );
   };
 
   const removeFromCart = (uniqueId: string) => {

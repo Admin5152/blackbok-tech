@@ -131,3 +131,59 @@ export function initialSelectedFromGroups(groups: ProductOptionGroup[]): Record<
   }
   return initial;
 }
+
+function mapOptionGroupToVariantField(groupName: string): 'color' | 'storage' | 'ram' | null {
+  const n = groupName.trim().toLowerCase();
+  if (n === 'color') return 'color';
+  if (n === 'storage') return 'storage';
+  if (n === 'ram') return 'ram';
+  return null;
+}
+
+function normOpt(s: unknown): string {
+  return toOptionString(s).toLowerCase();
+}
+
+/**
+ * Units available for `product` with the given `selectedOptions`.
+ * Uses per-SKU `product_variants` stock when a row matches all selected
+ * Color / Storage / RAM fields; otherwise falls back to `product.stock`.
+ */
+export function getAvailableStock(product: Product, selectedOptions: Record<string, string> = {}): number {
+  const base = Math.max(0, Math.floor(Number(product.stock ?? 0)));
+
+  const rows = (product.variants || []).filter(
+    (v: any) =>
+      v &&
+      typeof v === 'object' &&
+      !(typeof v.name === 'string' && Array.isArray((v as any).options)),
+  );
+
+  if (rows.length === 0) return base;
+
+  const selectedEntries = Object.entries(selectedOptions).filter(([, v]) => toOptionString(v));
+  if (selectedEntries.length === 0) return base;
+
+  for (const row of rows) {
+    let ok = true;
+    for (const [groupName, val] of selectedEntries) {
+      const field = mapOptionGroupToVariantField(groupName);
+      if (!field) continue;
+      const cell = toOptionString((row as unknown as Record<string, unknown>)[field]);
+      if (!cell) {
+        ok = false;
+        break;
+      }
+      if (normOpt(cell) !== normOpt(val)) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) {
+      const vs = Math.floor(Number((row as { stock?: unknown }).stock ?? 0));
+      return Math.max(0, Number.isFinite(vs) ? vs : 0);
+    }
+  }
+
+  return base;
+}
