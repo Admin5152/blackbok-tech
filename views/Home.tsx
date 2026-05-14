@@ -307,10 +307,7 @@ export const Home: React.FC<HomeProps> = ({
           >
             <div className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#16161f] ring-1 ring-inset ring-white/[0.06]' : 'bg-[#f5f5f7]'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between snap-start flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5`}>
               <div>
-                <h2 className="text-3xl md:text-5xl font-bold mb-4 tracking-tight">Featured picks</h2>
-                <p className={`text-lg md:text-xl ${theme === 'dark' ? 'text-white/70' : 'text-black/70'}`}>
-                  Staff favorites and new arrivals.<br />Same quick-view flow as the rows below.
-                </p>
+                <h2 className="text-3xl md:text-5xl font-bold tracking-tight">Featured picks</h2>
               </div>
               <div className="flex justify-center mt-8">
                 <img src="/iPhone.jpeg" alt="" className="h-40 md:h-56 w-40 md:w-56 object-cover rounded-2xl drop-shadow-xl" />
@@ -442,8 +439,7 @@ export const Home: React.FC<HomeProps> = ({
             {/* Promo Card */}
             <div className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#16161f] ring-1 ring-inset ring-white/[0.06]' : 'bg-white'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between snap-start flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5`}>
               <div>
-                <h2 className="text-3xl md:text-5xl font-bold mb-4 tracking-tight">Take a peek</h2>
-                <p className={`text-lg md:text-xl ${theme === 'dark' ? 'text-white/70' : 'text-black/70'}`}>The accessories you love.<br />In a fresh mix of colors.</p>
+                <h2 className="text-3xl md:text-5xl font-bold tracking-tight">Take a peek</h2>
               </div>
               <div className="flex justify-center mt-8">
                 <img src="/cases.jpeg" alt="Accessories" className="h-40 md:h-56 w-40 md:w-56 object-cover rounded-2xl drop-shadow-xl" />
@@ -562,8 +558,7 @@ export const Home: React.FC<HomeProps> = ({
             {/* Promo Card */}
             <div className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#16161f] ring-1 ring-inset ring-white/[0.06]' : 'bg-[#F2F4F7]'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between snap-start flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5 relative overflow-hidden group`}>
               <div className="relative z-10">
-                <h2 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase leading-tight mb-4">Laptops.</h2>
-                <p className={`text-lg md:text-xl font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-white/40' : 'text-black/40'}`}>Elite MacBooks and<br />Performance machines.</p>
+                <h2 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase leading-tight">Laptops.</h2>
               </div>
               <div className="flex justify-center mt-8 relative z-10 transform group-hover:scale-110 transition-transform duration-700">
                 <img

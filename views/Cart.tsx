@@ -155,9 +155,6 @@ export const Cart: React.FC<CartProps> = ({
                     <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tighter italic">
                       Inventory <span className="text-[#CDA032]">Void</span>
                     </h2>
-                    <p className="opacity-40 text-[10px] font-black uppercase tracking-[0.3em] max-w-xs mx-auto leading-relaxed">
-                      Protocol: Cart_is_Null • No premium hardware detected.
-                    </p>
                   </div>
 
                   <div className="pt-2">

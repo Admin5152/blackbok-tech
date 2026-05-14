@@ -16,7 +16,7 @@ export const Promotions: React.FC = () => {
             <div className="max-w-7xl mx-auto space-y-16">
 
                 {/* Hero Header */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 border-b border-[var(--bb-border)]/20 pb-12">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 border-b border-[var(--bb-border)]/20 pb-12">
                     <div className="space-y-4">
                         <div className="flex items-center gap-3">
                             <div className="w-12 h-12 rounded-2xl bg-[#CDA032]/20 flex items-center justify-center text-[#CDA032]">
@@ -27,9 +27,6 @@ export const Promotions: React.FC = () => {
                         <h1 className={`text-5xl md:text-8xl font-black italic tracking-tighter uppercase ${isLight ? 'text-black' : 'text-white'}`}>
                             Shop <span className="text-[#CDA032]">Promotions</span>.
                         </h1>
-                        <p className={`text-xs md:text-sm font-bold uppercase tracking-[0.3em] opacity-30 max-w-xl leading-relaxed italic`}>
-                            Precision tech at exclusive valuation rates. Calibration of price to performance is optimized for a limited window.
-                        </p>
                     </div>
 
                     <div className={`p-8 rounded-[2.5rem] border backdrop-blur-3xl overflow-hidden relative ${isLight ? 'bg-white border-black/5 shadow-xl' : 'bg-white/5 border-white/5 shadow-2xl'}`}>
@@ -79,9 +76,6 @@ export const Promotions: React.FC = () => {
                         </div>
                         <div className="space-y-4">
                             <h2 className="text-3xl font-black italic uppercase tracking-tighter opacity-20">No Active Promotions</h2>
-                            <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-10 max-w-md mx-auto leading-relaxed">
-                                Current market calibration is at standard valuation. Resetting promotion cycle...
-                            </p>
                         </div>
                         <button
                             onClick={() => window.history.back()}

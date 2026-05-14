@@ -526,9 +526,6 @@ export const Checkout: React.FC = () => {
           </button>
           <div className="flex-1">
             <h1 className="text-2xl sm:text-3xl font-bold">Checkout</h1>
-            <p className="text-white/60 text-sm">
-              {step === 1 ? 'Shipping details' : 'Payment & review'}
-            </p>
           </div>
 
           {/* Step indicator */}

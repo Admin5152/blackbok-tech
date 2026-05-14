@@ -438,7 +438,6 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
           <div className="flex items-end justify-between gap-6 flex-wrap">
             <div>
               <h2 className="text-2xl sm:text-3xl font-bold">Reviews</h2>
-              <p className="text-sm text-white/50 mt-2">See what customers are saying about this product.</p>
             </div>
             {/* Review submission UI intentionally hidden until feature scope is approved */}
           </div>
@@ -533,9 +532,8 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
           return (
           <div className="mt-20 border-t border-white/10 pt-16">
             <div className="flex items-end justify-between mb-10 px-2">
-              <div className="space-y-2">
-                <h2 className="text-sm font-black uppercase tracking-[0.4em] text-[#B38B21]">Curated and Premium</h2>
-                <h3 className="text-3xl md:text-4xl font-black italic tracking-tighter uppercase">Products You <span className="text-[#B38B21]">May Like</span></h3>
+              <div>
+                <h2 className="text-3xl md:text-4xl font-black italic tracking-tighter uppercase">Products You <span className="text-[#B38B21]">May Like</span></h2>
               </div>
               <button
                 onClick={() => navigateTo('store')}

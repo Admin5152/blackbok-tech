@@ -61,7 +61,7 @@ export const Compare: React.FC = () => {
             <div className="max-w-[1440px] mx-auto">
 
                 {/* Header Section */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12 sm:mb-16">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-12 sm:mb-16">
                     <div className="space-y-4">
                         <div className="flex items-center gap-4">
                             <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-[1.5rem] sm:rounded-[2rem] flex items-center justify-center transition-all ${isLight ? 'bg-black text-white' : 'bg-white text-black shadow-[0_0_30px_rgba(255,255,255,0.15)]'}`}>
@@ -71,9 +71,6 @@ export const Compare: React.FC = () => {
                                 Compare <br /> <span className="text-[#CDA032]">Matrix</span>
                             </h1>
                         </div>
-                        <p className={`text-[10px] sm:text-[11px] font-black uppercase tracking-[0.4em] italic ${textMuted}`}>
-                            Precision diagnostics & hardware benchmarking ({compareProducts.length} units active)
-                        </p>
                     </div>
 
                     <div className="flex items-center gap-3">
