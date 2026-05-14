@@ -1,9 +1,7 @@
-import { getSupabaseClient, getSupabaseAnonKey, isSupabaseConfigured } from './supabase';
+import { getSupabaseAnonKey, getSupabaseClient, getSupabaseProjectUrl, isSupabaseConfigured } from './supabase';
 
 function edgeFunctionsBaseUrl(): string {
-  const env = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-  const fallback = 'https://crkmhpfgrvcnmqgiekjb.supabase.co';
-  return (env && env.trim()) || fallback;
+  return getSupabaseProjectUrl();
 }
 
 export interface DeleteAccountResult {

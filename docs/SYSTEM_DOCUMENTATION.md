@@ -729,7 +729,7 @@ There is **no single file in this repository** listing 225 cases. If your team m
 
 ### 22.4 Test and environment separation (internal standard §7.6)
 
-**Supabase:** Treat **development** and **production** as **separate Supabase projects** in any serious deployment. This repo’s **`lib/supabase.ts`** includes a **dev‑only fallback** URL/key for a shared project ref (`crkmhpfgrvcnmqgiekjb`); production builds **must** override with **`VITE_SUPABASE_URL`** and **`VITE_SUPABASE_ANON_KEY`** pointing at the **customer’s** project so data, Auth users, and RLS are never shared with local experiments. Do **not** run destructive migrations or seed scripts against production.
+**Supabase:** Treat **development** and **production** as **separate Supabase projects** in any serious deployment. **`lib/supabase.ts`** reads **`VITE_SUPABASE_URL`** and **`VITE_SUPABASE_ANON_KEY`** only (no baked-in project); production builds **throw** if either is missing. Point these at the **customer’s** project so data, Auth users, and RLS are never shared with local experiments. Do **not** run destructive migrations or seed scripts against production.
 
 **Staging:** If you maintain a staging URL, give it its **own** Supabase project (or a dedicated schema/branched DB if your org uses Supabase branching) and its **own** Auth redirect entries. **`database/seed.sql`** (and any demo admin accounts mentioned in `DEPLOYMENT.md` / `SUPABASE_SETUP.md`) belong on **non‑production** environments only unless the business explicitly wants seed catalog rows in prod.
 
@@ -745,7 +745,7 @@ There is **no single file in this repository** listing 225 cases. If your team m
 |----------|--------|
 | **Vercel** | Static output from `dist/`; set SPA rewrite to `index.html`. Set `VITE_*` build-time vars per `DEPLOYMENT.md`. |
 | **Netlify** | Same as Vercel; `_redirects` or `netlify.toml` SPA fallback. |
-| **GitHub Pages / static CDN** | `vite.config.ts` uses **`base: './'`** in production for relative assets. |
+| **GitHub Pages / static CDN** | Default **`base: '/'`** in `vite.config.ts` (apex or custom domain). For `github.io/<repo>/`, set **`base: '/<repo>/'`** and redeploy. |
 | **Custom Nginx / Apache** | Serve `dist/`, fallback to `index.html` for unknown paths. |
 
 **Dev server:** `vite.config.ts` → port **3000**, host **0.0.0.0**.
@@ -798,7 +798,7 @@ Approximate **monthly** recurring costs at launch (adjust for your region and pl
 
 | Asset / responsibility | Owner / account holder | Emergency contact | Notes |
 |------------------------|------------------------|-------------------|-------|
-| **Supabase project** (org, billing, API keys) | **Seth Agyei Mensah** — `sethagyeimensah2@gmail.com` (GitHub **`Admin5152`**) | **Osmond Abdul Karim Woriwi** — `osmondabdulkarimworiwi72@gmail.com` | Confirm this person can open **Supabase → Project / Organization → Billing** for the **production** project. Fallback ref in code: `crkmhpfgrvcnmqgiekjb`. |
+| **Supabase project** (org, billing, API keys) | **Seth Agyei Mensah** — `sethagyeimensah2@gmail.com` (GitHub **`Admin5152`**) | **Osmond Abdul Karim Woriwi** — `osmondabdulkarimworiwi72@gmail.com` | Confirm this person can open **Supabase → Project / Organization → Billing** for the **production** project. |
 | **Domain registrar** (DNS, renewal) | **Seth Agyei Mensah** — `sethagyeimensah2@gmail.com` | **Stanley Sam** — `stanleysam059@gmail.com` | **Verify** registrar login; replace with **client legal / IT** when the domain is transferred. |
 | **Static hosting** (Vercel/Netlify/etc., prod env vars) | **Seth Agyei Mensah** — `sethagyeimensah2@gmail.com` | **Tsega Hesmund** — `tsegahesmund@gmail.com` | Holds deploy access until client receives handover. |
 | **Git remote** (`origin`, CI secrets) | **GitHub `Admin5152`** — **Seth Agyei Mensah** | **Osmond Abdul Karim Woriwi** | Other active committers: **Stanley Sam**, **Tsega Hesmund**. |

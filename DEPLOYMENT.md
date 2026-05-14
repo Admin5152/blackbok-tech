@@ -6,7 +6,7 @@
 - [ ] Create `.env.production` file with all required variables
 - [ ] Set `VITE_SUPABASE_URL` to production Supabase URL
 - [ ] Set `VITE_SUPABASE_ANON_KEY` to production Supabase anon key
-- [ ] Set `VITE_APP_URL` to production domain
+- [ ] Set `VITE_APP_URL` to `https://blackboxghana.com` (no trailing slash)
 
 ### ✅ Database Setup
 - [ ] Run schema.sql in production Supabase
@@ -41,7 +41,7 @@ vercel --prod
 # Environment Variables in Vercel Dashboard:
 # VITE_SUPABASE_URL
 # VITE_SUPABASE_ANON_KEY
-# VITE_APP_URL
+# VITE_APP_URL=https://blackboxghana.com
 ```
 
 ### 🌐 Netlify
@@ -55,12 +55,12 @@ netlify deploy --prod --dir=dist
 # Environment Variables in Netlify Dashboard:
 # VITE_SUPABASE_URL
 # VITE_SUPABASE_ANON_KEY
-# VITE_APP_URL
+# VITE_APP_URL=https://blackboxghana.com
 ```
 
 ### 🌐 GitHub Pages
 ```bash
-# Update vite.config.ts base: './'
+# If the site is served from https://<user>.github.io/<repo>/, set vite.config.ts `base` to `/<repo>/` and rebuild.
 # Deploy using GitHub Actions
 ```
 
