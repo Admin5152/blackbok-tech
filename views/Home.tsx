@@ -129,23 +129,27 @@ export const Home: React.FC<HomeProps> = ({
   ];
 
   return (
-    <div className="view-transition bg-black overflow-hidden no-print">
+    <div className="view-transition w-full min-w-0 overflow-hidden bg-black no-print">
       {/* Main Content */}
-      {/* Hero Section */}
-      <section className="relative flex min-h-hero-viewport items-center justify-center overflow-hidden pt-24 pb-12 sm:pt-32">
-        {/* Static hero backdrop (slideshow lives in its own panel so promos stay legible) */}
+      {/* Hero — full-bleed (apple.com-style): centered copy, wide showcase below */}
+      <section className="relative flex min-h-hero-viewport w-full min-w-0 flex-col overflow-hidden">
         <div className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-black to-black subtle-texture"></div>
-          {theme === 'light' && (
-            <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/25 to-transparent" aria-hidden />
+          {theme === 'light' ? (
+            <>
+              <div className="absolute inset-0 bg-gradient-to-b from-[#eceff4] via-[#f4f5f7] to-[#e8ebf0]" />
+              <div className="absolute inset-0 bg-gradient-to-b from-white/80 via-transparent to-[#dfe3ea]/90" aria-hidden />
+            </>
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-b from-neutral-950 via-black to-neutral-950 subtle-texture" />
           )}
         </div>
 
-        <div className="relative z-10 mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-14 xl:gap-16">
-            {/* Left — copy on its own surface (does not cover promo art) */}
-            <div className="space-y-8 rounded-3xl border border-white/10 bg-black/55 p-6 shadow-2xl backdrop-blur-md sm:p-8 lg:bg-black/40">
-              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-[4.25rem] xl:text-[5rem] font-heading font-bold tracking-wider leading-[1.1] lg:leading-[0.95] text-off-white">
+        <div className="relative z-10 flex w-full min-w-0 flex-1 flex-col">
+          <header className="shrink-0 px-4 pt-24 text-center sm:px-6 sm:pt-32 md:px-8">
+            <div className="mx-auto max-w-4xl space-y-5 sm:space-y-6">
+              <h1
+                className={`font-heading text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-[4.5rem] lg:leading-[1.06] ${theme === 'light' ? 'text-neutral-900' : 'text-off-white'}`}
+              >
                 Redefining Your
                 <br />
                 <span className="bg-gradient-to-r bg-clip-text text-transparent from-[#D4AF37] to-[#F4E4C1]">
@@ -153,61 +157,59 @@ export const Home: React.FC<HomeProps> = ({
                 </span>
               </h1>
 
-              <div className="space-y-4 max-w-lg">
-                <p className="text-lg font-light leading-relaxed text-gray-300">
-                  Premium tech products, expert repairs, and seamless trade-ins for the modern enthusiast.
-                </p>
-              </div>
+              <p
+                className={`mx-auto max-w-xl text-base font-light leading-relaxed sm:text-lg md:text-xl ${theme === 'light' ? 'text-neutral-600' : 'text-gray-300'}`}
+              >
+                Premium tech products, expert repairs, and seamless trade-ins for the modern enthusiast.
+              </p>
 
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4 pt-4">
+              <div className="flex flex-col items-stretch justify-center gap-3 pt-1 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-4 sm:pt-2">
                 <Link
                   to="/store"
-                  className={`btn-press inline-flex justify-center px-10 py-5 rounded-full text-sm font-heading font-semibold tracking-wider items-center gap-3 transition-all duration-300 hover:scale-105 hover:shadow-[0_20px_60px_rgba(255,255,255,0.3)] active:scale-95 ${theme === 'dark'
-                    ? 'bg-white text-black hover:shadow-[0_20px_60px_rgba(255,255,255,0.3)]'
-                    : 'bg-black text-white hover:shadow-[0_20px_60px_rgba(0,0,0,0.2)]'
+                  className={`btn-press inline-flex justify-center px-10 py-4 sm:py-5 rounded-full text-sm font-heading font-semibold tracking-wider items-center gap-3 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg active:scale-95 ${theme === 'dark'
+                    ? 'bg-white text-black hover:shadow-white/20'
+                    : 'bg-[#0071e3] text-white hover:bg-[#0077ed] shadow-sm'
                     }`}
                 >
                   Browse Products
-                  <ArrowRight className="transition-transform group-hover:translate-x-2" size={18} />
+                  <ArrowRight className="transition-transform group-hover:translate-x-1" size={18} />
                 </Link>
 
                 <Link
                   to="/about"
-                  className={`btn-press inline-flex justify-center px-10 py-5 rounded-full text-sm font-heading font-semibold tracking-wider items-center gap-3 transition-all duration-300 hover:scale-105 active:scale-95 ${theme === 'dark'
-                    ? 'bg-black text-off-white border-2 border-white/20 hover:bg-white hover:text-black'
-                    : 'bg-white text-black border-2 border-black/20 hover:bg-black hover:text-white'
+                  className={`btn-press inline-flex justify-center px-10 py-4 sm:py-5 rounded-full text-sm font-heading font-semibold tracking-wider items-center gap-3 transition-all duration-300 hover:scale-[1.02] active:scale-95 ${theme === 'dark'
+                    ? 'border-2 border-white/25 bg-transparent text-off-white hover:border-white/50 hover:bg-white/5'
+                    : 'border-2 border-[#0071e3] bg-transparent text-[#0071e3] hover:bg-[#0071e3]/10'
                     }`}
                 >
                   About Us
-                  <ArrowRight className="transition-transform group-hover:translate-x-2" size={18} />
+                  <ArrowRight className="transition-transform group-hover:translate-x-1" size={18} />
                 </Link>
               </div>
             </div>
+          </header>
 
-            {/* Right — promo slideshow contained so full poster + pricing stays visible */}
-            <div className="relative animate-in fade-in slide-in-from-right-10 duration-1000 delay-200">
+          <div className="relative mt-6 flex min-h-0 w-full flex-1 flex-col justify-end pb-8 sm:mt-8 sm:pb-10 md:mt-10 md:pb-14">
+            <div className="relative mx-auto h-full min-h-[38svh] w-full flex-1 sm:min-h-[42svh] lg:min-h-[46svh] xl:min-h-[50svh]">
               {themeImages.length > 0 ? (
-                <div className="relative mx-auto aspect-[4/5] w-full max-h-[68svh] max-w-md overflow-hidden rounded-2xl border border-white/10 bg-zinc-950 shadow-2xl sm:max-w-lg sm:aspect-[3/4] lg:mx-0 lg:ml-auto lg:aspect-auto lg:max-h-none lg:h-[min(32rem,52vh)] lg:max-w-none xl:h-[min(36rem,56vh)]">
-                  {themeImages.map((img, index) => (
-                    <img
-                      key={img.filename}
-                      src={`/${img.filename}`}
-                      alt={img.description}
-                      className={`pointer-events-none absolute inset-0 box-border h-full w-full object-contain object-center p-2 transition-opacity duration-2000 ease-in-out sm:p-3 ${index === currentImageIndex ? 'opacity-100 z-[1]' : 'opacity-0 z-0'
-                        }`}
-                      style={{
-                        filter: theme === 'light' && img.filename === 'BlackBox.jpeg' ? 'invert(1) brightness(1.2)' : undefined
-                      }}
-                      loading="lazy"
-                      decoding="async"
-                      sizes="(min-width: 1024px) 42vw, 100vw"
-                    />
-                  ))}
-                </div>
+                themeImages.map((img, index) => (
+                  <img
+                    key={img.filename}
+                    src={`/${img.filename}`}
+                    alt={img.description}
+                    className={`pointer-events-none absolute inset-x-0 bottom-0 top-0 box-border h-full w-full object-contain object-center px-2 transition-opacity duration-2000 ease-in-out sm:px-4 md:px-6 lg:px-10 ${index === currentImageIndex ? 'opacity-100 z-[1]' : 'opacity-0 z-0'
+                      }`}
+                    style={{
+                      filter: theme === 'light' && img.filename === 'BlackBox.jpeg' ? 'invert(1) brightness(1.2)' : undefined
+                    }}
+                    loading="lazy"
+                    decoding="async"
+                    sizes="100vw"
+                  />
+                ))
               ) : (
-                <div className="flex h-72 w-full items-center justify-center rounded-2xl border border-white/10 bg-zinc-950/80 lg:h-96">
-                  <div className="h-48 w-48 rounded-full bg-[#D4AF37]/10 blur-[80px] animate-pulse-slow" aria-hidden />
+                <div className="flex h-full min-h-[20rem] w-full items-center justify-center">
+                  <div className="h-56 w-56 rounded-full bg-[#D4AF37]/10 blur-[90px] animate-pulse-slow" aria-hidden />
                 </div>
               )}
             </div>
