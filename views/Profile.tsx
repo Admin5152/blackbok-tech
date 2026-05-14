@@ -120,6 +120,28 @@ export const Profile: React.FC<ProfileProps> = ({
     return orderTotal + repairTotal;
   }, [orders, repairs]);
 
+  const historyStatusBadge = (status: unknown) => {
+    const s = String(status ?? '').trim().toLowerCase();
+    if (['delivered', 'completed', 'accepted'].includes(s)) return isLight ? 'text-emerald-800 bg-emerald-100' : 'text-green-400 bg-green-500/10';
+    if (['processing', 'shipped', 'inspecting', 'diagnosing', 'in repair', 'offer made'].includes(s)) return isLight ? 'text-amber-900 bg-amber-100' : 'text-amber-400 bg-amber-500/10';
+    if (['cancelled', 'rejected', 'failed'].includes(s)) return isLight ? 'text-red-800 bg-red-100' : 'text-red-400 bg-red-500/10';
+    return isLight ? 'text-blue-900 bg-blue-100' : 'text-blue-400 bg-blue-500/10';
+  };
+  const displayOrderStatusLabel = (status: unknown) => {
+    const raw = String(status ?? '');
+    return raw.trim().toLowerCase() === 'shipped' ? 'Ready' : raw;
+  };
+
+  const profileHistoryPreview = useMemo(() => {
+    const byDate = <T extends { date: string }>(list: T[]) =>
+      [...list].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return {
+      orders: byDate(orders).slice(0, 5),
+      trades: byDate(trades).slice(0, 5),
+      repairs: byDate(repairs).slice(0, 5),
+    };
+  }, [orders, trades, repairs]);
+
   const saveDisplayName = async () => {
     if (!user) return;
     const trimmed = nameDraft.trim();
@@ -759,8 +781,16 @@ export const Profile: React.FC<ProfileProps> = ({
                   ...trades.filter(t => t.status === 'Completed').map(t => ({ ...t, type: 'Credit' as const, total: -(t.finalValue || t.estimatedValue) }))
                 ]
                   .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                  .map((entry, i) => (
-                    <div key={i} className={`p-6 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] border flex flex-col sm:flex-row items-center justify-between gap-6 group transition-all shadow-xl ${isLight ? 'bg-gray-50 border-gray-100' : 'bg-[#0a0a0a] border-white/5 hover:border-[#B38B21]/20'}`}>
+                  .map((entry) => {
+                    const eid = (entry as { id: string }).id;
+                    const receiptTo =
+                      entry.type === 'Purchase'
+                        ? (`/receipt/${eid}?print=1` as const)
+                        : entry.type === 'Service'
+                          ? (`/receipt/repair/${eid}?print=1` as const)
+                          : (`/receipt/trade/${eid}?print=1` as const);
+                    return (
+                    <div key={`${entry.type}-${eid}`} className={`p-6 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] border flex flex-col sm:flex-row items-center justify-between gap-6 group transition-all shadow-xl ${isLight ? 'bg-gray-50 border-gray-100' : 'bg-[#0a0a0a] border-white/5 hover:border-[#B38B21]/20'}`}>
                       <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 text-center sm:text-left">
                         <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center ${entry.type === 'Purchase' ? 'bg-indigo-500/10 text-indigo-400' : entry.type === 'Credit' ? 'bg-green-500/10 text-green-400' : 'bg-[#B38B21]/10 text-[#B38B21]'}`}>
                           {entry.type === 'Purchase' ? <ShoppingBag size={24} /> : entry.type === 'Credit' ? <RefreshCw size={24} /> : <Wrench size={24} />}
@@ -777,10 +807,16 @@ export const Profile: React.FC<ProfileProps> = ({
                         <p className={`text-xl sm:text-2xl font-black italic tracking-tighter ${entry.type === 'Credit' ? 'text-green-500' : (isLight ? 'text-black' : 'text-white')}`}>
                           {entry.type === 'Credit' ? '+' : ''}{formatCurrency(Math.abs(entry.total))}
                         </p>
-                        <button className="text-[9px] font-black uppercase tracking-widest text-[#B38B21] border-b border-[#B38B21]/20 hover:border-[#B38B21] transition-all">Download Receipt</button>
+                        <Link
+                          to={receiptTo as any}
+                          className="inline-block text-[9px] font-black uppercase tracking-widest text-[#B38B21] border-b border-[#B38B21]/20 hover:border-[#B38B21] transition-all"
+                        >
+                          Download receipt
+                        </Link>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
 
                 {orders.length === 0 && repairs.filter(r => r.status === 'Completed').length === 0 && trades.filter(t => t.status === 'Completed').length === 0 && (
                   <div className={`p-20 text-center rounded-[3rem] border border-dashed ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-white/[0.02] border-white/10'}`}>
@@ -791,6 +827,149 @@ export const Profile: React.FC<ProfileProps> = ({
                     <p className={`text-[10px] font-black uppercase tracking-widest mt-2 ${isLight ? 'text-black/20' : 'text-white/10'}`}>Your transaction history will be documented here.</p>
                   </div>
                 )}
+              </div>
+            </div>
+
+            <div className={`space-y-6 pt-8 border-t animate-in fade-in duration-700 ${isLight ? 'border-gray-200' : 'border-white/10'}`}>
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+                <div className="space-y-1">
+                  <h3 className={`text-2xl sm:text-3xl font-black italic tracking-tighter uppercase ${isLight ? 'text-black' : 'text-white'}`}>
+                    Activity <span className="text-[#B38B21]">History</span>
+                  </h3>
+                  <p className={`text-[10px] font-bold uppercase tracking-widest ${isLight ? 'text-gray-400' : 'text-white/40'}`}>
+                    Live status for orders, trade-ins, and repairs — same as your full history page
+                  </p>
+                </div>
+                <Link
+                  to="/history"
+                  className={`inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-colors ${isLight ? 'bg-black text-white border-black hover:bg-black/90' : 'bg-[#B38B21]/15 text-[#B38B21] border-[#B38B21]/30 hover:bg-[#B38B21]/25'}`}
+                >
+                  <Clock size={14} />
+                  Full history & search
+                </Link>
+              </div>
+
+              <div className="grid gap-6 lg:grid-cols-3">
+                <div className={`rounded-[2rem] border p-5 sm:p-6 space-y-4 ${isLight ? 'bg-gray-50 border-gray-100' : 'bg-[#0a0a0a] border-white/5'}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 ${isLight ? 'text-black/50' : 'text-white/40'}`}>
+                      <Package size={14} className="text-[#B38B21]" />
+                      Orders
+                    </p>
+                    <Link to="/history" search={{ tab: 'orders' } as any} className="text-[9px] font-black uppercase tracking-widest text-[#B38B21] hover:underline">
+                      All
+                    </Link>
+                  </div>
+                  <div className="space-y-3">
+                    {profileHistoryPreview.orders.length === 0 ? (
+                      <p className={`text-[10px] font-bold uppercase tracking-widest py-4 text-center ${isLight ? 'text-black/30' : 'text-white/25'}`}>No orders yet</p>
+                    ) : (
+                      profileHistoryPreview.orders.map((order) => (
+                        <div
+                          key={order.id}
+                          className={`flex flex-col gap-2 rounded-2xl border p-4 ${isLight ? 'bg-white border-gray-100' : 'bg-white/[0.03] border-white/10'}`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <p className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-black/40' : 'text-white/35'}`}>
+                              {(order as any).display_id ? String((order as any).display_id) : `Order #${order.id.slice(-8).toUpperCase()}`}
+                            </p>
+                            <span className={`shrink-0 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${historyStatusBadge(displayOrderStatusLabel(order.status))}`}>
+                              {displayOrderStatusLabel(order.status)}
+                            </span>
+                          </div>
+                          <p className={`text-xs font-black uppercase tracking-tight truncate ${isLight ? 'text-black' : 'text-white'}`}>
+                            {order.items.length} {order.items.length === 1 ? 'item' : 'items'} · {formatCurrency(order.total)}
+                          </p>
+                          <p className={`text-[9px] font-bold uppercase tracking-widest ${isLight ? 'text-gray-400' : 'text-white/35'}`}>{formatDate(order.date)}</p>
+                          <Link
+                            to={`/receipt/${order.id}` as any}
+                            className="text-[9px] font-black uppercase tracking-widest text-[#B38B21] hover:underline inline-flex items-center gap-1"
+                          >
+                            Receipt <ChevronRight size={12} />
+                          </Link>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <div className={`rounded-[2rem] border p-5 sm:p-6 space-y-4 ${isLight ? 'bg-gray-50 border-gray-100' : 'bg-[#0a0a0a] border-white/5'}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 ${isLight ? 'text-black/50' : 'text-white/40'}`}>
+                      <RefreshCw size={14} className="text-[#B38B21]" />
+                      Trade-ins
+                    </p>
+                    <Link to="/history" search={{ tab: 'trades' } as any} className="text-[9px] font-black uppercase tracking-widest text-[#B38B21] hover:underline">
+                      All
+                    </Link>
+                  </div>
+                  <div className="space-y-3">
+                    {profileHistoryPreview.trades.length === 0 ? (
+                      <p className={`text-[10px] font-bold uppercase tracking-widest py-4 text-center ${isLight ? 'text-black/30' : 'text-white/25'}`}>No trade-ins yet</p>
+                    ) : (
+                      profileHistoryPreview.trades.map((trade) => (
+                        <Link
+                          key={trade.id}
+                          to={`/tracking/trade/${trade.id}`}
+                          className={`flex flex-col gap-2 rounded-2xl border p-4 transition-colors group ${isLight ? 'bg-white border-gray-100 hover:border-[#B38B21]/40' : 'bg-white/[0.03] border-white/10 hover:border-[#B38B21]/30'}`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <p className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-black/40' : 'text-white/35'}`}>
+                              {(trade as any).display_id ? String((trade as any).display_id) : `Trade #${trade.id.slice(-8).toUpperCase()}`}
+                            </p>
+                            <span className={`shrink-0 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${historyStatusBadge(trade.status)}`}>
+                              {trade.status}
+                            </span>
+                          </div>
+                          <p className={`text-xs font-black uppercase tracking-tight truncate ${isLight ? 'text-black' : 'text-white'}`}>{trade.device}</p>
+                          <p className={`text-[9px] font-bold uppercase tracking-widest ${isLight ? 'text-gray-400' : 'text-white/35'}`}>{formatDate(trade.date)}</p>
+                          <span className="text-[9px] font-black uppercase tracking-widest text-[#B38B21] inline-flex items-center gap-1">
+                            Track <ChevronRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
+                          </span>
+                        </Link>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <div className={`rounded-[2rem] border p-5 sm:p-6 space-y-4 ${isLight ? 'bg-gray-50 border-gray-100' : 'bg-[#0a0a0a] border-white/5'}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 ${isLight ? 'text-black/50' : 'text-white/40'}`}>
+                      <Wrench size={14} className="text-[#B38B21]" />
+                      Repairs
+                    </p>
+                    <Link to="/history" search={{ tab: 'repairs' } as any} className="text-[9px] font-black uppercase tracking-widest text-[#B38B21] hover:underline">
+                      All
+                    </Link>
+                  </div>
+                  <div className="space-y-3">
+                    {profileHistoryPreview.repairs.length === 0 ? (
+                      <p className={`text-[10px] font-bold uppercase tracking-widest py-4 text-center ${isLight ? 'text-black/30' : 'text-white/25'}`}>No repairs yet</p>
+                    ) : (
+                      profileHistoryPreview.repairs.map((repair) => (
+                        <Link
+                          key={repair.id}
+                          to={`/tracking/repair/${repair.id}`}
+                          className={`flex flex-col gap-2 rounded-2xl border p-4 transition-colors group ${isLight ? 'bg-white border-gray-100 hover:border-[#B38B21]/40' : 'bg-white/[0.03] border-white/10 hover:border-[#B38B21]/30'}`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <p className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-black/40' : 'text-white/35'}`}>
+                              {(repair as any).display_id ? String((repair as any).display_id) : `Repair #${repair.id.slice(-8).toUpperCase()}`}
+                            </p>
+                            <span className={`shrink-0 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${historyStatusBadge(repair.status)}`}>
+                              {repair.status}
+                            </span>
+                          </div>
+                          <p className={`text-xs font-black uppercase tracking-tight truncate ${isLight ? 'text-black' : 'text-white'}`}>{repair.device}</p>
+                          <p className={`text-[9px] font-bold uppercase tracking-widest ${isLight ? 'text-gray-400' : 'text-white/35'}`}>{formatDate(repair.date)}</p>
+                          <span className="text-[9px] font-black uppercase tracking-widest text-[#B38B21] inline-flex items-center gap-1">
+                            Track <ChevronRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
+                          </span>
+                        </Link>
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>

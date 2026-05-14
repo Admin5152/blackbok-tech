@@ -38,6 +38,19 @@ export const RepairReceipt: React.FC = () => {
     run();
   }, [repairId]);
 
+  useEffect(() => {
+    if (loading || !repair) return;
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get('print') !== '1') return;
+    const timer = window.setTimeout(() => {
+      window.print();
+      sp.delete('print');
+      const q = sp.toString();
+      window.history.replaceState(null, '', window.location.pathname + (q ? `?${q}` : ''));
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [loading, repair]);
+
   const refLabel = repair?.display_id || (repair ? `#${repair.id.slice(-8).toUpperCase()}` : '—');
 
   const handlePrint = () => window.print();

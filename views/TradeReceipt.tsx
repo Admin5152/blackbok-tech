@@ -38,6 +38,19 @@ export const TradeReceipt: React.FC = () => {
     run();
   }, [tradeId]);
 
+  useEffect(() => {
+    if (loading || !trade) return;
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get('print') !== '1') return;
+    const timer = window.setTimeout(() => {
+      window.print();
+      sp.delete('print');
+      const q = sp.toString();
+      window.history.replaceState(null, '', window.location.pathname + (q ? `?${q}` : ''));
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [loading, trade]);
+
   const refLabel = trade?.display_id || (trade ? `#${trade.id.slice(-8).toUpperCase()}` : '—');
 
   const handlePrint = () => window.print();

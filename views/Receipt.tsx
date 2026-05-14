@@ -115,6 +115,19 @@ export const Receipt: React.FC = () => {
     fetchOrder();
   }, [orderId]);
 
+  useEffect(() => {
+    if (loading || !order) return;
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get('print') !== '1') return;
+    const timer = window.setTimeout(() => {
+      window.print();
+      sp.delete('print');
+      const q = sp.toString();
+      window.history.replaceState(null, '', window.location.pathname + (q ? `?${q}` : ''));
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [loading, order]);
+
   const handleDownload = () => {
     window.print();
   };
