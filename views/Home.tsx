@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   ChevronRight, ChevronLeft, ArrowRight, Smartphone, Laptop as LaptopIcon, Gamepad2, Package, Settings,
   Users, Award, TrendingUp, Star, Quote, ArrowLeftRight, Wrench, Mail, Phone, MapPin, Heart, Eye
@@ -6,9 +6,28 @@ import {
 import { Link } from '@tanstack/react-router';
 import { Product, Category } from '../types';
 import { ProductCard } from '../components/ProductCard';
-import { getImagesForTheme, getPositionClasses, getBlurClasses } from '../data/heroImages';
+import { HERO_COLLAGE_FILENAMES, getImagesForTheme } from '../data/heroImages';
 import { formatCurrency } from '../lib/utils';
 import { ShoppingCart } from 'lucide-react';
+
+/** Editorial overlap positions (sizes bumped so flyers fill the hero). Rotation = CSS animation per tile. */
+const HERO_COLLAGE_FRAMES = [
+  'left-[-8%] top-[2%] z-[2] w-[min(58vw,19rem)] sm:left-[-2%] sm:w-[min(50vw,24rem)] lg:w-[min(38vw,28rem)] xl:w-[min(34vw,32rem)]',
+  'left-[6%] top-[0%] z-[4] w-[min(60vw,19rem)] sm:left-[12%] sm:w-[min(52vw,26rem)] lg:w-[min(40vw,30rem)] xl:w-[min(36vw,34rem)]',
+  'right-[-10%] top-[-4%] z-[3] w-[min(62vw,19rem)] sm:right-[-6%] sm:w-[min(54vw,28rem)] lg:w-[min(42vw,32rem)] xl:w-[min(38vw,36rem)]',
+  'left-[-6%] bottom-[-2%] z-[5] w-[min(54vw,17rem)] sm:left-[-1%] sm:w-[min(48vw,22rem)] lg:w-[min(36vw,26rem)] xl:w-[min(32vw,30rem)]',
+  'left-[18%] bottom-[-4%] z-[6] w-[min(58vw,18rem)] sm:left-[22%] sm:w-[min(52vw,26rem)] lg:w-[min(40vw,30rem)] xl:w-[min(36vw,34rem)]',
+  'right-[-8%] bottom-[-2%] z-[7] w-[min(60vw,18rem)] sm:right-[-4%] sm:w-[min(52vw,28rem)] lg:w-[min(42vw,32rem)] xl:w-[min(38vw,36rem)]',
+] as const;
+
+const HERO_COLLAGE_ANIM_CLASSES = [
+  'bb-hero-collage-anim-0',
+  'bb-hero-collage-anim-1',
+  'bb-hero-collage-anim-2',
+  'bb-hero-collage-anim-3',
+  'bb-hero-collage-anim-4',
+  'bb-hero-collage-anim-5',
+] as const;
 
 interface HomeProps {
   products: Product[];
@@ -28,24 +47,39 @@ export const Home: React.FC<HomeProps> = ({
   products, setSelectedCategory, onQuickView, wishlist, toggleWishlist, onAddToCart, compareIds, onToggleCompare, user, theme, navigateTo
 }) => {
   const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [exploreFilter, setExploreFilter] = useState<'All Gear' | 'Pro Series' | 'Essentials'>('All Gear');
 
-  // Get images for current theme
-  const themeImages = getImagesForTheme(theme);
-
-  // Auto-rotate images every 4 seconds
-  useEffect(() => {
-    if (themeImages.length === 0) return;
-
-    const interval = setInterval(() => {
-      setCurrentImageIndex((prev) => (prev + 1) % themeImages.length);
-    }, 4000);
-
-    return () => clearInterval(interval);
-  }, [themeImages]);
-
   const [currentHighlightsIndex, setCurrentHighlightsIndex] = useState(0);
+  const [heroSlide, setHeroSlide] = useState(0);
+
+  const heroImageFilenames = useMemo(() => {
+    const list = getImagesForTheme(theme).map((img) => img.filename);
+    return list.length > 0 ? list : [...HERO_COLLAGE_FILENAMES];
+  }, [theme]);
+
+  const heroSlideCount = heroImageFilenames.length;
+
+  useEffect(() => {
+    setHeroSlide(0);
+  }, [heroSlideCount, theme]);
+
+  useEffect(() => {
+    if (heroSlideCount <= 1) return;
+    const id = window.setInterval(() => {
+      setHeroSlide((s) => (s + 1) % heroSlideCount);
+    }, 6800);
+    return () => window.clearInterval(id);
+  }, [heroSlideCount, heroSlide]);
+
+  const goHeroPrev = () => {
+    if (heroSlideCount <= 1) return;
+    setHeroSlide((s) => (s - 1 + heroSlideCount) % heroSlideCount);
+  };
+
+  const goHeroNext = () => {
+    if (heroSlideCount <= 1) return;
+    setHeroSlide((s) => (s + 1) % heroSlideCount);
+  };
 
   // Defensive category matcher — covers DB rows that didn't get
   // normalized (e.g. "Mobile Phones", "Laptops & Notebooks"). Order
@@ -131,72 +165,111 @@ export const Home: React.FC<HomeProps> = ({
   return (
     <div className="view-transition w-full min-w-0 overflow-hidden bg-black no-print">
       {/* Main Content */}
-      {/* Hero — full-viewport slideshow as background; copy + scrim on top */}
-      <section className="relative flex min-h-hero-viewport w-full min-w-0 flex-col items-center justify-center overflow-hidden px-4 pb-16 pt-24 text-center sm:px-6 sm:pt-32 md:px-8 md:pb-20">
-        <div className="absolute inset-0 z-0 bg-black">
-          {themeImages.length > 0 ? (
-            themeImages.map((img, index) => (
-              <img
-                key={img.filename}
-                src={`/${img.filename}`}
-                alt=""
-                aria-hidden
-                className={`pointer-events-none absolute inset-0 box-border h-full w-full object-contain object-center p-3 transition-opacity duration-2000 ease-in-out sm:p-4 md:p-6 ${index === currentImageIndex ? 'opacity-100 z-[1]' : 'opacity-0 z-0'
-                  }`}
-                style={{
-                  filter: theme === 'light' && img.filename === 'BlackBox.jpeg' ? 'invert(1) brightness(1.2)' : undefined
-                }}
-                loading={index === 0 ? 'eager' : 'lazy'}
-                decoding="async"
-                sizes="100vw"
-              />
-            ))
-          ) : (
-            <div className="absolute inset-0 bg-gradient-to-b from-neutral-950 via-black to-neutral-950 subtle-texture" />
-          )}
+      {/* Hero — dark editorial collage of six product flyers; CTAs only */}
+      <section className="relative min-h-hero-viewport w-full min-w-0 overflow-hidden bg-[#030303]">
+        <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_120%_80%_at_50%_40%,#12121a_0%,#030303_55%,#000000_100%)]" aria-hidden />
+
+        <div className="absolute inset-0 z-[1] overflow-hidden min-h-[100%]">
+          {HERO_COLLAGE_FRAMES.map((_, i) => {
+            const filename = heroImageFilenames[(heroSlide + i) % heroSlideCount];
+            return (
+              <div key={i} className={`pointer-events-none absolute ${HERO_COLLAGE_FRAMES[i]}`}>
+                <div className={`bb-hero-collage-motion w-full ${HERO_COLLAGE_ANIM_CLASSES[i]}`}>
+                  <div className="aspect-[3/4] w-full overflow-hidden rounded-md border border-white/[0.08] bg-[#0a0a0a] shadow-[0_28px_70px_rgba(0,0,0,0.92)] ring-1 ring-inset ring-white/[0.05] sm:rounded-lg">
+                    <img
+                      key={`${heroSlide}-tile-${i}`}
+                      src={`/${filename}`}
+                      alt=""
+                      aria-hidden
+                      className="bb-hero-tile-reveal h-full w-full min-h-full min-w-full object-cover object-center"
+                      style={{
+                        animationDelay: `${i * 36}ms`,
+                        filter: theme === 'light' && filename === 'BlackBox.jpeg' ? 'invert(1) brightness(1.2)' : undefined
+                      }}
+                      loading={i < 2 ? 'eager' : 'lazy'}
+                      decoding="async"
+                      sizes="(max-width: 640px) 55vw, 38vw"
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
-        {/* Readability scrim over artwork */}
         <div
-          className={`pointer-events-none absolute inset-0 z-[2] ${theme === 'dark'
-            ? 'bg-gradient-to-b from-black/80 via-black/40 to-black/75 sm:from-black/70 sm:via-black/35 sm:to-black/70'
-            : 'bg-gradient-to-b from-black/55 via-black/25 to-black/50'
-            }`}
+          className="pointer-events-none absolute inset-0 z-[8] bg-gradient-to-b from-black/85 via-black/45 to-black/90 sm:from-black/75 sm:via-black/35 sm:to-black/85"
           aria-hidden
         />
 
-        <div className="relative z-10 mx-auto w-full max-w-4xl space-y-5 sm:space-y-6">
-          <h1 className="font-heading text-4xl font-bold tracking-tight text-off-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.85)] sm:text-5xl md:text-6xl lg:text-[4.5rem] lg:leading-[1.06]">
-            Redefining Your
-            <br />
-            <span className="bg-gradient-to-r bg-clip-text text-transparent from-[#D4AF37] to-[#F4E4C1] drop-shadow-none">
-              Tech Experience
-            </span>
-          </h1>
-
-          <p className="mx-auto max-w-xl text-base font-light leading-relaxed text-gray-100 drop-shadow-[0_1px_12px_rgba(0,0,0,0.9)] sm:text-lg md:text-xl">
-            Premium tech products, expert repairs, and seamless trade-ins for the modern enthusiast.
-          </p>
-
-          <div className="flex flex-col items-stretch justify-center gap-3 pt-1 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-4 sm:pt-2">
-            <Link
-              to="/store"
-              className={`btn-press inline-flex justify-center px-10 py-4 sm:py-5 rounded-full text-sm font-heading font-semibold tracking-wider items-center gap-3 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg active:scale-95 ${theme === 'dark'
-                ? 'bg-white text-black hover:shadow-white/20'
-                : 'bg-white text-black hover:shadow-white/30'
-                }`}
+        {heroSlideCount > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={goHeroPrev}
+              className="absolute left-2 top-1/2 z-[22] flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-black/45 text-white shadow-lg backdrop-blur-md transition-colors duration-200 hover:border-white/40 hover:bg-black/65 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 sm:left-4 sm:h-12 sm:w-12 md:left-6 lg:h-14 lg:w-14"
+              aria-label="Previous hero images"
             >
-              Browse Products
-              <ArrowRight className="transition-transform group-hover:translate-x-1" size={18} />
-            </Link>
-
-            <Link
-              to="/about"
-              className="btn-press inline-flex justify-center border-2 border-white/90 bg-black/35 px-10 py-4 text-off-white shadow-lg backdrop-blur-sm transition-all duration-300 hover:scale-[1.02] hover:border-white hover:bg-black/50 sm:py-5 rounded-full text-sm font-heading font-semibold tracking-wider items-center gap-3 active:scale-95"
+              <ChevronLeft className="h-6 w-6 lg:h-7 lg:w-7" strokeWidth={2} />
+            </button>
+            <button
+              type="button"
+              onClick={goHeroNext}
+              className="absolute right-2 top-1/2 z-[22] flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-black/45 text-white shadow-lg backdrop-blur-md transition-colors duration-200 hover:border-white/40 hover:bg-black/65 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 sm:right-4 sm:h-12 sm:w-12 md:right-6 lg:h-14 lg:w-14"
+              aria-label="Next hero images"
             >
-              About Us
-              <ArrowRight className="transition-transform group-hover:translate-x-1" size={18} />
-            </Link>
+              <ChevronRight className="h-6 w-6 lg:h-7 lg:w-7" strokeWidth={2} />
+            </button>
+          </>
+        )}
+
+        <div className="relative z-20 flex min-h-hero-viewport w-full flex-col justify-end px-4 pb-8 pt-24 sm:px-6 sm:pb-10 sm:pt-28 md:pb-12">
+          <div className="mx-auto flex w-full max-w-lg flex-col gap-5 sm:max-w-xl">
+            {/* Shop + About — equal width on larger screens, full width on mobile */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+              <Link
+                to="/store"
+                className={`btn-press inline-flex min-h-[3.25rem] flex-1 items-center justify-center gap-3 rounded-full px-8 py-4 text-center text-sm font-heading font-semibold tracking-wider transition-all duration-300 hover:scale-[1.02] hover:shadow-lg active:scale-95 sm:px-10 sm:py-5 ${theme === 'dark'
+                  ? 'bg-white text-black hover:shadow-white/25'
+                  : 'bg-white text-black hover:shadow-white/30'
+                  }`}
+              >
+                Browse Products
+                <ArrowRight className="shrink-0 transition-transform group-hover:translate-x-1" size={18} />
+              </Link>
+
+              <Link
+                to="/about"
+                className="btn-press inline-flex min-h-[3.25rem] flex-1 items-center justify-center gap-3 rounded-full border-2 border-white/90 bg-black/55 px-8 py-4 text-center text-sm font-heading font-semibold tracking-wider text-off-white shadow-lg backdrop-blur-md transition-all duration-300 hover:scale-[1.02] hover:border-white hover:bg-black/70 active:scale-95 sm:px-10 sm:py-5"
+              >
+                About Us
+                <ArrowRight className="shrink-0 transition-transform group-hover:translate-x-1" size={18} />
+              </Link>
+            </div>
+
+            {/* Dot indicators — centered under CTAs (arrows sit at hero sides) */}
+            {heroSlideCount > 1 && (
+              <div className="flex justify-center rounded-2xl border border-white/15 bg-black/50 px-4 py-3 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-md sm:px-5">
+                <div
+                  className="no-scrollbar flex max-w-full flex-wrap items-center justify-center gap-2.5 overflow-x-auto py-0.5"
+                  role="tablist"
+                  aria-label="Hero image slides"
+                >
+                  {heroImageFilenames.map((_, d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      role="tab"
+                      aria-selected={heroSlide === d}
+                      aria-label={`Go to slide ${d + 1} of ${heroSlideCount}`}
+                      onClick={() => setHeroSlide(d)}
+                      className={`h-2.5 shrink-0 rounded-full transition-all duration-500 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 ${heroSlide === d ? 'w-10 bg-white' : 'w-2.5 bg-white/40 hover:bg-white/70'
+                        }`}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </section>

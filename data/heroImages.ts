@@ -8,6 +8,16 @@ export interface HeroImage {
   blur: 'low' | 'medium' | 'high';
 }
 
+/** Six product flyers used for the home hero editorial collage (order = paint stack base → top). */
+export const HERO_COLLAGE_FILENAMES = [
+  'IMG_9008.JPG', // Apple Watch Series 11
+  'IMG_9009.JPG', // PS5 Slim
+  'IMG_9010.JPG', // iPhone 17 Pro Max
+  'IMG_9011.JPG', // AirPods Max
+  'IMG_9012.JPG', // PlayStation Portal
+  'IMG_9013.JPG', // DualSense Controller
+] as const;
+
 export const heroImages: HeroImage[] = [
   {
     filename: 'BlackBox.jpeg',
@@ -83,8 +93,8 @@ export const heroImages: HeroImage[] = [
   },
   {
     filename: 'IMG_9013.JPG',
-    title: 'BlackBox featured',
-    description: 'BlackBox promotional hero image',
+    title: 'DualSense Controller',
+    description: 'PlayStation DualSense promotional banner',
     theme_usage: 'both',
     position: 'center',
     opacity: 0.55,

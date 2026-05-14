@@ -387,6 +387,101 @@ body {
   min-height: 100dvh;
 }
 
+/* Home hero collage: gentle sway + staggered timing between tiles */
+.bb-hero-collage-motion {
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.bb-hero-collage-anim-0 {
+  animation: bb-hca-0 11s ease-in-out infinite;
+}
+.bb-hero-collage-anim-1 {
+  animation: bb-hca-1 13s ease-in-out infinite;
+  animation-delay: -1.8s;
+}
+.bb-hero-collage-anim-2 {
+  animation: bb-hca-2 10.5s ease-in-out infinite;
+  animation-delay: -3.2s;
+}
+.bb-hero-collage-anim-3 {
+  animation: bb-hca-3 12.5s ease-in-out infinite;
+  animation-delay: -0.6s;
+}
+.bb-hero-collage-anim-4 {
+  animation: bb-hca-4 14s ease-in-out infinite;
+  animation-delay: -4.5s;
+}
+.bb-hero-collage-anim-5 {
+  animation: bb-hca-5 10s ease-in-out infinite;
+  animation-delay: -2.4s;
+}
+
+@keyframes bb-hca-0 {
+  0%, 100% { transform: rotate(-11deg); }
+  50% { transform: rotate(-5deg); }
+}
+@keyframes bb-hca-1 {
+  0%, 100% { transform: rotate(5deg); }
+  50% { transform: rotate(11deg); }
+}
+@keyframes bb-hca-2 {
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(-10deg); }
+}
+@keyframes bb-hca-3 {
+  0%, 100% { transform: rotate(8deg); }
+  50% { transform: rotate(3deg); }
+}
+@keyframes bb-hca-4 {
+  0%, 100% { transform: rotate(-9deg); }
+  50% { transform: rotate(-3deg); }
+}
+@keyframes bb-hca-5 {
+  0%, 100% { transform: rotate(6deg); }
+  50% { transform: rotate(12deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bb-hero-collage-anim-0,
+  .bb-hero-collage-anim-1,
+  .bb-hero-collage-anim-2,
+  .bb-hero-collage-anim-3,
+  .bb-hero-collage-anim-4,
+  .bb-hero-collage-anim-5 {
+    animation: none !important;
+  }
+  .bb-hero-collage-motion.bb-hero-collage-anim-0 { transform: rotate(-8deg); }
+  .bb-hero-collage-motion.bb-hero-collage-anim-1 { transform: rotate(8deg); }
+  .bb-hero-collage-motion.bb-hero-collage-anim-2 { transform: rotate(-7deg); }
+  .bb-hero-collage-motion.bb-hero-collage-anim-3 { transform: rotate(6deg); }
+  .bb-hero-collage-motion.bb-hero-collage-anim-4 { transform: rotate(-8deg); }
+  .bb-hero-collage-motion.bb-hero-collage-anim-5 { transform: rotate(9deg); }
+}
+
+/* Home hero collage: smooth fade when slide / image set changes */
+.bb-hero-tile-reveal {
+  animation: bb-hero-tile-reveal 0.78s cubic-bezier(0.4, 0, 0.2, 1) both;
+  will-change: opacity;
+}
+
+@keyframes bb-hero-tile-reveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bb-hero-tile-reveal {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
 /* Proper Hiding Utilities */
 .scrollbar-hide::-webkit-scrollbar,
 .no-scrollbar::-webkit-scrollbar {
