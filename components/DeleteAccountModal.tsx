@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Trash2, X, AlertTriangle, Shield, Mail, Calendar, Package, Wrench, RefreshCw } from 'lucide-react';
 import type { DeletionPreview } from '../lib/accountDeletionGuards';
+import { customerStatusLabelForDeletion } from '../lib/customerStatusLabels';
 
 interface DeleteAccountModalProps {
   isOpen: boolean;
@@ -122,10 +123,11 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
               You still have active activity on your account
             </p>
             <p className={`text-xs mb-2 ${isDark ? 'text-white/70' : 'text-black/70'}`}>
-              <strong>Completed</strong> means the work is finished: order <strong>Delivered</strong>, repair{' '}
-              <strong>Completed</strong>, or trade-in <strong>Completed</strong>. Anything still in progress (e.g.{' '}
-              Pending, Processing, Diagnosing, In Repair, Offer sent) must be finished or cancelled before we remove
-              your account.
+              <strong>Finished</strong> means nothing is still in progress: order <strong>Delivered</strong> (or
+              cancelled/refunded), repair <strong>finished</strong>, or trade-in <strong>fully done</strong>.{' '}
+              <strong>Accepted</strong> on a trade-in is <em>not</em> initial approval — it means you already accepted
+              our cash offer and we are arranging your visit; that still counts as open until the trade is{' '}
+              <strong>Completed</strong>.
             </p>
             <p className={`text-xs mb-3 ${isDark ? 'text-white/70' : 'text-black/70'}`}>
               If you continue now, these open items will be <strong>cancelled</strong> automatically:
@@ -134,7 +136,9 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
               {pending.map((item) => (
                 <li key={`${item.kind}-${item.id}`} className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-2 border-b border-white/5 pb-1.5 last:border-0">
                   <span className="font-medium break-words">{item.label}</span>
-                  <span className="opacity-70 text-[10px] uppercase tracking-wide shrink-0">Status: {item.status}</span>
+                  <span className="opacity-70 text-[10px] sm:text-xs leading-snug shrink-0">
+                    {customerStatusLabelForDeletion(item.kind, item.status)}
+                  </span>
                 </li>
               ))}
             </ul>

@@ -15,6 +15,7 @@ import {
 } from '../lib/tradeUpgradePicks';
 import { DEFAULT_TRADE_DEVICES, mergeTradeDevicesFromStorageArray } from '../data/tradeInDevices';
 import { createTradeRequest, getTradeRequests, updateTradeRequest } from '../lib/api';
+import { customerTradeStatusShort } from '../lib/customerStatusLabels';
 import { saveResumeAfterAuth, peekRestorePayload, clearRestorePayload } from '../lib/resumeAfterAuth';
 
 interface TradesProps {
@@ -60,9 +61,13 @@ const StatusBadge = ({ status }: { status: TradeRequest['status'] }) => {
     'Completed':     'bg-emerald-500/10 text-emerald-400',
     'Rejected':      'bg-red-500/10 text-red-400',
   };
+  const label = customerTradeStatusShort(String(status));
   return (
-    <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${map[status] || 'bg-[var(--bb-surface-2)] text-[color:var(--bb-muted)] border border-[var(--bb-border)]'}`}>
-      {status}
+    <span
+      className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full max-w-[140px] truncate ${map[status] || 'bg-[var(--bb-surface-2)] text-[color:var(--bb-muted)] border border-[var(--bb-border)]'}`}
+      title={label}
+    >
+      {label}
     </span>
   );
 };
