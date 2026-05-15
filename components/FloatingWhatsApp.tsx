@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Phone } from 'lucide-react';
+import { SUPPORT_PHONE_TEL, whatsAppUrl } from '../lib/contact';
 
 interface FloatingShareMenuProps {
   phoneNumber?: string;
@@ -12,7 +13,7 @@ const SOCIALS = [
   {
     key: 'whatsapp',
     label: 'WhatsApp',
-    href: 'https://wa.me/+233543217272',
+    href: whatsAppUrl(),
     color: '#25D366',
     angle: 270, // straight up
     icon: (
@@ -63,7 +64,7 @@ const SOCIALS = [
 const RADIUS = 88;
 
 export const FloatingWhatsApp: React.FC<FloatingShareMenuProps> = ({
-  phoneNumber = '+233543217272',
+  phoneNumber = SUPPORT_PHONE_TEL,
   hasNotification = false,
 }) => {
   const [open, setOpen] = useState(false);

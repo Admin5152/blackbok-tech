@@ -1,10 +1,10 @@
 /** Public support channels for BlackBox Ghana */
 export const SUPPORT_EMAIL = 'blackboxxxghana@gmail.com';
 
-/** Digits only (no +) for wa.me links */
-export const WHATSAPP_NUMBER = '233543217272';
+/** Digits only (no +) for wa.me links — Ghana 054033659 → 23354033659 */
+export const WHATSAPP_NUMBER = '23354033659';
 
-export const WHATSAPP_DISPLAY = '+233 54 321 7272';
+export const WHATSAPP_DISPLAY = '+233 54 033 659';
 
 export const SUPPORT_PHONE_TEL = `+${WHATSAPP_NUMBER}`;
 
