@@ -24,7 +24,7 @@ import { SmoothScroll } from './components/SmoothScroll';
 import { whatsAppUrl } from './lib/contact';
 import { formatCustomerStatusShort } from './lib/customerStatusLabels';
 import { INITIAL_PRODUCTS } from './constants';
-import { getAvailableStock } from './lib/productOptions';
+import { getAvailableStock, getProductOptionGroups, initialSelectedFromGroups, toOptionString } from './lib/productOptions';
 import { Navbar } from './components/Navbar';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { Footer } from './components/Footer';
@@ -776,6 +776,7 @@ function RootComponent() {
   // before getProducts() resolves — avoids an empty <main> and a “footer-only” layout.
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const cartRef = useRef<CartItem[]>([]);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [user, setUser] = useState<User | null>(null);
@@ -1012,6 +1013,10 @@ function RootComponent() {
     localStorage.setItem(STORAGE_KEYS.THEME, theme);
   }, [user, cart, orders, repairs, trades, wishlist, compareIds, theme]);
 
+  useEffect(() => {
+    cartRef.current = cart;
+  }, [cart]);
+
   // Supabase Realtime: customer subscribes to status changes pushed by admin
   // for their orders, trade-ins and repairs. Refetches on every change so
   // the user sees admin updates instantly without a refresh.
@@ -1137,14 +1142,18 @@ function RootComponent() {
 
   const addToCart = (product: Product, options: Record<string, string> = {}, qty: number = 1) => {
     const safeQty = Math.max(1, Math.floor(Number(qty) || 1));
-    const available = getAvailableStock(product, options);
+    const resolvedOptions =
+      Object.keys(options).some((k) => toOptionString(options[k]))
+        ? options
+        : initialSelectedFromGroups(getProductOptionGroups(product));
+    const available = getAvailableStock(product, resolvedOptions);
     if (available <= 0) {
       notify('This item is out of stock.', 'error');
       return;
     }
 
     const prev = cartRef.current;
-    const existingId = `${product.id}-${JSON.stringify(options)}`;
+    const existingId = `${product.id}-${JSON.stringify(resolvedOptions)}`;
     const existingIndex = prev.findIndex(
       (p) => `${p.id}-${JSON.stringify(p.selectedOptions)}` === existingId,
     );
@@ -1160,14 +1169,14 @@ function RootComponent() {
     }
 
     setCart((prevCart) => {
-      const exId = `${product.id}-${JSON.stringify(options)}`;
+      const exId = `${product.id}-${JSON.stringify(resolvedOptions)}`;
       const exIdx = prevCart.findIndex((p) => `${p.id}-${JSON.stringify(p.selectedOptions)}` === exId);
       if (exIdx > -1) {
         const updated = [...prevCart];
         updated[exIdx] = { ...updated[exIdx], quantity: updated[exIdx].quantity + safeQty };
         return updated;
       }
-      return [...prevCart, { ...product, quantity: safeQty, selectedOptions: options }];
+      return [...prevCart, { ...product, quantity: safeQty, selectedOptions: resolvedOptions }];
     });
     notify(`${product.name} logged to repository.`);
   };
