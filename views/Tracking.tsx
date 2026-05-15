@@ -17,6 +17,7 @@ import { Link, useParams } from '@tanstack/react-router';
 import { useAppContext } from '../App';
 import { formatCurrency } from '../lib/utils';
 import { updateRepairRequest, updateTradeRequest } from '../lib/api';
+import { formatCustomerStatusShort } from '../lib/customerStatusLabels';
 
 interface TimelineStep {
     id: string;
@@ -38,11 +39,12 @@ export const Tracking: React.FC = () => {
             const order = orders.find(o => o.id === id);
             if (!order) return null;
 
+            const ost = order.status;
             const steps: TimelineStep[] = [
-                { id: '1', label: 'Order Placed', description: 'Your order has been received.', date: order.date, status: 'completed', icon: FileText },
-                { id: '2', label: 'Processing', description: 'We are preparing your items.', status: order.status === 'Pending' ? 'current' : 'completed', icon: Package },
-                { id: '3', label: 'Shipped', description: 'Your package is on its way.', status: order.status === 'Shipped' ? 'current' : (order.status === 'Delivered' ? 'completed' : 'upcoming'), icon: Truck },
-                { id: '4', label: 'Delivered', description: 'Package reached its destination.', status: order.status === 'Delivered' ? 'completed' : 'upcoming', icon: CheckCircle2 },
+                { id: '1', label: 'Order placed', description: 'We received your order.', date: order.date, status: 'completed', icon: FileText },
+                { id: '2', label: 'Preparing order', description: 'We are getting your items ready.', status: ost === 'Pending' || ost === 'Processing' ? 'current' : 'completed', icon: Package },
+                { id: '3', label: 'On the way', description: 'Your package is heading to you.', status: ost === 'Shipped' ? 'current' : (ost === 'Delivered' ? 'completed' : 'upcoming'), icon: Truck },
+                { id: '4', label: 'Delivered', description: 'Your order has been delivered.', status: ost === 'Delivered' ? 'completed' : 'upcoming', icon: CheckCircle2 },
             ];
 
             return {
@@ -51,6 +53,7 @@ export const Tracking: React.FC = () => {
                 mainIcon: Package,
                 steps,
                 details: [
+                    { label: 'Status', value: formatCustomerStatusShort('order', ost) },
                     { label: 'Carrier', value: 'BlackBox Logistics' },
                     { label: 'Method', value: order.shipping_method || 'Standard Express' },
                     { label: 'Address', value: order.shipping_address || 'Customer Pick-up' }
@@ -89,7 +92,7 @@ export const Tracking: React.FC = () => {
                     status: st === 'In Repair' || st === 'Ready' ? 'current' : st === 'Completed' ? 'completed' : 'upcoming',
                     icon: Wrench,
                 },
-                { id: '5', label: 'Completed', description: 'Repair finished — thank you for trusting BlackBox.', status: st === 'Completed' ? 'completed' : 'upcoming', icon: CheckCircle2 },
+                { id: '5', label: 'Repair complete', description: 'Repair finished — thank you for trusting BlackBox.', status: st === 'Completed' ? 'completed' : 'upcoming', icon: CheckCircle2 },
             ];
 
             if (st === 'Rejected') {
@@ -112,6 +115,7 @@ export const Tracking: React.FC = () => {
                 steps,
                 details: [
                     { label: 'Device', value: repair.device },
+                    { label: 'Status', value: formatCustomerStatusShort('repair', st) },
                     { label: 'Estimate', value: repair.estimatedCost || 'TBD' },
                     { label: 'Technician', value: 'Senior Engineer X' }
                 ],
@@ -124,33 +128,48 @@ export const Tracking: React.FC = () => {
             if (!trade) return null;
 
             const offerSentStatuses = ['Offer sent', 'Offer Made', 'Awaiting User'];
+            const st = trade.status;
 
             const steps: TimelineStep[] = [
-                { id: '1', label: 'Request Initiated', description: 'You started the trade-in process.', date: trade.date, status: 'completed', icon: FileText },
+                { id: '1', label: 'Request submitted', description: 'You started the trade-in process.', date: trade.date, status: 'completed', icon: FileText },
                 {
                     id: '2',
-                    label: 'Inspecting',
-                    description: 'Our lab verifies device condition before any offer.',
-                    status: trade.status === 'Inspecting' ? 'current' : trade.status === 'Pending' ? 'upcoming' : 'completed',
+                    label: 'Inspecting device',
+                    description: 'Our lab checks condition before we send a cash offer.',
+                    status: st === 'Inspecting' ? 'current' : st === 'Pending' ? 'upcoming' : 'completed',
                     icon: ArrowLeftRight,
                 },
                 {
                     id: '3',
-                    label: 'Offer sent',
-                    description: 'Inspection is complete and your cash offer is ready. Accept or decline in Trade-In.',
-                    status: offerSentStatuses.includes(trade.status)
+                    label: 'Offer ready',
+                    description: 'Your cash offer is ready — accept or decline in Trade-In.',
+                    status: offerSentStatuses.includes(st)
                         ? 'current'
-                        : trade.status === 'Accepted' || trade.status === 'Completed'
+                        : st === 'Accepted' || st === 'Completed'
                           ? 'completed'
                           : 'upcoming',
                     icon: ShieldCheck,
                 },
-                { id: '4', label: 'Completed', description: 'Credits applied to your account.', status: trade.status === 'Completed' ? 'completed' : 'upcoming', icon: CheckCircle2 },
+                {
+                    id: '4',
+                    label: 'Offer accepted',
+                    description: 'You accepted our offer. We will contact you to arrange bringing your device or pickup.',
+                    status: st === 'Accepted' ? 'current' : st === 'Completed' ? 'completed' : 'upcoming',
+                    icon: CheckCircle2,
+                },
+                {
+                    id: '5',
+                    label: 'Trade-in complete',
+                    description: 'Trade-in finished — value applied to your account.',
+                    status: st === 'Completed' ? 'completed' : 'upcoming',
+                    icon: CheckCircle2,
+                },
             ];
 
-            if (trade.status === 'Rejected') {
+            if (st === 'Rejected') {
                 steps[2] = { id: '3', label: 'Offer declined', description: 'The trade-in offer was declined.', status: 'completed', icon: XCircle as any };
-                steps[3] = { id: '4', label: 'Trade Closed', description: 'Process terminated.', status: 'current', icon: AlertCircle };
+                steps[3] = { id: '4', label: 'Trade closed', description: 'This trade-in was closed.', status: 'current', icon: AlertCircle };
+                steps.length = 4;
             }
 
             return {
@@ -161,6 +180,7 @@ export const Tracking: React.FC = () => {
                 details: [
                     { label: 'Item', value: trade.device },
                     { label: 'Condition', value: trade.condition },
+                    { label: 'Status', value: formatCustomerStatusShort('trade', st) },
                     { label: 'Final Value', value: trade.finalValue ? formatCurrency(trade.finalValue) : 'Pending Inspection' },
                     { label: 'Est. Value', value: formatCurrency(trade.estimatedValue) }
                 ],
@@ -260,7 +280,7 @@ export const Tracking: React.FC = () => {
                                     </p>
 
                                     {/* Action Buttons for Offer Made */}
-                                    {(step.label === 'Offer sent' || step.label === 'Offer Made') && step.status === 'current' && type === 'trade' && (
+                                    {(step.label === 'Offer ready' || step.label === 'Offer sent' || step.label === 'Offer Made') && step.status === 'current' && type === 'trade' && (
                                         <div className="flex gap-3 pt-4">
                                             <button
                                                 onClick={async () => {

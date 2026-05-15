@@ -19,6 +19,7 @@ import { Order, RepairRequest, TradeRequest } from '../types';
 import { formatCurrency } from '../lib/utils';
 import { getUserOrdersFromItems } from '../lib/api';
 import { supabase } from '../lib/supabase';
+import { customerStatusBadgeClasses, formatCustomerStatusShort } from '../lib/customerStatusLabels';
 
 type HistoryTab = 'orders' | 'trades' | 'repairs';
 
@@ -147,19 +148,6 @@ export const History: React.FC = () => {
         { id: 'repairs', label: 'Repairs', icon: Wrench, count: repairs.length }
     ];
 
-    const getStatusColor = (status: unknown) => {
-        const s = String(status ?? '').trim().toLowerCase();
-        if (['delivered', 'completed', 'accepted'].includes(s)) return 'text-green-500 bg-green-500/10';
-        if (['processing', 'shipped', 'inspecting', 'diagnosing', 'in repair', 'offer made'].includes(s)) return 'text-amber-500 bg-amber-500/10';
-        if (['cancelled', 'rejected', 'failed'].includes(s)) return 'text-red-500 bg-red-500/10';
-        return 'text-blue-500 bg-blue-500/10';
-    };
-
-    const displayOrderStatus = (status: unknown) => {
-        const raw = String(status ?? '');
-        return raw.trim().toLowerCase() === 'shipped' ? 'Ready' : raw;
-    };
-
     return (
         <div className={`min-h-screen pt-32 pb-20 px-4 md:px-8 transition-colors duration-500 ${isLight ? 'bg-[#FAFAFA]' : 'bg-gradient-to-b from-[#050508] via-[#08080f] to-[#050508]'}`}>
             <div className="max-w-6xl mx-auto space-y-12">
@@ -237,8 +225,8 @@ export const History: React.FC = () => {
                                         </div>
                                     </div>
                                     <div className="flex items-center justify-between md:justify-end gap-3 border-t md:border-0 pt-6 md:pt-0 border-white/5">
-                                        <span className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest ${getStatusColor(displayOrderStatus(order.status))}`}>
-                                            {displayOrderStatus(order.status)}
+                                        <span className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest max-w-[11rem] truncate ${customerStatusBadgeClasses(order.status, 'order', isLight)}`} title={formatCustomerStatusShort('order', order.status)}>
+                                            {formatCustomerStatusShort('order', order.status)}
                                         </span>
                                         <Link
                                             to={`/receipt/${order.id}` as any}
@@ -284,8 +272,8 @@ export const History: React.FC = () => {
                                         </div>
                                     </div>
                                     <div className="flex items-center justify-between md:justify-end gap-6 border-t md:border-0 pt-6 md:pt-0 border-white/5">
-                                        <span className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest ${getStatusColor(trade.status)}`}>
-                                            {trade.status}
+                                        <span className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest max-w-[11rem] truncate ${customerStatusBadgeClasses(trade.status, 'trade', isLight)}`} title={formatCustomerStatusShort('trade', trade.status)}>
+                                            {formatCustomerStatusShort('trade', trade.status)}
                                         </span>
                                         <div className={`w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-white/30 group-hover:text-[#CDA032] group-hover:border-[#CDA032] transition-all`}>
                                             <ChevronRight size={20} />
@@ -328,8 +316,8 @@ export const History: React.FC = () => {
                                         </div>
                                     </div>
                                     <div className="flex items-center justify-between md:justify-end gap-6 border-t md:border-0 pt-6 md:pt-0 border-white/5">
-                                        <span className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest ${getStatusColor(repair.status)}`}>
-                                            {repair.status}
+                                        <span className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest max-w-[11rem] truncate ${customerStatusBadgeClasses(repair.status, 'repair', isLight)}`} title={formatCustomerStatusShort('repair', repair.status)}>
+                                            {formatCustomerStatusShort('repair', repair.status)}
                                         </span>
                                         <div className={`w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-white/30 group-hover:text-[#CDA032] group-hover:border-[#CDA032] transition-all`}>
                                             <ChevronRight size={20} />

@@ -17,6 +17,10 @@ import type { DeletionPreview } from '../lib/accountDeletionGuards';
 import { DeleteAccountModal } from '../components/DeleteAccountModal';
 import AuthService from '../lib/auth';
 import { updateUserProfile } from '../lib/api';
+import {
+  customerStatusBadgeClasses,
+  formatCustomerStatusShort,
+} from '../lib/customerStatusLabels';
 import { getSupabaseClient } from '../lib/supabase';
 import { Link } from '@tanstack/react-router';
 import { useReturns } from '../hooks/useReturns';
@@ -118,17 +122,12 @@ export const Profile: React.FC<ProfileProps> = ({
     return orderTotal + repairTotal;
   }, [orders, repairs]);
 
-  const historyStatusBadge = (status: unknown) => {
-    const s = String(status ?? '').trim().toLowerCase();
-    if (['delivered', 'completed', 'accepted'].includes(s)) return isLight ? 'text-emerald-800 bg-emerald-100' : 'text-green-400 bg-green-500/10';
-    if (['processing', 'shipped', 'inspecting', 'diagnosing', 'in repair', 'offer made'].includes(s)) return isLight ? 'text-amber-900 bg-amber-100' : 'text-amber-400 bg-amber-500/10';
-    if (['cancelled', 'rejected', 'failed'].includes(s)) return isLight ? 'text-red-800 bg-red-100' : 'text-red-400 bg-red-500/10';
-    return isLight ? 'text-blue-900 bg-blue-100' : 'text-blue-400 bg-blue-500/10';
-  };
-  const displayOrderStatusLabel = (status: unknown) => {
-    const raw = String(status ?? '');
-    return raw.trim().toLowerCase() === 'shipped' ? 'Ready' : raw;
-  };
+  const orderStatusLabel = (status: unknown) =>
+    formatCustomerStatusShort('order', status);
+  const tradeStatusLabel = (status: unknown) =>
+    formatCustomerStatusShort('trade', status);
+  const repairStatusLabel = (status: unknown) =>
+    formatCustomerStatusShort('repair', status);
 
   const profileHistoryPreview = useMemo(() => {
     const byDate = <T extends { date: string }>(list: T[]) =>
@@ -485,13 +484,8 @@ export const Profile: React.FC<ProfileProps> = ({
                           </div>
                         </div>
                         <div className="text-right">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            order.status === 'Delivered' ? 'bg-green-500/20 text-green-400' :
-                            order.status === 'Shipped' ? 'bg-blue-500/20 text-blue-400' :
-                            order.status === 'Processing' ? 'bg-yellow-500/20 text-yellow-400' :
-                            'bg-gray-500/20 text-gray-400'
-                          }`}>
-                            {order.status}
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${customerStatusBadgeClasses(order.status, 'order', isLight)}`}>
+                            {orderStatusLabel(order.status)}
                           </span>
                           <p className="text-lg font-bold text-white mt-1">{formatCurrency(order.total)}</p>
                         </div>
@@ -617,8 +611,8 @@ export const Profile: React.FC<ProfileProps> = ({
                       <div className="space-y-3 text-center md:text-left">
                         <div className="flex items-center justify-center md:justify-start gap-4">
                           <h4 className={`text-2xl font-black italic uppercase tracking-tighter ${isLight ? 'text-black' : 'text-white'}`}>{trade.device}</h4>
-                          <span className={`px-4 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest ${trade.status === 'Completed' ? 'bg-green-500 text-white' : 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'}`}>
-                            {trade.status}
+                          <span className={`px-4 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest max-w-[min(100%,12rem)] truncate ${customerStatusBadgeClasses(trade.status, 'trade', isLight)}`} title={tradeStatusLabel(trade.status)}>
+                            {tradeStatusLabel(trade.status)}
                           </span>
                         </div>
                         <p className={`text-xs font-bold uppercase tracking-[0.2em] ${isLight ? 'text-gray-400' : 'text-white/50'}`}>Condition: {trade.condition}</p>
@@ -707,8 +701,8 @@ export const Profile: React.FC<ProfileProps> = ({
                       <div className="space-y-3 text-center md:text-left">
                         <div className="flex items-center justify-center md:justify-start gap-4">
                           <h4 className={`text-2xl font-black italic uppercase tracking-tighter ${isLight ? 'text-black' : 'text-white'}`}>{repair.device}</h4>
-                          <span className={`px-4 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest ${repair.status === 'Completed' ? 'bg-green-500 text-white' : 'bg-orange-500 text-white shadow-lg shadow-orange-500/20'}`}>
-                            {repair.status}
+                          <span className={`px-4 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest max-w-[min(100%,12rem)] truncate ${customerStatusBadgeClasses(repair.status, 'repair', isLight)}`} title={repairStatusLabel(repair.status)}>
+                            {repairStatusLabel(repair.status)}
                           </span>
                         </div>
                         <p className={`text-xs font-bold uppercase tracking-[0.2em] ${isLight ? 'text-gray-400' : 'text-white/50'}`}>{repair.issue}</p>
@@ -878,12 +872,20 @@ export const Profile: React.FC<ProfileProps> = ({
                         : row.trade?.device || 'Trade-in';
                   const subStatus =
                     row.kind === 'purchase' && row.order
-                      ? displayOrderStatusLabel(row.order.status)
+                      ? orderStatusLabel(row.order.status)
                       : row.kind === 'repair' && row.repair
-                        ? String(row.repair.status || '')
+                        ? repairStatusLabel(row.repair.status)
                         : row.trade
-                          ? String(row.trade.status || '')
+                          ? tradeStatusLabel(row.trade.status)
                           : '';
+                  const subStatusKind: 'order' | 'repair' | 'trade' =
+                    row.kind === 'purchase' ? 'order' : row.kind === 'repair' ? 'repair' : 'trade';
+                  const subStatusRaw =
+                    row.kind === 'purchase' && row.order
+                      ? row.order.status
+                      : row.kind === 'repair' && row.repair
+                        ? row.repair.status
+                        : row.trade?.status;
                   let amountNode: React.ReactNode;
                   let amountClass = isLight ? 'text-black' : 'text-white';
                   if (row.kind === 'purchase' && row.order) {
@@ -943,7 +945,8 @@ export const Profile: React.FC<ProfileProps> = ({
                             </span>
                             {subStatus ? (
                               <span
-                                className={`text-[9px] px-2.5 py-0.5 rounded-full font-black uppercase tracking-widest shrink-0 ${historyStatusBadge(subStatus)}`}
+                                className={`text-[9px] px-2.5 py-0.5 rounded-full font-black uppercase tracking-widest shrink-0 max-w-[11rem] truncate ${customerStatusBadgeClasses(subStatusRaw, subStatusKind, isLight)}`}
+                                title={subStatus}
                               >
                                 {subStatus}
                               </span>
@@ -1037,8 +1040,8 @@ export const Profile: React.FC<ProfileProps> = ({
                             <p className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-black/40' : 'text-white/35'}`}>
                               {(order as any).display_id ? String((order as any).display_id) : `Order #${order.id.slice(-8).toUpperCase()}`}
                             </p>
-                            <span className={`shrink-0 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${historyStatusBadge(displayOrderStatusLabel(order.status))}`}>
-                              {displayOrderStatusLabel(order.status)}
+                            <span className={`shrink-0 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest max-w-[10rem] truncate ${customerStatusBadgeClasses(order.status, 'order', isLight)}`} title={orderStatusLabel(order.status)}>
+                              {orderStatusLabel(order.status)}
                             </span>
                           </div>
                           <p className={`text-xs font-black uppercase tracking-tight truncate ${isLight ? 'text-black' : 'text-white'}`}>
@@ -1098,8 +1101,8 @@ export const Profile: React.FC<ProfileProps> = ({
                             <p className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-black/40' : 'text-white/35'}`}>
                               {(trade as any).display_id ? String((trade as any).display_id) : `Trade #${trade.id.slice(-8).toUpperCase()}`}
                             </p>
-                            <span className={`shrink-0 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${historyStatusBadge(trade.status)}`}>
-                              {trade.status}
+                            <span className={`shrink-0 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest max-w-[10rem] truncate ${customerStatusBadgeClasses(trade.status, 'trade', isLight)}`} title={tradeStatusLabel(trade.status)}>
+                              {tradeStatusLabel(trade.status)}
                             </span>
                           </div>
                           <p className={`text-xs font-black uppercase tracking-tight truncate ${isLight ? 'text-black' : 'text-white'}`}>{trade.device}</p>
@@ -1137,8 +1140,8 @@ export const Profile: React.FC<ProfileProps> = ({
                             <p className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-black/40' : 'text-white/35'}`}>
                               {(repair as any).display_id ? String((repair as any).display_id) : `Repair #${repair.id.slice(-8).toUpperCase()}`}
                             </p>
-                            <span className={`shrink-0 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${historyStatusBadge(repair.status)}`}>
-                              {repair.status}
+                            <span className={`shrink-0 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest max-w-[10rem] truncate ${customerStatusBadgeClasses(repair.status, 'repair', isLight)}`} title={repairStatusLabel(repair.status)}>
+                              {repairStatusLabel(repair.status)}
                             </span>
                           </div>
                           <p className={`text-xs font-black uppercase tracking-tight truncate ${isLight ? 'text-black' : 'text-white'}`}>{repair.device}</p>

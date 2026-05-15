@@ -6,6 +6,7 @@ import { formatCurrency, formatDate } from '../lib/utils';
 import { supabase } from '../lib/supabase';
 import { mapTradeFromDb } from '../lib/api';
 import { BlackBoxReceiptLogo } from '../components/BlackBoxReceiptLogo';
+import { formatCustomerStatusShort } from '../lib/customerStatusLabels';
 
 export const TradeReceipt: React.FC = () => {
   const { tradeId } = useParams({ from: '/receipt/trade/$tradeId' });
@@ -60,7 +61,7 @@ export const TradeReceipt: React.FC = () => {
     try {
       await navigator.share({
         title: `BlackBox trade-in ${refLabel}`,
-        text: `${trade.device} — ${trade.status}`,
+        text: `${trade.device} — ${formatCustomerStatusShort('trade', trade.status)}`,
         url: window.location.href,
       });
     } catch {
@@ -99,7 +100,7 @@ export const TradeReceipt: React.FC = () => {
     { label: 'Submitted', value: formatDate(trade.date) },
     { label: 'Device', value: trade.device || '—' },
     { label: 'Condition', value: trade.condition || '—' },
-    { label: 'Status', value: String(trade.status || '—') },
+    { label: 'Status', value: formatCustomerStatusShort('trade', trade.status) || '—' },
     {
       label: 'Estimated value',
       value: formatCurrency(trade.estimatedValue ?? 0),

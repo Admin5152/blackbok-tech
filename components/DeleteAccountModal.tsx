@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Trash2, X, AlertTriangle, Shield, Mail, Calendar, Package, Wrench, RefreshCw } from 'lucide-react';
 import type { DeletionPreview } from '../lib/accountDeletionGuards';
-import { customerStatusLabelForDeletion } from '../lib/customerStatusLabels';
+import { formatCustomerStatusLong } from '../lib/customerStatusLabels';
 
 interface DeleteAccountModalProps {
   isOpen: boolean;
@@ -137,7 +137,7 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
                 <li key={`${item.kind}-${item.id}`} className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-2 border-b border-white/5 pb-1.5 last:border-0">
                   <span className="font-medium break-words">{item.label}</span>
                   <span className="opacity-70 text-[10px] sm:text-xs leading-snug shrink-0">
-                    {customerStatusLabelForDeletion(item.kind, item.status)}
+                    {formatCustomerStatusLong(item.kind, item.status)}
                   </span>
                 </li>
               ))}

@@ -1,10 +1,28 @@
 /** Plain-language status labels shown to customers (not admin DB jargon). */
 
+import {
+  normalizeOrderStatusForUi,
+  normalizeRepairStatusForUi,
+  normalizeTradeStatusForUi,
+} from './api';
+
 export function customerOrderStatusLabel(uiStatus: string): string {
   const map: Record<string, string> = {
     Pending: 'Order placed — waiting to process',
     Processing: 'Being prepared',
     Shipped: 'On the way to you',
+    Delivered: 'Delivered',
+    Cancelled: 'Cancelled',
+    Refunded: 'Refunded',
+  };
+  return map[uiStatus] ?? uiStatus;
+}
+
+export function customerOrderStatusShort(uiStatus: string): string {
+  const map: Record<string, string> = {
+    Pending: 'Processing',
+    Processing: 'Preparing',
+    Shipped: 'On the way',
     Delivered: 'Delivered',
     Cancelled: 'Cancelled',
     Refunded: 'Refunded',
@@ -27,6 +45,21 @@ export function customerRepairStatusLabel(uiStatus: string): string {
   return map[uiStatus] ?? uiStatus;
 }
 
+export function customerRepairStatusShort(uiStatus: string): string {
+  const map: Record<string, string> = {
+    Pending: 'Received',
+    Received: 'Received',
+    Diagnosing: 'Diagnosing',
+    'Estimate Sent': 'Quote ready',
+    'In Repair': 'In repair',
+    Ready: 'Ready',
+    Completed: 'Finished',
+    Rejected: 'Closed',
+    Cancelled: 'Cancelled',
+  };
+  return map[uiStatus] ?? uiStatus;
+}
+
 export function customerTradeStatusLabel(uiStatus: string): string {
   const map: Record<string, string> = {
     Pending: 'Submitted — we are reviewing',
@@ -41,7 +74,6 @@ export function customerTradeStatusLabel(uiStatus: string): string {
   return map[uiStatus] ?? uiStatus;
 }
 
-/** Shorter label for badges and compact UI */
 export function customerTradeStatusShort(uiStatus: string): string {
   const map: Record<string, string> = {
     Pending: 'Submitted',
@@ -56,11 +88,74 @@ export function customerTradeStatusShort(uiStatus: string): string {
   return map[uiStatus] ?? uiStatus;
 }
 
+export function formatCustomerStatusShort(
+  kind: 'order' | 'repair' | 'trade',
+  rawStatus: unknown
+): string {
+  const s = String(rawStatus ?? '');
+  if (kind === 'order') return customerOrderStatusShort(normalizeOrderStatusForUi(s));
+  if (kind === 'repair') return customerRepairStatusShort(normalizeRepairStatusForUi(s));
+  return customerTradeStatusShort(normalizeTradeStatusForUi(s));
+}
+
+export function formatCustomerStatusLong(
+  kind: 'order' | 'repair' | 'trade',
+  rawStatus: unknown
+): string {
+  const s = String(rawStatus ?? '');
+  if (kind === 'order') return customerOrderStatusLabel(normalizeOrderStatusForUi(s));
+  if (kind === 'repair') return customerRepairStatusLabel(normalizeRepairStatusForUi(s));
+  return customerTradeStatusLabel(normalizeTradeStatusForUi(s));
+}
+
 export function customerStatusLabelForDeletion(
   kind: 'order' | 'repair' | 'trade',
   uiStatus: string
 ): string {
-  if (kind === 'order') return customerOrderStatusLabel(uiStatus);
-  if (kind === 'repair') return customerRepairStatusLabel(uiStatus);
-  return customerTradeStatusLabel(uiStatus);
+  return formatCustomerStatusLong(kind, uiStatus);
+}
+
+/** Tailwind badge tones for profile/history chips (light + dark). */
+export function customerStatusBadgeClasses(
+  rawStatus: unknown,
+  kind: 'order' | 'repair' | 'trade',
+  isLight: boolean
+): string {
+  const ui =
+    kind === 'order'
+      ? normalizeOrderStatusForUi(String(rawStatus ?? ''))
+      : kind === 'repair'
+        ? normalizeRepairStatusForUi(String(rawStatus ?? ''))
+        : normalizeTradeStatusForUi(String(rawStatus ?? ''));
+
+  const done = new Set([
+    'Delivered',
+    'Completed',
+    'Cancelled',
+    'Refunded',
+    'Rejected',
+  ]);
+  const active = new Set([
+    'Pending',
+    'Processing',
+    'Shipped',
+    'Received',
+    'Diagnosing',
+    'Estimate Sent',
+    'In Repair',
+    'Ready',
+    'Inspecting',
+    'Offer sent',
+    'Offer Made',
+    'Awaiting User',
+    'Accepted',
+  ]);
+
+  if (done.has(ui)) {
+    return isLight ? 'text-emerald-800 bg-emerald-100' : 'text-green-400 bg-green-500/10';
+  }
+  if (active.has(ui)) {
+    return isLight ? 'text-amber-900 bg-amber-100' : 'text-amber-400 bg-amber-500/10';
+  }
+  return isLight ? 'text-blue-900 bg-blue-100' : 'text-blue-400 bg-blue-500/10';
 }

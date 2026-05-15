@@ -21,6 +21,7 @@ import { canAccessAdminDashboard, normalizeCanonicalRole } from './lib/roles';
 import { setupMobileBackButton, preventAppClose } from './lib/mobileNavigation';
 import { scrollToDocumentTop } from './lib/scrollToDocumentTop';
 import { whatsAppUrl } from './lib/contact';
+import { formatCustomerStatusShort } from './lib/customerStatusLabels';
 import { INITIAL_PRODUCTS } from './constants';
 import { getAvailableStock } from './lib/productOptions';
 import { Navbar } from './components/Navbar';
@@ -1028,7 +1029,7 @@ function RootComponent() {
           const newStatus = payload?.new?.status;
           const oldStatus = payload?.old?.status;
           if (newStatus && newStatus !== oldStatus) {
-            notify(`Order status updated: ${newStatus}`, 'success');
+            notify(`Order update: ${formatCustomerStatusShort('order', newStatus)}`, 'success');
           }
           refetchOrders();
         })
@@ -1036,7 +1037,7 @@ function RootComponent() {
         { event: '*', schema: 'public', table: 'trade_in_requests', filter: `user_id=eq.${user.id}` },
         (payload: any) => {
           if (payload?.new?.status && payload.new.status !== payload?.old?.status) {
-            notify(`Trade-in update: ${payload.new.status}`, 'info');
+            notify(`Trade-in update: ${formatCustomerStatusShort('trade', payload.new.status)}`, 'info');
           }
           refetchTrades();
           const ns = String(payload?.new?.status ?? '').trim().toLowerCase();
@@ -1048,7 +1049,7 @@ function RootComponent() {
         { event: '*', schema: 'public', table: 'repair_requests', filter: `user_id=eq.${user.id}` },
         (payload: any) => {
           if (payload?.new?.status && payload.new.status !== payload?.old?.status) {
-            notify(`Repair update: ${payload.new.status}`, 'info');
+            notify(`Repair update: ${formatCustomerStatusShort('repair', payload.new.status)}`, 'info');
           }
           refetchRepairs();
         })

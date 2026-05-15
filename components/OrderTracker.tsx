@@ -3,6 +3,7 @@ import { Package, Check, Truck, MapPin, Clock, Calendar } from 'lucide-react';
 import { Order, TrackingUpdate } from '../types';
 import { formatCurrency, formatDate } from '../lib/utils';
 import { supabase } from '../lib/supabase';
+import { customerStatusBadgeClasses, formatCustomerStatusShort } from '../lib/customerStatusLabels';
 
 interface OrderTrackerProps {
   order: Order;
@@ -103,13 +104,8 @@ export const OrderTracker: React.FC<OrderTrackerProps> = ({ order, isExpanded = 
             <Package size={16} className="text-[#B38B21]" />
             <span className="text-sm font-semibold text-white">Order Status</span>
           </div>
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-            order.status === 'Delivered' ? 'bg-green-500/20 text-green-400' :
-            order.status === 'Shipped' ? 'bg-blue-500/20 text-blue-400' :
-            order.status === 'Processing' ? 'bg-yellow-500/20 text-yellow-400' :
-            'bg-gray-500/20 text-gray-400'
-          }`}>
-            {order.status}
+          <span className={`px-2 py-1 rounded-full text-xs font-medium ${customerStatusBadgeClasses(order.status, 'order', false)}`}>
+            {formatCustomerStatusShort('order', order.status)}
           </span>
         </div>
         
@@ -140,13 +136,8 @@ export const OrderTracker: React.FC<OrderTrackerProps> = ({ order, isExpanded = 
           </div>
         </div>
         <div className="text-right">
-          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-            order.status === 'Delivered' ? 'bg-green-500/20 text-green-400' :
-            order.status === 'Shipped' ? 'bg-blue-500/20 text-blue-400' :
-            order.status === 'Processing' ? 'bg-yellow-500/20 text-yellow-400' :
-            'bg-gray-500/20 text-gray-400'
-          }`}>
-            {order.status}
+          <span className={`px-3 py-1 rounded-full text-sm font-medium ${customerStatusBadgeClasses(order.status, 'order', false)}`}>
+            {formatCustomerStatusShort('order', order.status)}
           </span>
           <p className="text-xs text-gray-400 mt-1">{formatCurrency(order.total)}</p>
         </div>

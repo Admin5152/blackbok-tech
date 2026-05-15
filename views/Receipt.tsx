@@ -11,6 +11,7 @@ import {
   normalizeOrderItemOptions,
 } from '../lib/orderItemOptions';
 import { BlackBoxReceiptLogo } from '../components/BlackBoxReceiptLogo';
+import { formatCustomerStatusShort } from '../lib/customerStatusLabels';
 
 export const Receipt: React.FC = () => {
   const { orderId } = useParams({ from: '/receipt/$orderId' });
@@ -271,7 +272,7 @@ export const Receipt: React.FC = () => {
                 <p className="text-[8px] font-black uppercase tracking-widest text-white/35 print:text-gray-500">Order</p>
                 <p>
                   <span className="text-white/50 print:text-gray-600">Status</span>{' '}
-                  <span className="font-semibold text-white print:text-black">{order.status}</span>
+                  <span className="font-semibold text-white print:text-black">{formatCustomerStatusShort('order', order.status)}</span>
                 </p>
                 {order.payment_status != null && (
                   <p>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Package, Truck, CheckCircle, Clock, MapPin, AlertCircle, RefreshCw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Order } from '../types';
+import { formatCustomerStatusShort } from '../lib/customerStatusLabels';
 
 interface TrackingUpdate {
   id: string;
@@ -140,7 +141,7 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({ order, onStatusUpd
             </div>
             <div className="text-right">
               <p className="text-[9px] font-bold text-white/40 uppercase tracking-wider">Current Status</p>
-              <p className="text-sm font-black text-white">{order.status}</p>
+              <p className="text-sm font-black text-white">{formatCustomerStatusShort('order', order.status)}</p>
             </div>
           </div>
         </div>
@@ -174,7 +175,7 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({ order, onStatusUpd
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
                       <h4 className="text-sm font-black uppercase tracking-wider text-white mb-1">
-                        {update.status}
+                        {formatCustomerStatusShort('order', update.status)}
                       </h4>
                       {update.location && (
                         <div className="flex items-center gap-2 mb-2">

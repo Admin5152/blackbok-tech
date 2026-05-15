@@ -57,7 +57,7 @@ const StatusBadge = ({ status }: { status: TradeRequest['status'] }) => {
     'Offer sent':    'bg-purple-500/10 text-purple-400',
     'Offer Made':    'bg-purple-500/10 text-purple-400',
     'Awaiting User': 'bg-purple-500/10 text-purple-400',
-    'Accepted':      'bg-green-500/10 text-green-400',
+    'Accepted':      'bg-amber-500/10 text-amber-400',
     'Completed':     'bg-emerald-500/10 text-emerald-400',
     'Rejected':      'bg-red-500/10 text-red-400',
   };

@@ -18,6 +18,7 @@ import { useAppContext } from '../App';
 import { getOrder } from '../lib/api';
 import { formatCurrency } from '../lib/utils';
 import type { Order } from '../types';
+import { customerStatusBadgeClasses, formatCustomerStatusShort } from '../lib/customerStatusLabels';
 
 const StatusStep = ({ label, icon: Icon, active, done }: { label: string; icon: any; active: boolean; done: boolean }) => (
     <div className="flex flex-col items-center gap-2 flex-1">
@@ -71,9 +72,6 @@ export const OrderReceipt: React.FC = () => {
         if (stepIdx === statusIdx) return 'active';
         return 'upcoming';
     };
-
-    const displayStatus = (s: unknown) =>
-        String(s ?? '').trim().toLowerCase() === 'shipped' ? 'Ready' : String(s ?? '');
 
     if (loading) {
         return (
@@ -170,12 +168,8 @@ export const OrderReceipt: React.FC = () => {
                             </div>
                             <div className="mt-4 text-center">
                                 <span className={`inline-block px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest
-                                    ${order.status === 'Delivered' ? 'bg-emerald-500/10 text-emerald-400' :
-                                        order.status === 'Shipped' ? 'bg-emerald-500/20 text-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.2)]' :
-                                            order.status === 'Processing' ? 'bg-blue-500/10 text-blue-400' :
-                                                order.status === 'Cancelled' ? 'bg-red-500/10 text-red-400' :
-                                                    'bg-amber-500/10 text-amber-400'}`}>
-                                    Current Status: {displayStatus(order.status)}
+                                    ${customerStatusBadgeClasses(order.status, 'order', isLight)}`}>
+                                    Current status: {formatCustomerStatusShort('order', order.status)}
                                 </span>
                             </div>
                         </div>

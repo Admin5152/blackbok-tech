@@ -6,6 +6,7 @@ import { formatDate, formatCurrency } from '../lib/utils';
 import { supabase } from '../lib/supabase';
 import { mapRepairFromDb } from '../lib/api';
 import { BlackBoxReceiptLogo } from '../components/BlackBoxReceiptLogo';
+import { formatCustomerStatusShort } from '../lib/customerStatusLabels';
 
 export const RepairReceipt: React.FC = () => {
   const { repairId } = useParams({ from: '/receipt/repair/$repairId' });
@@ -60,7 +61,7 @@ export const RepairReceipt: React.FC = () => {
     try {
       await navigator.share({
         title: `BlackBox repair ${refLabel}`,
-        text: `${repair.device} — ${repair.status}`,
+        text: `${repair.device} — ${formatCustomerStatusShort('repair', repair.status)}`,
         url: window.location.href,
       });
     } catch {
@@ -105,7 +106,7 @@ export const RepairReceipt: React.FC = () => {
     { label: 'Submitted', value: formatDate(repair.date) },
     { label: 'Device', value: repair.device || '—' },
     { label: 'Issue', value: repair.issue || '—' },
-    { label: 'Status', value: String(repair.status || '—') },
+    { label: 'Status', value: formatCustomerStatusShort('repair', repair.status) || '—' },
   ];
   if (repair.estimatedCost) rows.push({ label: 'Estimate', value: repair.estimatedCost });
   if (finalCost) rows.push({ label: 'Final cost', value: finalCost });
