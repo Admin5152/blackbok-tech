@@ -2,6 +2,9 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import './global.css';
+import { ensureHashRoute } from './lib/hashRouteBootstrap';
+
+ensureHashRoute();
 
 const rootElement = document.getElementById('root');
 

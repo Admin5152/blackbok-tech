@@ -316,9 +316,43 @@ html[data-theme="light"] .to-\[\#050505\] {
   --tw-gradient-to: var(--bb-surface) !important;
 }
 
+html {
+  scroll-behavior: auto;
+}
+
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+html.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+html.lenis [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
 body {
   background: var(--bb-bg);
   color: var(--bb-text);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: none;
+}
+
+/* Ease GPU load during fast scroll — pause decorative motion */
+html.bb-is-scrolling .bb-hero-collage-anim-0,
+html.bb-is-scrolling .bb-hero-collage-anim-1,
+html.bb-is-scrolling .bb-hero-collage-anim-2,
+html.bb-is-scrolling .bb-hero-collage-anim-3,
+html.bb-is-scrolling .bb-hero-collage-anim-4,
+html.bb-is-scrolling .bb-hero-collage-anim-5,
+html.bb-is-scrolling .animate-scroll {
+  animation-play-state: paused !important;
+}
+
+html.bb-is-scrolling .glow-border {
+  transition: none !important;
 }
 
 /* Reusable premium border + glow */

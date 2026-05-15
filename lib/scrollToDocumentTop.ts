@@ -1,3 +1,5 @@
+import { getLenis } from './lenisScroll';
+
 /**
  * Scroll the primary document view to the top. Covers `window`,
  * `document.scrollingElement`, and `#root` (some mobile WebViews scroll
@@ -5,6 +7,11 @@
  */
 export function scrollToDocumentTop(): void {
   try {
+    const lenis = getLenis();
+    if (lenis) {
+      lenis.scrollTo(0, { immediate: true });
+      return;
+    }
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     const se = document.scrollingElement;
     if (se) (se as HTMLElement).scrollTop = 0;

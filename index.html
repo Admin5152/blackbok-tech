@@ -8,6 +8,42 @@
         if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
       } catch (e) {}
     </script>
+    <script>
+      /* Hash SPA: bare / or /# must become /#/ before React loads */
+      (function () {
+        try {
+          var loc = window.location;
+          var hash = loc.hash || '';
+          var path = loc.pathname || '/';
+          var search = loc.search || '';
+          if (/^#(access_token|refresh_token|error)=/i.test(hash)) return;
+          if (hash.indexOf('#/') === 0) return;
+          if (search.indexOf('type=recovery') !== -1) {
+            loc.replace(loc.origin + '/#/reset-password' + search);
+            return;
+          }
+          if (search.indexOf('type=email_confirm') !== -1 || search.indexOf('type=signup') !== -1) {
+            loc.replace(loc.origin + '/#/emailconfirm' + search);
+            return;
+          }
+          if (search && /[?&](access_token|code)=/i.test(search)) {
+            loc.replace(loc.origin + '/#/' + search);
+            return;
+          }
+          var route = '/';
+          if (path && path !== '/' && path !== '/index.html') {
+            route = path.charAt(0) === '/' ? path : '/' + path;
+          }
+          if (!hash || hash === '#') {
+            loc.replace(loc.origin + '/#' + route + search);
+            return;
+          }
+          if (hash.length > 1 && hash.charAt(1) !== '/') {
+            loc.replace(loc.origin + '/#/' + hash.slice(1).replace(/^\//, '') + search);
+          }
+        } catch (e) {}
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>BlackBox Ghana | Phone Shop KNUST Kumasi | Tech, Repairs &amp; Trade-In</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -32,7 +68,7 @@
             color: #fff;
             -webkit-font-smoothing: antialiased;
             overflow-x: hidden;
-            scroll-behavior: auto;
+            scroll-behavior: auto; /* Lenis handles smooth wheel scroll when enabled */
         }
         
         .font-heading {

@@ -358,6 +358,7 @@ export const Home: React.FC<HomeProps> = ({
 
           <div
             id="featured-products-slider"
+            data-lenis-prevent
             className="flex items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar snap-x snap-mandatory px-4 md:px-8 pb-8"
             style={{ scrollPaddingLeft: 'max(1rem, env(safe-area-inset-left))' }}
           >
@@ -497,7 +498,7 @@ export const Home: React.FC<HomeProps> = ({
             </button>
           </div>
 
-          <div id="accessories-slider" className="flex items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar snap-x snap-mandatory px-4 md:px-8 pb-8" style={{ scrollPaddingLeft: 'max(1rem, env(safe-area-inset-left))' }}>
+          <div id="accessories-slider" data-lenis-prevent className="flex items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar snap-x snap-mandatory px-4 md:px-8 pb-8" style={{ scrollPaddingLeft: 'max(1rem, env(safe-area-inset-left))' }}>
             {/* Promo Card */}
             <div className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#16161f] ring-1 ring-inset ring-white/[0.06]' : 'bg-white'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between snap-start flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5 ${homePromoCardHover}`}>
               <div>
@@ -622,7 +623,7 @@ export const Home: React.FC<HomeProps> = ({
             </button>
           </div>
 
-          <div id="laptop-slider" className="flex items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar snap-x snap-mandatory px-4 md:px-8 pb-8" style={{ scrollPaddingLeft: 'max(1rem, env(safe-area-inset-left))' }}>
+          <div id="laptop-slider" data-lenis-prevent className="flex items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar snap-x snap-mandatory px-4 md:px-8 pb-8" style={{ scrollPaddingLeft: 'max(1rem, env(safe-area-inset-left))' }}>
             {/* Promo Card */}
             <div className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#16161f] ring-1 ring-inset ring-white/[0.06]' : 'bg-[#F2F4F7]'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between snap-start flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5 relative overflow-hidden group ${homePromoCardHover}`}>
               <div className="relative z-10">

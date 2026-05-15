@@ -131,11 +131,27 @@ export const Navbar: React.FC<{
     }, [user?.id, orders, repairs, trades, storeBadgeTick]);
 
     useEffect(() => {
+      let ticking = false;
+      const applyY = (y: number) => setIsScrolled(y > 4);
       const handleScroll = () => {
-        setIsScrolled(window.scrollY > 0);
+        if (ticking) return;
+        ticking = true;
+        window.requestAnimationFrame(() => {
+          applyY(window.scrollY);
+          ticking = false;
+        });
       };
-      window.addEventListener('scroll', handleScroll);
-      return () => window.removeEventListener('scroll', handleScroll);
+      const onLenisScroll = (ev: Event) => {
+        const y = (ev as CustomEvent<{ y: number }>).detail?.y;
+        if (typeof y === 'number') applyY(y);
+      };
+      handleScroll();
+      window.addEventListener('scroll', handleScroll, { passive: true });
+      window.addEventListener('bb-scroll', onLenisScroll);
+      return () => {
+        window.removeEventListener('scroll', handleScroll);
+        window.removeEventListener('bb-scroll', onLenisScroll);
+      };
     }, []);
 
     const navItemClass = (path: string) => {

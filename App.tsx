@@ -20,6 +20,7 @@ import AuthService from './lib/auth';
 import { canAccessAdminDashboard, normalizeCanonicalRole } from './lib/roles';
 import { setupMobileBackButton, preventAppClose } from './lib/mobileNavigation';
 import { scrollToDocumentTop } from './lib/scrollToDocumentTop';
+import { SmoothScroll } from './components/SmoothScroll';
 import { whatsAppUrl } from './lib/contact';
 import { formatCustomerStatusShort } from './lib/customerStatusLabels';
 import { INITIAL_PRODUCTS } from './constants';
@@ -1236,6 +1237,7 @@ function RootComponent() {
   return (
     <AppContext.Provider value={contextValues}>
       <ScrollToTop />
+      <SmoothScroll />
       {/* Welcome Screen */}
       {showWelcomeScreen && (
         <WelcomeScreen onComplete={completeWelcome} />
