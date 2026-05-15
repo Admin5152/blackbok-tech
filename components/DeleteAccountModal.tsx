@@ -121,15 +121,20 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
             <p className={`text-sm font-semibold mb-2 ${isDark ? 'text-amber-200' : 'text-amber-900'}`}>
               You still have active activity on your account
             </p>
-            <p className={`text-xs mb-3 ${isDark ? 'text-white/70' : 'text-black/70'}`}>
-              Deletion is only allowed once orders, repairs, and trade-ins are completed — or if you cancel them
-              now. If you continue, the following will be <strong>cancelled</strong> automatically:
+            <p className={`text-xs mb-2 ${isDark ? 'text-white/70' : 'text-black/70'}`}>
+              <strong>Completed</strong> means the work is finished: order <strong>Delivered</strong>, repair{' '}
+              <strong>Completed</strong>, or trade-in <strong>Completed</strong>. Anything still in progress (e.g.{' '}
+              Pending, Processing, Diagnosing, In Repair, Offer sent) must be finished or cancelled before we remove
+              your account.
             </p>
-            <ul className={`text-xs space-y-1.5 mb-4 max-h-32 overflow-y-auto ${isDark ? 'text-white/80' : 'text-black/80'}`}>
+            <p className={`text-xs mb-3 ${isDark ? 'text-white/70' : 'text-black/70'}`}>
+              If you continue now, these open items will be <strong>cancelled</strong> automatically:
+            </p>
+            <ul className={`text-xs space-y-1.5 mb-4 max-h-36 overflow-y-auto overscroll-contain ${isDark ? 'text-white/80' : 'text-black/80'}`}>
               {pending.map((item) => (
-                <li key={`${item.kind}-${item.id}`} className="flex justify-between gap-2">
-                  <span>{item.label}</span>
-                  <span className="opacity-60 shrink-0">{item.status}</span>
+                <li key={`${item.kind}-${item.id}`} className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-2 border-b border-white/5 pb-1.5 last:border-0">
+                  <span className="font-medium break-words">{item.label}</span>
+                  <span className="opacity-70 text-[10px] uppercase tracking-wide shrink-0">Status: {item.status}</span>
                 </li>
               ))}
             </ul>

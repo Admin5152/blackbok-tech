@@ -861,13 +861,29 @@ const REPAIR_STATUS_FROM_DB: Record<string, string> = {
   ready: 'Ready',
   completed: 'Completed',
   rejected: 'Rejected',
+  cancelled: 'Cancelled',
 };
+
+/** Display label for `repair_requests.status` (DB snake_case or UI Pascal Case). */
+export function normalizeRepairStatusForUi(status?: string | null): string {
+  if (!status || !String(status).trim()) return 'Pending';
+  const key = String(status).trim().toLowerCase();
+  if (REPAIR_STATUS_FROM_DB[key]) return REPAIR_STATUS_FROM_DB[key];
+  return String(status).replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+}
+
+/** Display label for `trade_in_requests.status`. */
+export function normalizeTradeStatusForUi(status?: string | null): string {
+  if (!status || !String(status).trim()) return 'Pending';
+  const key = String(status).trim().toLowerCase();
+  if (TRADE_STATUS_FROM_DB[key]) return TRADE_STATUS_FROM_DB[key];
+  return String(status).replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+}
 
 /** Maps a `repair_requests` row to the UI `RepairRequest` shape (camelCase + display strings). */
 export function mapRepairFromDb(r: any): RepairRequest {
   if (!r) return r;
-  const uiStatus = REPAIR_STATUS_FROM_DB[String(r.status || '').toLowerCase()]
-    || (r.status ? String(r.status).replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : 'Pending');
+  const uiStatus = normalizeRepairStatusForUi(r.status);
   const costNum = r.estimated_cost != null && r.estimated_cost !== ''
     ? Number(r.estimated_cost)
     : 0;

@@ -1,4 +1,8 @@
-import { normalizeOrderStatusForUi } from './api';
+import {
+  normalizeOrderStatusForUi,
+  normalizeRepairStatusForUi,
+  normalizeTradeStatusForUi,
+} from './api';
 import { getSupabaseClient } from './supabase';
 
 export type PendingDeletionItem = {
@@ -18,8 +22,20 @@ export type DeletionPreview = {
   pendingItems: PendingDeletionItem[];
 };
 
+/**
+ * Finished order — no longer in progress (customer received goods, or order was cancelled/refunded).
+ */
 const TERMINAL_ORDER_UI = new Set(['Delivered', 'Cancelled', 'Refunded']);
-const TERMINAL_REPAIR_UI = new Set(['Completed', 'Rejected']);
+
+/**
+ * Finished repair — device work is done (Completed), or ticket was closed without finishing
+ * (Rejected / Cancelled).
+ */
+const TERMINAL_REPAIR_UI = new Set(['Completed', 'Rejected', 'Cancelled']);
+
+/**
+ * Finished trade-in — deal completed (Completed), or offer was declined / closed (Rejected).
+ */
 const TERMINAL_TRADE_UI = new Set(['Completed', 'Rejected']);
 
 export function isTerminalOrderStatus(status: string): boolean {
@@ -27,16 +43,14 @@ export function isTerminalOrderStatus(status: string): boolean {
 }
 
 export function isTerminalRepairStatus(status: string): boolean {
-  const s = status?.trim() || 'Pending';
-  return TERMINAL_REPAIR_UI.has(s);
+  return TERMINAL_REPAIR_UI.has(normalizeRepairStatusForUi(status));
 }
 
 export function isTerminalTradeStatus(status: string): boolean {
-  const s = status?.trim() || 'Pending';
-  return TERMINAL_TRADE_UI.has(s);
+  return TERMINAL_TRADE_UI.has(normalizeTradeStatusForUi(status));
 }
 
-/** Load account summary + any open orders, repairs, or trade-ins that block silent deletion. */
+/** Load account summary + any open orders, repairs, or trade-ins. */
 export async function getDeletionPreview(): Promise<DeletionPreview | null> {
   const client = getSupabaseClient();
   const {
@@ -72,10 +86,7 @@ export async function getDeletionPreview(): Promise<DeletionPreview | null> {
   }
 
   for (const r of repairs ?? []) {
-    const ui =
-      r.status && typeof r.status === 'string'
-        ? r.status.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
-        : 'Pending';
+    const ui = normalizeRepairStatusForUi(r.status);
     if (!isTerminalRepairStatus(ui)) {
       pendingItems.push({
         kind: 'repair',
@@ -89,13 +100,7 @@ export async function getDeletionPreview(): Promise<DeletionPreview | null> {
   }
 
   for (const t of trades ?? []) {
-    const raw = String(t.status || 'submitted').toLowerCase();
-    const ui =
-      raw === 'completed'
-        ? 'Completed'
-        : raw === 'rejected'
-          ? 'Rejected'
-          : raw.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+    const ui = normalizeTradeStatusForUi(t.status);
     if (!isTerminalTradeStatus(ui)) {
       pendingItems.push({
         kind: 'trade',
@@ -142,11 +147,7 @@ export async function cancelOpenRecordsForAccountDeletion(userId: string): Promi
     .select('id, status')
     .eq('user_id', userId);
   for (const r of repairs ?? []) {
-    const ui =
-      r.status && typeof r.status === 'string'
-        ? r.status.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
-        : 'Pending';
-    if (!isTerminalRepairStatus(ui)) {
+    if (!isTerminalRepairStatus(normalizeRepairStatusForUi(r.status))) {
       const { error } = await client.from('repair_requests').update({ status: 'cancelled' }).eq('id', r.id);
       if (error) return { ok: false, error: error.message, cancelled };
       cancelled.repairs += 1;
@@ -158,14 +159,7 @@ export async function cancelOpenRecordsForAccountDeletion(userId: string): Promi
     .select('id, status')
     .eq('user_id', userId);
   for (const t of trades ?? []) {
-    const raw = String(t.status || 'submitted').toLowerCase();
-    const ui =
-      raw === 'completed'
-        ? 'Completed'
-        : raw === 'rejected'
-          ? 'Rejected'
-          : raw.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
-    if (!isTerminalTradeStatus(ui)) {
+    if (!isTerminalTradeStatus(normalizeTradeStatusForUi(t.status))) {
       const { error } = await client.from('trade_in_requests').update({ status: 'rejected' }).eq('id', t.id);
       if (error) return { ok: false, error: error.message, cancelled };
       cancelled.trades += 1;

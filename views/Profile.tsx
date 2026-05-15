@@ -1256,8 +1256,9 @@ export const Profile: React.FC<ProfileProps> = ({
                     <h4 className="text-sm font-black uppercase tracking-widest text-red-500">DANGER ZONE</h4>
                   </div>
                   <p className={`text-xs font-medium max-w-md mx-auto ${isLight ? 'text-red-700/80' : 'text-red-400/60'}`}>
-                    You can delete your account anytime. If you still have an open order, repair, or trade-in, you must
-                    complete or cancel it first — we will show what will be cancelled before you confirm.
+                    You can delete your account anytime. Open orders, repairs, or trade-ins (not yet Delivered /
+                    Completed) must be finished or cancelled first — we list them and what &quot;completed&quot; means
+                    before you confirm.
                   </p>
                   <button
                     onClick={openDeleteModal}
