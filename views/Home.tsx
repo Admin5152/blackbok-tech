@@ -409,8 +409,8 @@ export const Home: React.FC<HomeProps> = ({
                   <div className={`absolute bottom-2 right-2 w-12 h-12 border-b-2 border-r-2 rounded-br-[1.5rem] transition-colors ${theme === 'dark' ? 'border-white/20' : 'border-[#B38B21]/40'}`} />
                 </div>
 
-                <div className="absolute top-0 inset-x-0 h-[60%] pt-8 px-8 transform group-hover:scale-105 transition-transform duration-700 flex items-center justify-center">
-                  <img src={p.image} alt={p.name} className="w-full h-full object-contain filter drop-shadow-lg" />
+                <div className="bb-product-card-media bb-product-card-media--home transform group-hover:scale-[1.02] transition-transform duration-700">
+                  <img src={p.image} alt={p.name} className="bb-product-card-img filter drop-shadow-lg" />
                 </div>
 
                 <button
@@ -541,8 +541,8 @@ export const Home: React.FC<HomeProps> = ({
                   <div className={`absolute bottom-2 right-2 w-12 h-12 border-b-2 border-r-2 rounded-br-[1.5rem] transition-colors ${theme === 'dark' ? 'border-white/20' : 'border-[#B38B21]/40'}`} />
                 </div>
 
-                <div className="absolute top-0 inset-x-0 h-[60%] pt-8 px-8 transform group-hover:scale-105 transition-transform duration-700 flex items-center justify-center">
-                  <img src={p.image} alt={p.name} className="w-full h-full object-contain filter drop-shadow-lg" />
+                <div className="bb-product-card-media bb-product-card-media--home transform group-hover:scale-[1.02] transition-transform duration-700">
+                  <img src={p.image} alt={p.name} className="bb-product-card-img filter drop-shadow-lg" />
                 </div>
 
                 <button
@@ -672,8 +672,8 @@ export const Home: React.FC<HomeProps> = ({
                   <div className={`absolute bottom-2 right-2 w-12 h-12 border-b-2 border-r-2 rounded-br-[1.5rem] transition-colors ${theme === 'dark' ? 'border-white/20' : 'border-[#CDA032]/40'}`} />
                 </div>
 
-                <div className="absolute top-0 inset-x-0 h-[60%] pt-8 px-8 transform group-hover:scale-105 transition-transform duration-700 flex items-center justify-center">
-                  <img src={p.image} alt={p.name} className="w-full h-full object-contain filter drop-shadow-lg" />
+                <div className="bb-product-card-media bb-product-card-media--home transform group-hover:scale-[1.02] transition-transform duration-700">
+                  <img src={p.image} alt={p.name} className="bb-product-card-img filter drop-shadow-lg" />
                 </div>
 
                 <button
@@ -1038,9 +1038,11 @@ export const Home: React.FC<HomeProps> = ({
                       <div
                         key={p.id}
                         onClick={() => onQuickView(p)}
-                        className={`min-w-[45%] rounded-2xl overflow-hidden relative group/mini cursor-pointer ${theme === 'light' ? 'bg-gray-100 border border-black/10' : 'bg-[#050505] border border-white/10'} ${homeMiniCardHover}`}
+                        className={`min-w-[45%] h-28 rounded-2xl overflow-hidden relative group/mini cursor-pointer ${theme === 'light' ? 'bg-gray-100 border border-black/10' : 'bg-[#050505] border border-white/10'} ${homeMiniCardHover}`}
                       >
-                        <img src={p.image} alt={p.name} className="w-full h-full object-contain p-2 group-hover/mini:scale-110 transition-transform duration-700" />
+                        <div className="bb-product-card-media bb-product-card-media--mini">
+                          <img src={p.image} alt={p.name} className="bb-product-card-img group-hover/mini:scale-105 transition-transform duration-700" />
+                        </div>
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/mini:opacity-100 transition-opacity flex items-center justify-center">
                           <Eye size={12} className="text-white" />
                         </div>

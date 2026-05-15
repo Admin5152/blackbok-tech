@@ -90,11 +90,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       </div>
 
       <Link to="/product/$productId" params={{ productId: product.id } as any} className="flex-1 flex flex-col relative z-10">
-        <div className="relative h-32 bg-black rounded-t-2xl overflow-hidden group-hover:scale-[1.02] transition-transform duration-500">
+        <div className="bb-product-card-media bb-product-card-media--store relative group-hover:scale-[1.02] transition-transform duration-500">
           <img
             src={product.image || product.image_url || ''}
             alt={product.name}
-            className="w-full h-full object-cover"
+            className="bb-product-card-img"
           />
           {product.discount && (
             <div className="absolute top-2 left-2 bg-red-600 text-white px-2 py-1 rounded-full text-[8px] font-black">

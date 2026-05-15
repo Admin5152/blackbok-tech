@@ -180,12 +180,15 @@ export const Cart: React.FC<CartProps> = ({
                     className="flex flex-col md:flex-row gap-6 sm:gap-10 pb-10 border-b border-[var(--bb-border)]/30 last:border-0 pt-6 first:pt-0"
                   >
                     {/* Image */}
-                    <div className="w-full sm:w-48 h-48 rounded-[2rem] bg-black/5 dark:bg-white/5 flex items-center justify-center p-6 relative overflow-hidden shrink-0 group hover:shadow-2xl transition-all duration-700 cursor-pointer" onClick={() => navigateTo('product', item.id)}>
-                      <div className="absolute inset-0 bg-gradient-to-tr from-black/10 dark:from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                    <div
+                      className="bb-product-card-media bb-product-card-media--cart w-full sm:w-48 rounded-[2rem] bg-black/5 dark:bg-white/5 relative overflow-hidden shrink-0 group hover:shadow-2xl transition-all duration-700 cursor-pointer"
+                      onClick={() => navigateTo('product', item.id)}
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-tr from-black/10 dark:from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                       <img
                         src={item.image}
                         alt={item.name}
-                        className="w-full h-full object-contain filter drop-shadow-xl group-hover:scale-110 group-hover:-translate-y-2 transition-transform duration-700 ease-out"
+                        className="bb-product-card-img filter drop-shadow-xl group-hover:scale-105 transition-transform duration-500 ease-out"
                       />
                     </div>
 

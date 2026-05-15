@@ -790,13 +790,13 @@ export const Store: React.FC<StoreProps> = ({
                     style={{ backgroundColor: panelBg, borderColor: borderSubtle }}
                   >
                     <div
-                      className="w-full sm:w-32 h-24 sm:h-32 shrink-0 cursor-pointer overflow-hidden rounded-lg bg-black/5 dark:bg-white/5 flex items-center justify-center p-2"
+                      className="bb-product-card-media bb-product-card-media--store-list shrink-0 cursor-pointer rounded-lg bg-black/5 dark:bg-white/5"
                       onClick={() => navigateTo('product', product.id)}
                     >
                       <img
                         src={product.image}
                         alt={product.name}
-                        className="w-full h-full object-contain hover:scale-105 transition-transform duration-500"
+                        className="bb-product-card-img hover:scale-105 transition-transform duration-500"
                       />
                     </div>
 
