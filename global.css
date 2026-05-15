@@ -333,6 +333,68 @@ html.lenis [data-lenis-prevent] {
   overscroll-behavior: contain;
 }
 
+/* Home: horizontal product rails — native touch scroll, no fight with Lenis */
+.bb-home-rail {
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+}
+
+.bb-home-rail > [data-home-rail-item] {
+  scroll-snap-align: start;
+  scroll-snap-stop: normal;
+}
+
+/* Home: calmer vertical rhythm between blocks */
+.bb-home-page > section {
+  scroll-margin-top: 5.5rem;
+}
+
+.bb-home-page .section-connector::after {
+  height: 28px;
+  opacity: 0.65;
+}
+
+/* Home hero: gentle image change (no full tile flash every slide) */
+.bb-hero-collage-settled .bb-hero-tile-reveal {
+  animation: none;
+  opacity: 1;
+}
+
+.bb-hero-collage-settled .bb-hero-tile-img {
+  transition: opacity 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Laptop name marquee */
+@keyframes bb-home-marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.bb-home-marquee-track {
+  animation: bb-home-marquee 36s linear infinite;
+}
+
+.bb-home-marquee-track:hover {
+  animation-play-state: paused;
+}
+
+html.bb-is-scrolling .bb-home-marquee-track {
+  animation-play-state: paused !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bb-home-marquee-track {
+    animation: none !important;
+  }
+}
+
 body {
   background: var(--bb-bg);
   color: var(--bb-text);
@@ -347,7 +409,8 @@ html.bb-is-scrolling .bb-hero-collage-anim-2,
 html.bb-is-scrolling .bb-hero-collage-anim-3,
 html.bb-is-scrolling .bb-hero-collage-anim-4,
 html.bb-is-scrolling .bb-hero-collage-anim-5,
-html.bb-is-scrolling .animate-scroll {
+html.bb-is-scrolling .animate-scroll,
+html.bb-is-scrolling .bb-home-marquee-track {
   animation-play-state: paused !important;
 }
 

@@ -9,11 +9,12 @@ export function SmoothScroll() {
     if (reducedMotion) return;
 
     const lenis = new Lenis({
-      lerp: 0.09,
+      lerp: 0.11,
       smoothWheel: true,
       syncTouch: false,
-      touchMultiplier: 1.15,
-      wheelMultiplier: 0.85,
+      touchMultiplier: 1.1,
+      wheelMultiplier: 0.92,
+      duration: 1.05,
     });
 
     setLenis(lenis);
@@ -25,7 +26,7 @@ export function SmoothScroll() {
       window.clearTimeout(scrollEndTimer);
       scrollEndTimer = window.setTimeout(() => {
         document.documentElement.classList.remove('bb-is-scrolling');
-      }, 140);
+      }, 200);
     };
     lenis.on('scroll', (e) => {
       markScrolling();

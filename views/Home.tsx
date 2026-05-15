@@ -9,6 +9,7 @@ import { Product, Category } from '../types';
 import { HERO_COLLAGE_FILENAMES, getImagesForTheme } from '../data/heroImages';
 import { formatCurrency, TW_DARK_BTN_DEPTH, TW_DARK_GOLD_BTN_DEPTH } from '../lib/utils';
 import { normalizeProductCategory } from '../lib/api';
+import { scrollHomeRail } from '../lib/homeCarouselScroll';
 
 /** Editorial overlap positions (sizes bumped so flyers fill the hero). Rotation = CSS animation per tile. */
 const HERO_COLLAGE_FRAMES = [
@@ -61,6 +62,7 @@ export const Home: React.FC<HomeProps> = ({
 
   const [currentHighlightsIndex, setCurrentHighlightsIndex] = useState(0);
   const [heroSlide, setHeroSlide] = useState(0);
+  const [heroCollageSettled, setHeroCollageSettled] = useState(false);
 
   const heroImageFilenames = useMemo(() => {
     const list = getImagesForTheme(theme).map((img) => img.filename);
@@ -74,12 +76,17 @@ export const Home: React.FC<HomeProps> = ({
   }, [heroSlideCount, theme]);
 
   useEffect(() => {
+    const t = window.setTimeout(() => setHeroCollageSettled(true), 900);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
     if (heroSlideCount <= 1) return;
     const id = window.setInterval(() => {
       setHeroSlide((s) => (s + 1) % heroSlideCount);
-    }, 6800);
+    }, 7500);
     return () => window.clearInterval(id);
-  }, [heroSlideCount, heroSlide]);
+  }, [heroSlideCount]);
 
   const goHeroPrev = () => {
     if (heroSlideCount <= 1) return;
@@ -169,13 +176,13 @@ export const Home: React.FC<HomeProps> = ({
   ];
 
   return (
-    <div className={`view-transition w-full min-w-0 overflow-hidden no-print ${isDark ? 'bg-[#030308]' : 'bg-[#f5f5f7]'}`}>
+    <div className={`bb-home-page view-transition w-full min-w-0 overflow-x-hidden no-print ${isDark ? 'bg-[#030308]' : 'bg-[#f5f5f7]'}`}>
       {/* Main Content */}
       {/* Hero — collage + headline; box CTAs; slider */}
       <section className="relative min-h-hero-viewport w-full min-w-0 overflow-hidden bg-[#030303]">
         <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_120%_80%_at_50%_40%,#12121a_0%,#030303_55%,#000000_100%)]" aria-hidden />
 
-        <div className="absolute inset-0 z-[1] overflow-hidden min-h-[100%]">
+        <div className={`absolute inset-0 z-[1] overflow-hidden min-h-[100%] ${heroCollageSettled ? 'bb-hero-collage-settled' : ''}`}>
           {HERO_COLLAGE_FRAMES.map((_, i) => {
             const filename = heroImageFilenames[(heroSlide + i) % heroSlideCount];
             return (
@@ -183,11 +190,10 @@ export const Home: React.FC<HomeProps> = ({
                 <div className={`bb-hero-collage-motion w-full ${HERO_COLLAGE_ANIM_CLASSES[i]}`}>
                   <div className="aspect-[3/4] w-full overflow-hidden rounded-md border border-white/[0.08] bg-[#0a0a0a] shadow-[0_28px_70px_rgba(0,0,0,0.92)] ring-1 ring-inset ring-white/[0.05] sm:rounded-lg">
                     <img
-                      key={`${heroSlide}-tile-${i}`}
                       src={`/${filename}`}
                       alt=""
                       aria-hidden
-                      className="bb-hero-tile-reveal h-full w-full min-h-full min-w-full object-cover object-center"
+                      className="bb-hero-tile-reveal bb-hero-tile-img h-full w-full min-h-full min-w-full object-cover object-center"
                       style={{
                         animationDelay: `${i * 36}ms`,
                         filter: theme === 'light' && filename === 'BlackBox.jpeg' ? 'invert(1) brightness(1.2)' : undefined
@@ -348,7 +354,7 @@ export const Home: React.FC<HomeProps> = ({
             <div className="flex items-center justify-end gap-3 shrink-0">
               <button
                 type="button"
-                onClick={() => document.getElementById('featured-products-slider')?.scrollBy({ left: -400, behavior: 'smooth' })}
+                onClick={() => scrollHomeRail('featured-products-slider', 'prev')}
                 className={`w-12 h-12 rounded-full border flex items-center justify-center backdrop-blur-sm ${theme === 'dark' ? 'border-white/15 bg-white/[0.04] text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-black/20 text-black hover:bg-black hover:text-white'} ${homeScrollArrowHover} ${TW_DARK_BTN_DEPTH}`}
                 aria-label="Scroll shop highlights left"
               >
@@ -356,7 +362,7 @@ export const Home: React.FC<HomeProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => document.getElementById('featured-products-slider')?.scrollBy({ left: 400, behavior: 'smooth' })}
+                onClick={() => scrollHomeRail('featured-products-slider', 'next')}
                 className={`w-12 h-12 rounded-full border flex items-center justify-center backdrop-blur-sm ${theme === 'dark' ? 'border-white/15 bg-white/[0.04] text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-black/20 text-black hover:bg-black hover:text-white'} ${homeScrollArrowHover} ${TW_DARK_BTN_DEPTH}`}
                 aria-label="Scroll shop highlights right"
               >
@@ -368,10 +374,10 @@ export const Home: React.FC<HomeProps> = ({
           <div
             id="featured-products-slider"
             data-lenis-prevent
-            className="flex items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar snap-x snap-mandatory px-4 md:px-8 pb-8"
+            className="bb-home-rail flex items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar px-4 md:px-8 pb-8"
             style={{ scrollPaddingLeft: 'max(1rem, env(safe-area-inset-left))' }}
           >
-            <div className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#16161f] ring-1 ring-inset ring-white/[0.06]' : 'bg-[#f5f5f7]'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between snap-start flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5 ${homePromoCardHover}`}>
+            <div data-home-rail-item className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#16161f] ring-1 ring-inset ring-white/[0.06]' : 'bg-[#f5f5f7]'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5 ${homePromoCardHover}`}>
               <div>
                 <h2 className="text-3xl md:text-5xl font-bold tracking-tight">Featured picks</h2>
                 <p className={`mt-3 max-w-[20rem] text-sm leading-relaxed ${theme === 'dark' ? 'text-white/65' : 'text-black/65'}`}>
@@ -386,6 +392,7 @@ export const Home: React.FC<HomeProps> = ({
             {featuredSliderProducts.map((p) => (
               <div
                 key={p.id}
+                data-home-rail-item
                 role="button"
                 tabIndex={0}
                 onClick={() => onQuickView(p)}
@@ -395,7 +402,7 @@ export const Home: React.FC<HomeProps> = ({
                     onQuickView(p);
                   }
                 }}
-                className={`w-[260px] md:w-[300px] h-[360px] md:h-[420px] rounded-[2rem] snap-start flex-shrink-0 flex flex-col group cursor-pointer overflow-hidden relative shadow-lg ${theme === 'dark' ? 'bg-[#14141c] border border-white/[0.07] shadow-[0_20px_48px_-14px_rgba(0,0,0,0.6)]' : 'bg-[#ffffff] border border-black/[0.08]'} ${homeProductCardHover}`}
+                className={`w-[260px] md:w-[300px] h-[360px] md:h-[420px] rounded-[2rem] flex-shrink-0 flex flex-col group cursor-pointer overflow-hidden relative shadow-lg ${theme === 'dark' ? 'bg-[#14141c] border border-white/[0.07] shadow-[0_20px_48px_-14px_rgba(0,0,0,0.6)]' : 'bg-[#ffffff] border border-black/[0.08]'} ${homeProductCardHover}`}
               >
                 <div className="pointer-events-none absolute inset-0 z-10">
                   <div className={`absolute bottom-2 left-2 w-12 h-12 border-b-2 border-l-2 rounded-bl-[1.5rem] transition-colors ${theme === 'dark' ? 'border-white/20' : 'border-[#B38B21]/40'}`} />
@@ -489,27 +496,27 @@ export const Home: React.FC<HomeProps> = ({
       </section>
 
       {/* Quick Access / Accessories Slider */}
-      <section className={`py-6 md:py-10 overflow-hidden ${isDark ? 'bg-[#030308]' : 'bg-[#f5f5f7]'}`}>
+      <section className={`section-connector py-6 md:py-10 overflow-hidden ${isDark ? 'bg-[#030308]' : 'bg-[#f5f5f7]'}`}>
         <div className="max-w-screen-2xl mx-auto">
 
           <div className="flex items-center justify-end mb-6 px-4 md:px-8 gap-3">
             <button
-              onClick={() => document.getElementById('accessories-slider')?.scrollBy({ left: -400, behavior: 'smooth' })}
+              onClick={() => scrollHomeRail('accessories-slider', 'prev')}
               className={`w-12 h-12 rounded-full border flex items-center justify-center backdrop-blur-sm ${theme === 'dark' ? 'border-white/15 bg-white/[0.04] text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-black/20 text-black hover:bg-black hover:text-white'} ${homeScrollArrowHover} ${TW_DARK_BTN_DEPTH}`}
             >
               <ChevronLeft size={24} />
             </button>
             <button
-              onClick={() => document.getElementById('accessories-slider')?.scrollBy({ left: 400, behavior: 'smooth' })}
+              onClick={() => scrollHomeRail('accessories-slider', 'next')}
               className={`w-12 h-12 rounded-full border flex items-center justify-center backdrop-blur-sm ${theme === 'dark' ? 'border-white/15 bg-white/[0.04] text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-black/20 text-black hover:bg-black hover:text-white'} ${homeScrollArrowHover} ${TW_DARK_BTN_DEPTH}`}
             >
               <ChevronRight size={24} />
             </button>
           </div>
 
-          <div id="accessories-slider" data-lenis-prevent className="flex items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar snap-x snap-mandatory px-4 md:px-8 pb-8" style={{ scrollPaddingLeft: 'max(1rem, env(safe-area-inset-left))' }}>
+          <div id="accessories-slider" data-lenis-prevent className="bb-home-rail flex items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar px-4 md:px-8 pb-8" style={{ scrollPaddingLeft: 'max(1rem, env(safe-area-inset-left))' }}>
             {/* Promo Card */}
-            <div className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#16161f] ring-1 ring-inset ring-white/[0.06]' : 'bg-white'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between snap-start flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5 ${homePromoCardHover}`}>
+            <div data-home-rail-item className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#16161f] ring-1 ring-inset ring-white/[0.06]' : 'bg-white'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5 ${homePromoCardHover}`}>
               <div>
                 <h2 className="text-3xl md:text-5xl font-bold tracking-tight">Take a peek</h2>
                 <p className={`mt-3 max-w-[20rem] text-sm leading-relaxed ${theme === 'dark' ? 'text-white/65' : 'text-black/65'}`}>
@@ -525,8 +532,9 @@ export const Home: React.FC<HomeProps> = ({
             {homeProducts.filter(p => matchesCategory(p.category, 'Accessories') || matchesCategory(p.category, 'iPhone')).slice(0, 8).map(p => (
               <div
                 key={p.id}
+                data-home-rail-item
                 onClick={() => onQuickView(p)}
-                className={`w-[260px] md:w-[300px] h-[360px] md:h-[420px] rounded-[2rem] snap-start flex-shrink-0 flex flex-col group cursor-pointer overflow-hidden relative shadow-lg ${theme === 'dark' ? 'bg-[#14141c] border border-white/[0.07] shadow-[0_20px_48px_-14px_rgba(0,0,0,0.6)]' : 'bg-[#ffffff] border border-black/[0.08]'} ${homeProductCardHover}`}
+                className={`w-[260px] md:w-[300px] h-[360px] md:h-[420px] rounded-[2rem] flex-shrink-0 flex flex-col group cursor-pointer overflow-hidden relative shadow-lg ${theme === 'dark' ? 'bg-[#14141c] border border-white/[0.07] shadow-[0_20px_48px_-14px_rgba(0,0,0,0.6)]' : 'bg-[#ffffff] border border-black/[0.08]'} ${homeProductCardHover}`}
               >
                 <div className="pointer-events-none absolute inset-0 z-10">
                   <div className={`absolute bottom-2 left-2 w-12 h-12 border-b-2 border-l-2 rounded-bl-[1.5rem] transition-colors ${theme === 'dark' ? 'border-white/20' : 'border-[#B38B21]/40'}`} />
@@ -614,27 +622,27 @@ export const Home: React.FC<HomeProps> = ({
       </section>
 
       {/* Quick Access / Laptop Slider */}
-      <section className={`py-6 md:py-10 overflow-hidden ${isDark ? 'bg-[#08080f]' : 'bg-white'}`}>
+      <section className={`section-connector py-6 md:py-10 overflow-hidden ${isDark ? 'bg-[#08080f]' : 'bg-white'}`}>
         <div className="max-w-screen-2xl mx-auto">
 
           <div className="flex items-center justify-end mb-6 px-4 md:px-8 gap-3">
             <button
-              onClick={() => document.getElementById('laptop-slider')?.scrollBy({ left: -400, behavior: 'smooth' })}
+              onClick={() => scrollHomeRail('laptop-slider', 'prev')}
               className={`w-12 h-12 rounded-full border flex items-center justify-center backdrop-blur-sm ${theme === 'dark' ? 'border-white/15 bg-white/[0.04] text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-black/20 text-black hover:bg-black hover:text-white'} ${homeScrollArrowHover} ${TW_DARK_BTN_DEPTH}`}
             >
               <ChevronLeft size={24} />
             </button>
             <button
-              onClick={() => document.getElementById('laptop-slider')?.scrollBy({ left: 400, behavior: 'smooth' })}
+              onClick={() => scrollHomeRail('laptop-slider', 'next')}
               className={`w-12 h-12 rounded-full border flex items-center justify-center backdrop-blur-sm ${theme === 'dark' ? 'border-white/15 bg-white/[0.04] text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-black/20 text-black hover:bg-black hover:text-white'} ${homeScrollArrowHover} ${TW_DARK_BTN_DEPTH}`}
             >
               <ChevronRight size={24} />
             </button>
           </div>
 
-          <div id="laptop-slider" data-lenis-prevent className="flex items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar snap-x snap-mandatory px-4 md:px-8 pb-8" style={{ scrollPaddingLeft: 'max(1rem, env(safe-area-inset-left))' }}>
+          <div id="laptop-slider" data-lenis-prevent className="bb-home-rail flex items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar px-4 md:px-8 pb-8" style={{ scrollPaddingLeft: 'max(1rem, env(safe-area-inset-left))' }}>
             {/* Promo Card */}
-            <div className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#16161f] ring-1 ring-inset ring-white/[0.06]' : 'bg-[#F2F4F7]'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between snap-start flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5 relative overflow-hidden group ${homePromoCardHover}`}>
+            <div data-home-rail-item className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#16161f] ring-1 ring-inset ring-white/[0.06]' : 'bg-[#F2F4F7]'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5 relative overflow-hidden group ${homePromoCardHover}`}>
               <div className="relative z-10">
                 <h2 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase leading-tight">Laptops.</h2>
                 <p className={`mt-3 max-w-[20rem] text-sm leading-relaxed normal-case font-normal not-italic tracking-normal ${theme === 'dark' ? 'text-white/65' : 'text-black/65'}`}>
@@ -655,8 +663,9 @@ export const Home: React.FC<HomeProps> = ({
             {homeProducts.filter(p => matchesCategory(p.category, 'Laptop')).map(p => (
               <div
                 key={p.id}
+                data-home-rail-item
                 onClick={() => onQuickView(p)}
-                className={`w-[260px] md:w-[300px] h-[360px] md:h-[420px] rounded-[2rem] snap-start flex-shrink-0 flex flex-col group cursor-pointer overflow-hidden relative shadow-lg ${theme === 'dark' ? 'bg-[#14141c] border border-white/[0.07] shadow-[0_20px_48px_-14px_rgba(0,0,0,0.6)]' : 'bg-[#ffffff] border border-black/[0.08]'} ${homeProductCardHover}`}
+                className={`w-[260px] md:w-[300px] h-[360px] md:h-[420px] rounded-[2rem] flex-shrink-0 flex flex-col group cursor-pointer overflow-hidden relative shadow-lg ${theme === 'dark' ? 'bg-[#14141c] border border-white/[0.07] shadow-[0_20px_48px_-14px_rgba(0,0,0,0.6)]' : 'bg-[#ffffff] border border-black/[0.08]'} ${homeProductCardHover}`}
               >
                 <div className="pointer-events-none absolute inset-0 z-10">
                   <div className={`absolute bottom-2 left-2 w-12 h-12 border-b-2 border-l-2 rounded-bl-[1.5rem] transition-colors ${theme === 'dark' ? 'border-white/20' : 'border-[#CDA032]/40'}`} />
@@ -1088,7 +1097,7 @@ export const Home: React.FC<HomeProps> = ({
             </h3>
           </div>
           <div className="relative flex overflow-hidden">
-            <div className="flex py-4 animate-scroll whitespace-nowrap">
+            <div className="bb-home-marquee-track flex py-4 whitespace-nowrap">
               {homeProducts.filter(p => matchesCategory(p.category, 'Laptop')).map((p, i) => (
                 <div key={`${p.id}-${i}`} className="inline-flex items-center gap-4 px-8 group cursor-default">
                   <span className={`text-4xl md:text-6xl font-black italic tracking-tighter uppercase transition-colors duration-500 hover:text-[#D4AF37] ${theme === 'light' ? 'text-black/5' : 'text-white/[0.09]'
@@ -1134,25 +1143,6 @@ export const Home: React.FC<HomeProps> = ({
         </div>
       </section>
 
-      {/* Custom Styles */}
-      <style>{`
-        @keyframes scroll {
-          0% {
-            transform: translateX(0);
-          }
-          100% {
-            transform: translateX(-50%);
-          }
-        }
-        
-        .animate-scroll {
-          animation: scroll 30s linear infinite;
-        }
-        
-        .animate-scroll:hover {
-          animation-play-state: paused;
-        }
-      `}</style>
     </div>
   );
 };
