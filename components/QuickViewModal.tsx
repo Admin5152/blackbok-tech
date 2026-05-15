@@ -1,10 +1,10 @@
-
 import React, { useMemo, useState, useEffect } from 'react';
 import { X, Minus, Plus, ShoppingCart, Star, ShieldCheck, ArrowLeft, Package } from 'lucide-react';
 import { Product } from '../types';
 import { formatCurrency } from '../lib/utils';
-import { getProductOptionGroups, initialSelectedFromGroups, toOptionString, getAvailableStock } from '../lib/productOptions';
 import { useAppContext } from '../App';
+import { getProductOptionGroups, initialSelectedFromGroups, toOptionString, getAvailableStock } from '../lib/productOptions';
+import { ProductAvailabilityBadge } from './ProductAvailabilityBadge';
 
 interface QuickViewModalProps {
   product: Product | null;
@@ -92,18 +92,24 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
 
         {/* Content Body */}
         <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
-          {/* Visual Data Module (Image) */}
-          <div className="w-full md:w-1/2 bg-gradient-to-br from-black/20 to-transparent flex items-center justify-center p-6 sm:p-12 shrink-0 h-[30vh] md:h-auto overflow-hidden relative">
-            <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] pointer-events-none"></div>
+          {/* Visual Data Module — full-bleed image over textured panel */}
+          <div
+            className={`relative w-full shrink-0 overflow-hidden md:w-1/2 md:flex-[1_1_50%] md:min-h-0 md:self-stretch md:h-auto h-[38vh] min-h-[240px] ${
+              isLight
+                ? 'bg-[#dfe1e6]'
+                : 'bg-gradient-to-br from-zinc-900 via-zinc-900 to-black'
+            }`}
+          >
+            <div className="absolute inset-0 opacity-[0.12] md:opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] pointer-events-none" />
             <img
               src={product.image || product.image_url || ''}
               alt={product.name}
-              className="max-w-full max-h-full object-contain drop-shadow-[0_20px_50px_rgba(0,0,0,0.5)] transform hover:scale-105 transition-transform duration-700"
+              className="absolute inset-0 h-full w-full object-cover object-center"
             />
           </div>
 
           {/* Technical Specifications (Info) */}
-          <div className="w-full md:w-1/2 p-6 sm:p-10 overflow-y-auto custom-scrollbar space-y-8">
+          <div className="w-full md:w-1/2 md:flex-[1_1_50%] md:min-h-0 p-6 sm:p-10 overflow-y-auto custom-scrollbar space-y-8">
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <span className="px-3 py-1 bg-[#CDA032]/10 text-[#CDA032] text-[8px] font-black uppercase tracking-widest rounded-full border border-[#CDA032]/20">
@@ -217,6 +223,10 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
                   </div>
                 </div>
               ))}
+
+              <div className="pt-2">
+                <ProductAvailabilityBadge available={availableStock} isLight={isLight} />
+              </div>
 
               {/* Action Bar */}
               <div className="flex flex-col sm:flex-row items-stretch gap-4 pt-6">

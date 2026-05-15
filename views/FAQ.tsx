@@ -114,7 +114,7 @@ export const FAQ: React.FC<FAQProps> = ({ theme: themeProp }) => {
             <div className="max-w-4xl mx-auto px-6">
 
                 {/* Header */}
-                <div className="text-center mb-16 space-y-6 animate-in fade-in slide-in-from-bottom-5 duration-700">
+                <div className="text-center mb-16 space-y-6 reveal-on-scroll">
                     <h1 className={`text-5xl md:text-7xl font-black tracking-tighter uppercase italic ${isLight ? 'text-black' : 'text-white'}`}>
                         HELP <span className={isLight ? 'text-black/40' : 'text-white/25'}>CENTER</span>
                     </h1>
@@ -127,7 +127,7 @@ export const FAQ: React.FC<FAQProps> = ({ theme: themeProp }) => {
                 {/* FAQs */}
                 <div className="space-y-12">
                     {faqs.map((category, catIdx) => (
-                        <div key={catIdx} className="animate-in fade-in slide-in-from-bottom-8 duration-700" style={{ animationDelay: `${catIdx * 150}ms` }}>
+                        <div key={catIdx} className={`reveal-on-scroll reveal-delay-${(catIdx % 3) + 1}`}>
                             <h2 className={`text-2xl font-bold tracking-tight mb-6 flex items-center gap-3 ${isLight ? 'text-black' : 'text-white'}`}>
                                 <span className="w-2 h-2 rounded-full bg-[#CDA032]"></span>
                                 {category.category}
@@ -177,7 +177,7 @@ export const FAQ: React.FC<FAQProps> = ({ theme: themeProp }) => {
                 </div>
 
                 {/* Still Need Help CTA */}
-                <div className={`mt-20 p-10 rounded-[2rem] text-center border transition-colors ${isLight ? 'bg-white border-black/5 shadow-xl' : 'bg-[#111] border-white/5'}`}>
+                <div className={`mt-20 p-10 rounded-[2rem] text-center border transition-colors reveal-on-scroll reveal-delay-2 ${isLight ? 'bg-white border-black/5 shadow-xl' : 'bg-[#111] border-white/5'}`}>
                     <h3 className={`text-3xl font-black uppercase italic tracking-wider mb-4 ${isLight ? 'text-black' : 'text-white'}`}>Still have questions?</h3>
                     <p className={`mb-8 ${isLight ? 'text-black/60' : 'text-white/60'}`}>Our technical experts are ready to assist you.</p>
                     <div className="flex flex-col sm:flex-row justify-center gap-4">

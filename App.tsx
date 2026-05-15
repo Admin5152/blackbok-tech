@@ -21,6 +21,7 @@ import { canAccessAdminDashboard, normalizeCanonicalRole } from './lib/roles';
 import { setupMobileBackButton, preventAppClose } from './lib/mobileNavigation';
 import { scrollToDocumentTop } from './lib/scrollToDocumentTop';
 import { SmoothScroll } from './components/SmoothScroll';
+import { ScrollReveal } from './components/ScrollReveal';
 import { whatsAppUrl } from './lib/contact';
 import { formatCustomerStatusShort } from './lib/customerStatusLabels';
 import { INITIAL_PRODUCTS } from './constants';
@@ -1247,6 +1248,7 @@ function RootComponent() {
     <AppContext.Provider value={contextValues}>
       <ScrollToTop />
       <SmoothScroll />
+      <ScrollReveal />
       {/* Welcome Screen */}
       {showWelcomeScreen && (
         <WelcomeScreen onComplete={completeWelcome} />
@@ -1272,7 +1274,7 @@ function RootComponent() {
           </footer>
         </div>
       ) : (
-        <div className={`flex flex-col min-h-screen selection:bg-[#B38B21] selection:text-black ${showWelcomeScreen ? 'opacity-0 pointer-events-none' : 'opacity-100'} ${isLight ? 'bg-[#F0F0F0] text-black' : 'bg-black text-white'}`}>
+        <div className={`bb-theme-transition flex flex-col min-h-screen selection:bg-[#B38B21] selection:text-black ${showWelcomeScreen ? 'opacity-0 pointer-events-none' : 'opacity-100'} ${isLight ? 'bg-[#F0F0F0] text-black' : 'bg-black text-white'}`}>
           <Navbar
             cart={cart}
             navigateTo={navigateTo}

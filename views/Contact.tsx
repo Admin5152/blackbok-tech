@@ -62,7 +62,7 @@ export const Contact: React.FC = () => {
     >
       <div className="w-full max-w-[1200px]">
         {/* Header Section */}
-        <div className="text-center mb-12 lg:mb-20 max-w-2xl mx-auto">
+        <div className="text-center mb-12 lg:mb-20 max-w-2xl mx-auto reveal-on-scroll">
           <h1 className="text-4xl sm:text-5xl lg:text-7xl font-black tracking-tight mb-4 lg:mb-6 uppercase">
             Get In <span className="text-[#CDA032]">Touch</span>
           </h1>
@@ -77,7 +77,7 @@ export const Contact: React.FC = () => {
         </div>
 
         {/* Responsive Grid Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-start reveal-on-scroll reveal-delay-1">
           {/* Left Form Card */}
           <div
             className={`lg:col-span-7 p-8 sm:p-10 rounded-[2rem] border relative ${

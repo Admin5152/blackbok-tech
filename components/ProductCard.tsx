@@ -4,6 +4,7 @@ import { ShoppingCart, Heart, Eye, Star, Scale, FileText } from 'lucide-react';
 import { Product } from '../types';
 import { formatCurrency, TW_DARK_BTN_DEPTH, TW_DARK_GOLD_BTN_DEPTH } from '../lib/utils';
 import { useAppContext } from '../App';
+import { ProductAvailabilityBadge } from './ProductAvailabilityBadge';
 import { getProductOptionGroups, initialSelectedFromGroups, toOptionString, getAvailableStock } from '../lib/productOptions';
 
 interface ProductCardProps {
@@ -55,14 +56,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
   return (
     <div
-      className={`group border rounded-xl overflow-hidden transition-all duration-700 flex flex-col h-full cursor-pointer relative ${isCompared ? 'border-[#CDA032]' : isLight ? 'border-black/10 hover:border-[#CDA032]/35 shadow-lg' : 'border-white/[0.03] hover:border-[#CDA032]/20 shadow-2xl'}`}
-      style={{ backgroundColor: 'var(--bb-surface)' }}
+      className={`group overflow-hidden rounded-2xl transition-all duration-300 flex flex-col h-full cursor-pointer relative border ${
+        isCompared
+          ? 'border-[#CDA032] shadow-[0_0_0_1px_rgba(205,160,50,0.35)]'
+          : isLight
+            ? 'border-black/12 bg-white hover:border-[#CDA032]/35 shadow-lg'
+            : 'border-white/15 bg-black hover:border-white/25 shadow-2xl'
+      }`}
     >
-      {/* Corner frame borders */}
-      <div className="pointer-events-none absolute inset-0 z-0">
-        <div className={`absolute bottom-2 left-2 w-12 h-12 border-b-2 border-l-2 rounded-bl-xl transition-colors ${theme === 'dark' ? 'border-white/20' : 'border-[#CDA032]/40'}`} />
-        <div className={`absolute bottom-2 right-2 w-12 h-12 border-b-2 border-r-2 rounded-br-xl transition-colors ${theme === 'dark' ? 'border-white/20' : 'border-[#CDA032]/40'}`} />
-      </div>
       <div className="absolute top-2 left-2 z-20 flex flex-col gap-1">
         {product.new && (
           <span className="bg-white text-black text-[7px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest shadow-lg">NEW</span>
@@ -72,57 +73,101 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         )}
       </div>
 
-      <div className="absolute top-2 right-2 z-30 flex flex-col gap-1 opacity-100 translate-x-0">
+      <div className="absolute top-2 right-2 z-30 flex flex-col gap-1.5">
         <button
-          className={`transition-all p-2 backdrop-blur-xl rounded-full border hover:bg-[#CDA032] hover:text-black ${isLight ? 'border-black/10 bg-black/[0.03]' : 'border-white/5'} ${isWishlisted ? 'text-[#CDA032]' : isLight ? 'text-black/45' : 'text-white/40'} ${TW_DARK_BTN_DEPTH}`}
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleWishlist(product.id); }}
+          type="button"
+          className={`transition-all p-2 rounded-full border hover:bg-[#CDA032] hover:text-black hover:border-[#CDA032] ${
+            isLight
+              ? 'border-black/10 bg-white/85 text-black/50'
+              : 'border-white/15 bg-black/55 text-white/70 backdrop-blur-md'
+          } ${isWishlisted ? 'text-[#CDA032] border-[#CDA032]/45' : ''} ${TW_DARK_BTN_DEPTH}`}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onToggleWishlist(product.id);
+          }}
           aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
         >
-          <Heart size={12} className={isWishlisted ? 'fill-[#CDA032]' : ''} />
+          <Heart size={13} strokeWidth={2.25} className={isWishlisted ? 'fill-[#CDA032]' : ''} />
         </button>
         <button
-          className={`transition-all p-2 backdrop-blur-xl rounded-full border hover:bg-[#CDA032] hover:text-black ${isLight ? 'border-black/10 bg-black/[0.03]' : 'border-white/5'} ${isCompared ? 'text-[#CDA032]' : isLight ? 'text-black/45' : 'text-white/40'} ${TW_DARK_BTN_DEPTH}`}
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleCompare(product.id); }}
+          type="button"
+          className={`transition-all p-2 rounded-full border hover:bg-[#CDA032] hover:text-black hover:border-[#CDA032] ${
+            isLight
+              ? 'border-black/10 bg-white/85 text-black/50'
+              : 'border-white/15 bg-black/55 text-white/70 backdrop-blur-md'
+          } ${isCompared ? 'text-[#CDA032] border-[#CDA032]/45' : ''} ${TW_DARK_BTN_DEPTH}`}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onToggleCompare(product.id);
+          }}
           aria-label={isCompared ? 'Remove from compare' : 'Add to compare'}
         >
-          <Scale size={12} />
+          <Scale size={13} strokeWidth={2.25} />
         </button>
       </div>
 
-      <Link to="/product/$productId" params={{ productId: product.id } as any} className="flex-1 flex flex-col relative z-10">
-        <div className="bb-product-card-media bb-product-card-media--store relative group-hover:scale-[1.02] transition-transform duration-500">
+      <Link to="/product/$productId" params={{ productId: product.id } as any} className="flex-1 flex flex-col relative z-10 min-h-0">
+        <div className="bb-product-card-media bb-product-card-media--store relative">
           <img
             src={product.image || product.image_url || ''}
             alt={product.name}
             className="bb-product-card-img"
           />
-          {product.discount && (
-            <div className="absolute top-2 left-2 bg-red-600 text-white px-2 py-1 rounded-full text-[8px] font-black">
-              -{product.discount}%
-            </div>
-          )}
 
-          <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/65 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center px-4">
             <button
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onQuickView(product); }}
-              className={`w-full py-2 bg-white text-black text-[7px] font-black uppercase tracking-[0.4em] rounded-xl transform translate-y-8 group-hover:translate-y-0 transition-all duration-500 shadow-2xl flex items-center justify-center gap-2 ${TW_DARK_GOLD_BTN_DEPTH}`}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onQuickView(product);
+              }}
+              className="w-full max-w-[11rem] py-2.5 px-3 bg-white text-black text-[8px] font-black uppercase tracking-[0.28em] rounded-full shadow-xl flex items-center justify-center gap-2 hover:bg-white/95"
             >
-              <Eye size={10} /> QUICK VIEW
+              <Eye size={12} strokeWidth={2.5} /> QUICK VIEW
             </button>
           </div>
         </div>
 
-        <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+        <div
+          className={`p-4 flex-1 flex flex-col justify-between space-y-3 ${isLight ? 'bg-white' : 'bg-black'}`}
+        >
           <div className="space-y-2">
-            <p className={`text-[8px] font-black uppercase tracking-[0.2em] italic ${isLight ? 'text-black/45' : 'text-white/20'}`}>{product.category}</p>
-            <h3 className={`text-[10px] font-black leading-tight uppercase italic line-clamp-2 tracking-wide group-hover:text-[#CDA032] transition-colors ${isLight ? 'text-black' : 'text-white'}`}>{product.name}</h3>
-            <div className="flex items-center gap-1 pt-1">
+            <p
+              className={`text-[8px] font-black uppercase tracking-[0.22em] italic ${
+                isLight ? 'text-[#B38B21]' : 'text-[#CDA032]'
+              }`}
+            >
+              {product.category}
+            </p>
+            <h3
+              className={`text-[10px] font-black leading-snug uppercase italic tracking-wide line-clamp-2 group-hover:text-[#CDA032] transition-colors ${
+                isLight ? 'text-black' : 'text-white'
+              }`}
+            >
+              {product.name}
+            </h3>
+            <div className="flex items-center gap-1.5 pt-0.5">
               <div className="flex gap-0.5">
                 {[...Array(5)].map((_, i) => (
-                  <Star key={i} size={7} className={i < Math.floor(product.rating || 4) ? 'fill-[#CDA032] text-[#CDA032]' : isLight ? 'text-black/15' : 'text-white/5'} />
+                  <Star
+                    key={i}
+                    size={8}
+                    className={
+                      i < Math.floor(product.rating || 4)
+                        ? 'fill-[#CDA032] text-[#CDA032]'
+                        : isLight
+                          ? 'text-black/20'
+                          : 'text-white/22'
+                    }
+                  />
                 ))}
               </div>
-              <span className={`text-[8px] font-black italic ${isLight ? 'text-black/40' : 'text-white/10'}`}>({product.reviewCount || 0})</span>
+              <span className={`text-[8px] font-semibold ${isLight ? 'text-black/45' : 'text-white/50'}`}>
+                ({product.reviewCount || 0})
+              </span>
             </div>
           </div>
 
@@ -224,32 +269,47 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </div>
 
           <div className="space-y-3">
-            <div className="flex items-baseline gap-2">
-              <span className={`text-base font-black tracking-tighter ${isLight ? 'text-black' : 'text-white'}`}>{formatCurrency(product.price)}</span>
+            <div className="flex items-baseline gap-2 flex-wrap">
+              <span className={`text-lg font-black tracking-tight ${isLight ? 'text-black' : 'text-white'}`}>
+                {formatCurrency(product.price)}
+              </span>
               {product.discount && (
-                <span className={`text-[8px] line-through font-bold ${isLight ? 'text-black/40' : 'text-white/30'}`}>
+                <span className={`text-[8px] line-through font-bold ${isLight ? 'text-black/40' : 'text-white/35'}`}>
                   {formatCurrency(product.price * (1 + product.discount / 100))}
                 </span>
               )}
             </div>
 
-            <div className="flex flex-col gap-2">
+            <div className="pt-0.5">
+              <ProductAvailabilityBadge available={availableStock} isLight={isLight} compact />
+            </div>
+
+            <div className="flex flex-col gap-2 pt-0.5">
               <button
                 type="button"
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleAddToCartWithOptions(); }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleAddToCartWithOptions();
+                }}
                 disabled={availableStock <= 0}
-                className="w-full py-4 bg-[#CDA032] hover:bg-[#B38B21] text-black rounded-xl text-[9px] font-black uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-[#CDA032]/20 active:scale-95 disabled:opacity-40 disabled:pointer-events-none disabled:hover:bg-[#CDA032]"
+                className={`w-full py-3.5 bg-[#CDA032] hover:bg-[#c29a28] text-black rounded-full text-[9px] font-black uppercase tracking-[0.28em] transition-all flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none ${TW_DARK_GOLD_BTN_DEPTH}`}
               >
-                <ShoppingCart size={13} strokeWidth={3} /> {availableStock <= 0 ? 'Out of stock' : 'ADD TO CART'}
+                <ShoppingCart size={14} strokeWidth={2.5} /> {availableStock <= 0 ? 'Out of stock' : 'ADD TO CART'}
               </button>
 
               <Link
                 to="/product/$productId"
                 params={{ productId: product.id } as any}
                 onClick={(e) => e.stopPropagation()}
-                className={`w-full py-3 rounded-xl text-[8px] font-black uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-2 border active:scale-95 ${isLight ? 'bg-black/[0.04] hover:bg-black/[0.08] text-black border-black/12 hover:border-black/20' : 'bg-white/5 hover:bg-white/10 text-white border-white/10 hover:border-white/20'}`}
+                className={`w-full py-3 rounded-full text-[8px] font-black uppercase tracking-[0.28em] transition-all flex items-center justify-center gap-2 border active:scale-[0.98] ${
+                  isLight
+                    ? 'bg-zinc-50 hover:bg-zinc-100 text-black border-black/12'
+                    : 'bg-black text-white border-white/20 hover:border-white/35 hover:bg-white/[0.06]'
+                }`}
               >
-                <FileText size={11} className="text-[#CDA032]" /> VIEW DETAILS
+                <FileText size={12} strokeWidth={2.25} className={isLight ? 'text-black/60' : 'text-white/80'} />{' '}
+                VIEW DETAILS
               </Link>
             </div>
           </div>

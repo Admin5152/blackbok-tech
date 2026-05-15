@@ -88,6 +88,10 @@ export const Home: React.FC<HomeProps> = ({
     return () => window.clearInterval(id);
   }, [heroSlideCount]);
 
+  useEffect(() => {
+    window.dispatchEvent(new Event('bb-scroll-reveal-scan'));
+  }, [exploreFilter]);
+
   const goHeroPrev = () => {
     if (heroSlideCount <= 1) return;
     setHeroSlide((s) => (s - 1 + heroSlideCount) % heroSlideCount);
@@ -165,8 +169,6 @@ export const Home: React.FC<HomeProps> = ({
     ? 'transition-all duration-200 hover:shadow-[0_0_0_1px_rgba(212,175,55,0.28)]'
     : 'transition-all duration-200 hover:shadow-[0_0_0_1px_rgba(179,139,33,0.38)]';
 
-  if (!products || products.length === 0) return null;
-
   const customerReviews = [
     { name: "Kwame Asante", text: "Excellent service and quality gear. BlackBox is my go-to for all tech needs.", rating: 5 },
     { name: "Ama Mensah", text: "Professional repair service and fair trade-in values. Highly recommended!", rating: 5 },
@@ -176,7 +178,7 @@ export const Home: React.FC<HomeProps> = ({
   ];
 
   return (
-    <div className={`bb-home-page view-transition w-full min-w-0 overflow-x-hidden no-print ${isDark ? 'bg-[#030308]' : 'bg-[#f5f5f7]'}`}>
+    <div className={`bb-home-page bb-theme-transition view-transition w-full min-w-0 overflow-x-hidden no-print ${isDark ? 'bg-[#030308]' : 'bg-[#f5f5f7]'}`}>
       {/* Main Content */}
       {/* Hero — collage + headline; box CTAs; slider */}
       <section className="relative min-h-hero-viewport w-full min-w-0 overflow-hidden bg-[#030303]">
@@ -210,7 +212,7 @@ export const Home: React.FC<HomeProps> = ({
         </div>
 
         <div
-          className={`pointer-events-none absolute inset-0 z-[8] ${isDark
+          className={`bb-theme-transition pointer-events-none absolute inset-0 z-[8] ${isDark
             ? 'bg-gradient-to-b from-black/92 via-zinc-950/55 to-black sm:from-black/88 sm:via-zinc-950/45 sm:to-black'
             : 'bg-gradient-to-b from-black/85 via-black/45 to-black/90 sm:from-black/75 sm:via-black/35 sm:to-black/85'
             }`}
@@ -239,8 +241,8 @@ export const Home: React.FC<HomeProps> = ({
         )}
 
         <div className="relative z-20 flex min-h-hero-viewport w-full flex-col justify-end px-4 pb-12 pt-24 sm:px-6 sm:pb-10 sm:pt-28 md:pb-12">
-          <div className="mx-auto flex w-full max-w-lg flex-col gap-5 sm:max-w-xl sm:gap-6">
-            <div className="mx-auto w-full max-w-[min(100%,20rem)] text-center max-sm:-translate-y-2 sm:max-w-2xl sm:translate-y-0 md:max-w-3xl">
+          <div className="bb-home-hero-stack mx-auto flex w-full max-w-lg flex-col gap-5 sm:max-w-xl sm:gap-6">
+            <div className="bb-home-hero-stack__block mx-auto w-full max-w-[min(100%,20rem)] text-center max-sm:-translate-y-2 sm:max-w-2xl sm:translate-y-0 md:max-w-3xl">
               <h1 className="font-heading text-balance text-3xl font-bold leading-[1.12] tracking-tight text-off-white drop-shadow-[0_2px_20px_rgba(0,0,0,0.85)] sm:text-4xl sm:leading-tight md:text-5xl">
                 <span className="block sm:inline">Redefining Your</span>{' '}
                 <span className="block sm:inline">
@@ -255,7 +257,7 @@ export const Home: React.FC<HomeProps> = ({
             </div>
 
             {/* Shop + About — box buttons */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+            <div className="bb-home-hero-stack__block grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
               <Link
                 to="/store"
                 className={`btn-press inline-flex min-h-[3.25rem] flex-1 items-center justify-center gap-3 rounded-lg border-2 border-transparent px-8 py-4 text-center text-sm font-heading font-semibold tracking-wider transition-all duration-300 hover:scale-[1.01] hover:shadow-lg hover:shadow-[0_0_0_2px_rgba(212,175,55,0.45),0_12px_32px_-8px_rgba(0,0,0,0.2)] active:scale-[0.99] sm:px-10 sm:py-5 ${theme === 'dark'
@@ -281,7 +283,7 @@ export const Home: React.FC<HomeProps> = ({
 
             {/* Dot indicators — no panel; blends into hero */}
             {heroSlideCount > 1 && (
-              <div className="flex justify-center pt-1">
+              <div className="bb-home-hero-stack__block flex justify-center pt-1">
                 <div
                   className="no-scrollbar flex max-w-full flex-wrap items-center justify-center gap-2 overflow-x-auto py-2 sm:gap-2.5"
                   role="tablist"
@@ -312,7 +314,7 @@ export const Home: React.FC<HomeProps> = ({
         className={`section-connector border-t py-6 md:py-8 ${isDark ? 'border-white/[0.06] bg-[#050508]' : 'border-black/[0.06] bg-white'}`}
         aria-labelledby="home-quick-links-heading"
       >
-        <div className="mx-auto max-w-3xl px-4 md:px-8">
+        <div className="mx-auto max-w-3xl px-4 md:px-8 reveal-on-scroll">
           <h2
             id="home-quick-links-heading"
             className={`mb-4 text-center font-heading text-base font-semibold tracking-wide md:text-lg ${isDark ? 'text-white' : 'text-black'}`}
@@ -345,7 +347,7 @@ export const Home: React.FC<HomeProps> = ({
       {/* Shop highlights — horizontal scroll + quick view */}
       <section className={`section-connector py-6 md:py-10 overflow-hidden ${isDark ? 'bg-gradient-to-b from-[#050508] via-[#0a0a12] to-[#050508]' : 'bg-white'}`}>
         <div className="max-w-screen-2xl mx-auto">
-          <div className="mb-6 flex flex-col gap-4 px-4 sm:flex-row sm:items-center sm:justify-between md:px-8">
+          <div className="mb-6 flex flex-col gap-4 px-4 sm:flex-row sm:items-center sm:justify-between md:px-8 reveal-on-scroll">
             <div className="min-w-0">
               <h2 className={`text-3xl font-heading font-bold tracking-wider md:text-4xl ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                 Shop highlights
@@ -409,8 +411,8 @@ export const Home: React.FC<HomeProps> = ({
                   <div className={`absolute bottom-2 right-2 w-12 h-12 border-b-2 border-r-2 rounded-br-[1.5rem] transition-colors ${theme === 'dark' ? 'border-white/20' : 'border-[#B38B21]/40'}`} />
                 </div>
 
-                <div className="bb-product-card-media bb-product-card-media--home transform group-hover:scale-[1.02] transition-transform duration-700">
-                  <img src={p.image} alt={p.name} className="bb-product-card-img filter drop-shadow-lg" />
+                <div className="bb-home-rail-product-card__media">
+                  <img src={p.image} alt={p.name} className="bb-home-rail-product-card__img" />
                 </div>
 
                 <button
@@ -422,7 +424,7 @@ export const Home: React.FC<HomeProps> = ({
                     onQuickView(p);
                   }}
                   className={[
-                    'absolute top-4 right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full border shadow-lg backdrop-blur-md transition-all hover:scale-105 hover:shadow-[0_0_0_1px_rgba(212,175,55,0.42)] active:scale-95',
+                    'absolute top-4 right-4 z-30 pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border shadow-lg backdrop-blur-md transition-all hover:scale-105 hover:shadow-[0_0_0_1px_rgba(212,175,55,0.42)] active:scale-95',
                     theme === 'dark'
                       ? 'border-white/25 bg-black/55 text-white hover:bg-[#CDA032] hover:text-black hover:border-transparent'
                       : 'border-black/12 bg-white/90 text-black hover:bg-[#CDA032] hover:border-transparent',
@@ -432,15 +434,15 @@ export const Home: React.FC<HomeProps> = ({
                   <Eye size={18} strokeWidth={2.25} />
                 </button>
 
-                <div className={`absolute inset-x-0 bottom-0 p-6 flex flex-col z-20 bg-gradient-to-t ${theme === 'dark' ? 'from-[#050508]/95 via-[#050508]/35 to-transparent' : 'from-black/5 to-transparent'}`}>
-                  <div className="flex items-center gap-2 mb-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-y-2 group-hover:translate-y-0">
+                <div className={`bb-home-rail-product-card__footer bg-gradient-to-t ${theme === 'dark' ? 'from-[#050508]/95 via-[#050508]/55 to-transparent' : 'from-white via-white/85 to-transparent'}`}>
+                  <div className="bb-home-rail-product-card__rating flex items-center gap-2 mb-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-y-2 group-hover:translate-y-0">
                     {[...Array(5)].map((_, i) => (
                       <Star key={i} size={8} className={`${i < Math.floor(p.rating || 4) ? 'text-[#CDA032] fill-current' : theme === 'dark' ? 'text-white/20' : 'text-black/20'}`} />
                     ))}
                     <span className={`text-[9px] font-bold ml-1 ${theme === 'dark' ? 'text-white/50' : 'text-black/50'}`}>({p.reviewCount || 678})</span>
                   </div>
 
-                  <h3 className={`font-black uppercase italic tracking-wider text-sm leading-tight mb-1 line-clamp-2 drop-shadow-sm ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+                  <h3 className={`bb-home-rail-product-card__title font-black uppercase italic tracking-wider text-sm leading-tight mb-1 line-clamp-2 drop-shadow-sm ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                     {p.name}
                   </h3>
 
@@ -483,7 +485,7 @@ export const Home: React.FC<HomeProps> = ({
             ))}
           </div>
 
-          <div className="flex justify-center mt-6 px-4">
+          <div className="flex justify-center mt-6 px-4 reveal-on-scroll reveal-delay-1">
             <Link
               to="/store"
               className={`group relative inline-flex items-center gap-4 px-10 py-4 border-2 border-[#D4AF37] text-[#D4AF37] rounded-full text-sm font-heading font-semibold tracking-wider transition-all duration-300 hover:bg-[#D4AF37] hover:text-black hover:scale-105 hover:shadow-[0_0_0_3px_rgba(212,175,55,0.35)] ${TW_DARK_BTN_DEPTH}`}
@@ -498,6 +500,11 @@ export const Home: React.FC<HomeProps> = ({
       {/* Quick Access / Accessories Slider */}
       <section className={`section-connector py-6 md:py-10 overflow-hidden ${isDark ? 'bg-[#030308]' : 'bg-[#f5f5f7]'}`}>
         <div className="max-w-screen-2xl mx-auto">
+          <div className="mb-6 px-4 md:px-8 reveal-on-scroll">
+            <h2 className={`text-3xl font-heading font-bold tracking-wider md:text-4xl ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+              Accessories
+            </h2>
+          </div>
 
           <div className="flex items-center justify-end mb-6 px-4 md:px-8 gap-3">
             <button
@@ -541,8 +548,8 @@ export const Home: React.FC<HomeProps> = ({
                   <div className={`absolute bottom-2 right-2 w-12 h-12 border-b-2 border-r-2 rounded-br-[1.5rem] transition-colors ${theme === 'dark' ? 'border-white/20' : 'border-[#B38B21]/40'}`} />
                 </div>
 
-                <div className="bb-product-card-media bb-product-card-media--home transform group-hover:scale-[1.02] transition-transform duration-700">
-                  <img src={p.image} alt={p.name} className="bb-product-card-img filter drop-shadow-lg" />
+                <div className="bb-home-rail-product-card__media">
+                  <img src={p.image} alt={p.name} className="bb-home-rail-product-card__img" />
                 </div>
 
                 <button
@@ -554,7 +561,7 @@ export const Home: React.FC<HomeProps> = ({
                     onQuickView(p);
                   }}
                   className={[
-                    'absolute top-4 right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full border shadow-lg backdrop-blur-md transition-all hover:scale-105 hover:shadow-[0_0_0_1px_rgba(212,175,55,0.42)] active:scale-95',
+                    'absolute top-4 right-4 z-30 pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border shadow-lg backdrop-blur-md transition-all hover:scale-105 hover:shadow-[0_0_0_1px_rgba(212,175,55,0.42)] active:scale-95',
                     theme === 'dark'
                       ? 'border-white/25 bg-black/55 text-white hover:bg-[#CDA032] hover:text-black hover:border-transparent'
                       : 'border-black/12 bg-white/90 text-black hover:bg-[#CDA032] hover:border-transparent',
@@ -564,15 +571,15 @@ export const Home: React.FC<HomeProps> = ({
                   <Eye size={18} strokeWidth={2.25} />
                 </button>
 
-                <div className={`absolute inset-x-0 bottom-0 p-6 flex flex-col z-20 bg-gradient-to-t ${theme === 'dark' ? 'from-[#050508]/95 via-[#050508]/35 to-transparent' : 'from-black/5 to-transparent'}`}>
-                  <div className="flex items-center gap-2 mb-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-y-2 group-hover:translate-y-0">
+                <div className={`bb-home-rail-product-card__footer bg-gradient-to-t ${theme === 'dark' ? 'from-[#050508]/95 via-[#050508]/55 to-transparent' : 'from-white via-white/85 to-transparent'}`}>
+                  <div className="bb-home-rail-product-card__rating flex items-center gap-2 mb-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-y-2 group-hover:translate-y-0">
                     {[...Array(5)].map((_, i) => (
                       <Star key={i} size={8} className={`${i < Math.floor(p.rating || 4) ? 'text-[#CDA032] fill-current' : theme === 'dark' ? 'text-white/20' : 'text-black/20'}`} />
                     ))}
                     <span className={`text-[9px] font-bold ml-1 ${theme === 'dark' ? 'text-white/50' : 'text-black/50'}`}>({p.reviewCount || 678})</span>
                   </div>
 
-                  <h3 className={`font-black uppercase italic tracking-wider text-sm leading-tight mb-1 line-clamp-2 drop-shadow-sm ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+                  <h3 className={`bb-home-rail-product-card__title font-black uppercase italic tracking-wider text-sm leading-tight mb-1 line-clamp-2 drop-shadow-sm ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                     {p.name}
                   </h3>
 
@@ -606,7 +613,7 @@ export const Home: React.FC<HomeProps> = ({
             ))}
           </div>
 
-          <div className="flex justify-center mt-6 px-4">
+          <div className="flex justify-center mt-6 px-4 reveal-on-scroll reveal-delay-1">
             <Link
               to="/store"
               search={{ category: 'Accessories' } as any}
@@ -624,6 +631,11 @@ export const Home: React.FC<HomeProps> = ({
       {/* Quick Access / Laptop Slider */}
       <section className={`section-connector py-6 md:py-10 overflow-hidden ${isDark ? 'bg-[#08080f]' : 'bg-white'}`}>
         <div className="max-w-screen-2xl mx-auto">
+          <div className="mb-6 px-4 md:px-8 reveal-on-scroll">
+            <h2 className={`text-3xl font-heading font-bold tracking-wider md:text-4xl ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+              Laptops
+            </h2>
+          </div>
 
           <div className="flex items-center justify-end mb-6 px-4 md:px-8 gap-3">
             <button
@@ -672,8 +684,8 @@ export const Home: React.FC<HomeProps> = ({
                   <div className={`absolute bottom-2 right-2 w-12 h-12 border-b-2 border-r-2 rounded-br-[1.5rem] transition-colors ${theme === 'dark' ? 'border-white/20' : 'border-[#CDA032]/40'}`} />
                 </div>
 
-                <div className="bb-product-card-media bb-product-card-media--home transform group-hover:scale-[1.02] transition-transform duration-700">
-                  <img src={p.image} alt={p.name} className="bb-product-card-img filter drop-shadow-lg" />
+                <div className="bb-home-rail-product-card__media">
+                  <img src={p.image} alt={p.name} className="bb-home-rail-product-card__img" />
                 </div>
 
                 <button
@@ -685,7 +697,7 @@ export const Home: React.FC<HomeProps> = ({
                     onQuickView(p);
                   }}
                   className={[
-                    'absolute top-4 right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full border shadow-lg backdrop-blur-md transition-all hover:scale-105 hover:shadow-[0_0_0_1px_rgba(212,175,55,0.42)] active:scale-95',
+                    'absolute top-4 right-4 z-30 pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border shadow-lg backdrop-blur-md transition-all hover:scale-105 hover:shadow-[0_0_0_1px_rgba(212,175,55,0.42)] active:scale-95',
                     theme === 'dark'
                       ? 'border-white/25 bg-black/55 text-white hover:bg-[#CDA032] hover:text-black hover:border-transparent'
                       : 'border-black/12 bg-white/90 text-black hover:bg-[#CDA032] hover:border-transparent',
@@ -695,15 +707,15 @@ export const Home: React.FC<HomeProps> = ({
                   <Eye size={18} strokeWidth={2.25} />
                 </button>
 
-                <div className={`absolute inset-x-0 bottom-0 p-6 flex flex-col z-20 bg-gradient-to-t ${theme === 'dark' ? 'from-[#050508]/95 via-[#050508]/35 to-transparent' : 'from-black/5 to-transparent'}`}>
-                  <div className="flex items-center gap-2 mb-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-y-2 group-hover:translate-y-0">
+                <div className={`bb-home-rail-product-card__footer bg-gradient-to-t ${theme === 'dark' ? 'from-[#050508]/95 via-[#050508]/55 to-transparent' : 'from-white via-white/85 to-transparent'}`}>
+                  <div className="bb-home-rail-product-card__rating flex items-center gap-2 mb-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-y-2 group-hover:translate-y-0">
                     {[...Array(5)].map((_, i) => (
                       <Star key={i} size={8} className={`${i < Math.floor(p.rating || 4) ? 'text-[#CDA032] fill-current' : theme === 'dark' ? 'text-white/20' : 'text-black/20'}`} />
                     ))}
                     <span className={`text-[9px] font-bold ml-1 ${theme === 'dark' ? 'text-white/50' : 'text-black/50'}`}>({p.reviewCount || 678})</span>
                   </div>
 
-                  <h3 className={`font-black uppercase italic tracking-wider text-sm leading-tight mb-1 line-clamp-2 drop-shadow-sm ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+                  <h3 className={`bb-home-rail-product-card__title font-black uppercase italic tracking-wider text-sm leading-tight mb-1 line-clamp-2 drop-shadow-sm ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                     {p.name}
                   </h3>
 
@@ -736,7 +748,7 @@ export const Home: React.FC<HomeProps> = ({
             ))}
           </div>
 
-          <div className="flex justify-center mt-12 px-4">
+          <div className="flex justify-center mt-12 px-4 reveal-on-scroll reveal-delay-1">
             <Link
               to="/store"
               search={{ category: 'Laptop' } as any}
@@ -762,7 +774,7 @@ export const Home: React.FC<HomeProps> = ({
           <ArrowLeftRight size={300} className="text-[#CDA032]" />
         </div>
 
-        <div className="max-w-4xl mx-auto text-center relative z-10 flex flex-col items-center">
+        <div className="max-w-4xl mx-auto text-center relative z-10 flex flex-col items-center reveal-on-scroll reveal-scale">
           <h2 className={`text-4xl md:text-6xl font-black tracking-tight mb-4 ${isDark ? 'text-white' : 'text-zinc-900'}`}>
             Trade-In & Upgrade
           </h2>
@@ -792,7 +804,7 @@ export const Home: React.FC<HomeProps> = ({
       {/* Repair Section */}
       <section className={`relative flex flex-col lg:flex-row min-h-[600px] w-full overflow-hidden border-t ${isDark ? 'bg-[#0b0b12] border-white/[0.06]' : 'bg-[#F4F4F4] border-black/5'}`}>
         {/* Left Content */}
-        <div className="w-full lg:w-1/2 p-8 md:p-12 lg:px-24 lg:py-20 flex flex-col justify-center relative">
+        <div className="w-full lg:w-1/2 p-8 md:p-12 lg:px-24 lg:py-20 flex flex-col justify-center relative reveal-on-scroll reveal-from-left">
           <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
             <Settings size={500} className={`${theme === 'dark' ? 'text-white' : 'text-black'}`} />
           </div>
@@ -827,7 +839,7 @@ export const Home: React.FC<HomeProps> = ({
         </div>
 
         {/* Right Image */}
-        <div className="w-full lg:w-1/2 min-h-[400px] lg:min-h-full relative overflow-hidden">
+        <div className="w-full lg:w-1/2 min-h-[400px] lg:min-h-full relative overflow-hidden reveal-on-scroll reveal-from-right reveal-delay-1">
           <div className="absolute inset-0 bg-black/10 z-10 pointer-events-none"></div>
           <div className="absolute inset-0 flex items-center justify-center">
             <img
@@ -844,7 +856,7 @@ export const Home: React.FC<HomeProps> = ({
         }`}>
         <div className="max-w-[1440px] mx-auto">
           {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6 reveal-on-scroll">
             <div>
               <h2 className={`text-4xl md:text-5xl font-black italic tracking-tighter uppercase mb-2 ${theme === 'light' ? 'text-black' : 'text-white'
                 }`}>
@@ -874,7 +886,7 @@ export const Home: React.FC<HomeProps> = ({
           </div>
 
           {/* Bento Grid layout */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 grid-rows-[auto] gap-4 md:gap-6 auto-rows-[240px] md:auto-rows-[280px]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 grid-rows-[auto] gap-4 md:gap-6 auto-rows-[240px] md:auto-rows-[280px] reveal-on-scroll reveal-delay-1">
 
             {(exploreFilter === 'All Gear' || exploreFilter === 'Pro Series') && (
               <Link to="/store" search={{ category: 'Audio' } as any} className={`col-span-1 md:col-span-2 row-span-1 md:row-span-1 rounded-[2rem] p-8 md:p-10 flex flex-col justify-center relative overflow-hidden group transition-transform duration-500 hover:-translate-y-1 hover:shadow-2xl hover:ring-2 hover:ring-[#D4AF37]/25 ${theme === 'light' ? 'bg-[#E1F2EB] text-[#0A261D]' : 'bg-gradient-to-br from-[#1A362D] to-[#0A1A14] text-[#86EFAC] border border-[#22C55E]/20'}`}>
@@ -1093,7 +1105,7 @@ export const Home: React.FC<HomeProps> = ({
       {/* Catalog Marquee Section (Duplicate products effect) */}
       <section className={`py-12 border-y ${theme === 'light' ? 'bg-white border-black/5' : 'bg-[#07070c] border-white/[0.06]'}`}>
         <div className="flex flex-col gap-8">
-          <div className="text-center px-8">
+          <div className="text-center px-8 reveal-on-scroll">
             <h3 className={`text-[10px] font-black uppercase tracking-[0.5em] italic ${theme === 'light' ? 'text-black/30' : 'text-white/20'}`}>
               Continuous Laptop Inventory // Portable Excellence
             </h3>
@@ -1126,7 +1138,7 @@ export const Home: React.FC<HomeProps> = ({
 
       {/* About Us Banner */}
       <section className={`py-20 px-8 ${isDark ? 'bg-gradient-to-b from-[#101018] to-[#0a0a10]' : 'bg-white'} border-t border-b ${theme === 'dark' ? 'border-white/[0.07]' : 'border-black/5'} overflow-hidden`}>
-        <div className="max-w-4xl mx-auto text-center space-y-8">
+        <div className="max-w-4xl mx-auto text-center space-y-8 reveal-on-scroll">
           <h2 className={`text-4xl md:text-5xl font-bold ${theme === 'dark' ? 'text-white' : 'text-black'} tracking-tight`}>
             WHO WE ARE?
           </h2>

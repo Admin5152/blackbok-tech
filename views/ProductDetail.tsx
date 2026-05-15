@@ -3,6 +3,7 @@ import { Product, ProductImage } from '../types';
 import { X, Plus, Minus, Heart, Share2, Star, Check, Truck, Shield, RefreshCw, ArrowLeft, Copy, Facebook, Twitter, ChevronRight } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
 import { ProductImageGallery } from '../components/product/ProductImageGallery';
+import { ProductAvailabilityBadge } from '../components/ProductAvailabilityBadge';
 import { getProductOptionGroups, initialSelectedFromGroups, toOptionString, getAvailableStock } from '../lib/productOptions';
 
 interface ProductDetailProps {
@@ -376,7 +377,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             </div>
 
             {/* Quantity */}
-            <div className="flex items-center gap-6 flex-wrap">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:flex-wrap">
               <div
                 className={`flex items-center rounded-full overflow-hidden border ${
                   isLight ? 'border-black/15 bg-white' : 'border-white/20'
@@ -403,9 +404,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                   <Plus size={16} />
                 </button>
               </div>
-              <span className={`text-sm ${isLight ? 'text-black/50' : 'text-white/50'}`}>
-                {availableStock} available
-              </span>
+              <ProductAvailabilityBadge available={availableStock} isLight={isLight} />
             </div>
 
             {/* Action Buttons */}

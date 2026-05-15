@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { Link } from '@tanstack/react-router';
 import {
     Mail,
@@ -63,7 +63,7 @@ const TypographyLogo: React.FC<{ prefix?: string, mainText?: string, isLight?: b
                     <img
                         src="/BlackBox.jpeg"
                         alt="BlackBox"
-                        className="w-full h-auto object-contain"
+                        className="w-full h-auto object-contain transition-[filter] [transition-duration:var(--bb-theme-duration)] [transition-timing-function:var(--bb-theme-easing)]"
                         style={{ filter: isLight ? 'invert(1) brightness(1.2)' : 'none' }}
                     />
                 </div>
@@ -86,27 +86,6 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
     const isLight = theme === 'light';
     const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
 
-    // Scroll Reveal Logic
-    useEffect(() => {
-        const observerOptions = {
-            threshold: 0.1,
-            rootMargin: '0px 0px -50px 0px'
-        };
-
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('reveal-visible');
-                }
-            });
-        }, observerOptions);
-
-        const elements = document.querySelectorAll('.reveal-on-scroll');
-        elements.forEach(el => observer.observe(el));
-
-        return () => observer.disconnect();
-    }, []);
-
     const customerReviews = [
         {
             name: "Kwame Osei",
@@ -126,17 +105,22 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
     ];
 
     return (
-        <div className={`min-h-screen transition-colors duration-500 ${isLight ? 'bg-[#ffffff] text-black' : 'bg-black text-white'}`}>
+        <div data-about-page className={`min-h-screen bb-theme-transition ${isLight ? 'bg-[#ffffff] text-black' : 'bg-black text-white'}`}>
             {/* Hero Section */}
-            <section className={`relative pt-40 md:pt-48 pb-20 overflow-hidden flex flex-col items-center ${isLight ? 'bg-[#ffffff]' : ''}`}>
-                <div className="absolute inset-0 z-0">
-                    {!isLight && (
-                        <>
-                            <div className={`absolute inset-0 bg-gradient-to-br from-[#D4AF37]/10 via-transparent to-transparent opacity-50`}></div>
-                            <div className={`absolute top-0 right-0 w-[500px] h-[500px] bg-[#D4AF37]/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2`}></div>
-                            <div className={`absolute bottom-0 left-0 w-[500px] h-[500px] bg-[#D4AF37]/5 rounded-full blur-[120px] translate-y-1/2 -translate-x-1/2`}></div>
-                        </>
-                    )}
+            <section className={`relative bb-theme-transition pt-40 md:pt-48 pb-20 overflow-hidden flex flex-col items-center ${isLight ? 'bg-[#ffffff]' : ''}`}>
+                <div className="absolute inset-0 z-0 pointer-events-none" aria-hidden>
+                    <div
+                        className={`bb-theme-transition absolute inset-0 bg-gradient-to-br from-[#D4AF37]/10 via-transparent to-transparent ${isLight ? 'opacity-0' : 'opacity-50'
+                            }`}
+                    />
+                    <div
+                        className={`bb-theme-transition absolute top-0 right-0 w-[500px] h-[500px] bg-[#D4AF37]/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2 ${isLight ? 'opacity-0' : 'opacity-100'
+                            }`}
+                    />
+                    <div
+                        className={`bb-theme-transition absolute bottom-0 left-0 w-[500px] h-[500px] bg-[#D4AF37]/5 rounded-full blur-[120px] translate-y-1/2 -translate-x-1/2 ${isLight ? 'opacity-0' : 'opacity-100'
+                            }`}
+                    />
                 </div>
 
                 <div className="relative z-10 max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-12 duration-1000">
@@ -155,14 +139,14 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
                 </div>
 
                 <div className="absolute bottom-12 left-1/2 -translate-x-1/2 animate-bounce opacity-20">
-                    <div className={`w-6 h-10 rounded-full border-2 ${isLight ? 'border-black' : 'border-white'} flex justify-center p-1`}>
-                        <div className={`w-1 h-2 rounded-full ${isLight ? 'bg-black' : 'bg-white'}`}></div>
+                    <div className={`bb-theme-transition w-6 h-10 rounded-full border-2 ${isLight ? 'border-black' : 'border-white'} flex justify-center p-1`}>
+                        <div className={`bb-theme-transition w-1 h-2 rounded-full ${isLight ? 'bg-black' : 'bg-white'}`}></div>
                     </div>
                 </div>
             </section>
 
             {/* Mission & Vision grid */}
-            <section className={`py-32 px-8 relative z-10 ${isLight ? 'bg-[#ffffff]' : 'bg-[#0a0a0a]'}`}>
+            <section className={`bb-theme-transition py-32 px-8 relative z-10 ${isLight ? 'bg-[#ffffff]' : 'bg-[#0a0a0a]'}`}>
                 <div className="max-w-6xl mx-auto">
                     <div className="grid md:grid-cols-2 gap-16 md:gap-32 items-center">
                         <div className="space-y-16 reveal-on-scroll">
@@ -207,7 +191,7 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
 
                         <div className="relative group reveal-on-scroll reveal-delay-2">
                             <div className={`absolute -inset-4 bg-[#D4AF37]/5 blur-2xl rounded-[4rem] opacity-0 group-hover:opacity-100 transition-opacity duration-700`}></div>
-                            <div className={`relative aspect-square rounded-[3rem] p-12 flex flex-col items-center justify-center text-center transition-all duration-700 shadow-2xl border ${isLight ? 'bg-[#f5f5f7] border-black/5 hover:border-black/10' : 'bg-black border-white/5 hover:border-white/10'}`}>
+                            <div className={`bb-theme-transition relative aspect-square rounded-[3rem] p-12 flex flex-col items-center justify-center text-center transition-all duration-700 shadow-2xl border ${isLight ? 'bg-[#f5f5f7] border-black/5 hover:border-black/10' : 'bg-black border-white/5 hover:border-white/10'}`}>
                                 <div className="transform group-hover:scale-110 transition-transform duration-1000">
                                     <TypographyLogo size="medium" isLight={isLight} prefix="" />
                                 </div>
@@ -226,7 +210,7 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
             </section>
 
             {/* Trust Us Section */}
-            <section className={`py-32 px-8 ${isLight ? 'bg-[#f5f5f7]' : 'bg-[#060605]'}`}>
+            <section className={`bb-theme-transition py-32 px-8 ${isLight ? 'bg-[#f5f5f7]' : 'bg-[#060605]'}`}>
                 <div className="max-w-6xl mx-auto">
                     <div className="text-center mb-24 space-y-8 reveal-on-scroll">
                         <div className="flex items-center justify-center gap-4">
@@ -282,7 +266,7 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
                         {customerReviews.map((review, index) => (
                             <div
                                 key={index}
-                                className={`reveal-on-scroll rounded-[2.5rem] p-10 flex flex-col justify-between transition-all duration-500 hover:-translate-y-4 hover:shadow-2xl border ${isLight ? 'bg-white shadow-xl border-black/5' : 'bg-[#111] border-white/5'} reveal-delay-${(index % 3) + 1}`}
+                                className={`bb-theme-transition reveal-on-scroll rounded-[2.5rem] p-10 flex flex-col justify-between transition-all duration-500 hover:-translate-y-4 hover:shadow-2xl border ${isLight ? 'bg-white shadow-xl border-black/5' : 'bg-[#111] border-white/5'} ${['reveal-delay-1', 'reveal-delay-2', 'reveal-delay-3'][index % 3]}`}
                             >
                                 <div className="space-y-8">
                                     <div className="flex items-center justify-between">
@@ -312,7 +296,7 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
             </section>
 
             {/* GOALS SECTION */}
-            <section className={`py-32 px-8 ${isLight ? 'bg-[#ffffff]' : 'bg-[#0a0a0a]'}`}>
+            <section className={`bb-theme-transition py-32 px-8 ${isLight ? 'bg-[#ffffff]' : 'bg-[#0a0a0a]'}`}>
                 <div className="max-w-6xl mx-auto">
                     <div className="text-center mb-20 space-y-6 reveal-on-scroll">
                         <div className="flex items-center justify-center gap-4">
@@ -350,7 +334,7 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
                         ].map(({ Icon, title, body }, i) => (
                             <div
                                 key={title}
-                                className={`group relative rounded-[2rem] p-8 md:p-10 border transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl ${
+                                className={`bb-theme-transition group relative rounded-[2rem] p-8 md:p-10 border transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl ${
                                     isLight
                                         ? 'bg-[#fafafa] border-black/5 hover:border-[#D4AF37]/30'
                                         : 'bg-[#111] border-white/5 hover:border-[#D4AF37]/30'
@@ -376,7 +360,7 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
             </section>
 
             {/* VALUES SECTION */}
-            <section className={`py-32 px-8 ${isLight ? 'bg-[#f5f5f7]' : 'bg-[#060605]'}`}>
+            <section className={`bb-theme-transition py-32 px-8 ${isLight ? 'bg-[#f5f5f7]' : 'bg-[#060605]'}`}>
                 <div className="max-w-6xl mx-auto">
                     <div className="text-center mb-20 space-y-6 reveal-on-scroll">
                         <div className="flex items-center justify-center gap-4">
@@ -399,7 +383,7 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
                         ].map((v, i) => (
                             <div
                                 key={v.num}
-                                className={`reveal-on-scroll rounded-[1.75rem] p-6 md:p-7 border transition-all duration-500 hover:-translate-y-2 hover:shadow-xl reveal-delay-${(i % 3) + 1} ${
+                                className={`bb-theme-transition reveal-on-scroll rounded-[1.75rem] p-6 md:p-7 border transition-all duration-500 hover:-translate-y-2 hover:shadow-xl ${['reveal-delay-1', 'reveal-delay-2', 'reveal-delay-3'][i % 3]} ${
                                     isLight ? 'bg-white border-black/5' : 'bg-[#101010] border-white/5'
                                 }`}
                             >
@@ -413,7 +397,7 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
             </section>
 
             {/* OUR STORY SECTION */}
-            <section className={`py-32 px-8 ${isLight ? 'bg-[#ffffff]' : 'bg-[#0a0a0a]'}`}>
+            <section className={`bb-theme-transition py-32 px-8 ${isLight ? 'bg-[#ffffff]' : 'bg-[#0a0a0a]'}`}>
                 <div className="max-w-4xl mx-auto">
                     <div className="text-center mb-16 space-y-6 reveal-on-scroll">
                         <div className="flex items-center justify-center gap-4">
@@ -425,13 +409,13 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
                             Started With <span className="text-[#D4AF37]">Belief.</span>
                         </h2>
                         <div className="flex items-center justify-center pt-4">
-                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${isLight ? 'bg-black text-white' : 'bg-white text-black'}`}>
+                            <div className={`bb-theme-transition w-12 h-12 rounded-2xl flex items-center justify-center ${isLight ? 'bg-black text-white' : 'bg-white text-black'}`}>
                                 <ScrollText size={22} />
                             </div>
                         </div>
                     </div>
 
-                    <div className={`space-y-8 text-lg leading-relaxed font-medium reveal-on-scroll reveal-delay-1 ${isLight ? 'text-black/75' : 'text-white/65'}`}>
+                    <div className={`bb-theme-transition space-y-8 text-lg leading-relaxed font-medium reveal-on-scroll reveal-delay-1 ${isLight ? 'text-black/75' : 'text-white/65'}`}>
                         <p className={`text-2xl md:text-3xl italic font-bold leading-snug ${isLight ? 'text-black' : 'text-white'}`}>
                             BlackBox didn't start with a shop. It started with belief.
                         </p>
@@ -454,7 +438,7 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
                             Instead, he created his own.
                         </p>
 
-                        <div className={`my-12 border-l-4 border-[#D4AF37] pl-6 py-2 ${isLight ? 'bg-[#fafafa]' : 'bg-[#111]'} rounded-r-2xl`}>
+                        <div className={`bb-theme-transition my-12 border-l-4 border-[#D4AF37] pl-6 py-2 ${isLight ? 'bg-[#fafafa]' : 'bg-[#111]'} rounded-r-2xl`}>
                             <p className={`italic text-xl ${isLight ? 'text-black/80' : 'text-white/80'}`}>
                                 With a small wooden box, he painted it black, fixed simple lighting into it, and turned it into a
                                 backdrop for photographing his devices. That box became his studio — where every product was carefully
@@ -502,7 +486,7 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
                             ].map(({ label, icon: Icon }) => (
                                 <div
                                     key={label}
-                                    className={`rounded-2xl p-5 flex items-center gap-3 border ${isLight ? 'bg-[#fafafa] border-black/5' : 'bg-[#111] border-white/5'}`}
+                                    className={`bb-theme-transition rounded-2xl p-5 flex items-center gap-3 border ${isLight ? 'bg-[#fafafa] border-black/5' : 'bg-[#111] border-white/5'}`}
                                 >
                                     <div className="w-9 h-9 rounded-xl bg-[#D4AF37]/15 text-[#D4AF37] flex items-center justify-center shrink-0">
                                         <Icon size={16} />
@@ -536,49 +520,6 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
                 </div>
             </section>
 
-            <style>{`
-                .reveal-on-scroll {
-                    opacity: 0;
-                    transform: translateY(30px) scale(0.95);
-                    transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-                }
-                
-                .reveal-visible {
-                    opacity: 1;
-                    transform: translateY(0) scale(1);
-                }
-
-                .reveal-entrance {
-                    animation: revealEntrance 1.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-                }
-
-                @keyframes revealEntrance {
-                    0% {
-                        opacity: 0;
-                        transform: translateY(60px) scale(0.9);
-                        filter: blur(20px);
-                    }
-                    100% {
-                        opacity: 1;
-                        transform: translateY(0) scale(1);
-                        filter: blur(0);
-                    }
-                }
-
-                .reveal-delay-1 { transition-delay: 0.1s; }
-                .reveal-delay-2 { transition-delay: 0.2s; }
-                .reveal-delay-3 { transition-delay: 0.3s; }
-
-                @keyframes float {
-                    0% { transform: translateY(0px); }
-                    50% { transform: translateY(-10px); }
-                    100% { transform: translateY(0px); }
-                }
-
-                .animate-float {
-                    animation: float 6s ease-in-out infinite;
-                }
-            `}</style>
         </div>
     );
 };

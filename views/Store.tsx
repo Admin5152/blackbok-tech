@@ -5,6 +5,9 @@ import { Product, Category } from '../types';
 import { ProductCard } from '../components/ProductCard';
 import { formatCurrency } from '../lib/utils';
 import { normalizeProductCategory } from '../lib/api';
+import { scanScrollReveal } from '../hooks/useScrollReveal';
+import { ProductAvailabilityBadge } from '../components/ProductAvailabilityBadge';
+import { getProductOptionGroups, initialSelectedFromGroups, getAvailableStock } from '../lib/productOptions';
 import type { Theme } from '../App';
 
 interface StoreProps {
@@ -277,6 +280,9 @@ export const Store: React.FC<StoreProps> = ({
     return results.sort((a, b) => b.stock - a.stock);
   }, [baseFilteredProducts, selectedCategories]);
 
+  useEffect(() => {
+    scanScrollReveal();
+  }, [filteredProducts.length, viewMode, searchTerm, selectedCategories]);
 
   const activeFiltersCount = [
     selectedCategories.length > 0,
@@ -747,7 +753,7 @@ export const Store: React.FC<StoreProps> = ({
             </div>
           </div>
 
-          <div className="flex-1">
+          <div className="flex-1 reveal-on-scroll">
             <div className="mb-4 flex items-center justify-between">
               <span className="text-sm" style={{ color: textMuted }}>
                 {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'} found
@@ -756,10 +762,10 @@ export const Store: React.FC<StoreProps> = ({
 
             {viewMode === 'grid' ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                {filteredProducts.map(product => (
+                {filteredProducts.map((product, index) => (
                   <div
                     key={product.id}
-                    className="group cursor-pointer"
+                    className={`group cursor-pointer reveal-on-scroll reveal-delay-${(index % 3) + 1}`}
                     onMouseEnter={e => {
                       (e.currentTarget as HTMLElement).style.borderColor = 'rgba(205,160,50,0.4)';
                       (e.currentTarget as HTMLElement).style.boxShadow = '0 0 16px rgba(205,160,50,0.12)';
@@ -783,7 +789,12 @@ export const Store: React.FC<StoreProps> = ({
               </div>
             ) : (
               <div className="space-y-3 sm:space-y-4">
-                {filteredProducts.map(product => (
+                {filteredProducts.map((product) => {
+                  const listAvailable = getAvailableStock(
+                    product,
+                    initialSelectedFromGroups(getProductOptionGroups(product)),
+                  );
+                  return (
                   <div
                     key={product.id}
                     className="flex flex-col sm:flex-row gap-4 sm:gap-6 p-4 sm:p-5 rounded-xl border hover:border-[#CDA032]/50 transition-all shadow-sm"
@@ -812,6 +823,9 @@ export const Store: React.FC<StoreProps> = ({
                           <span className="font-black text-base sm:text-lg text-[#CDA032] shrink-0">{formatCurrency(product.price)}</span>
                         </div>
                         <p className="text-xs sm:text-sm opacity-60 mt-1.5 leading-relaxed line-clamp-2 max-w-2xl">{product.description}</p>
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <ProductAvailabilityBadge available={listAvailable} isLight={isLight} compact />
+                        </div>
                       </div>
 
                       <div className="flex items-center gap-2 sm:gap-3 mt-4 sm:mt-6 justify-end flex-wrap">
@@ -838,7 +852,8 @@ export const Store: React.FC<StoreProps> = ({
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
