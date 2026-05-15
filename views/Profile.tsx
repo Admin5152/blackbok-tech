@@ -97,8 +97,10 @@ export const Profile: React.FC<ProfileProps> = ({
           <UserIcon size={32} className={isLight ? 'text-gray-300' : 'text-white/20'} />
         </div>
         <div className="space-y-2">
-          <h2 className={`text-xl font-black uppercase tracking-tight italic ${isLight ? 'text-black' : 'text-white'}`}>Access Required</h2>
-          <p className={`text-[10px] font-bold uppercase tracking-widest ${isLight ? 'text-gray-400' : 'text-white/30'}`}>Sign in to view your repository</p>
+          <h2 className={`text-xl font-black uppercase tracking-tight italic ${isLight ? 'text-black' : 'text-white'}`}>Sign in required</h2>
+          <p className={`text-sm leading-relaxed max-w-xs mx-auto ${isLight ? 'text-gray-600' : 'text-white/50'}`}>
+            Your orders, trade-ins, and repairs appear here after you sign in. New to BlackBox? Create an account first.
+          </p>
         </div>
         <button
           onClick={() => navigateTo('auth')}

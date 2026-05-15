@@ -118,14 +118,14 @@ export const ReturnsPage: React.FC = () => {
                 isLight ? 'text-black' : 'text-white'
               }`}
             >
-              Access Required
+              Sign in required
             </h2>
             <p
-              className={`text-[10px] font-bold uppercase tracking-widest ${
-                isLight ? 'text-gray-400' : 'text-white/30'
+              className={`text-sm leading-relaxed max-w-xs mx-auto ${
+                isLight ? 'text-gray-600' : 'text-white/50'
               }`}
             >
-              Sign in to view your returns
+              Returns are linked to your account. Sign in to view them, or Sign up if you are new.
             </p>
           </div>
           <button

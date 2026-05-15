@@ -111,7 +111,7 @@ const InlineAuthForm: React.FC<InlineAuthFormProps> = ({ onAuthenticated, notify
           password: form.password,
         });
         if (!res.user) {
-          notify(AuthService.formatLoginError(res.error) || 'Login failed.', 'error');
+          notify(res.error || 'Sign in failed. Check your email and password.', 'error');
           return;
         }
         const user: User = {
@@ -155,8 +155,9 @@ const InlineAuthForm: React.FC<InlineAuthFormProps> = ({ onAuthenticated, notify
         notify(`Account created. Welcome, ${user.name}!`, 'success');
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Authentication failed.';
-      notify(msg, 'error');
+      const msg =
+        err instanceof Error ? err.message : undefined;
+      notify(AuthService.formatAuthError(msg, mode === 'login' ? 'login' : 'signup'), 'error');
     } finally {
       setBusy(false);
     }

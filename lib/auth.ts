@@ -52,17 +52,119 @@ class AuthService {
     return normalizeCanonicalRole(role);
   }
 
-  /** User-facing copy for Supabase auth errors (anti-enumeration keeps some cases generic). */
+  /** Shown when a signed-in session is required (profile, checkout, delete account, etc.). */
+  static messageSignedOut(action?: string): string {
+    if (action) {
+      return `You need to sign in ${action}. Use Sign in if you already have an account, or Sign up to create one.`;
+    }
+    return 'You are not signed in. Use Sign in if you have an account, or Sign up to register.';
+  }
+
+  /**
+   * Maps raw Supabase / app auth strings to plain-language copy.
+   * Use `context` so the same backend error reads correctly on login vs settings vs checkout.
+   */
+  static formatAuthError(
+    message: string | undefined,
+    context: 'login' | 'signup' | 'session' | 'password' | 'delete' | 'admin' = 'login'
+  ): string {
+    const m = (message || '').trim();
+
+    if (!m) {
+      switch (context) {
+        case 'session':
+          return 'Your session expired. Please sign in again.';
+        case 'signup':
+          return 'Registration could not complete. Check your details and try again.';
+        case 'password':
+          return 'Could not update your password. Try again or request a new reset link.';
+        case 'delete':
+          return this.messageSignedOut('to change account settings');
+        case 'admin':
+          return 'Admin sign-in required. Use an admin account or contact support.';
+        default:
+          return 'Sign in failed. Check your email and password, or create an account with Sign up.';
+      }
+    }
+
+    if (/not authenticated|no authenticated|auth session missing|session missing|jwt expired|invalid jwt|refresh token|session not found/i.test(m)) {
+      if (context === 'delete') {
+        return 'Your session expired. Sign in again, then retry account deletion.';
+      }
+      if (context === 'password') {
+        return 'This reset link expired or was already used. Go to Forgot password and request a new link.';
+      }
+      return 'Your session expired or you are not signed in. Please sign in again.';
+    }
+
+    if (/invalid api key|supabase is not configured|vite_supabase/i.test(m)) {
+      return 'Sign-in is temporarily unavailable. Please try again later or contact BlackBox support.';
+    }
+
+    if (/too many requests|rate limit|email rate limit/i.test(m)) {
+      return 'Too many attempts. Wait a few minutes, then try again.';
+    }
+
+    if (/network|fetch failed|failed to fetch|timeout/i.test(m)) {
+      return 'Connection problem. Check your internet and try again.';
+    }
+
+    if (/user banned|banned/i.test(m)) {
+      return 'This account cannot sign in. Contact BlackBox support for help.';
+    }
+
+    if (context === 'login') return this.formatLoginError(m);
+    if (context === 'signup') return this.formatSignUpError(m);
+    if (context === 'password') return this.formatPasswordError(m);
+    if (context === 'delete' && /authentication error/i.test(m)) {
+      return 'Could not verify your session. Sign in again and retry.';
+    }
+
+    return m;
+  }
+
+  /** User-facing copy for Supabase sign-in errors (before email-specific hints). */
   static formatLoginError(message: string | undefined): string {
     const m = (message || '').trim();
-    if (!m) return 'Sign in failed. Try again or create an account.';
-    if (/invalid login credentials/i.test(m)) {
-      return 'No account matches this email and password, or the password is wrong. New here or your account was removed? Use Sign up to create a new account.';
+    if (!m) return 'Sign in failed. Check your email and password, or use Sign up if you are new.';
+    if (/invalid login credentials|invalid credentials/i.test(m)) {
+      return 'Email or password did not match. If you are new here, use Sign up first.';
     }
     if (/email not confirmed|confirm your email|email_not_confirmed/i.test(m)) {
-      return 'Confirm your email using the link we sent you, then try signing in again.';
+      return 'Confirm your email using the link we sent you, then sign in again.';
+    }
+    if (/user not found/i.test(m)) {
+      return 'No account exists for this email. Use Sign up to create one.';
     }
     return m;
+  }
+
+  /** After invalid credentials, use registration_email_status when available for clearer guidance. */
+  static async explainLoginFailure(email: string, rawMessage?: string): Promise<string> {
+    const raw = (rawMessage || '').trim();
+    const base = this.formatLoginError(raw);
+
+    if (!/invalid login credentials|invalid credentials/i.test(raw)) {
+      return base;
+    }
+
+    const hint = await this.registrationEmailStatus(email.trim());
+    if (!hint?.ok) return base;
+
+    switch (hint.state) {
+      case 'available':
+        return 'No BlackBox account exists for this email yet. Use Sign up below to create one, then sign in.';
+      case 'active_account':
+        return 'This email is registered. The password may be wrong — try again or use Forgot password.';
+      case 'deleted_account':
+        return 'This account was removed. Use Sign up with the same email to start fresh, then sign in.';
+      case 'auth_without_profile':
+        return 'This email still has a login but no active shop account. Try Forgot password, or contact support if you closed your account recently.';
+      case 'profile_only':
+        return 'We could not match this email to an active login. Contact BlackBox support so we can fix your account.';
+      default:
+        return base;
+    }
   }
 
   /** Maps common GoTrue sign-up error strings to clearer copy. */
@@ -71,6 +173,33 @@ class AuthService {
     if (!m) return 'Registration could not complete. Try again or contact support.';
     if (/user already registered|already registered|already exists|duplicate/i.test(m)) {
       return 'This email is already on file. Use Sign in or Forgot password, or read the message below if your account was removed.';
+    }
+    if (/password should be at least|weak password/i.test(m)) {
+      return 'Choose a stronger password (at least 6 characters).';
+    }
+    if (/invalid email|unable to validate email/i.test(m)) {
+      return 'Enter a valid email address.';
+    }
+    return m;
+  }
+
+  static formatPasswordError(message: string | undefined): string {
+    const m = (message || '').trim();
+    if (!m) return 'Password update failed. Try again.';
+    if (/session|jwt|expired|not authenticated/i.test(m)) {
+      return 'This reset link expired or was already used. Request a new link from Forgot password.';
+    }
+    if (/same password|should be different/i.test(m)) {
+      return 'Choose a new password that is different from your old one.';
+    }
+    return m;
+  }
+
+  static formatPasswordResetRequestError(message: string | undefined): string {
+    const m = (message || '').trim();
+    if (!m) return 'Could not send reset email. Check the address and try again.';
+    if (/user not found|no user/i.test(m)) {
+      return 'If this email is registered, you will receive a reset link shortly. Otherwise use Sign up to create an account.';
     }
     return m;
   }
@@ -179,7 +308,11 @@ class AuthService {
         
         if (error) {
           console.error(' Supabase auth error:', error);
-          return { user: null, error: this.formatLoginError(error.message) };
+          const errorMessage = await this.explainLoginFailure(
+            credentials.email,
+            error.message
+          );
+          return { user: null, error: errorMessage };
         }
         
         if (data.user) {
@@ -237,14 +370,20 @@ class AuthService {
         }
         
         console.log(' No user data returned from Supabase');
-        return { user: null, error: 'Authentication failed - no user data returned' };
+        return {
+          user: null,
+          error: 'Sign in did not complete. Check your email and password, or use Sign up if you are new.',
+        };
       } catch (clientError: any) {
         console.error(' Error getting Supabase client:', clientError);
-        return { user: null, error: 'Database client error: ' + clientError.message };
+        return {
+          user: null,
+          error: this.formatAuthError(clientError?.message, 'login'),
+        };
       }
     } catch (error: any) {
       console.error(' Sign in error:', error);
-      return { user: null, error: error.message || 'Authentication failed' };
+      return { user: null, error: this.formatAuthError(error?.message, 'login') };
     }
   }
 
@@ -362,14 +501,17 @@ class AuthService {
         }
 
         console.log('❌ No user data returned from Supabase');
-        return { user: null, error: 'Registration failed - no user data returned' };
+        return {
+          user: null,
+          error: 'Registration did not complete. Check your email and try again.',
+        };
       } catch (clientError: any) {
         console.error('❌ Error getting Supabase client:', clientError);
-        return { user: null, error: 'Database client error: ' + clientError.message };
+        return { user: null, error: this.formatAuthError(clientError?.message, 'signup') };
       }
     } catch (error: any) {
       console.error('❌ Sign up error:', error);
-      return { user: null, error: error.message || 'Registration failed' };
+      return { user: null, error: this.formatAuthError(error?.message, 'signup') };
     }
   }
 
@@ -654,12 +796,15 @@ class AuthService {
 
       const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo });
       if (error) {
-        return { success: false, error: error.message };
+        return { success: false, error: this.formatPasswordResetRequestError(error.message) };
       }
 
       return { success: true };
     } catch (error: any) {
-      return { success: false, error: error?.message || 'Failed to send password reset email.' };
+      return {
+        success: false,
+        error: this.formatPasswordResetRequestError(error?.message),
+      };
     }
   }
 
@@ -677,12 +822,12 @@ class AuthService {
       const client = getSupabaseClient();
       const { error } = await client.auth.updateUser({ password: newPassword });
       if (error) {
-        return { success: false, error: error.message };
+        return { success: false, error: this.formatPasswordError(error.message) };
       }
 
       return { success: true };
     } catch (error: any) {
-      return { success: false, error: error?.message || 'Failed to reset password.' };
+      return { success: false, error: this.formatPasswordError(error?.message) };
     }
   }
 

@@ -407,8 +407,8 @@ const SignInRequiredWall: React.FC<{
         <h2 className={`text-xl font-black uppercase tracking-tight italic ${isLight ? 'text-black' : 'text-white'}`}>
           Sign in required
         </h2>
-        <p className={`text-[10px] font-bold uppercase tracking-widest ${isLight ? 'text-gray-400' : 'text-white/30'}`}>
-          Sign in to view this page.
+        <p className={`text-sm leading-relaxed max-w-xs mx-auto ${isLight ? 'text-gray-600' : 'text-white/50'}`}>
+          This page is only available when you are signed in. Use Sign in if you already have an account, or Sign up to create one.
         </p>
         <button
           type="button"

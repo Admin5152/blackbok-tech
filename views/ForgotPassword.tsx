@@ -28,7 +28,10 @@ export const ForgotPassword: React.FC = () => {
     setIsLoading(false);
 
     if (!result.success) {
-      notify(result.error || 'Unable to send reset email.', 'error');
+      notify(
+        AuthService.formatPasswordResetRequestError(result.error) || 'Unable to send reset email.',
+        'error'
+      );
       return;
     }
 

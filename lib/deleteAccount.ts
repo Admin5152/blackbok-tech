@@ -1,4 +1,5 @@
 import { cancelOpenRecordsForAccountDeletion, getDeletionPreview } from './accountDeletionGuards';
+import AuthService from './auth';
 import { getSupabaseAnonKey, getSupabaseClient, getSupabaseProjectUrl, isSupabaseConfigured } from './supabase';
 
 export type { DeletionPreview, PendingDeletionItem } from './accountDeletionGuards';
@@ -32,12 +33,15 @@ export class DeleteAccountService {
       
       if (userError) {
         console.error('Error getting current user:', userError);
-        return { success: false, error: 'Authentication error' };
+        return {
+          success: false,
+          error: AuthService.formatAuthError(userError.message, 'delete'),
+        };
       }
       
       if (!user) {
         console.error('No user found');
-        return { success: false, error: 'Not authenticated' };
+        return { success: false, error: AuthService.messageSignedOut('to manage your account') };
       }
 
       const cancelResult = await cancelOpenRecordsForAccountDeletion(user.id);
@@ -180,12 +184,15 @@ export class DeleteAccountService {
       
       if (userError) {
         console.error('Error getting current user:', userError);
-        return { success: false, error: 'Authentication error' };
+        return {
+          success: false,
+          error: AuthService.formatAuthError(userError.message, 'delete'),
+        };
       }
       
       if (!user) {
         console.error('No user found');
-        return { success: false, error: 'Not authenticated' };
+        return { success: false, error: AuthService.messageSignedOut('to manage your account') };
       }
 
       // Check if user has email/password authentication (vs OAuth)

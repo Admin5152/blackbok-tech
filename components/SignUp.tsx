@@ -91,7 +91,7 @@ export const SignUp: React.FC<SignUpProps> = ({ setUser, navigateTo, theme, noti
       }
     } catch (error: any) {
       console.error('Sign up component error:', error);
-      notify('An unexpected error occurred', 'error');
+      notify(AuthService.formatAuthError(error?.message, 'signup'), 'error');
     } finally {
       setIsLoading(false);
     }

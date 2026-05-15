@@ -94,7 +94,10 @@ export const Login: React.FC<LoginProps> = ({ setUser, navigateTo, theme, notify
     setIsResettingPassword(false);
 
     if (!result.success) {
-      notify(result.error || 'Failed to send reset email.', 'error');
+      notify(
+        AuthService.formatPasswordResetRequestError(result.error) || 'Failed to send reset email.',
+        'error'
+      );
       return;
     }
 
@@ -157,11 +160,11 @@ export const Login: React.FC<LoginProps> = ({ setUser, navigateTo, theme, notify
         }
       } else {
         console.error('Authentication failed:', response.error);
-        notify(AuthService.formatLoginError(response.error) || 'Login failed. Please try again.', 'error');
+        notify(response.error || 'Sign in failed. Please try again.', 'error');
       }
     } catch (error: any) {
       console.error('Login component error:', error);
-      notify('Login failed. An unexpected error occurred.', 'error');
+      notify(AuthService.formatAuthError(error?.message, 'login'), 'error');
     } finally {
       setIsLoading(false);
     }

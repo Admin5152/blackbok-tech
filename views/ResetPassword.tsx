@@ -35,7 +35,7 @@ export const ResetPassword: React.FC = () => {
     setIsLoading(false);
 
     if (!result.success) {
-      notify(result.error || 'Failed to reset password.', 'error');
+      notify(AuthService.formatPasswordError(result.error) || 'Failed to reset password.', 'error');
       return;
     }
 

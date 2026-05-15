@@ -229,21 +229,5 @@ export const INITIAL_PRODUCTS: Product[] = [
     variants: [
       { name: 'Color', options: ['Bora Purple', 'Graphite', 'White'] }
     ],
-  },
-  {
-    id: 'BB-116',
-    name: 'Razer Blade 16 Gaming Laptop',
-    category: 'Laptop',
-    price: 35999,
-    new: true,
-    rating: 4.8,
-    reviewCount: 95,
-    description: 'Incredible performance with RTX 4090 and Mini-LED display.',
-    image: 'https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2?auto=format&fit=crop&q=80&w=1200',
-    stock: 4,
-    variants: [
-      { name: 'Display', options: ['QHD+', 'UHD+'] },
-      { name: 'Storage', options: ['1TB', '2TB'] }
-    ],
   }
 ];

@@ -95,21 +95,30 @@ export const Home: React.FC<HomeProps> = ({
   const matchesCategory = (productCategory: string | undefined, target: Category): boolean =>
     normalizeProductCategory(productCategory) === normalizeProductCategory(String(target));
 
+  /** Excluded from home carousels only — may still appear in the store. */
+  const isHiddenOnHome = (p: Product) =>
+    p.id === 'BB-116' || /razer blade\s*16/i.test(String(p.name ?? ''));
+
+  const homeProducts = useMemo(
+    () => products.filter((p) => !isHiddenOnHome(p)),
+    [products],
+  );
+
   // Featured Arrivals: explicit boolean coercion so `null`/`undefined`/`'false'`
   // (Postgres returns booleans as JS booleans normally, but be safe) don't
   // accidentally read as truthy.
   const featuredProducts = useMemo(
-    () => products.filter(p => Boolean((p as any).featured)),
-    [products]
+    () => homeProducts.filter(p => Boolean((p as any).featured)),
+    [homeProducts]
   );
 
   const featuredSliderProducts = useMemo(() => {
     if (featuredProducts.length > 0) return featuredProducts.slice(0, 12);
-    return products.slice(0, 12);
-  }, [products, featuredProducts]);
+    return homeProducts.slice(0, 12);
+  }, [homeProducts, featuredProducts]);
 
   const highlights = useMemo(() => {
-    const combined = [...featuredProducts, ...products.filter(p => !featuredProducts.find(f => f.id === p.id))];
+    const combined = [...featuredProducts, ...homeProducts.filter(p => !featuredProducts.find(f => f.id === p.id))];
     return combined
       .filter(
         (p) =>
@@ -120,7 +129,7 @@ export const Home: React.FC<HomeProps> = ({
           matchesCategory(p.category, 'Tablet')
       )
       .slice(0, 10);
-  }, [products, featuredProducts]);
+  }, [homeProducts, featuredProducts]);
 
   const nextHighlight = () => setCurrentHighlightsIndex((prev) => (prev + 1) % highlights.length);
   const prevHighlight = () => setCurrentHighlightsIndex((prev) => (prev - 1 + highlights.length) % highlights.length);
@@ -513,7 +522,7 @@ export const Home: React.FC<HomeProps> = ({
             </div>
 
             {/* Product Cards */}
-            {products.filter(p => matchesCategory(p.category, 'Accessories') || matchesCategory(p.category, 'iPhone')).slice(0, 8).map(p => (
+            {homeProducts.filter(p => matchesCategory(p.category, 'Accessories') || matchesCategory(p.category, 'iPhone')).slice(0, 8).map(p => (
               <div
                 key={p.id}
                 onClick={() => onQuickView(p)}
@@ -643,7 +652,7 @@ export const Home: React.FC<HomeProps> = ({
             </div>
 
             {/* Product Cards */}
-            {products.filter(p => matchesCategory(p.category, 'Laptop')).map(p => (
+            {homeProducts.filter(p => matchesCategory(p.category, 'Laptop')).map(p => (
               <div
                 key={p.id}
                 onClick={() => onQuickView(p)}
@@ -1080,7 +1089,7 @@ export const Home: React.FC<HomeProps> = ({
           </div>
           <div className="relative flex overflow-hidden">
             <div className="flex py-4 animate-scroll whitespace-nowrap">
-              {products.filter(p => matchesCategory(p.category, 'Laptop')).map((p, i) => (
+              {homeProducts.filter(p => matchesCategory(p.category, 'Laptop')).map((p, i) => (
                 <div key={`${p.id}-${i}`} className="inline-flex items-center gap-4 px-8 group cursor-default">
                   <span className={`text-4xl md:text-6xl font-black italic tracking-tighter uppercase transition-colors duration-500 hover:text-[#D4AF37] ${theme === 'light' ? 'text-black/5' : 'text-white/[0.09]'
                     }`}>
@@ -1090,7 +1099,7 @@ export const Home: React.FC<HomeProps> = ({
                 </div>
               ))}
               {/* Duplicate for seamless scroll */}
-              {products.filter(p => matchesCategory(p.category, 'Laptop')).map((p, i) => (
+              {homeProducts.filter(p => matchesCategory(p.category, 'Laptop')).map((p, i) => (
                 <div key={`${p.id}-dup-${i}`} className="inline-flex items-center gap-4 px-8 group cursor-default">
                   <span className={`text-4xl md:text-6xl font-black italic tracking-tighter uppercase transition-colors duration-500 hover:text-[#D4AF37] ${theme === 'light' ? 'text-black/5' : 'text-white/[0.09]'
                     }`}>
