@@ -813,19 +813,19 @@ export const Store: React.FC<StoreProps> = ({
 
                     <div className="flex-1 flex flex-col justify-between">
                       <div>
-                        <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start justify-between gap-3 flex-wrap">
                           <h3
-                            className="font-bold text-base sm:text-lg cursor-pointer hover:text-[#CDA032] transition-colors"
+                            className="font-bold text-base sm:text-lg cursor-pointer hover:text-[#CDA032] transition-colors min-w-0 flex-1 basis-[min(100%,12rem)]"
                             onClick={() => navigateTo('product', product.id)}
                           >
                             {product.name}
                           </h3>
-                          <span className="font-black text-base sm:text-lg text-[#CDA032] shrink-0">{formatCurrency(product.price)}</span>
+                          <div className="flex shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-1">
+                            <span className="font-black text-base sm:text-lg text-[#CDA032] tabular-nums">{formatCurrency(product.price)}</span>
+                            <ProductAvailabilityBadge available={listAvailable} isLight={isLight} inline />
+                          </div>
                         </div>
                         <p className="text-xs sm:text-sm opacity-60 mt-1.5 leading-relaxed line-clamp-2 max-w-2xl">{product.description}</p>
-                        <div className="mt-3 flex flex-wrap items-center gap-2">
-                          <ProductAvailabilityBadge available={listAvailable} isLight={isLight} compact />
-                        </div>
                       </div>
 
                       <div className="flex items-center gap-2 sm:gap-3 mt-4 sm:mt-6 justify-end flex-wrap">

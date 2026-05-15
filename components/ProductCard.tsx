@@ -132,9 +132,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </div>
 
         <div
-          className={`p-4 flex-1 flex flex-col justify-between space-y-3 ${isLight ? 'bg-white' : 'bg-black'}`}
+          className={`p-3 flex-1 flex flex-col justify-between gap-2 ${isLight ? 'bg-white' : 'bg-black'}`}
         >
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <p
               className={`text-[8px] font-black uppercase tracking-[0.22em] italic ${
                 isLight ? 'text-[#B38B21]' : 'text-[#CDA032]'
@@ -171,9 +171,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </div>
           </div>
 
-          {/* Variant selection — compact row: Color | Storage | RAM side by side */}
+          {/* Variant selection — compact row */}
           <div
-            className={`grid gap-2 sm:gap-2.5 ${
+            className={`grid gap-1.5 sm:gap-2 ${
               optionGroups.length > 3
                 ? 'grid-cols-[repeat(auto-fit,minmax(3.75rem,1fr))]'
                 : optionGroups.length === 3
@@ -268,23 +268,24 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             })}
           </div>
 
-          <div className="space-y-3">
-            <div className="flex items-baseline gap-2 flex-wrap">
-              <span className={`text-lg font-black tracking-tight ${isLight ? 'text-black' : 'text-white'}`}>
-                {formatCurrency(product.price)}
-              </span>
-              {product.discount && (
-                <span className={`text-[8px] line-through font-bold ${isLight ? 'text-black/40' : 'text-white/35'}`}>
-                  {formatCurrency(product.price * (1 + product.discount / 100))}
+          <div className="mt-auto flex flex-col gap-1.5">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+              <div className="flex min-w-0 shrink items-baseline gap-2">
+                <span className={`text-lg font-black tracking-tight tabular-nums ${isLight ? 'text-black' : 'text-white'}`}>
+                  {formatCurrency(product.price)}
                 </span>
-              )}
+                {product.discount && (
+                  <span className={`text-[8px] line-through font-bold ${isLight ? 'text-black/40' : 'text-white/35'}`}>
+                    {formatCurrency(product.price * (1 + product.discount / 100))}
+                  </span>
+                )}
+              </div>
+              <div className="ml-auto min-w-0 flex shrink-0 justify-end">
+                <ProductAvailabilityBadge available={availableStock} isLight={isLight} inline />
+              </div>
             </div>
 
-            <div className="pt-0.5">
-              <ProductAvailabilityBadge available={availableStock} isLight={isLight} compact />
-            </div>
-
-            <div className="flex flex-col gap-2 pt-0.5">
+            <div className="flex flex-col gap-1.5">
               <button
                 type="button"
                 onClick={(e) => {
@@ -293,7 +294,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                   handleAddToCartWithOptions();
                 }}
                 disabled={availableStock <= 0}
-                className={`w-full py-3.5 bg-[#CDA032] hover:bg-[#c29a28] text-black rounded-full text-[9px] font-black uppercase tracking-[0.28em] transition-all flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none ${TW_DARK_GOLD_BTN_DEPTH}`}
+                className={`w-full py-2.5 bg-[#CDA032] hover:bg-[#c29a28] text-black rounded-full text-[9px] font-black uppercase tracking-[0.28em] transition-all flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none ${TW_DARK_GOLD_BTN_DEPTH}`}
               >
                 <ShoppingCart size={14} strokeWidth={2.5} /> {availableStock <= 0 ? 'Out of stock' : 'ADD TO CART'}
               </button>
@@ -302,7 +303,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 to="/product/$productId"
                 params={{ productId: product.id } as any}
                 onClick={(e) => e.stopPropagation()}
-                className={`w-full py-3 rounded-full text-[8px] font-black uppercase tracking-[0.28em] transition-all flex items-center justify-center gap-2 border active:scale-[0.98] ${
+                className={`w-full py-2.5 rounded-full text-[8px] font-black uppercase tracking-[0.28em] transition-all flex items-center justify-center gap-2 border active:scale-[0.98] ${
                   isLight
                     ? 'bg-zinc-50 hover:bg-zinc-100 text-black border-black/12'
                     : 'bg-black text-white border-white/20 hover:border-white/35 hover:bg-white/[0.06]'
