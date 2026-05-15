@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Mail, Phone, MapPin, Send } from 'lucide-react';
 import { useAppContext } from '../App';
 import { sendContactFormEmail } from '../lib/contactEmail';
+import { mailtoSupport, SUPPORT_EMAIL, SUPPORT_PHONE_TEL, WHATSAPP_DISPLAY, whatsAppUrl } from '../lib/contact';
 
 const inputBase = (isLight: boolean) =>
   `w-full rounded-xl px-4 py-3 text-[13px] focus:outline-none transition-all border ${
@@ -198,7 +199,9 @@ export const Contact: React.FC = () => {
               </div>
               <div>
                 <h4 className={`font-bold text-[13px] mb-0.5 ${isLight ? 'text-black' : 'text-white'}`}>Email Support</h4>
-                <p className={`text-[12px] ${isLight ? 'text-black/60' : 'text-white/60'}`}>support@blackbox.tech</p>
+                <a href={mailtoSupport()} className={`text-[12px] hover:text-[#CDA032] ${isLight ? 'text-black/60' : 'text-white/60'}`}>
+                  {SUPPORT_EMAIL}
+                </a>
               </div>
             </div>
 
@@ -215,8 +218,10 @@ export const Contact: React.FC = () => {
                 <Phone size={18} />
               </div>
               <div>
-                <h4 className={`font-bold text-[13px] mb-0.5 ${isLight ? 'text-black' : 'text-white'}`}>Phone Support</h4>
-                <p className={`text-[12px] ${isLight ? 'text-black/60' : 'text-white/60'}`}>+233 50 123 4567</p>
+                <h4 className={`font-bold text-[13px] mb-0.5 ${isLight ? 'text-black' : 'text-white'}`}>Phone / WhatsApp</h4>
+                <a href={`tel:${SUPPORT_PHONE_TEL}`} className={`text-[12px] hover:text-[#CDA032] ${isLight ? 'text-black/60' : 'text-white/60'}`}>
+                  {WHATSAPP_DISPLAY}
+                </a>
               </div>
             </div>
 
@@ -296,7 +301,7 @@ export const Contact: React.FC = () => {
                   </svg>
                 </a>
                 <a
-                  href="https://wa.me/233501234567"
+                  href={whatsAppUrl('Hi BlackBox — I need help.')}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-9 h-9 rounded-xl bg-black/10 flex items-center justify-center shadow-sm transition-colors hover:bg-black hover:text-[#CDA032] text-black"

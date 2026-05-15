@@ -1,4 +1,8 @@
+import { cancelOpenRecordsForAccountDeletion, getDeletionPreview } from './accountDeletionGuards';
 import { getSupabaseAnonKey, getSupabaseClient, getSupabaseProjectUrl, isSupabaseConfigured } from './supabase';
+
+export type { DeletionPreview, PendingDeletionItem } from './accountDeletionGuards';
+export { getDeletionPreview } from './accountDeletionGuards';
 
 function edgeFunctionsBaseUrl(): string {
   return getSupabaseProjectUrl();
@@ -36,7 +40,13 @@ export class DeleteAccountService {
         return { success: false, error: 'Not authenticated' };
       }
 
-      console.log('Deleting account for user:', user.email);
+      const cancelResult = await cancelOpenRecordsForAccountDeletion(user.id);
+      if (!cancelResult.ok) {
+        return {
+          success: false,
+          error: cancelResult.error || 'Could not cancel open orders, repairs, or trade-ins.',
+        };
+      }
 
       if (password && user.email) {
         const { error: reauthError } = await client.auth.signInWithPassword({
@@ -203,68 +213,7 @@ export class DeleteAccountService {
     }
   }
 
-  // Get user data for confirmation display
-  static async getUserDataForDeletion(): Promise<{
-    email: string;
-    name: string;
-    createdAt: string;
-    orderCount: number;
-    repairCount: number;
-    tradeCount: number;
-  } | null> {
-    try {
-      console.log('Getting user data for deletion confirmation...');
-      
-      if (!isSupabaseConfigured()) {
-        console.error('Supabase not configured');
-        return null;
-      }
-
-      const client = getSupabaseClient();
-      
-      // Get current user
-      const { data: { user }, error: userError } = await client.auth.getUser();
-      
-      if (userError || !user) {
-        console.error('Error getting current user:', userError);
-        return null;
-      }
-
-      // Get user profile
-      const { data: profile } = await client
-        .from('profiles')
-        .select('name, created_at')
-        .eq('id', user.id)
-        .single();
-
-      // Count user's data
-      const { count: orderCount } = await client
-        .from('orders')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-
-      const { count: repairCount } = await client
-        .from('repair_requests')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-
-      const { count: tradeCount } = await client
-        .from('trade_in_requests')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-
-      return {
-        email: user.email || '',
-        name: profile?.name || 'Unknown',
-        createdAt: profile?.created_at || user.created_at || '',
-        orderCount: orderCount || 0,
-        repairCount: repairCount || 0,
-        tradeCount: tradeCount || 0
-      };
-
-    } catch (error) {
-      console.error('Error getting user data for deletion:', error);
-      return null;
-    }
+  static async getUserDataForDeletion() {
+    return getDeletionPreview();
   }
 }

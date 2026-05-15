@@ -13,6 +13,7 @@ import { OrderTracker } from '../components/OrderTracker';
 import { useAppContext } from '../App';
 import { handleSignOut } from '../lib/signOut';
 import { DeleteAccountService } from '../lib/deleteAccount';
+import type { DeletionPreview } from '../lib/accountDeletionGuards';
 import { DeleteAccountModal } from '../components/DeleteAccountModal';
 import AuthService from '../lib/auth';
 import { updateUserProfile } from '../lib/api';
@@ -62,14 +63,7 @@ export const Profile: React.FC<ProfileProps> = ({
   const [resetSending, setResetSending] = useState(false);
   const [settingsErr, setSettingsErr] = useState('');
   const [emailVerified, setEmailVerified] = useState<boolean | null>(null);
-  const [userDataForDeletion, setUserDataForDeletion] = useState<{
-    email: string;
-    name: string;
-    createdAt: string;
-    orderCount: number;
-    repairCount: number;
-    tradeCount: number;
-  } | null>(null);
+  const [userDataForDeletion, setUserDataForDeletion] = useState<DeletionPreview | null>(null);
   const [purchaseReturnOpen, setPurchaseReturnOpen] = useState(false);
   const [purchaseReturnPresetOrderId, setPurchaseReturnPresetOrderId] = useState<string | null>(null);
 
@@ -270,7 +264,13 @@ export const Profile: React.FC<ProfileProps> = ({
         setUser(null);
         setShowDeleteModal(false);
         setDeletePassword('');
-        notify?.('Your account has been removed and you are signed out.', 'info');
+        const hadPending = (userDataForDeletion?.pendingItems?.length ?? 0) > 0;
+        notify?.(
+          hadPending
+            ? 'Your account was removed. Open orders, repairs, and trade-ins were cancelled.'
+            : 'Your account has been removed and you are signed out.',
+          'info'
+        );
         navigateTo('home');
       } else {
         setDeleteError(result.error || 'Failed to delete account');
@@ -1255,8 +1255,9 @@ export const Profile: React.FC<ProfileProps> = ({
                     <Trash2 className="w-5 h-5 text-red-500" />
                     <h4 className="text-sm font-black uppercase tracking-widest text-red-500">DANGER ZONE</h4>
                   </div>
-                  <p className={`text-xs font-medium ${isLight ? 'text-red-700/80' : 'text-red-400/60'}`}>
-                    Permanently delete your account and associated data where allowed. This cannot be undone.
+                  <p className={`text-xs font-medium max-w-md mx-auto ${isLight ? 'text-red-700/80' : 'text-red-400/60'}`}>
+                    You can delete your account anytime. If you still have an open order, repair, or trade-in, you must
+                    complete or cancel it first — we will show what will be cancelled before you confirm.
                   </p>
                   <button
                     onClick={openDeleteModal}

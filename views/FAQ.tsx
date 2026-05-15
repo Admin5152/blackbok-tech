@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ChevronDown, Plus, Minus, MessageCircle, Phone, Mail } from 'lucide-react';
 import type { Theme } from '../App';
 import { useAppContext } from '../App';
+import { mailtoSupport, SUPPORT_PHONE_TEL, whatsAppUrl } from '../lib/contact';
 
 interface FAQProps {
     theme?: Theme;
@@ -181,21 +182,21 @@ export const FAQ: React.FC<FAQProps> = ({ theme: themeProp }) => {
                     <p className={`mb-8 ${isLight ? 'text-black/60' : 'text-white/60'}`}>Our technical experts are ready to assist you.</p>
                     <div className="flex flex-col sm:flex-row justify-center gap-4">
                         <a
-                            href="https://wa.me/"
+                            href={whatsAppUrl('Hi BlackBox — I have a question from your FAQ page.')}
                             target="_blank"
-                            rel="noreferrer"
+                            rel="noopener noreferrer"
                             className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full bg-[#CDA032] text-black font-black uppercase tracking-widest text-xs hover:scale-105 transition-transform"
                         >
                             <MessageCircle size={16} /> WhatsApp Us
                         </a>
                         <a
-                            href="mailto:support@blackbox.tech"
+                            href={mailtoSupport('BlackBox support', 'Hi BlackBox team,\n\n')}
                             className={`inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-widest text-xs border transition-transform hover:scale-105 ${isLight ? 'border-black/20 text-black hover:bg-black/5' : 'border-white/20 text-white hover:bg-white/5'}`}
                         >
                             <Mail size={16} /> Email Us
                         </a>
                         <a
-                            href="tel:+233501234567"
+                            href={`tel:${SUPPORT_PHONE_TEL}`}
                             className={`inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full font-black uppercase tracking-widest text-xs border transition-transform hover:scale-105 ${isLight ? 'border-black/20 text-black hover:bg-black/5' : 'border-white/20 text-white hover:bg-white/5'}`}
                         >
                             <Phone size={16} /> Call Support

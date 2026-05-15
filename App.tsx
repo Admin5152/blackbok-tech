@@ -20,6 +20,7 @@ import AuthService from './lib/auth';
 import { canAccessAdminDashboard, normalizeCanonicalRole } from './lib/roles';
 import { setupMobileBackButton, preventAppClose } from './lib/mobileNavigation';
 import { scrollToDocumentTop } from './lib/scrollToDocumentTop';
+import { whatsAppUrl } from './lib/contact';
 import { INITIAL_PRODUCTS } from './constants';
 import { getAvailableStock } from './lib/productOptions';
 import { Navbar } from './components/Navbar';
@@ -1275,7 +1276,7 @@ function RootComponent() {
             setUser={setUser}
           />
 
-          <FloatingWhatsApp phoneNumber="233000000000" theme={theme} hasNotification={notifications.length > 0} />
+          <FloatingWhatsApp theme={theme} hasNotification={notifications.length > 0} />
 
           <main className="flex-1">
             <Outlet />
@@ -1381,7 +1382,7 @@ function RootComponent() {
                   { id: 'cart', label: 'Cart', icon: ShoppingCart, path: '/cart', count: cart.length },
                   { id: 'profile', label: 'Account', icon: UserIcon, path: '/profile' },
                   { id: 'about', label: 'About Us', icon: Sparkles, path: '/about' },
-                  { id: 'contact', label: 'Contact', icon: WhatsAppIcon, path: 'https://wa.me/233000000000' }
+                  { id: 'contact', label: 'Contact', icon: WhatsAppIcon, path: whatsAppUrl() }
                 ].map((item: any) => {
                   const isActive = location.pathname === item.path;
 

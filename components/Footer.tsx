@@ -2,6 +2,7 @@ import React from 'react';
 import { Instagram, Linkedin, MapPin, Phone } from 'lucide-react';
 import { WhatsAppIcon } from './Icons';
 import { Link } from '@tanstack/react-router';
+import { SUPPORT_PHONE_TEL, WHATSAPP_DISPLAY, whatsAppUrl } from '../lib/contact';
 
 type Theme = 'light' | 'dark';
 
@@ -53,7 +54,7 @@ export const Footer: React.FC<FooterProps> = ({ theme }) => {
             </p>
             <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
               <a
-                href="https://wa.me/+233543217272"
+                href={whatsAppUrl()}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/40 hover:bg-[#25D366] hover:text-white transition-all hover:scale-110 active:scale-90"
@@ -130,8 +131,8 @@ export const Footer: React.FC<FooterProps> = ({ theme }) => {
                 </li>
                 <li className={`flex items-start gap-2 normal-case font-semibold tracking-normal text-xs ${isLight ? 'text-black/50' : 'text-white/40'}`}>
                   <Phone size={14} className="shrink-0 mt-0.5" aria-hidden />
-                  <a href="tel:+233501234567" className={a}>
-                    +233 50 123 4567
+                  <a href={`tel:${SUPPORT_PHONE_TEL}`} className={a}>
+                    {WHATSAPP_DISPLAY}
                   </a>
                 </li>
               </>,

@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Trash2, X, AlertTriangle, Shield, Mail, Calendar, Package, Wrench, RefreshCw } from 'lucide-react';
+import type { DeletionPreview } from '../lib/accountDeletionGuards';
 
 interface DeleteAccountModalProps {
   isOpen: boolean;
@@ -9,14 +10,7 @@ interface DeleteAccountModalProps {
   error: string;
   password: string;
   setPassword: (password: string) => void;
-  userData: {
-    email: string;
-    name: string;
-    createdAt: string;
-    orderCount: number;
-    repairCount: number;
-    tradeCount: number;
-  } | null;
+  userData: DeletionPreview | null;
   requiresPassword: boolean;
   theme: 'light' | 'dark';
 }
@@ -34,6 +28,13 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
   theme
 }) => {
   const isDark = theme === 'dark';
+  const [acknowledgePending, setAcknowledgePending] = useState(false);
+  const pending = userData?.pendingItems ?? [];
+  const hasPending = pending.length > 0;
+
+  useEffect(() => {
+    if (isOpen) setAcknowledgePending(false);
+  }, [isOpen, userData?.email]);
 
   if (!isOpen) return null;
 
@@ -44,6 +45,11 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
       onConfirm();
     }
   };
+
+  const canConfirm =
+    !isDeleting &&
+    (!requiresPassword || password.trim().length > 0) &&
+    (!hasPending || acknowledgePending);
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
@@ -105,6 +111,43 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
             </div>
           </div>
         </div>
+
+        {hasPending && (
+          <div
+            className={`p-4 rounded-lg border mb-6 ${
+              isDark ? 'bg-amber-500/10 border-amber-500/30' : 'bg-amber-50 border-amber-200'
+            }`}
+          >
+            <p className={`text-sm font-semibold mb-2 ${isDark ? 'text-amber-200' : 'text-amber-900'}`}>
+              You still have active activity on your account
+            </p>
+            <p className={`text-xs mb-3 ${isDark ? 'text-white/70' : 'text-black/70'}`}>
+              Deletion is only allowed once orders, repairs, and trade-ins are completed — or if you cancel them
+              now. If you continue, the following will be <strong>cancelled</strong> automatically:
+            </p>
+            <ul className={`text-xs space-y-1.5 mb-4 max-h-32 overflow-y-auto ${isDark ? 'text-white/80' : 'text-black/80'}`}>
+              {pending.map((item) => (
+                <li key={`${item.kind}-${item.id}`} className="flex justify-between gap-2">
+                  <span>{item.label}</span>
+                  <span className="opacity-60 shrink-0">{item.status}</span>
+                </li>
+              ))}
+            </ul>
+            <label className={`flex items-start gap-2 cursor-pointer text-xs ${isDark ? 'text-white/90' : 'text-black/90'}`}>
+              <input
+                type="checkbox"
+                checked={acknowledgePending}
+                onChange={(e) => setAcknowledgePending(e.target.checked)}
+                className="mt-0.5 rounded border-white/30"
+                disabled={isDeleting}
+              />
+              <span>
+                I understand my open order(s), repair(s), and/or trade-in(s) will be cancelled if I delete my
+                account.
+              </span>
+            </label>
+          </div>
+        )}
 
         {/* User Data Summary */}
         {userData && (
@@ -198,9 +241,9 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
           </button>
           <button
             onClick={handleConfirm}
-            disabled={isDeleting || (requiresPassword && !password)}
+            disabled={!canConfirm}
             className={`flex-1 px-4 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
-              isDeleting || (requiresPassword && !password)
+              !canConfirm
                 ? 'bg-gray-500 text-gray-300 cursor-not-allowed'
                 : 'bg-red-600 text-white hover:bg-red-700 active:scale-95'
             }`}
@@ -219,17 +262,18 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
           </button>
         </div>
 
-        {/* Final Confirmation */}
-        <div className={`mt-4 p-3 rounded-lg border ${
-          isDark ? 'bg-yellow-500/10 border-yellow-500/20' : 'bg-yellow-50 border-yellow-200'
-        }`}>
-          <div className="flex items-center gap-2">
-            <Shield className={`w-4 h-4 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />
-            <p className={`text-xs ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`}>
-              Type "DELETE" in the password field to confirm permanent deletion
-            </p>
+        {!hasPending && (
+          <div className={`mt-4 p-3 rounded-lg border ${
+            isDark ? 'bg-yellow-500/10 border-yellow-500/20' : 'bg-yellow-50 border-yellow-200'
+          }`}>
+            <div className="flex items-center gap-2">
+              <Shield className={`w-4 h-4 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />
+              <p className={`text-xs ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`}>
+                This action is permanent and cannot be undone.
+              </p>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
