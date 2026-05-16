@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Plus, Edit2, Trash2, Save, X, AlertTriangle, Box, Star } from 'lucide-react';
+import { Package, Plus, Edit2, Trash2, AlertTriangle, Box, Star } from 'lucide-react';
 import { SearchInput, Modal, ModalClose, Td, Th, TableWrapper, PROD_KEY } from './adminUtils';
 import {
     getProducts, createProduct, updateProduct, deleteProduct,
@@ -13,19 +13,12 @@ import {
     totalSkuStock,
 } from '../../lib/productSkuMatrix';
 import type { SkuMatrixRow } from '../../lib/productSkuMatrix';
-import { ProductSkuMatrix } from './ProductSkuMatrix';
+import { AdminProductForm, PRODUCT_CATEGORIES, type ProductDraft } from './AdminProductForm';
 // Products are sourced exclusively from Supabase.
 import type { Product } from '../../types';
 import { formatCurrency } from '../../lib/utils';
 
 interface Props { canEdit?: boolean; }
-
-const CATEGORIES = ['iPhone', 'Laptop', 'Gaming', 'Accessories', 'Audio', 'Tablet', 'Trades'] as const;
-
-type ProductDraft = Partial<Product> & {
-    colors?: string[]; storage?: string[]; ram?: string[]; specs?: string[];
-    featured?: boolean;
-};
 
 const EMPTY: ProductDraft = {
     name: '', price: 0, category: 'iPhone', description: '', image: '',
@@ -248,7 +241,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
         });
     };
 
-    const cats = ['All', ...CATEGORIES];
+    const cats = ['All', ...PRODUCT_CATEGORIES];
     const filtered = products.filter(p => {
         const mQ = String(p.name ?? '').toLowerCase().includes(q.toLowerCase());
         const mC = catFilter === 'All' || p.category === catFilter;
@@ -369,147 +362,32 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
                 </TableWrapper>
             )}
 
-            {/* Product Form Modal */}
             {showForm && (
-                <Modal onClose={() => { setShowForm(false); setError(''); }} maxW="max-w-3xl">
+                <Modal onClose={() => { setShowForm(false); setError(''); }} maxW="max-w-5xl">
                     <ModalClose onClose={() => { setShowForm(false); setError(''); }} />
-                    <div className="p-6 overflow-y-auto max-h-[88vh]">
-                        <h3 className="text-base font-black text-white mb-5">{draft.id ? 'Edit Product' : 'Add New Product'}</h3>
-
-                        {error && <div className="mb-4 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-xl px-4 py-3">{error}</div>}
-
-                        <div className="space-y-4">
-                            {/* Name + Price */}
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="col-span-2">
-                                    <label className="text-[9px] font-black uppercase tracking-widest text-white/30 block mb-1">Product Name *</label>
-                                    <input placeholder="e.g. iPhone 16 Pro Max" value={draft.name ?? ''}
-                                        onChange={e => setDraft({ ...draft, name: e.target.value })}
-                                        className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:border-[#B38B21]/50 focus:outline-none" />
-                                </div>
-                                <div>
-                                    <label className="text-[9px] font-black uppercase tracking-widest text-white/30 block mb-1">Price (GH₵) *</label>
-                                    <input type="number" placeholder="0.00" value={draft.price ?? ''}
-                                        onChange={e => setDraft({ ...draft, price: parseFloat(e.target.value) || 0 })}
-                                        className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:border-[#B38B21]/50 focus:outline-none" />
-                                </div>
-                                <div>
-                                    <label className="text-[9px] font-black uppercase tracking-widest text-white/30 block mb-1">Category</label>
-                                    <select value={draft.category ?? 'iPhone'} onChange={e => setDraft({ ...draft, category: e.target.value as any })}
-                                        className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:border-[#B38B21]/50 focus:outline-none">
-                                        {CATEGORIES.map(c => <option key={c}>{c}</option>)}
-                                    </select>
-                                </div>
-                                {!skuMatrixEnabled && (
-                                    <div>
-                                        <label className="text-[9px] font-black uppercase tracking-widest text-white/30 block mb-1">Stock</label>
-                                        <input type="number" placeholder="Stock" value={draft.stock ?? ''}
-                                            onChange={e => setDraft({ ...draft, stock: parseFloat(e.target.value) || 0 })}
-                                            className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:border-[#B38B21]/50 focus:outline-none" />
-                                    </div>
-                                )}
-                                {skuMatrixEnabled && skuRows.length > 0 && (
-                                    <div>
-                                        <label className="text-[9px] font-black uppercase tracking-widest text-white/30 block mb-1">Total stock</label>
-                                        <p className="w-full bg-black/30 border border-white/10 rounded-xl px-3 py-2 text-white/50 text-sm">
-                                            {totalSkuStock(skuRows)} <span className="text-[10px] text-white/30">(sum of SKU rows)</span>
-                                        </p>
-                                    </div>
-                                )}
-                                {[['Discount (%)', 'discount'], ['Rating (0-5)', 'rating']].map(([l, k]) => (
-                                    <div key={k}>
-                                        <label className="text-[9px] font-black uppercase tracking-widest text-white/30 block mb-1">{l}</label>
-                                        <input type="number" placeholder={l} value={(draft as any)[k] ?? ''}
-                                            onChange={e => setDraft({ ...draft, [k]: parseFloat(e.target.value) || 0 })}
-                                            className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:border-[#B38B21]/50 focus:outline-none" />
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* Image URL */}
-                            <div>
-                                <label className="text-[9px] font-black uppercase tracking-widest text-white/30 block mb-1">Image URL</label>
-                                <input type="text" placeholder="https://..." value={draft.image ?? ''}
-                                    onChange={e => setDraft({ ...draft, image: e.target.value })}
-                                    className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:border-[#B38B21]/50 focus:outline-none" />
-                                {draft.image && (
-                                    <img src={draft.image} alt="" className="mt-2 h-16 w-auto object-contain rounded-xl bg-white/5 p-2"
-                                        onError={e => (e.currentTarget.style.display = 'none')} />
-                                )}
-                            </div>
-
-                            {/* Description */}
-                            <div>
-                                <label className="text-[9px] font-black uppercase tracking-widest text-white/30 block mb-1">Description</label>
-                                <textarea rows={2} placeholder="Product description..." value={draft.description ?? ''}
-                                    onChange={e => setDraft({ ...draft, description: e.target.value })}
-                                    className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-sm resize-none focus:border-[#B38B21]/50 focus:outline-none" />
-                            </div>
-
-                            {/* Chip fields */}
-                            <ChipField label="Color Options" chips={draft.colors || []} inputVal={colorIn} setInputVal={setColorIn}
-                                placeholder="e.g. Black Titanium" onAdd={() => addChip('colors', colorIn, () => setColorIn(''))} onRemove={v => rmChip('colors', v)} />
-                            <ChipField label="Storage Options" chips={draft.storage || []} inputVal={storageIn} setInputVal={setStorageIn}
-                                placeholder="e.g. 256GB" onAdd={() => addChip('storage', storageIn, () => setStorageIn(''))} onRemove={v => rmChip('storage', v)} />
-                            <ChipField label="RAM Options" chips={draft.ram || []} inputVal={ramIn} setInputVal={setRamIn}
-                                placeholder="e.g. 16GB" onAdd={() => addChip('ram', ramIn, () => setRamIn(''))} onRemove={v => rmChip('ram', v)} />
-                            <ChipField label="Spec highlights (PDP)" chips={draft.specs || []} inputVal={specsIn} setInputVal={setSpecsIn}
-                                placeholder="e.g. A18 chip, Ceramic Shield" onAdd={() => addChip('specs', specsIn, () => setSpecsIn(''))} onRemove={v => rmChip('specs', v)} />
-
-                            <ProductSkuMatrix
-                                colors={draft.colors || []}
-                                storage={draft.storage || []}
-                                ram={draft.ram || []}
-                                enabled={skuMatrixEnabled}
-                                onEnabledChange={setSkuMatrixEnabled}
-                                rows={skuRows}
-                                onRowsChange={setSkuRows}
-                            />
-
-                            {/* Checkboxes */}
-                            <div className="flex gap-6">
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" checked={draft.new ?? false} onChange={e => setDraft({ ...draft, new: e.target.checked })} className="accent-[#B38B21]" />
-                                    <span className="text-xs text-white/50">Mark as New</span>
-                                </label>
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" checked={(draft as any).featured ?? false} onChange={e => setDraft({ ...draft, featured: e.target.checked })} className="accent-[#B38B21]" />
-                                    <span className="text-xs text-white/50">⭐ Feature on Homepage</span>
-                                </label>
-                            </div>
-
-                            <button type="button" onClick={submitForm} disabled={saving || !draft.name?.trim() || !Number.isFinite(Number(draft.price)) || Number(draft.price) < 0}
-                                className="w-full py-3 bg-[#B38B21] text-black font-black text-xs uppercase tracking-widest rounded-xl hover:bg-[#D4AF37] transition-all disabled:opacity-40 flex items-center justify-center gap-2">
-                                <Save size={14} /> {saving ? 'Saving...' : (draft.id ? 'Save Changes' : 'Add Product')}
-                            </button>
-                        </div>
-                    </div>
+                    <AdminProductForm
+                        draft={draft}
+                        setDraft={setDraft}
+                        colorIn={colorIn}
+                        setColorIn={setColorIn}
+                        storageIn={storageIn}
+                        setStorageIn={setStorageIn}
+                        ramIn={ramIn}
+                        setRamIn={setRamIn}
+                        specsIn={specsIn}
+                        setSpecsIn={setSpecsIn}
+                        onAddChip={addChip}
+                        onRemoveChip={rmChip}
+                        skuMatrixEnabled={skuMatrixEnabled}
+                        setSkuMatrixEnabled={setSkuMatrixEnabled}
+                        skuRows={skuRows}
+                        setSkuRows={setSkuRows}
+                        saving={saving}
+                        error={error}
+                        onSubmit={submitForm}
+                    />
                 </Modal>
             )}
         </div>
     );
 };
-
-// ── ChipField ──────────────────────────────────────────────────────────────────
-const ChipField = ({ label, chips, inputVal, setInputVal, placeholder, onAdd, onRemove }: {
-    label: string; chips: string[]; inputVal: string; setInputVal: (v: string) => void;
-    placeholder: string; onAdd: () => void; onRemove: (v: string) => void;
-}) => (
-    <div>
-        <label className="text-[9px] font-black uppercase tracking-widest text-white/30 block mb-1">{label}</label>
-        <div className="flex flex-wrap gap-1.5 mb-2">
-            {chips.map(c => (
-                <span key={c} className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[10px] text-white/60">
-                    {c}
-                    <button onClick={() => onRemove(c)} className="text-white/30 hover:text-red-400 transition-colors"><X size={10} /></button>
-                </span>
-            ))}
-        </div>
-        <div className="flex gap-2">
-            <input value={inputVal} onChange={e => setInputVal(e.target.value)} placeholder={placeholder}
-                onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), onAdd())}
-                className="flex-1 bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none" />
-            <button type="button" onClick={onAdd} className="px-3 py-2 bg-white/5 hover:bg-[#B38B21]/20 text-white/40 hover:text-[#B38B21] border border-white/10 rounded-xl text-xs font-black transition-all">Add chip</button>
-        </div>
-    </div>
-);
