@@ -69,7 +69,7 @@ function toCheckoutCartItem(item: CartItem): CheckoutCartItem {
     unit_price: Number(item.price || 0),
     product_name: item.name ?? null,
     product_image: item.image ?? item.image_url ?? null,
-    product_options: buildProductOptionsForRpc(item.selectedOptions),
+    product_options: buildProductOptionsForRpc(item.selectedOptions) ?? {},
   };
 }
 

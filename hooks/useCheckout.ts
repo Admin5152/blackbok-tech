@@ -167,8 +167,18 @@ export function useCheckout(): UseCheckoutResult {
       // 2. Call place_order RPC. Only forward metadata fields when
       //    they're explicitly provided so we don't override the RPC
       //    defaults with stray nulls.
+      const normalizedCart = cartItems.map((line) => ({
+        ...line,
+        product_options:
+          line.product_options != null &&
+          typeof line.product_options === 'object' &&
+          !Array.isArray(line.product_options)
+            ? line.product_options
+            : {},
+      }));
+
       const rpcArgs: Record<string, unknown> = {
-        p_cart_items: cartItems,
+        p_cart_items: normalizedCart,
         p_coupon_id: coupon?.id ?? null,
         p_discount_amount: coupon?.discountAmount ?? 0,
       };
