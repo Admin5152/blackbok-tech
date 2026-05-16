@@ -94,6 +94,18 @@ export function canUseSkuMatrix(colors: string[], storage: string[], ram: string
 
 export function skuMatrixEnabledForProduct(product: Product | null | undefined): boolean {
   if (!product) return false;
-  const rows = parseSkuVariants(product.variants);
-  return rows.length > 0;
+  if (parseSkuVariants(product.variants).length > 0) return true;
+  const p = product as Product & { colors?: string[]; storage?: string[]; ram?: string[] };
+  return canUseSkuMatrix(p.colors || [], p.storage || [], p.ram || []);
+}
+
+/** Keep matrix rows aligned when Color / Storage / RAM chips change. */
+export function syncSkuRowsFromChips(
+  colors: string[],
+  storage: string[],
+  ram: string[],
+  existing: SkuMatrixRow[],
+): SkuMatrixRow[] {
+  if (!canUseSkuMatrix(colors, storage, ram)) return [];
+  return mergeSkuMatrix(buildSkuCombinations(colors, storage, ram), existing);
 }

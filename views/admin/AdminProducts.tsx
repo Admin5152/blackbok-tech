@@ -6,7 +6,11 @@ import {
     syncProductVariants, clearProductVariants, type SkuVariantInput,
 } from '../../lib/api';
 import {
-    parseSkuVariants, skuMatrixEnabledForProduct, totalSkuStock,
+    parseSkuVariants,
+    skuMatrixEnabledForProduct,
+    syncSkuRowsFromChips,
+    canUseSkuMatrix,
+    totalSkuStock,
 } from '../../lib/productSkuMatrix';
 import type { SkuMatrixRow } from '../../lib/productSkuMatrix';
 import { ProductSkuMatrix } from './ProductSkuMatrix';
@@ -46,9 +50,34 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
     const [error, setError] = useState('');
 
     const resetSkuState = (p?: Product | ProductDraft) => {
-        const rows = parseSkuVariants(p?.variants);
+        const colors = p?.colors || [];
+        const storage = p?.storage || [];
+        const ram = p?.ram || [];
+        const fromDb = parseSkuVariants(p?.variants);
+        const rows =
+            fromDb.length > 0
+                ? fromDb
+                : canUseSkuMatrix(colors, storage, ram)
+                  ? syncSkuRowsFromChips(colors, storage, ram, [])
+                  : [];
         setSkuRows(rows);
-        setSkuMatrixEnabled(rows.length > 0 || (p ? skuMatrixEnabledForProduct(p as Product) : false));
+        setSkuMatrixEnabled(p ? skuMatrixEnabledForProduct(p as Product) : false);
+    };
+
+    const applyDraftChips = (next: ProductDraft) => {
+        setDraft(next);
+        const colors = next.colors || [];
+        const storage = next.storage || [];
+        const ram = next.ram || [];
+        if (!canUseSkuMatrix(colors, storage, ram)) {
+            if (!parseSkuVariants(next.variants).length) {
+                setSkuMatrixEnabled(false);
+                setSkuRows([]);
+            }
+            return;
+        }
+        setSkuMatrixEnabled(true);
+        setSkuRows((prev) => syncSkuRowsFromChips(colors, storage, ram, prev));
     };
 
     const load = async (opts?: { silent?: boolean }) => {
@@ -98,7 +127,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
             return;
         }
         if (skuMatrixEnabled && skuRows.length === 0) {
-            setError('Generate SKU rows from your chips or turn off per-combination stock.');
+            setError('Add Color / Storage / RAM chips, enable per-combination stock, and wait for rows to appear (or click Create rows).');
             return;
         }
 
@@ -166,7 +195,14 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
             await load({ silent: true });
             window.dispatchEvent(new CustomEvent('products:refresh'));
         } catch (e: any) {
-            setError('Save failed: ' + (e.message || 'Unknown error'));
+            const msg = String(e?.message || e || '');
+            if (/product_variants|column|permission|policy/i.test(msg)) {
+                setError(
+                    'Could not save SKU rows. Run migrations 2026_05_product_variants_sku_columns.sql and 2026_05_product_variants_admin_rls.sql in Supabase, then try again.',
+                );
+            } else {
+                setError('Save failed: ' + (msg || 'Unknown error'));
+            }
         } finally {
             setSaving(false);
         }
@@ -190,11 +226,27 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
     const addChip = (field: 'colors' | 'storage' | 'ram' | 'specs', val: string, clear: () => void) => {
         if (!val.trim()) return;
         const arr = (draft[field] as string[] | undefined) || [];
-        if (!arr.includes(val.trim())) setDraft({ ...draft, [field]: [...arr, val.trim()] });
+        if (arr.includes(val.trim())) {
+            clear();
+            return;
+        }
+        if (field === 'specs') {
+            setDraft({ ...draft, specs: [...(draft.specs || []), val.trim()] });
+        } else {
+            applyDraftChips({ ...draft, [field]: [...arr, val.trim()] });
+        }
         clear();
     };
-    const rmChip = (field: 'colors' | 'storage' | 'ram' | 'specs', val: string) =>
-        setDraft({ ...draft, [field]: ((draft[field] as string[] | undefined) || []).filter(x => x !== val) });
+    const rmChip = (field: 'colors' | 'storage' | 'ram' | 'specs', val: string) => {
+        if (field === 'specs') {
+            setDraft({ ...draft, specs: ((draft.specs as string[] | undefined) || []).filter((x) => x !== val) });
+            return;
+        }
+        applyDraftChips({
+            ...draft,
+            [field]: ((draft[field] as string[] | undefined) || []).filter((x) => x !== val),
+        });
+    };
 
     const cats = ['All', ...CATEGORIES];
     const filtered = products.filter(p => {
