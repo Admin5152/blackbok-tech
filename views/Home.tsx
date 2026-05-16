@@ -379,15 +379,17 @@ export const Home: React.FC<HomeProps> = ({
             className="bb-home-rail flex items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar px-4 md:px-8 pb-8"
             style={{ scrollPaddingLeft: 'max(1rem, env(safe-area-inset-left))' }}
           >
-            <div data-home-rail-item className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#16161f] ring-1 ring-inset ring-white/[0.06]' : 'bg-[#f5f5f7]'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5 ${homePromoCardHover}`}>
-              <div>
-                <h2 className="text-3xl md:text-5xl font-bold tracking-tight">Featured picks</h2>
-                <p className={`mt-3 max-w-[20rem] text-sm leading-relaxed ${theme === 'dark' ? 'text-white/65' : 'text-black/65'}`}>
+            <div
+              data-home-rail-item
+              className={`bb-home-rail-promo-card group w-[300px] md:w-[400px] h-[400px] md:h-[500px] rounded-[2rem] flex-shrink-0 relative overflow-hidden shadow-sm border border-black/5 dark:border-white/5 ring-1 ring-inset ${theme === 'dark' ? 'ring-white/[0.06]' : 'ring-black/[0.06]'} ${homePromoCardHover}`}
+            >
+              <img src="/iPhone.jpeg" alt="" className="bb-home-rail-promo-card__img" loading="lazy" decoding="async" />
+              <div className="bb-home-rail-promo-card__scrim" aria-hidden />
+              <div className="bb-home-rail-promo-card__content">
+                <h2 className="text-3xl md:text-5xl font-bold tracking-tight drop-shadow-sm">Featured picks</h2>
+                <p className="mt-3 max-w-[20rem] text-sm leading-relaxed text-white/75">
                   Scroll this row, then tap a card or the eye icon for a quick preview. The arrow opens the full listing.
                 </p>
-              </div>
-              <div className="flex justify-center mt-8">
-                <img src="/iPhone.jpeg" alt="" className="h-40 md:h-56 w-40 md:w-56 object-cover rounded-2xl drop-shadow-xl" />
               </div>
             </div>
 
@@ -523,15 +525,17 @@ export const Home: React.FC<HomeProps> = ({
 
           <div id="accessories-slider" data-lenis-prevent className="bb-home-rail flex items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar px-4 md:px-8 pb-8" style={{ scrollPaddingLeft: 'max(1rem, env(safe-area-inset-left))' }}>
             {/* Promo Card */}
-            <div data-home-rail-item className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#16161f] ring-1 ring-inset ring-white/[0.06]' : 'bg-white'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5 ${homePromoCardHover}`}>
-              <div>
-                <h2 className="text-3xl md:text-5xl font-bold tracking-tight">Take a peek</h2>
-                <p className={`mt-3 max-w-[20rem] text-sm leading-relaxed ${theme === 'dark' ? 'text-white/65' : 'text-black/65'}`}>
+            <div
+              data-home-rail-item
+              className={`bb-home-rail-promo-card group w-[300px] md:w-[400px] h-[400px] md:h-[500px] rounded-[2rem] flex-shrink-0 relative overflow-hidden shadow-sm border border-black/5 dark:border-white/5 ring-1 ring-inset ${theme === 'dark' ? 'ring-white/[0.06]' : 'ring-black/[0.06]'} ${homePromoCardHover}`}
+            >
+              <img src="/cases.jpeg" alt="Accessories" className="bb-home-rail-promo-card__img" loading="lazy" decoding="async" />
+              <div className="bb-home-rail-promo-card__scrim" aria-hidden />
+              <div className="bb-home-rail-promo-card__content">
+                <h2 className="text-3xl md:text-5xl font-bold tracking-tight drop-shadow-sm">Take a peek</h2>
+                <p className="mt-3 max-w-[20rem] text-sm leading-relaxed text-white/75">
                   Swipe or scroll sideways, then tap a card or the eye icon to preview accessories before you add to cart.
                 </p>
-              </div>
-              <div className="flex justify-center mt-8">
-                <img src="/cases.jpeg" alt="Accessories" className="h-40 md:h-56 w-40 md:w-56 object-cover rounded-2xl drop-shadow-xl" />
               </div>
             </div>
 
@@ -654,21 +658,19 @@ export const Home: React.FC<HomeProps> = ({
 
           <div id="laptop-slider" data-lenis-prevent className="bb-home-rail flex items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar px-4 md:px-8 pb-8" style={{ scrollPaddingLeft: 'max(1rem, env(safe-area-inset-left))' }}>
             {/* Promo Card */}
-            <div data-home-rail-item className={`w-[300px] md:w-[400px] min-h-[400px] md:min-h-[500px] ${theme === 'dark' ? 'bg-[#16161f] ring-1 ring-inset ring-white/[0.06]' : 'bg-[#F2F4F7]'} ${theme === 'dark' ? 'text-white' : 'text-black'} p-8 md:p-12 rounded-[2rem] flex flex-col justify-between flex-shrink-0 shadow-sm border border-black/5 dark:border-white/5 relative overflow-hidden group ${homePromoCardHover}`}>
-              <div className="relative z-10">
-                <h2 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase leading-tight">Laptops.</h2>
-                <p className={`mt-3 max-w-[20rem] text-sm leading-relaxed normal-case font-normal not-italic tracking-normal ${theme === 'dark' ? 'text-white/65' : 'text-black/65'}`}>
+            <div
+              data-home-rail-item
+              className={`bb-home-rail-promo-card group w-[300px] md:w-[400px] h-[400px] md:h-[500px] rounded-[2rem] flex-shrink-0 relative overflow-hidden shadow-sm border border-black/5 dark:border-white/5 ring-1 ring-inset ${theme === 'dark' ? 'ring-white/[0.06]' : 'ring-black/[0.06]'} ${homePromoCardHover}`}
+            >
+              <img src="/laptop.jpeg" alt="Laptops" className="bb-home-rail-promo-card__img" loading="lazy" decoding="async" />
+              <div className="bb-home-rail-promo-card__scrim" aria-hidden />
+              <div className="absolute -bottom-10 -right-10 z-[1] w-40 h-40 rounded-full bg-[#CDA032]/25 blur-[60px] transition-transform duration-1000 group-hover:scale-150 pointer-events-none" aria-hidden />
+              <div className="bb-home-rail-promo-card__content">
+                <h2 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase leading-tight drop-shadow-sm">Laptops.</h2>
+                <p className="mt-3 max-w-[20rem] text-sm font-normal not-italic tracking-normal leading-relaxed text-white/75">
                   Scroll for MacBooks and more; tap a card or the eye for quick view, then use the arrow for full details.
                 </p>
               </div>
-              <div className="flex justify-center mt-8 relative z-10 transform group-hover:scale-110 transition-transform duration-700">
-                <img
-                  src="/laptop.jpeg"
-                  alt="Laptops"
-                  className="h-40 md:h-56 max-w-full object-contain drop-shadow-2xl"
-                />
-              </div>
-              <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-[#CDA032]/20 rounded-full blur-[60px] group-hover:scale-150 transition-transform duration-1000"></div>
             </div>
 
             {/* Product Cards */}
