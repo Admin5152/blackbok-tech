@@ -407,13 +407,14 @@ html.lenis [data-lenis-prevent] {
   overscroll-behavior: contain;
 }
 
-/* Home: horizontal product rails — native touch scroll, no fight with Lenis */
+/* Home: horizontal product rails — allow vertical page scroll on touch + wheel */
 .bb-home-rail {
   -webkit-overflow-scrolling: touch;
-  touch-action: pan-x;
+  touch-action: pan-x pan-y;
   overscroll-behavior-x: contain;
-  scroll-behavior: smooth;
-  scroll-snap-type: x mandatory;
+  overscroll-behavior-y: auto;
+  scroll-behavior: auto;
+  scroll-snap-type: x proximity;
 }
 
 .bb-home-rail > [data-home-rail-item] {
@@ -1234,7 +1235,7 @@ body {
   background: var(--bb-bg);
   color: var(--bb-text);
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
+  overscroll-behavior-y: auto;
 }
 
 /* Ease GPU load during fast scroll — pause decorative motion */

@@ -10,6 +10,7 @@ import { HERO_COLLAGE_FILENAMES, getImagesForTheme } from '../data/heroImages';
 import { formatCurrency, TW_DARK_BTN_DEPTH, TW_DARK_GOLD_BTN_DEPTH } from '../lib/utils';
 import { normalizeProductCategory } from '../lib/api';
 import { scrollHomeRail } from '../lib/homeCarouselScroll';
+import { useHomeRailScroll } from '../hooks/useHomeRailScroll';
 
 /** Editorial overlap positions (sizes bumped so flyers fill the hero). Rotation = CSS animation per tile. */
 const HERO_COLLAGE_FRAMES = [
@@ -70,6 +71,8 @@ export const Home: React.FC<HomeProps> = ({
   }, [theme]);
 
   const heroSlideCount = heroImageFilenames.length;
+
+  useHomeRailScroll();
 
   useEffect(() => {
     setHeroSlide(0);
