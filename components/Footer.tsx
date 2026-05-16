@@ -2,7 +2,7 @@ import React from 'react';
 import { Instagram, Linkedin, MapPin, Phone } from 'lucide-react';
 import { WhatsAppIcon } from './Icons';
 import { Link } from '@tanstack/react-router';
-import { SUPPORT_PHONE_TEL, WHATSAPP_DISPLAY, whatsAppUrl } from '../lib/contact';
+import { INSTAGRAM_URL, SUPPORT_PHONE_TEL, WHATSAPP_DISPLAY, whatsAppUrl } from '../lib/contact';
 
 type Theme = 'light' | 'dark';
 
@@ -63,7 +63,7 @@ export const Footer: React.FC<FooterProps> = ({ theme }) => {
                 <WhatsAppIcon size={18} />
               </a>
               <a
-                href="https://www.instagram.com/blackbox_gh/"
+                href={INSTAGRAM_URL}
                 target="_blank"
                 rel="noreferrer"
                 aria-label="Instagram"

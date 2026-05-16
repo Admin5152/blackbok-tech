@@ -131,7 +131,7 @@ export const Compare: React.FC = () => {
                         <p className={`text-[11px] font-black uppercase tracking-[0.5em] italic ${textMuted}`}>Repository empty. Inject units to begin analysis.</p>
                     </div>
                 ) : (
-                    <div className="overflow-x-auto pb-12 no-scrollbar">
+                    <div className="overflow-x-auto pb-12 bb-scrollbar">
                         <div className="flex gap-6 min-w-max px-2">
                             {compareProducts.map(p => (
                                 <div key={p.id} className="w-[320px] group animate-in fade-in zoom-in duration-500">

@@ -19,6 +19,10 @@
   /* Light ⇄ dark crossfade — used by `.bb-theme-transition` and shells */
   --bb-theme-duration: 520ms;
   --bb-theme-easing: cubic-bezier(0.22, 0.82, 0.24, 1);
+
+  --bb-scrollbar-track: rgba(255, 255, 255, 0.08);
+  --bb-scrollbar-thumb: rgba(205, 160, 50, 0.55);
+  --bb-scrollbar-thumb-hover: rgba(205, 160, 50, 0.85);
 }
 
 html[data-theme="light"] {
@@ -33,6 +37,10 @@ html[data-theme="light"] {
   --bb-glow-1: rgba(0, 0, 0, 0.04);
   --bb-glow-2: rgba(0, 0, 0, 0.02);
   --bb-glow-3: rgba(0, 0, 0, 0.01);
+
+  --bb-scrollbar-track: rgba(0, 0, 0, 0.06);
+  --bb-scrollbar-thumb: rgba(179, 139, 33, 0.55);
+  --bb-scrollbar-thumb-hover: rgba(179, 139, 33, 0.85);
 }
 
 /* Light-mode compatibility layer for legacy dark-first Tailwind classes.
@@ -1190,11 +1198,21 @@ html[data-theme='light'] .bb-home-rail-product-card__media {
 
 .bb-product-card-media--cart {
   width: 100%;
-  height: 12rem;
-  padding: 1.25rem;
+  aspect-ratio: 1;
+  min-height: 9.5rem;
+  padding: 0;
 }
 
 @media (min-width: 640px) {
+  .bb-product-card-media--cart {
+    width: 10rem;
+    height: 10rem;
+    min-height: 0;
+    aspect-ratio: 1;
+  }
+}
+
+@media (min-width: 1024px) {
   .bb-product-card-media--cart {
     width: 12rem;
     height: 12rem;
@@ -1202,8 +1220,15 @@ html[data-theme='light'] .bb-home-rail-product-card__media {
 }
 
 .bb-product-card-media--cart .bb-product-card-img {
-  max-width: 9rem;
-  max-height: 9rem;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  max-width: none;
+  max-height: none;
+  object-fit: cover;
+  object-position: center;
 }
 
 body {
@@ -1281,41 +1306,56 @@ html.bb-is-scrolling .glow-border {
   color: var(--bb-text);
 }
 
-/* Premium Custom Scrollbars (macOS / Glassmorphism inspired) */
+/* Visible, theme-aware scrollbars (site-wide) */
 ::-webkit-scrollbar {
-  width: 14px; /* Slightly wider track to allow for borders acting as margins */
-  height: 14px;
+  width: 12px;
+  height: 12px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent; /* Clean transparent track */
+  background: var(--bb-scrollbar-track);
+  border-radius: 100px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15); /* Subtle glass thumb */
-  border-radius: 100px; /* Fully rounded */
-  border: 4px solid rgba(0, 0, 0, 0); /* Transparent border creates padding around the thumb */
-  background-clip: content-box; /* Makes the border act as padding */
+  background: var(--bb-scrollbar-thumb);
+  border-radius: 100px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  min-height: 40px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3); /* Brighter on hover */
-  background-clip: content-box;
+  background: var(--bb-scrollbar-thumb-hover);
+  background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-corner {
-  background: transparent;
+  background: var(--bb-scrollbar-track);
 }
 
-/* Firefox support */
-* {
+html {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  scrollbar-color: var(--bb-scrollbar-thumb) var(--bb-scrollbar-track);
 }
 
-/* Scrollable containers helper */
-.bb-scrollbar {
+/* Scrollable panels — use instead of no-scrollbar when users need to scroll */
+.bb-scrollbar,
+.custom-scrollbar {
   overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--bb-scrollbar-thumb) var(--bb-scrollbar-track);
+}
+
+.bb-scrollbar::-webkit-scrollbar,
+.custom-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.bb-scrollbar::-webkit-scrollbar-thumb,
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  border-width: 2px;
 }
 
 /* Home hero: fill viewport on mobile (dynamic URL bar) and desktop */
@@ -1419,7 +1459,7 @@ html.bb-is-scrolling .glow-border {
   }
 }
 
-/* Proper Hiding Utilities */
+/* Hide scrollbars only on horizontal carousels / chip rows (opt-in) */
 .scrollbar-hide::-webkit-scrollbar,
 .no-scrollbar::-webkit-scrollbar {
   display: none !important;
@@ -1429,8 +1469,8 @@ html.bb-is-scrolling .glow-border {
 
 .scrollbar-hide,
 .no-scrollbar {
-  -ms-overflow-style: none !important; /* IE and Edge */
-  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
 }
 
 /* Receipt: compact print / PDF (route /receipt/:id) */
@@ -1967,4 +2007,88 @@ html.bb-is-scrolling .glow-border {
   text-transform: uppercase;
   letter-spacing: 0.14em;
   color: var(--bb-nav-muted);
+}
+
+/* Cart — mobile checkout bar + scroll padding */
+.bb-cart-page--has-items {
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 1024px) {
+  .bb-cart-page--has-items {
+    padding-bottom: 4rem;
+  }
+}
+
+.bb-cart-checkout-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 55;
+  padding: 0.65rem 0.75rem calc(0.65rem + env(safe-area-inset-bottom, 0px));
+  background: color-mix(in srgb, var(--bb-bg) 92%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--bb-text) 12%, transparent);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.12);
+}
+
+.bb-cart-checkout-bar__inner {
+  max-width: 42rem;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.bb-cart-checkout-bar__total {
+  flex: 1;
+  min-width: 0;
+}
+
+.bb-cart-checkout-bar__label {
+  display: block;
+  font-size: 0.58rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  opacity: 0.5;
+}
+
+.bb-cart-checkout-bar__amount {
+  display: block;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #cda032;
+  letter-spacing: -0.02em;
+}
+
+.bb-cart-checkout-bar__btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.85rem 1.15rem;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #cda032, #b38b21);
+  color: #0a0a0a;
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.bb-cart-checkout-bar__btn:active {
+  transform: scale(0.98);
+}
+
+@media (min-width: 480px) {
+  .bb-cart-checkout-bar__btn {
+    padding: 0.9rem 1.35rem;
+    font-size: 0.68rem;
+  }
 }

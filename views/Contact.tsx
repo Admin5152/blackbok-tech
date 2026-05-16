@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Mail, Phone, MapPin, Send } from 'lucide-react';
 import { useAppContext } from '../App';
 import { sendContactFormEmail } from '../lib/contactEmail';
-import { mailtoSupport, SUPPORT_EMAIL, SUPPORT_PHONE_TEL, WHATSAPP_DISPLAY, whatsAppUrl } from '../lib/contact';
+import { INSTAGRAM_URL, mailtoSupport, SUPPORT_EMAIL, SUPPORT_PHONE_TEL, WHATSAPP_DISPLAY, whatsAppUrl } from '../lib/contact';
 import { PageBackButton } from '../components/PageBackButton';
 
 const inputBase = (isLight: boolean) =>
@@ -283,7 +283,7 @@ export const Contact: React.FC = () => {
 
               <div className="flex gap-3">
                 <a
-                  href="https://instagram.com"
+                  href={INSTAGRAM_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-9 h-9 rounded-xl bg-black/10 flex items-center justify-center shadow-sm transition-colors hover:bg-black hover:text-[#CDA032] text-black"

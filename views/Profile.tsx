@@ -1373,7 +1373,7 @@ export const Profile: React.FC<ProfileProps> = ({
             </div>
           </div>
 
-          <div className="flex flex-col gap-2 mt-3 overflow-y-auto no-scrollbar pb-10">
+          <div className="flex flex-col gap-2 mt-3 overflow-y-auto bb-scrollbar pb-10">
             {menuItems.map((item) => (
               <button
                 key={item.id}
@@ -1479,13 +1479,6 @@ export const Profile: React.FC<ProfileProps> = ({
         }
         .animate-spin-slow {
           animation: spin-slow 8s linear infinite;
-        }
-        .no-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-        .no-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
         }
       `}</style>
     </div>

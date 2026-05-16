@@ -17,6 +17,8 @@ import {
 import { CartItem, Product, User } from "../types";
 import { formatCurrency } from "../lib/utils";
 import { ProductCard } from "../components/ProductCard";
+import { PageBackButton } from "../components/PageBackButton";
+import { useAppContext } from "../App";
 
 interface CartProps {
   cart: CartItem[];
@@ -53,6 +55,8 @@ export const Cart: React.FC<CartProps> = ({
   handleCheckout,
   user,
 }) => {
+  const { theme } = useAppContext();
+  const isLight = theme === "light";
   const [deliveryMethod, setDeliveryMethod] = useState<'pickup'>('pickup');
   const [digitalAddress, setDigitalAddress] = useState(user?.address || '');
   const [region, setRegion] = useState(user?.region || '');
@@ -101,7 +105,7 @@ export const Cart: React.FC<CartProps> = ({
   })();
 
   return (
-    <div className="bg-[var(--bb-bg)] min-h-screen text-[var(--bb-text)] px-4 sm:px-6 lg:px-8 py-10 sm:py-14 md:py-16 relative overflow-hidden">
+    <div className={`bb-cart-page bg-[var(--bb-bg)] min-h-screen text-[var(--bb-text)] px-4 sm:px-6 lg:px-8 py-10 sm:py-14 md:py-16 relative overflow-hidden ${cart.length > 0 ? "bb-cart-page--has-items" : ""}`}>
       {/* Background glow effects */}
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#CDA032]/5 rounded-full blur-[120px] pointer-events-none transform translate-x-1/3 -translate-y-1/3" />
       <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-[#CDA032]/5 rounded-full blur-[120px] pointer-events-none transform -translate-x-1/3 translate-y-1/3" />
@@ -109,9 +113,10 @@ export const Cart: React.FC<CartProps> = ({
       <div className="max-w-7xl mx-auto relative z-10">
 
         {/* Header */}
-        <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6 pb-8 border-b border-[var(--bb-border)]/40">
-          <div>
-            <h1 className="text-4xl sm:text-7xl font-black uppercase tracking-tighter italic mb-4">Your Cart.</h1>
+        <div className="mb-6 lg:mb-12 flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6 pb-6 lg:pb-8 border-b border-[var(--bb-border)]/40">
+          <div className="space-y-3">
+            <PageBackButton isLight={isLight} fallbackTo="/store" label="Back to shop" />
+            <h1 className="text-3xl sm:text-5xl lg:text-7xl font-black uppercase tracking-tighter italic">Your Cart.</h1>
             <div className="flex items-center gap-6">
               <p className="text-sm font-bold opacity-50 uppercase tracking-widest">{cart.length} {cart.length === 1 ? 'Item' : 'Items'} Selected</p>
               {cart.length > 0 && (
@@ -126,16 +131,39 @@ export const Cart: React.FC<CartProps> = ({
           </div>
           <button
             onClick={() => navigateTo('store')}
-            className={`flex items-center gap-3 px-8 py-4 rounded-full text-[10px] font-black uppercase tracking-[0.2em] transition-all w-fit ${cart.length === 0 ? 'bg-[var(--bb-surface-2)] text-[var(--bb-text)] hover:bg-[#CDA032] hover:text-black' : 'bg-black text-white dark:bg-white dark:text-black shadow-xl hover:scale-105 hover:shadow-2xl'}`}
+            className={`hidden md:flex items-center gap-3 px-8 py-4 rounded-full text-[10px] font-black uppercase tracking-[0.2em] transition-all w-fit ${cart.length === 0 ? 'bg-[var(--bb-surface-2)] text-[var(--bb-text)] hover:bg-[#CDA032] hover:text-black' : 'bg-black text-white dark:bg-white dark:text-black shadow-xl hover:scale-105 hover:shadow-2xl'}`}
           >
             <ArrowLeft size={14} /> Back to shop
           </button>
         </div>
 
-        <div className="grid lg:grid-cols-12 gap-8 lg:gap-14">
+        {cart.length > 0 && (
+          <div className="bb-cart-summary-top lg:hidden mb-5 rounded-2xl border border-[var(--bb-border)] bg-[var(--bb-surface)] p-4 shadow-md">
+            <div className="flex items-end justify-between gap-3 mb-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-50">Order total</p>
+                <p className="text-2xl font-black text-[#CDA032] tracking-tight">{formatCurrency(total)}</p>
+              </div>
+              <p className="text-[10px] font-bold uppercase tracking-widest opacity-45 text-right leading-relaxed">
+                {cart.length} {cart.length === 1 ? "item" : "items"}
+                <br />
+                <span className="text-[#CDA032]">Free pickup</span>
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleCheckout(total)}
+              className="w-full py-3.5 bg-[#CDA032] text-black rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#B38B21] transition-all active:scale-[0.98]"
+            >
+              Confirm order
+            </button>
+          </div>
+        )}
 
-          {/* LEFT — ITEMS */}
-          <div className="lg:col-span-8 space-y-6">
+        <div className="grid lg:grid-cols-12 gap-6 lg:gap-14">
+
+          {/* ITEMS */}
+          <div className="lg:col-span-8 space-y-4 lg:space-y-6 bb-cart-items">
 
             {cart.length === 0 ? (
               <div className="py-12 md:py-16 text-center border p-8 border-[var(--bb-border)] rounded-[2.5rem] bg-[var(--bb-surface)] relative overflow-hidden group">
@@ -180,18 +208,18 @@ export const Cart: React.FC<CartProps> = ({
                 return (
                   <div
                     key={uniqueId}
-                    className="flex flex-col md:flex-row gap-6 sm:gap-10 pb-10 border-b border-[var(--bb-border)]/30 last:border-0 pt-6 first:pt-0"
+                    className="bb-cart-item flex flex-col sm:flex-row gap-4 sm:gap-8 pb-6 sm:pb-10 border-b border-[var(--bb-border)]/30 last:border-0 pt-4 sm:pt-6 first:pt-0"
                   >
                     {/* Image */}
                     <div
-                      className="bb-product-card-media bb-product-card-media--cart w-full sm:w-48 rounded-[2rem] bg-black/5 dark:bg-white/5 relative overflow-hidden shrink-0 group hover:shadow-2xl transition-all duration-700 cursor-pointer"
+                      className="bb-product-card-media bb-product-card-media--cart rounded-xl sm:rounded-[2rem] bg-black/5 dark:bg-white/5 relative overflow-hidden shrink-0 group hover:shadow-2xl transition-all duration-700 cursor-pointer"
                       onClick={() => navigateTo('product', item.id)}
                     >
                       <div className="absolute inset-0 bg-gradient-to-tr from-black/10 dark:from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                       <img
                         src={item.image}
                         alt={item.name}
-                        className="bb-product-card-img filter drop-shadow-xl group-hover:scale-105 transition-transform duration-500 ease-out"
+                        className="bb-product-card-img group-hover:scale-105 transition-transform duration-500 ease-out"
                       />
                     </div>
 
@@ -204,7 +232,7 @@ export const Cart: React.FC<CartProps> = ({
                           <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#CDA032] opacity-80">
                             {item.category}
                           </p>
-                          <h3 className="text-2xl sm:text-3xl font-black uppercase tracking-tighter leading-none hover:text-[#CDA032] transition-colors cursor-pointer" onClick={() => navigateTo('product', item.id)}>
+                          <h3 className="text-lg sm:text-2xl lg:text-3xl font-black uppercase tracking-tighter leading-none hover:text-[#CDA032] transition-colors cursor-pointer" onClick={() => navigateTo('product', item.id)}>
                             {item.name}
                           </h3>
 
@@ -292,9 +320,9 @@ export const Cart: React.FC<CartProps> = ({
             )}
           </div>
 
-          {/* RIGHT — SUMMARY */}
-          <aside className="lg:col-span-4">
-            <div className="lg:sticky lg:top-24 rounded-[2.5rem] p-8 sm:p-10 bg-[var(--bb-surface)] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.3)] dark:shadow-none border border-black/[0.03] dark:border-white/[0.03] relative space-y-8 overflow-hidden group">
+          {/* SUMMARY — desktop sidebar (mobile uses top card + fixed bar) */}
+          <aside className="hidden lg:block lg:col-span-4">
+            <div className="bb-cart-summary-panel lg:sticky lg:top-24 rounded-[2.5rem] p-8 sm:p-10 bg-[var(--bb-surface)] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.3)] dark:shadow-none border border-black/[0.03] dark:border-white/[0.03] relative space-y-8 overflow-hidden">
               {/* Premium Glow Accents */}
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-24 bg-[#CDA032]/20 rounded-full filter blur-[50px] pointer-events-none" />
               <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-[#CDA032]/10 rounded-full filter blur-[40px] pointer-events-none" />
@@ -366,9 +394,10 @@ export const Cart: React.FC<CartProps> = ({
                 <p className="text-right text-[9px] opacity-40 uppercase tracking-[0.2em] mt-2">Includes all applicable tax</p>
               </div>
 
-              {/* Action Button */}
-              <div className="pt-4 relative z-10">
+              {/* Action Button — desktop; mobile uses fixed bar */}
+              <div className="pt-4 relative z-10 hidden lg:block">
                 <button
+                  type="button"
                   onClick={() => handleCheckout(total)}
                   disabled={cart.length === 0}
                   className="w-full py-5 sm:py-6 bg-gradient-to-r from-black to-zinc-800 text-white dark:from-white dark:to-zinc-200 dark:text-black rounded-full text-xs sm:text-sm font-black uppercase tracking-[0.2em] hover:from-[#CDA032] hover:to-[#B38B21] hover:text-black dark:hover:from-[#CDA032] dark:hover:to-[#B38B21] transition-all hover:scale-105 active:scale-95 shadow-xl hover:shadow-[0_15px_30px_rgba(205,160,50,0.3)] disabled:opacity-50 disabled:pointer-events-none group flex items-center justify-center gap-3"
@@ -399,6 +428,21 @@ export const Cart: React.FC<CartProps> = ({
             </div>
           </aside>
         </div>
+
+        {cart.length > 0 && (
+          <div className="bb-cart-checkout-bar lg:hidden" role="region" aria-label="Checkout">
+            <div className="bb-cart-checkout-bar__inner">
+              <div className="bb-cart-checkout-bar__total">
+                <span className="bb-cart-checkout-bar__label">Total</span>
+                <span className="bb-cart-checkout-bar__amount">{formatCurrency(total)}</span>
+              </div>
+              <button type="button" onClick={() => handleCheckout(total)} className="bb-cart-checkout-bar__btn">
+                <FileText size={16} aria-hidden />
+                Confirm order
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Recommendations */}
         {cart.length > 0 && recommendations.length > 0 && (

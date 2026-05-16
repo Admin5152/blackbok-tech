@@ -93,7 +93,7 @@ export const CompareModal: React.FC<CompareModalProps> = ({
           </div>
         )}
 
-        <div className="flex-1 overflow-auto p-3 md:p-6 no-scrollbar">
+        <div className="flex-1 overflow-auto p-3 md:p-6 bb-scrollbar">
           {products.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center opacity-10 py-40">
               <Info size={64} className="mb-8" />

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Phone } from 'lucide-react';
-import { SUPPORT_PHONE_TEL, whatsAppUrl } from '../lib/contact';
+import { INSTAGRAM_URL, SUPPORT_PHONE_TEL, whatsAppUrl } from '../lib/contact';
 
 interface FloatingShareMenuProps {
   phoneNumber?: string;
@@ -50,7 +50,7 @@ const SOCIALS = [
   {
     key: 'instagram',
     label: 'Instagram',
-    href: 'https://instagram.com',
+    href: INSTAGRAM_URL,
     color: '#E4405F',
     angle: 135, // lower-left diagonal
     icon: (
