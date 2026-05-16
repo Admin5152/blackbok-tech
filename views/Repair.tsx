@@ -12,6 +12,8 @@ import { repairPricing, repairServicesMap } from '../data/repairPrices';
 import { createRepairRequest, getRepairRequests, updateRepairRequest } from '../lib/api';
 import { saveResumeAfterAuth, peekRestorePayload, clearRestorePayload } from '../lib/resumeAfterAuth';
 import { PageBackButton } from '../components/PageBackButton';
+import { BrandLogo } from '../components/BrandLogo';
+import { DEVICE_BRANDS } from '../data/deviceBrands';
 
 export const Repair: React.FC = () => {
   const { user, repairs, setRepairs, notify, theme } = useAppContext();
@@ -372,19 +374,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
     { id: 'other', label: 'Other', icon: MonitorSmartphone },
   ];
 
-  const brandsWithIcons = [
-    { id: 'Apple', label: 'Apple', img: '/iphone_modern.png' },
-    { id: 'Samsung', label: 'Samsung', img: '/galaxy_s24.png' },
-    { id: 'Sony', label: 'Sony', img: '/sony_phone.png' },
-    { id: 'Microsoft', label: 'Microsoft', img: '/surface.png' },
-    { id: 'Nintendo', label: 'Nintendo', img: '/nintendo_switch.png' },
-    { id: 'HP', label: 'HP', img: '/hp_laptop.png' },
-    { id: 'Dell', label: 'Dell', img: '/dell_laptop.png' },
-    { id: 'Lenovo', label: 'Lenovo', img: '/lenovo_laptop.png' },
-    { id: 'Other', label: 'Other', img: '/other_device.png' },
-  ];
-
-  const brands = brandsWithIcons.map(b => b.label);
+  const brands = DEVICE_BRANDS.map((b) => b.label);
 
   const timeSlots = [
     { id: 'morning-1', time: '9:00 AM', label: 'Early Morning', available: true },
@@ -592,7 +582,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                       </button>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                      {brandsWithIcons.map(brand => (
+                      {DEVICE_BRANDS.map(brand => (
                         <button key={brand.id}
                           onClick={() => {
                             setFormData({ ...formData, brand: brand.label, model: '' });
@@ -603,8 +593,11 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                             ? 'bg-[#CDA032]/10 border-[#CDA032] shadow-[0_0_30px_rgba(205,160,50,0.15)] ring-1 ring-[#CDA032]'
                             : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:bg-[var(--bb-surface-2)] hover:border-[#CDA032]/40'}`}
                         >
-                          <div className="h-16 mb-4 flex items-center justify-center overflow-hidden">
-                            <img src={brand.img} alt={brand.label} className={`h-full w-auto object-contain transition-all duration-500 scale-90 group-hover:scale-105 ${formData.brand === brand.label ? 'opacity-100' : 'opacity-40 group-hover:opacity-100'}`} />
+                          <div className="h-16 w-full max-w-[7rem] mb-4 flex items-center justify-center px-2">
+                            <BrandLogo
+                              brand={brand.id}
+                              className={`h-12 w-full transition-all duration-500 scale-90 group-hover:scale-105 ${formData.brand === brand.label ? 'opacity-100 text-[#CDA032]' : 'opacity-50 text-[color:var(--bb-text)] group-hover:opacity-90'}`}
+                            />
                           </div>
                           <span className={`text-xs font-black uppercase tracking-widest text-center ${formData.brand === brand.label ? 'text-[#CDA032]' : 'text-white/60'}`}>{brand.label}</span>
                         </button>

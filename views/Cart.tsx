@@ -455,10 +455,18 @@ export const Cart: React.FC<CartProps> = ({
               <div className="flex-1 h-[1px] bg-gradient-to-r from-[#CDA032]/30 to-transparent ml-12 hidden md:block" />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div
+              className="bb-cart-recommendations-rail bb-scrollbar flex gap-4 md:gap-6 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory"
+              role="list"
+              aria-label="Recommended products"
+            >
               {recommendations.map((p) => (
-                <ProductCard
+                <div
                   key={p.id}
+                  role="listitem"
+                  className="bb-cart-recommendation-card shrink-0 w-[min(82vw,240px)] sm:w-[220px] md:w-[260px] snap-start"
+                >
+                  <ProductCard
                   product={p}
                   onQuickView={onQuickView}
                   onAddToCart={onAddToCart}
@@ -466,7 +474,8 @@ export const Cart: React.FC<CartProps> = ({
                   isCompared={compareIds?.includes(p.id) || false}
                   onToggleWishlist={toggleWishlist}
                   onToggleCompare={onToggleCompare}
-                />
+                  />
+                </div>
               ))}
             </div>
           </div>

@@ -2087,3 +2087,18 @@ html {
     font-size: 0.68rem;
   }
 }
+
+.bb-cart-recommendations-rail {
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+}
+
+.bb-cart-recommendation-card {
+  scroll-snap-align: start;
+}
+
+.bb-cart-recommendation-card > * {
+  height: 100%;
+}

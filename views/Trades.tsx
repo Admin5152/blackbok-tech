@@ -19,6 +19,8 @@ import { customerTradeStatusShort } from '../lib/customerStatusLabels';
 import { saveResumeAfterAuth, peekRestorePayload, clearRestorePayload } from '../lib/resumeAfterAuth';
 import { formatCurrency } from '../lib/utils';
 import { PageBackButton } from '../components/PageBackButton';
+import { BrandLogo } from '../components/BrandLogo';
+import { findDeviceBrand, sortDeviceBrands } from '../data/deviceBrands';
 
 interface TradesProps {
   products: Product[];
@@ -35,20 +37,6 @@ const DEVICE_TYPES = [
   { id: 'gaming',     label: 'Console',    icon: Gamepad2   },
   { id: 'watch',      label: 'Watch',      icon: Watch      },
   { id: 'other',      label: 'Other',      icon: MonitorSmartphone },
-];
-
-// ── Brands with images (Step 2 — mirrors Repair's brand image cards) ───────────
-const BRANDS_WITH_IMGS = [
-  { id: 'Apple',     label: 'Apple',     img: '/iphone_modern.png'   },
-  { id: 'Samsung',   label: 'Samsung',   img: '/galaxy_s24.png'      },
-  { id: 'Google',    label: 'Google',    img: '/pixel_phone.png'     },
-  { id: 'Sony',      label: 'Sony',      img: '/sony_phone.png'      },
-  { id: 'Microsoft', label: 'Microsoft', img: '/surface.png'         },
-  { id: 'Nintendo',  label: 'Nintendo',  img: '/nintendo_switch.png' },
-  { id: 'Dell',      label: 'Dell',      img: '/dell_laptop.png'     },
-  { id: 'HP',        label: 'HP',        img: '/hp_laptop.png'       },
-  { id: 'Lenovo',    label: 'Lenovo',    img: '/lenovo_laptop.png'   },
-  { id: 'Other',     label: 'Other',     img: '/other_device.png'    },
 ];
 
 // ── Status badge ───────────────────────────────────────────────────────────────
@@ -229,13 +217,13 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     const brandsInUse = new Set(
       tradeDevices.filter((d) => d.deviceType === selectedDeviceType).map((d) => d.brand),
     );
-    const rows: { id: string; label: string; img: string }[] = [];
+    const rows: { id: string; label: string }[] = [];
     brandsInUse.forEach((bid) => {
-      const preset = BRANDS_WITH_IMGS.find((b) => b.id === bid);
+      const preset = findDeviceBrand(bid);
       if (preset) rows.push(preset);
-      else rows.push({ id: bid, label: bid, img: '/other_device.png' });
+      else rows.push({ id: bid, label: bid });
     });
-    return rows.sort((a, b) => a.label.localeCompare(b.label));
+    return sortDeviceBrands(rows);
   }, [tradeDevices, selectedDeviceType]);
 
   // Devices filtered by type + brand
@@ -728,9 +716,11 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                             ? 'bg-[#CDA032]/10 border-[#CDA032] shadow-[0_0_30px_rgba(205,160,50,0.15)] ring-1 ring-[#CDA032]'
                             : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:bg-[var(--bb-surface-2)] hover:border-[#CDA032]/40'}`}
                         >
-                          <div className="h-16 mb-4 flex items-center justify-center overflow-hidden">
-                            <img src={brand.img} alt={brand.label}
-                              className={`h-full w-auto object-contain transition-all duration-500 scale-90 group-hover:scale-105 ${selectedBrand === brand.id ? 'opacity-100' : 'opacity-40 group-hover:opacity-100'}`} />
+                          <div className="h-16 w-full max-w-[7rem] mb-4 flex items-center justify-center px-2">
+                            <BrandLogo
+                              brand={brand.id}
+                              className={`h-12 w-full transition-all duration-500 scale-90 group-hover:scale-105 ${selectedBrand === brand.id ? 'opacity-100 text-[#CDA032]' : 'opacity-50 text-[color:var(--bb-text)] group-hover:opacity-90'}`}
+                            />
                           </div>
                           <span className={`text-xs font-black uppercase tracking-widest text-center ${selectedBrand === brand.id ? 'text-[#CDA032]' : 'text-[color:var(--bb-muted)]'}`}>
                             {brand.label}
@@ -830,11 +820,18 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                           ? 'border-[#CDA032]/50 bg-[#CDA032]/5 shadow-[0_0_50px_rgba(205,160,50,0.15)]'
                           : 'border-[var(--bb-border)] bg-[var(--bb-surface)]'}`}>
                           <div className={`transition-all duration-500 ${selectedVariant || variantNeedsCustomName ? 'opacity-100 scale-100' : 'opacity-20 scale-90'}`} style={{ height: 160 }}>
-                            <img
-                              src={selectedDevice?.img || (BRANDS_WITH_IMGS.find(b => b.id === selectedBrand)?.img || '/other_device.png')}
-                              alt={selectedDevice?.name || 'Device'}
-                              className="h-full w-auto object-contain drop-shadow-2xl transition-all duration-500 animate-in fade-in zoom-in-95"
-                            />
+                            {selectedDevice?.img ? (
+                              <img
+                                src={selectedDevice.img}
+                                alt={selectedDevice.name || 'Device'}
+                                className="h-full w-auto object-contain drop-shadow-2xl transition-all duration-500 animate-in fade-in zoom-in-95"
+                              />
+                            ) : (
+                              <BrandLogo
+                                brand={selectedBrand}
+                                className="h-28 w-full max-w-[10rem] text-[color:var(--bb-text)]"
+                              />
+                            )}
                           </div>
                           <div className="text-center">
                             {selectedVariant ? (
