@@ -5,7 +5,7 @@ import type { SkuMatrixRow } from '../../lib/productSkuMatrix';
 import { totalSkuStock, canUseSkuMatrix } from '../../lib/productSkuMatrix';
 import { formatCurrency } from '../../lib/utils';
 import { ProductSkuMatrix } from './ProductSkuMatrix';
-import { apf } from './adminProductFormStyles';
+import { getApf, type AdminProductFormStyles } from './adminProductFormStyles';
 
 export const PRODUCT_CATEGORIES = ['iPhone', 'Laptop', 'Gaming', 'Accessories', 'Audio', 'Tablet', 'Trades'] as const;
 
@@ -27,6 +27,7 @@ type ChipFieldProps = {
   placeholder: string;
   onAdd: () => void;
   onRemove: (v: string) => void;
+  styles: AdminProductFormStyles;
 };
 
 const ChipField: React.FC<ChipFieldProps> = ({
@@ -37,18 +38,19 @@ const ChipField: React.FC<ChipFieldProps> = ({
   placeholder,
   onAdd,
   onRemove,
+  styles: s,
 }) => (
-  <div className={apf.card}>
-    <label className={apf.label}>{label}</label>
+  <div className={s.card}>
+    <label className={s.label}>{label}</label>
     <div className="flex flex-wrap gap-1.5 mb-2 min-h-[28px]">
-      {chips.length === 0 && <span className="text-[10px] text-white/25 italic">None yet</span>}
+      {chips.length === 0 && <span className={`text-[10px] italic ${s.muted}`}>None yet</span>}
       {chips.map((c) => (
         <span
           key={c}
-          className="flex items-center gap-1 bg-[#B38B21]/10 border border-[#B38B21]/25 rounded-lg px-2 py-1 text-[10px] text-[#D4AF37] font-bold"
+          className={`flex items-center gap-1 border rounded-lg px-2 py-1 text-[10px] font-bold ${s.chip}`}
         >
           {c}
-          <button type="button" onClick={() => onRemove(c)} className="text-white/40 hover:text-red-400 transition-colors">
+          <button type="button" onClick={() => onRemove(c)} className="opacity-50 hover:text-red-500 transition-colors">
             <X size={10} />
           </button>
         </span>
@@ -60,7 +62,7 @@ const ChipField: React.FC<ChipFieldProps> = ({
         onChange={(e) => setInputVal(e.target.value)}
         placeholder={placeholder}
         onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), onAdd())}
-        className={`${apf.input} flex-1 text-xs`}
+        className={`${s.input} flex-1 text-xs`}
       />
       <button
         type="button"
@@ -93,11 +95,13 @@ type Props = {
   saving: boolean;
   error: string;
   onSubmit: () => void;
+  isLight?: boolean;
 };
 
 export const AdminProductForm: React.FC<Props> = ({
   draft,
   setDraft,
+  isLight = false,
   colorIn,
   setColorIn,
   storageIn,
@@ -116,6 +120,7 @@ export const AdminProductForm: React.FC<Props> = ({
   error,
   onSubmit,
 }) => {
+  const s = getApf(isLight);
   const [tab, setTab] = useState<TabId>('details');
   const priceNum = Number(draft.price) || 0;
   const hasOptions = canUseSkuMatrix(draft.colors || [], draft.storage || [], draft.ram || []);
@@ -134,13 +139,13 @@ export const AdminProductForm: React.FC<Props> = ({
   return (
     <div className="flex flex-col lg:flex-row min-h-0">
       <div className="flex-1 min-w-0 flex flex-col">
-        <div className="sticky top-0 z-20 bg-[#0d0d0d]/95 backdrop-blur border-b border-white/10 px-5 sm:px-6 py-4">
+        <div className={`sticky top-0 z-20 backdrop-blur border-b px-5 sm:px-6 py-4 ${s.headerBg} ${s.headerBorder}`}>
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <div>
               <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#B38B21]">
                 {draft.id ? 'Edit product' : 'New product'}
               </p>
-              <h3 className="text-lg font-black text-white mt-0.5 truncate max-w-[280px] sm:max-w-md">
+              <h3 className={`text-lg font-black mt-0.5 truncate max-w-[280px] sm:max-w-md ${s.title}`}>
                 {draft.name?.trim() || 'Untitled product'}
               </h3>
             </div>
@@ -162,56 +167,56 @@ export const AdminProductForm: React.FC<Props> = ({
                 type="button"
                 onClick={() => setTab(t.id)}
                 className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wide transition-all ${
-                  tab === t.id ? apf.tabActive : apf.tabIdle
+                  tab === t.id ? s.tabActive : s.tabIdle
                 }`}
               >
                 {t.icon}
                 {t.label}
                 {t.id === 'options' && comboCount > 0 && (
-                  <span className="ml-0.5 px-1.5 py-0.5 rounded-md bg-black/20 text-[9px]">{comboCount}</span>
+                  <span className={`ml-0.5 px-1.5 py-0.5 rounded-md text-[9px] ${isLight ? 'bg-black/10' : 'bg-black/20'}`}>{comboCount}</span>
                 )}
               </button>
             ))}
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-5 max-h-[min(70vh,640px)]">
+        <div className="flex-1 overflow-y-auto bb-scrollbar px-5 sm:px-6 py-5 max-h-[min(70vh,640px)]">
           {error && (
-            <div className="mb-4 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-xl px-4 py-3">
+            <div className={`mb-4 text-xs rounded-xl px-4 py-3 ${s.errorBox}`}>
               {error}
             </div>
           )}
 
           {tab === 'details' && (
             <div className="space-y-4">
-              <div className={apf.card}>
-                <label className={apf.label}>Product name *</label>
+              <div className={s.card}>
+                <label className={s.label}>Product name *</label>
                 <input
                   placeholder="e.g. iPhone 16 Pro Max"
                   value={draft.name ?? ''}
                   onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                  className={apf.input}
+                  className={s.input}
                 />
               </div>
 
-              <div className={`${apf.card} grid grid-cols-1 sm:grid-cols-2 gap-4`}>
+              <div className={`${s.card} grid grid-cols-1 sm:grid-cols-2 gap-4`}>
                 <div>
-                  <label className={apf.label}>Price (GH₵) *</label>
+                  <label className={s.label}>Price (GH₵) *</label>
                   <input
                     type="number"
                     min={0}
                     step="0.01"
                     value={draft.price ?? ''}
                     onChange={(e) => setDraft({ ...draft, price: parseFloat(e.target.value) || 0 })}
-                    className={apf.input}
+                    className={s.input}
                   />
                 </div>
                 <div>
-                  <label className={apf.label}>Category</label>
+                  <label className={s.label}>Category</label>
                   <select
                     value={draft.category ?? 'iPhone'}
                     onChange={(e) => setDraft({ ...draft, category: e.target.value as Product['category'] })}
-                    className={apf.input}
+                    className={s.input}
                   >
                     {PRODUCT_CATEGORIES.map((c) => (
                       <option key={c} value={c}>
@@ -222,37 +227,37 @@ export const AdminProductForm: React.FC<Props> = ({
                 </div>
                 {!skuMatrixEnabled && (
                   <div>
-                    <label className={apf.label}>Stock</label>
+                    <label className={s.label}>Stock</label>
                     <input
                       type="number"
                       min={0}
                       value={draft.stock ?? ''}
                       onChange={(e) => setDraft({ ...draft, stock: parseInt(e.target.value, 10) || 0 })}
-                      className={apf.input}
+                      className={s.input}
                     />
                   </div>
                 )}
                 {skuMatrixEnabled && skuRows.length > 0 && (
                   <div>
-                    <label className={apf.label}>Total stock</label>
-                    <p className={apf.input + ' text-white/50 cursor-default'}>
+                    <label className={s.label}>Total stock</label>
+                    <p className={s.input + ' text-white/50 cursor-default'}>
                       {totalSkuStock(skuRows)}{' '}
                       <span className="text-[10px] text-white/30">(from SKU rows)</span>
                     </p>
                   </div>
                 )}
                 <div>
-                  <label className={apf.label}>Discount (%)</label>
+                  <label className={s.label}>Discount (%)</label>
                   <input
                     type="number"
                     min={0}
                     value={draft.discount ?? ''}
                     onChange={(e) => setDraft({ ...draft, discount: parseFloat(e.target.value) || 0 })}
-                    className={apf.input}
+                    className={s.input}
                   />
                 </div>
                 <div>
-                  <label className={apf.label}>Rating (0–5)</label>
+                  <label className={s.label}>Rating (0–5)</label>
                   <input
                     type="number"
                     min={0}
@@ -260,13 +265,13 @@ export const AdminProductForm: React.FC<Props> = ({
                     step="0.1"
                     value={draft.rating ?? ''}
                     onChange={(e) => setDraft({ ...draft, rating: parseFloat(e.target.value) || 0 })}
-                    className={apf.input}
+                    className={s.input}
                   />
                 </div>
               </div>
 
-              <div className={apf.card}>
-                <label className={apf.label}>
+              <div className={s.card}>
+                <label className={s.label}>
                   <ImageIcon size={10} className="inline mr-1 opacity-60" />
                   Image URL
                 </label>
@@ -275,18 +280,18 @@ export const AdminProductForm: React.FC<Props> = ({
                   placeholder="https://..."
                   value={draft.image ?? ''}
                   onChange={(e) => setDraft({ ...draft, image: e.target.value })}
-                  className={apf.input}
+                  className={s.input}
                 />
               </div>
 
-              <div className={apf.card}>
-                <label className={apf.label}>Description</label>
+              <div className={s.card}>
+                <label className={s.label}>Description</label>
                 <textarea
                   rows={4}
                   placeholder="Product description for the storefront…"
                   value={draft.description ?? ''}
                   onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-                  className={`${apf.input} resize-y min-h-[96px]`}
+                  className={`${s.input} resize-y min-h-[96px]`}
                 />
               </div>
             </div>
@@ -294,7 +299,7 @@ export const AdminProductForm: React.FC<Props> = ({
 
           {tab === 'options' && (
             <div className="space-y-4">
-              <p className="text-[11px] text-white/40 px-1">
+              <p className={`text-[11px] px-1 ${s.muted}`}>
                 Define Color, Storage, and RAM choices. Each combination becomes its own SKU with separate stock.
               </p>
               <ChipField
@@ -305,6 +310,7 @@ export const AdminProductForm: React.FC<Props> = ({
                 placeholder="e.g. Black Titanium"
                 onAdd={() => onAddChip('colors', colorIn, () => setColorIn(''))}
                 onRemove={(v) => onRemoveChip('colors', v)}
+                styles={s}
               />
               <ChipField
                 label="Storage"
@@ -314,6 +320,7 @@ export const AdminProductForm: React.FC<Props> = ({
                 placeholder="e.g. 256GB"
                 onAdd={() => onAddChip('storage', storageIn, () => setStorageIn(''))}
                 onRemove={(v) => onRemoveChip('storage', v)}
+                styles={s}
               />
               <ChipField
                 label="RAM"
@@ -323,9 +330,10 @@ export const AdminProductForm: React.FC<Props> = ({
                 placeholder="e.g. 16GB"
                 onAdd={() => onAddChip('ram', ramIn, () => setRamIn(''))}
                 onRemove={(v) => onRemoveChip('ram', v)}
+                styles={s}
               />
 
-              <div className={apf.card}>
+              <div className={s.card}>
                 <ProductSkuMatrix
                   colors={draft.colors || []}
                   storage={draft.storage || []}
@@ -350,11 +358,12 @@ export const AdminProductForm: React.FC<Props> = ({
                 placeholder="e.g. A18 chip, Ceramic Shield"
                 onAdd={() => onAddChip('specs', specsIn, () => setSpecsIn(''))}
                 onRemove={(v) => onRemoveChip('specs', v)}
+                styles={s}
               />
 
-              <div className={apf.card + ' space-y-4'}>
-                <p className="text-[10px] font-black uppercase tracking-widest text-white/35">Storefront flags</p>
-                <label className="flex items-center gap-3 cursor-pointer rounded-xl border border-white/10 bg-black/30 px-4 py-3">
+              <div className={s.card + ' space-y-4'}>
+                <p className={`text-[10px] font-black uppercase tracking-widest ${s.muted}`}>Storefront flags</p>
+                <label className={`flex items-center gap-3 cursor-pointer rounded-xl border px-4 py-3 ${isLight ? 'border-black/10 bg-black/[0.03]' : 'border-white/10 bg-black/30'}`}>
                   <input
                     type="checkbox"
                     checked={draft.new ?? false}
@@ -370,7 +379,7 @@ export const AdminProductForm: React.FC<Props> = ({
                     onChange={(e) => setDraft({ ...draft, featured: e.target.checked })}
                     className="accent-[#B38B21] w-4 h-4"
                   />
-                  <span className="text-sm text-white font-bold">Feature on homepage</span>
+                  <span className={`text-sm font-bold ${s.title}`}>Feature on homepage</span>
                 </label>
               </div>
             </div>
@@ -378,10 +387,10 @@ export const AdminProductForm: React.FC<Props> = ({
         </div>
       </div>
 
-      <aside className="lg:w-[240px] xl:w-[260px] shrink-0 border-t lg:border-t-0 lg:border-l border-white/10 bg-[#080808] p-5">
-        <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-3">Preview</p>
-        <div className="rounded-2xl border border-white/10 bg-black/50 overflow-hidden">
-          <div className="aspect-square bg-white/5 flex items-center justify-center p-4">
+      <aside className={`lg:w-[240px] xl:w-[260px] shrink-0 border-t lg:border-t-0 lg:border-l p-5 ${s.asideBg} ${s.asideBorder}`}>
+        <p className={`text-[9px] font-black uppercase tracking-widest mb-3 ${s.muted}`}>Preview</p>
+        <div className={`rounded-2xl border overflow-hidden ${s.previewCard}`}>
+          <div className={`aspect-square flex items-center justify-center p-4 ${isLight ? 'bg-black/[0.03]' : 'bg-white/5'}`}>
             {draft.image ? (
               <img
                 src={draft.image}
@@ -392,7 +401,7 @@ export const AdminProductForm: React.FC<Props> = ({
                 }}
               />
             ) : (
-              <Package size={32} className="text-white/15" />
+              <Package size={32} className={isLight ? 'text-black/15' : 'text-white/15'} />
             )}
           </div>
           <div className="p-3 space-y-2">
@@ -402,7 +411,7 @@ export const AdminProductForm: React.FC<Props> = ({
             <p className="text-sm font-black text-[#B38B21]">{formatCurrency(priceNum)}</p>
             <div className="flex flex-wrap gap-1">
               {(draft.colors || []).slice(0, 2).map((c) => (
-                <span key={c} className="text-[8px] bg-white/5 text-white/40 px-1.5 py-0.5 rounded">
+                <span key={c} className={`text-[8px] px-1.5 py-0.5 rounded ${isLight ? 'bg-black/5 text-black/45' : 'bg-white/5 text-white/40'}`}>
                   {c}
                 </span>
               ))}
@@ -410,14 +419,14 @@ export const AdminProductForm: React.FC<Props> = ({
                 <span className="text-[8px] text-amber-400/80">SKU stock off</span>
               )}
             </div>
-            <div className="pt-2 border-t border-white/10 grid grid-cols-2 gap-2 text-center">
+            <div className={`pt-2 border-t grid grid-cols-2 gap-2 text-center ${s.asideBorder}`}>
               <div>
-                <p className="text-[8px] uppercase text-white/30 font-black">Stock</p>
-                <p className="text-sm font-black text-white">{displayStock}</p>
+                <p className={`text-[8px] uppercase font-black ${s.muted}`}>Stock</p>
+                <p className={`text-sm font-black ${s.title}`}>{displayStock}</p>
               </div>
               <div>
-                <p className="text-[8px] uppercase text-white/30 font-black">SKUs</p>
-                <p className="text-sm font-black text-white">{comboCount || (hasOptions ? '—' : '1')}</p>
+                <p className={`text-[8px] uppercase font-black ${s.muted}`}>SKUs</p>
+                <p className={`text-sm font-black ${s.title}`}>{comboCount || (hasOptions ? '—' : '1')}</p>
               </div>
             </div>
           </div>

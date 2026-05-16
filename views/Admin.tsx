@@ -290,7 +290,7 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
           {/* {section === 'inbox' && <AdminInbox />} */}
           {section === 'orders' && <AdminOrders />}
           {section === 'customers' && <AdminCustomers />}
-          {section === 'products' && <AdminProducts canEdit={isSales} />}
+          {section === 'products' && <AdminProducts canEdit={isSales} theme={theme} />}
           {section === 'trades' && <AdminTrades canEdit={isSales} />}
           {section === 'returns' && <AdminReturns canEdit={isSales} />}
           {section === 'repairs' && <AdminRepairs canEdit={isRepair} />}

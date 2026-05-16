@@ -20,7 +20,7 @@ import { saveResumeAfterAuth, peekRestorePayload, clearRestorePayload } from '..
 import { formatCurrency } from '../lib/utils';
 import { PageBackButton } from '../components/PageBackButton';
 import { BrandLogo } from '../components/BrandLogo';
-import { findDeviceBrand, sortDeviceBrands } from '../data/deviceBrands';
+import { DEVICE_BRANDS, findDeviceBrand, sortDeviceBrands } from '../data/deviceBrands';
 import { tradeHasValidOffer, tradeOfferAmount } from '../lib/tradeOffer';
 import { ProductOptionPickers } from '../components/ProductOptionPickers';
 import {
@@ -232,19 +232,26 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     notify('Your trade-in progress was restored.', 'success');
   }, [user, tradeDevices, notify]);
 
-  // Brands that have devices of the selected type
+  // Full brand list for every device type (incl. Other); merge any extra brands from catalog
   const brandsForType = useMemo(() => {
-    const brandsInUse = new Set(
-      tradeDevices.filter((d) => d.deviceType === selectedDeviceType).map((d) => d.brand),
-    );
-    const rows: { id: string; label: string }[] = [];
-    brandsInUse.forEach((bid) => {
-      const preset = findDeviceBrand(bid);
-      if (preset) rows.push(preset);
-      else rows.push({ id: bid, label: bid });
+    const ids = new Set<string>(DEVICE_BRANDS.map((b) => b.id));
+    tradeDevices
+      .filter((d) => d.deviceType === selectedDeviceType)
+      .forEach((d) => ids.add(d.brand));
+    const rows = [...ids].map((id) => {
+      const preset = findDeviceBrand(id);
+      return preset ?? { id, label: id };
     });
     return sortDeviceBrands(rows);
   }, [tradeDevices, selectedDeviceType]);
+
+  const isMiscDeviceCategory = selectedDeviceType === 'other';
+
+  useEffect(() => {
+    if (subStep === 2 && isMiscDeviceCategory) {
+      setSelectedBrand('Other');
+    }
+  }, [subStep, isMiscDeviceCategory]);
 
   // Devices filtered by type + brand
   const devicesForBrand = useMemo(() =>
@@ -772,6 +779,38 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                         <ArrowLeft size={14} /> Back
                       </button>
                     </div>
+                    {isMiscDeviceCategory ? (
+                      <div className="rounded-3xl border border-[#CDA032]/40 bg-[#CDA032]/5 p-6 sm:p-8 space-y-4 max-w-xl">
+                        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-[#CDA032] block">
+                          Brand name
+                        </label>
+                        <input
+                          type="text"
+                          value={customBrandName}
+                          onChange={(e) => setCustomBrandName(e.target.value)}
+                          placeholder="e.g. Huawei, Bose, DJI"
+                          className="w-full border border-[var(--bb-border)] rounded-2xl px-5 py-4 text-sm font-semibold bg-[var(--bb-surface)] text-[color:var(--bb-text)] outline-none focus:border-[#CDA032] focus:ring-1 focus:ring-[#CDA032]/30"
+                          autoFocus
+                        />
+                        <p className="text-[10px] text-[color:var(--bb-muted)] leading-relaxed">
+                          Enter the manufacturer or brand printed on your device.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!customBrandName.trim()) {
+                              notify('Please enter the brand name.', 'error');
+                              return;
+                            }
+                            setSubStep(3);
+                            setTransitionKey((k) => k + 1);
+                          }}
+                          className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl text-xs font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] w-full sm:w-auto"
+                        >
+                          Continue <ArrowRight size={16} />
+                        </button>
+                      </div>
+                    ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                       {brandsForType.map(brand => (
                         <button key={brand.id}
@@ -801,8 +840,9 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                         </button>
                       ))}
                     </div>
+                    )}
 
-                    {isCatalogOtherBrand && (
+                    {!isMiscDeviceCategory && isCatalogOtherBrand && (
                       <div className="mt-6 rounded-3xl border border-[#CDA032]/40 bg-[#CDA032]/5 p-6 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
                         <label className="text-[10px] font-black uppercase tracking-[0.3em] text-[#CDA032] block">
                           Brand name
@@ -812,7 +852,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                           value={customBrandName}
                           onChange={(e) => setCustomBrandName(e.target.value)}
                           placeholder="e.g. Huawei, OnePlus, Toshiba"
-                          className="w-full border border-[var(--bb-border)] rounded-2xl px-5 py-4 text-sm font-semibold bg-[var(--bb-surface)] outline-none focus:border-[#CDA032] focus:ring-1 focus:ring-[#CDA032]/30"
+                          className="w-full border border-[var(--bb-border)] rounded-2xl px-5 py-4 text-sm font-semibold bg-[var(--bb-surface)] text-[color:var(--bb-text)] outline-none focus:border-[#CDA032] focus:ring-1 focus:ring-[#CDA032]/30"
                           autoFocus
                         />
                         <p className="text-[10px] text-[color:var(--bb-muted)] leading-relaxed">

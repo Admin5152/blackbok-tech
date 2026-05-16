@@ -129,7 +129,7 @@ export const ProductSkuMatrix: React.FC<Props> = ({
               <p className="text-xs text-white/35 mt-1">Click &quot;Create SKUs&quot; to generate combinations.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[min(52vh,420px)] overflow-y-auto pr-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[min(52vh,420px)] overflow-y-auto bb-scrollbar pr-1">
               {rows.map((row, i) => (
                 <div
                   key={row.id ?? skuMatrixKey(row)}

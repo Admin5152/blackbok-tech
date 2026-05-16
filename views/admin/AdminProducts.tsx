@@ -18,7 +18,7 @@ import { AdminProductForm, PRODUCT_CATEGORIES, type ProductDraft } from './Admin
 import type { Product } from '../../types';
 import { formatCurrency } from '../../lib/utils';
 
-interface Props { canEdit?: boolean; }
+interface Props { canEdit?: boolean; theme?: 'light' | 'dark'; }
 
 const EMPTY: ProductDraft = {
     name: '', price: 0, category: 'iPhone', description: '', image: '',
@@ -26,7 +26,8 @@ const EMPTY: ProductDraft = {
     colors: [], storage: [], ram: [], specs: [], featured: false,
 };
 
-export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
+export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' }) => {
+    const isLight = theme === 'light';
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -281,11 +282,11 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
             )}
 
             {/* Filters + Add */}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0">
+                <div className="flex items-center gap-2 overflow-x-auto bb-scrollbar min-w-0 flex-1 pb-1 -mx-0.5 px-0.5">
                     {cats.map(c => (
                         <button key={c} onClick={() => setCatFilter(c)}
-                            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${catFilter === c ? 'bg-[#B38B21] text-black' : 'bg-white/5 text-white/40 hover:text-white'}`}>
+                            className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${catFilter === c ? 'bg-[#B38B21] text-black' : 'bg-white/5 text-white/40 hover:text-white'}`}>
                             {c}{' '}
                             <span className="opacity-70">
                                 ({c === 'All' ? products.length : (catMap[c] ?? 0)})
@@ -363,9 +364,10 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
             )}
 
             {showForm && (
-                <Modal onClose={() => { setShowForm(false); setError(''); }} maxW="max-w-5xl">
-                    <ModalClose onClose={() => { setShowForm(false); setError(''); }} />
+                <Modal isLight={isLight} onClose={() => { setShowForm(false); setError(''); }} maxW="max-w-5xl">
+                    <ModalClose isLight={isLight} onClose={() => { setShowForm(false); setError(''); }} />
                     <AdminProductForm
+                        isLight={isLight}
                         draft={draft}
                         setDraft={setDraft}
                         colorIn={colorIn}

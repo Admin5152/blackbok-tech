@@ -224,7 +224,7 @@ export const AdminOrders: React.FC = () => {
 
             {/* Filters */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 mb-4">
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-hide flex-1">
+                <div className="flex items-center gap-1.5 overflow-x-auto bb-scrollbar pb-1 sm:pb-0 flex-1 min-w-0 -mx-0.5 px-0.5">
                 {[...statuses].map(s => {
                     const count =
                         s === 'All'

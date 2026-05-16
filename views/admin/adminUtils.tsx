@@ -55,18 +55,40 @@ export const SearchInput = ({ value, onChange, placeholder = 'Search...' }: { va
     </div>
 );
 
-export const Modal = ({ onClose, children, maxW = 'max-w-lg' }: { onClose: () => void; children: React.ReactNode; maxW?: string }) => (
+export const Modal = ({
+    onClose,
+    children,
+    maxW = 'max-w-lg',
+    isLight = false,
+}: {
+    onClose: () => void;
+    children: React.ReactNode;
+    maxW?: string;
+    isLight?: boolean;
+}) => (
     <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
-        <div className="absolute inset-0 bg-black/90 backdrop-blur-xl" onClick={onClose} />
-        <div className={`relative w-full ${maxW} bg-[#0d0d0d] border border-white/10 rounded-2xl shadow-2xl overflow-y-auto max-h-[90vh]`}>
+        <div
+            className={`absolute inset-0 backdrop-blur-xl ${isLight ? 'bg-black/40' : 'bg-black/90'}`}
+            onClick={onClose}
+        />
+        <div
+            className={`relative w-full ${maxW} rounded-2xl shadow-2xl overflow-y-auto max-h-[90vh] ${
+                isLight ? 'bg-white border border-black/10 text-black' : 'bg-[#0d0d0d] border border-white/10'
+            }`}
+        >
             {children}
         </div>
     </div>
 );
 
-export const ModalClose = ({ onClose }: { onClose: () => void }) => (
-    <button onClick={onClose} className="absolute top-4 right-4 p-1.5 bg-white/5 hover:bg-white/10 rounded-full z-10">
-        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="text-white"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+export const ModalClose = ({ onClose, isLight = false }: { onClose: () => void; isLight?: boolean }) => (
+    <button
+        onClick={onClose}
+        className={`absolute top-4 right-4 p-1.5 rounded-full z-10 ${
+            isLight ? 'bg-black/5 hover:bg-black/10 text-black/70' : 'bg-white/5 hover:bg-white/10 text-white'
+        }`}
+    >
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
     </button>
 );
 

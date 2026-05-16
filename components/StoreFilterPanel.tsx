@@ -312,7 +312,7 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
           </div>
         </header>
 
-        <div className="bb-store-filter-panel__body flex-1 overflow-y-auto overscroll-y-contain px-5 py-5 space-y-6 [-webkit-overflow-scrolling:touch]">
+        <div className="bb-store-filter-panel__body bb-scrollbar flex-1 overflow-y-auto overscroll-y-contain px-5 py-5 space-y-6 [-webkit-overflow-scrolling:touch]">
           {body}
         </div>
 
@@ -353,7 +353,9 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
           </button>
         )}
       </header>
-      <div className="space-y-6">{body}</div>
+      <div className="bb-scrollbar max-h-[min(calc(100dvh-9rem),42rem)] overflow-y-auto overscroll-y-contain pr-1 space-y-6">
+        {body}
+      </div>
     </div>
   );
 };
