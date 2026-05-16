@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   X, CheckCircle2, Activity, Scale, RefreshCcw, RotateCcw, Home as HomeIcon,
-  ShoppingBag, Wrench, ShoppingCart, User as UserIcon, LogOut,
+  ShoppingBag, Wrench, ShoppingCart, User as UserIcon,
   ChevronRight, ChevronDown, Settings, AlertTriangle,
   Sparkles, Eye, Clock, Menu, Sun, Moon, Search, TrendingUp, Box, Laptop, Smartphone, Gamepad2, History, Calendar, Info, Heart, UserCog, Headphones, LayoutDashboard
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from '@tanstack/react-router';
 import { User, CartItem, Product, Order, RepairRequest, TradeRequest } from '../types';
 import { formatCurrency, TW_DARK_BTN_DEPTH, TW_DARK_GOLD_BTN_DEPTH } from '../lib/utils';
-import { handleSignOut } from '../lib/signOut';
 import { NotificationBell } from './NotificationBell';
 import { canAccessAdminDashboard } from '../lib/roles';
 import {
@@ -18,6 +17,7 @@ import {
 } from '../lib/navBadgeWatermarks';
 import { scrollToDocumentTop } from '../lib/scrollToDocumentTop';
 import { NavUnreadBadge } from './NavUnreadBadge';
+import { MobileNavDrawer, type MobileNavItem } from './MobileNavDrawer';
 import { useAppContext } from '../App';
 
 const ViewfinderLogo = () => (
@@ -153,6 +153,90 @@ export const Navbar: React.FC<{
         window.removeEventListener('bb-scroll', onLenisScroll);
       };
     }, []);
+
+    useEffect(() => {
+      if (!isMobileMenuOpen) return;
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = prev;
+      };
+    }, [isMobileMenuOpen]);
+
+    const mobileNavItems = useMemo(
+      () =>
+        [
+          {
+            path: '/',
+            label: 'Home',
+            icon: HomeIcon,
+            subItems: [
+              { path: '/about', label: 'About BlackBox', icon: Info },
+              { path: '/policies', label: 'Policies & FAQ', icon: Scale },
+            ],
+          },
+          {
+            path: '/store',
+            label: 'Shop',
+            icon: ShoppingBag,
+            badge: storeUnread.orders,
+            subItems: [
+              { path: '/store', label: 'Browse all', icon: Box },
+              { path: '/store', label: 'iPhone', icon: Smartphone, search: { category: 'iPhone' } },
+              { path: '/store', label: 'Laptops', icon: Laptop, search: { category: 'Laptop' } },
+              { path: '/store', label: 'Accessories', icon: Box, search: { category: 'Accessories' } },
+              { path: '/store', label: 'Gaming', icon: Gamepad2, search: { category: 'Gaming' } },
+              { path: '/store', label: 'Audio', icon: Headphones, search: { category: 'Audio' } },
+              {
+                path: '/history',
+                label: 'Track Orders',
+                icon: History,
+                search: { tab: 'orders' },
+                badge: storeUnread.orders,
+              },
+            ],
+          },
+          {
+            path: '/trades',
+            label: 'Trades',
+            icon: RefreshCcw,
+            badge: storeUnread.trades,
+            subItems: [
+              { type: 'info', label: 'Your Trade-In Items', content: 'Track your device value in real-time.' },
+              { path: '/trades', label: 'Trade-In Program', icon: RefreshCcw },
+              {
+                path: '/history',
+                label: 'Trade-In History',
+                icon: History,
+                search: { tab: 'trades' },
+                badge: storeUnread.trades,
+              },
+            ],
+          },
+          {
+            path: '/repair',
+            label: 'Repairs',
+            icon: Wrench,
+            badge: storeUnread.repairs,
+            subItems: [
+              { path: '/repair', label: 'Schedule Repair', icon: Calendar },
+              {
+                path: '/history',
+                label: 'Repair History',
+                icon: History,
+                search: { tab: 'repairs' },
+                badge: storeUnread.repairs,
+              },
+            ],
+          },
+          { path: '/returns', label: 'Returns', icon: RotateCcw },
+          { path: '/cart', label: 'Cart', icon: ShoppingCart, badge: cartCount },
+          ...(showAdminLink
+            ? [{ path: '/admin' as const, label: 'Manage', icon: LayoutDashboard, ariaLabel: 'Staff dashboard' }]
+            : []),
+        ] as const,
+      [storeUnread.orders, storeUnread.trades, storeUnread.repairs, cartCount, showAdminLink],
+    );
 
     const navItemClass = (path: string) => {
       const active = location.pathname === path;
@@ -485,261 +569,24 @@ export const Navbar: React.FC<{
           </div>
         </nav>
 
-        {/* Mobile Menu Overlay */}
-        <div
-          className={`fixed inset-0 z-[100] lg:hidden transition-all duration-500 ${isMobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
-        >
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/80 backdrop-blur-md"
-            onClick={() => setIsMobileMenuOpen(false)}
-          />
-
-          {/* Mobile Navigation Drawer */}
-          <div
-            className={`absolute right-0 top-0 flex h-full max-h-[100dvh] min-h-0 w-80 flex-col bg-black border-l border-white/10 shadow-2xl transform transition-transform duration-500 ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}
-          >
-
-            {/* Header — cart shortcut so users always see cart without scrolling the drawer */}
-            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 p-6">
-              <span className="text-white text-sm font-black uppercase tracking-widest shrink-0">Menu</span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => applyTheme(isLight ? 'dark' : 'light')}
-                  className="flex shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/5 p-2.5 text-white transition-all hover:border-[#CDA032]/50 hover:bg-[#CDA032]/10"
-                  aria-label={isLight ? 'Switch to dark mode' : 'Switch to light mode'}
-                >
-                  {isLight ? <Moon size={18} /> : <Sun size={18} className="text-[#CDA032]" />}
-                </button>
-                <Link
-                  to="/cart"
-                  onClick={() => closeMobileNavAfterNav()}
-                  className={`relative flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-white hover:border-[#CDA032]/50 hover:bg-[#CDA032]/10 transition-all ${TW_DARK_BTN_DEPTH}`}
-                  aria-label={`Cart${cartCount > 0 ? `, ${cartCount} items` : ''}`}
-                >
-                  <ShoppingCart size={18} className="text-[#CDA032]" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Cart</span>
-                  {cartCount > 0 && (
-                    <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-[#CDA032] text-black text-[10px] font-black flex items-center justify-center">
-                      {cartCount > 99 ? '99+' : cartCount}
-                    </span>
-                  )}
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors shrink-0"
-                  aria-label="Close menu"
-                >
-                  <X size={20} className="text-white" />
-                </button>
-              </div>
-            </div>
-
-            {/* User summary — tap guest profile to sign in */}
-            <div className="shrink-0 border-b border-white/10 p-6">
-              <Link
-                to={user ? '/profile' : '/auth'}
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="flex items-center gap-4 rounded-xl transition-colors hover:bg-white/5 active:bg-white/10 -m-2 p-2"
-              >
-                {/* Avatar */}
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#CDA032] to-[#B38B21] flex items-center justify-center shrink-0">
-                  <span className="text-black text-xl font-black italic">
-                    {user ? (user.avatarLetter || user.name.charAt(0)) : 'U'}
-                  </span>
-                </div>
-
-                {/* User Info */}
-                <div className="min-w-0 flex-1 text-left">
-                  <h3 className="truncate text-lg font-bold text-white">
-                    {user ? user.name : 'Guest User'}
-                  </h3>
-                  <p className="truncate text-sm text-white/60">
-                    {user ? user.email : 'Tap to sign in'}
-                  </p>
-                </div>
-              </Link>
-            </div>
-
-            {/* Mobile: catalog search */}
-            <div className="shrink-0 border-b border-white/10 px-4 py-3">
-              <form onSubmit={(e) => handleCatalogSearch(e, { closeMobile: true })} className="relative" role="search">
-                <label htmlFor="nav-mobile-catalog-search" className="sr-only">
-                  Search shop
-                </label>
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" aria-hidden />
-                <input
-                  id="nav-mobile-catalog-search"
-                  type="search"
-                  autoComplete="off"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search store…"
-                  className="w-full rounded-xl border border-white/15 bg-white/5 py-2.5 pl-10 pr-16 text-sm text-white outline-none placeholder:text-white/35 focus-visible:border-[#CDA032]/50 focus-visible:ring-1 focus-visible:ring-[#CDA032]/40"
-                />
-                <button
-                  type="submit"
-                  className={`absolute right-1.5 top-1/2 -translate-y-1/2 rounded-lg bg-[#B38B21] px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-black ${TW_DARK_GOLD_BTN_DEPTH}`}
-                >
-                  Go
-                </button>
-              </form>
-            </div>
-
-            {/* Navigation — scrollable so Sign out stays reachable on short viewports */}
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-2 py-2 [-webkit-overflow-scrolling:touch]">
-              {[
-                    {
-                      path: '/', label: 'Home', icon: HomeIcon, subItems: [
-                        { path: '/about', label: 'About BlackBox', icon: Info },
-                        { path: '/policies', label: 'Policies & FAQ', icon: Scale }
-                      ]
-                    },
-                    {
-                      path: '/store', label: 'Shop', icon: ShoppingBag, badge: storeUnread.orders, subItems: [
-                        { path: '/store', label: 'Browse all', icon: Box },
-                        { path: '/store', label: 'iPhone', icon: Smartphone, search: { category: 'iPhone' } },
-                        { path: '/store', label: 'Laptops', icon: Laptop, search: { category: 'Laptop' } },
-                        { path: '/store', label: 'Accessories', icon: Box, search: { category: 'Accessories' } },
-                        { path: '/store', label: 'Gaming', icon: Gamepad2, search: { category: 'Gaming' } },
-                        { path: '/store', label: 'Audio', icon: Headphones, search: { category: 'Audio' } },
-                        { path: '/history', label: 'Track Orders', icon: History, search: { tab: 'orders' }, badge: storeUnread.orders }
-                      ]
-                    },
-                    {
-                      path: '/trades', label: 'Trades', icon: RefreshCcw, badge: storeUnread.trades, subItems: [
-                        { type: 'info', label: 'Your Trade-In Items', content: 'Track your device value in real-time.' },
-                        { path: '/trades', label: 'Trade-In Program', icon: RefreshCcw },
-                        { path: '/history', label: 'Trade-In History', icon: History, search: { tab: 'trades' }, badge: storeUnread.trades }
-                      ]
-                    },
-                    {
-                      path: '/repair', label: 'Repairs', icon: Wrench, badge: storeUnread.repairs, subItems: [
-                        { path: '/repair', label: 'Schedule Repair', icon: Calendar },
-                        { path: '/history', label: 'Repair History', icon: History, search: { tab: 'repairs' }, badge: storeUnread.repairs }
-                      ]
-                    },
-                    { path: '/returns', label: 'Returns', icon: RotateCcw },
-                    { path: '/cart', label: 'Cart', icon: ShoppingCart, badge: cartCount },
-                    ...(showAdminLink
-                      ? [{ path: '/admin' as const, label: 'Manage', icon: LayoutDashboard, ariaLabel: 'Staff dashboard' }]
-                      : []),
-                    { path: user ? '/profile' : '/auth', label: user ? 'Account' : 'Sign In', icon: UserIcon }
-              ].map((item) => {
-                    const active = location.pathname === item.path;
-                    const hasSubItems = item.subItems && item.subItems.length > 0;
-                    const isSubmenuOpen = activeMobileSubmenu === item.label;
-
-                return (
-                  <div key={item.label} className="mb-1">
-                    <div className="flex items-center">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          // Top-level button always navigates.
-                          // Submenu expansion is handled by the chevron button.
-                          navigate({ to: item.path });
-                          closeMobileNavAfterNav();
-                        }}
-                        aria-label={(item as { ariaLabel?: string }).ariaLabel ?? item.label}
-                        className={`mx-2 flex flex-1 items-center gap-4 rounded-xl px-4 py-3 transition-all ${active && !hasSubItems
-                          ? 'bg-[#CDA032]/20 text-[#CDA032]'
-                          : 'text-white/70 hover:bg-white/5 hover:text-white'
-                          }`}
-                      >
-                        <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${active && !hasSubItems ? 'bg-[#CDA032] text-black' : 'bg-white/10 text-white/70'
-                          }`}>
-                          <item.icon size={18} />
-                        </div>
-                        <span className="flex-1 text-left text-sm font-black uppercase tracking-widest">
-                          {item.label}
-                        </span>
-                        {item.badge != null && item.badge > 0 && (
-                          item.label === 'Cart' ? (
-                          <span className="rounded-full bg-[#CDA032] px-2 py-1 text-xs font-black text-black">
-                            {item.badge > 99 ? '99+' : item.badge}
-                          </span>
-                          ) : (
-                            <NavUnreadBadge count={item.badge} title="New activity" />
-                          )
-                        )}
-                      </button>
-                      {hasSubItems && (
-                        <button
-                          type="button"
-                          onClick={() => setActiveMobileSubmenu(isSubmenuOpen ? null : item.label)}
-                          className="mr-2 rounded-xl p-3 text-white/40 hover:bg-white/5"
-                        >
-                          <ChevronDown size={16} className={`transition-transform duration-300 ${isSubmenuOpen ? 'rotate-180' : ''}`} />
-                        </button>
-                      )}
-                    </div>
-
-                    {hasSubItems && (
-                      <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isSubmenuOpen ? 'mb-6 mt-2 max-h-[min(90vh,880px)] opacity-100' : 'max-h-0 opacity-0'}`}>
-                        <div className="ml-12 mr-6 space-y-2">
-                          {item.subItems?.map((sub: any, idx: number) => {
-                            if (sub.type === 'info') {
-                              return (
-                                <div key={idx} className="mb-2 rounded-xl border border-white/5 bg-white/5 p-4">
-                                  <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-[#CDA032]">{sub.label}</p>
-                                  <p className="text-[11px] leading-relaxed text-white/40">{sub.content}</p>
-                                </div>
-                              );
-                            }
-                            return (
-                              <Link
-                                key={sub.label}
-                                to={sub.path}
-                                search={sub.search as any}
-                                onClick={() => closeMobileNavAfterNav()}
-                                className="flex w-full items-center gap-3 rounded-xl border border-transparent px-4 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-white/40 transition-all hover:border-white/5 hover:bg-white/5 hover:text-[#CDA032]"
-                              >
-                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/5">
-                                  <sub.icon size={14} className="opacity-40" />
-                                </div>
-                                <span className="flex-1">{sub.label}</span>
-                                {typeof sub.badge === 'number' && sub.badge > 0 && (
-                                  <NavUnreadBadge count={sub.badge} title="New since last visit" />
-                                )}
-                              </Link>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Footer + Sign out — pinned to bottom of drawer */}
-            <div className="shrink-0 space-y-4 border-t border-white/10 bg-black p-6 pt-4">
-              <div className="text-center">
-                <p className="text-xs font-black uppercase tracking-widest text-white/30">
-                  BLACKBOX TERMINAL V4.0
-                </p>
-              </div>
-              {user && (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (setUser) {
-                      await handleSignOut(setUser, navigateTo);
-                    }
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className={`flex w-full items-center justify-center gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-6 py-3 text-red-500 transition-all hover:bg-red-500/20 ${TW_DARK_BTN_DEPTH}`}
-                >
-                  <LogOut size={18} />
-                  <span className="text-sm font-black uppercase tracking-wider">Sign Out</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+        <MobileNavDrawer
+          isOpen={isMobileMenuOpen}
+          onClose={() => setIsMobileMenuOpen(false)}
+          isLight={isLight}
+          user={user ?? null}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          onSearch={(e) => handleCatalogSearch(e, { closeMobile: true })}
+          applyTheme={applyTheme}
+          cartCount={cartCount}
+          items={mobileNavItems as MobileNavItem[]}
+          activeSubmenu={activeMobileSubmenu}
+          setActiveSubmenu={setActiveMobileSubmenu}
+          pathname={location.pathname}
+          onAfterNavigate={closeMobileNavAfterNav}
+          setUser={setUser}
+          navigateTo={navigateTo}
+        />
       </>
     );
   };

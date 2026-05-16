@@ -18,6 +18,7 @@ import { createTradeRequest, getTradeRequests, updateTradeRequest } from '../lib
 import { customerTradeStatusShort } from '../lib/customerStatusLabels';
 import { saveResumeAfterAuth, peekRestorePayload, clearRestorePayload } from '../lib/resumeAfterAuth';
 import { formatCurrency } from '../lib/utils';
+import { PageBackButton } from '../components/PageBackButton';
 
 interface TradesProps {
   products: Product[];
@@ -568,6 +569,9 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
 
         {/* Header */}
         <header className="mb-10 sm:mb-16">
+          <div className="mb-6">
+            <PageBackButton isLight={theme === 'light'} fallbackTo="/" />
+          </div>
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-[#CDA032]/10 border border-[#CDA032]/30">
               <RefreshCcw size={20} className="text-[#CDA032]" />

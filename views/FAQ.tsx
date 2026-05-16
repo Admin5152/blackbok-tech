@@ -3,6 +3,7 @@ import { ChevronDown, Plus, Minus, MessageCircle, Phone, Mail } from 'lucide-rea
 import type { Theme } from '../App';
 import { useAppContext } from '../App';
 import { mailtoSupport, SUPPORT_PHONE_TEL, whatsAppUrl } from '../lib/contact';
+import { PageBackButton } from '../components/PageBackButton';
 
 interface FAQProps {
     theme?: Theme;
@@ -112,6 +113,10 @@ export const FAQ: React.FC<FAQProps> = ({ theme: themeProp }) => {
     return (
         <div className={`min-h-screen pt-20 pb-24 transition-colors duration-500 ${isLight ? 'bg-[#F0F0F0] text-black' : 'bg-gradient-to-b from-[#050508] via-[#08080f] to-[#050508] text-white'}`}>
             <div className="max-w-4xl mx-auto px-6">
+
+                <div className="mb-8 reveal-on-scroll">
+                    <PageBackButton isLight={isLight} fallbackTo="/policies" />
+                </div>
 
                 {/* Header */}
                 <div className="text-center mb-16 space-y-6 reveal-on-scroll">

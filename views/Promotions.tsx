@@ -3,6 +3,7 @@ import { Tag, ArrowRight, Bell, AlertCircle, ShoppingBag, Sparkles } from 'lucid
 import { useAppContext } from '../App';
 import { formatCurrency } from '../lib/utils';
 import { ProductCard } from '../components/ProductCard';
+import { PageBackButton } from '../components/PageBackButton';
 
 export const Promotions: React.FC = () => {
     const { products, theme, onAddToCart, wishlist, toggleWishlist, compareIds, toggleCompare, onQuickView } = useAppContext();
@@ -14,6 +15,8 @@ export const Promotions: React.FC = () => {
     return (
         <div className={`min-h-screen pt-32 pb-20 px-4 md:px-8 transition-colors duration-500 ${isLight ? 'bg-[#FAFAFA]' : 'bg-gradient-to-b from-[#050508] via-[#0a0a12] to-[#050508]'}`}>
             <div className="max-w-7xl mx-auto space-y-16">
+
+                <PageBackButton isLight={isLight} fallbackTo="/store" />
 
                 {/* Hero Header */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 border-b border-[var(--bb-border)]/20 pb-12">

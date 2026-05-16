@@ -23,6 +23,7 @@ import {
 } from '../lib/customerStatusLabels';
 import { getSupabaseClient } from '../lib/supabase';
 import { Link } from '@tanstack/react-router';
+import { PageBackButton } from '../components/PageBackButton';
 import { useReturns } from '../hooks/useReturns';
 import { RequestReturnModal } from './ReturnsPage';
 
@@ -1302,6 +1303,9 @@ export const Profile: React.FC<ProfileProps> = ({
 
   return (
     <div className={`view-transition max-w-[1600px] mx-auto px-4 sm:px-6 md:px-8 py-4 sm:py-8 flex flex-col lg:flex-row gap-6 sm:gap-8 min-h-[85vh] relative overflow-x-hidden ${isLight ? 'bg-white' : 'bg-black'}`}>
+      <div className="w-full mb-2 z-20 lg:hidden">
+        <PageBackButton isLight={isLight} fallbackTo="/" />
+      </div>
       {/* Background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className={`absolute top-0 left-0 w-[500px] h-[500px] blur-[120px] rounded-full -ml-[250px] -mt-[250px] ${isLight ? 'bg-[#CDA032]/10' : 'bg-[#B38B21]/[0.02]'}`}></div>
@@ -1344,6 +1348,10 @@ export const Profile: React.FC<ProfileProps> = ({
           ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-gradient-to-br from-[#0a0a0a] to-[#050505] border-white/5'}
           ${isMobileNavOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
         `}>
+          <div className="hidden lg:block mb-4">
+            <PageBackButton isLight={isLight} fallbackTo="/" />
+          </div>
+
           {/* Mobile Close Button */}
           <div className="lg:hidden flex justify-end mb-4">
             <button

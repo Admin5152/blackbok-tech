@@ -3,6 +3,7 @@ import { Mail, Phone, MapPin, Send } from 'lucide-react';
 import { useAppContext } from '../App';
 import { sendContactFormEmail } from '../lib/contactEmail';
 import { mailtoSupport, SUPPORT_EMAIL, SUPPORT_PHONE_TEL, WHATSAPP_DISPLAY, whatsAppUrl } from '../lib/contact';
+import { PageBackButton } from '../components/PageBackButton';
 
 const inputBase = (isLight: boolean) =>
   `w-full rounded-xl px-4 py-3 text-[13px] focus:outline-none transition-all border ${
@@ -61,6 +62,9 @@ export const Contact: React.FC = () => {
       }`}
     >
       <div className="w-full max-w-[1200px]">
+        <div className="mb-8 reveal-on-scroll">
+          <PageBackButton isLight={isLight} fallbackTo="/" />
+        </div>
         {/* Header Section */}
         <div className="text-center mb-12 lg:mb-20 max-w-2xl mx-auto reveal-on-scroll">
           <h1 className="text-4xl sm:text-5xl lg:text-7xl font-black tracking-tight mb-4 lg:mb-6 uppercase">

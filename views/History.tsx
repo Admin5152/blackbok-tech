@@ -20,6 +20,7 @@ import { formatCurrency } from '../lib/utils';
 import { getUserOrdersFromItems } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { customerStatusBadgeClasses, formatCustomerStatusShort } from '../lib/customerStatusLabels';
+import { PageBackButton } from '../components/PageBackButton';
 
 type HistoryTab = 'orders' | 'trades' | 'repairs';
 
@@ -155,6 +156,7 @@ export const History: React.FC = () => {
                 {/* Header Area */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
                     <div className="space-y-4">
+                        <PageBackButton isLight={isLight} fallbackTo="/profile" />
                         <div className="flex items-center gap-3">
                             <div className="w-12 h-12 rounded-2xl bg-[#CDA032]/20 flex items-center justify-center text-[#CDA032]">
                                 <Clock size={24} />

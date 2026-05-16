@@ -18,6 +18,7 @@ import { useAppContext } from '../App';
 import { formatCurrency } from '../lib/utils';
 import { updateRepairRequest, updateTradeRequest } from '../lib/api';
 import { formatCustomerStatusShort } from '../lib/customerStatusLabels';
+import { PageBackButton } from '../components/PageBackButton';
 
 interface TimelineStep {
     id: string;
@@ -207,11 +208,7 @@ export const Tracking: React.FC = () => {
         <div className={`min-h-screen pt-32 pb-20 px-4 md:px-8 transition-colors duration-500 ${isLight ? 'bg-[#FAFAFA]' : 'bg-gradient-to-b from-[#050508] via-[#08080f] to-[#050508]'}`}>
             <div className="max-w-4xl mx-auto space-y-12">
 
-                {/* Back Button */}
-                <Link to="/history" className={`group inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-colors ${isLight ? 'text-black/45 hover:text-[#CDA032]' : 'text-white/40 hover:text-[#CDA032]'}`}>
-                    <ChevronLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-                    Back to History
-                </Link>
+                <PageBackButton isLight={isLight} fallbackTo="/history" label="Back" />
 
                 {/* Hero Header */}
                 <div className="grid md:grid-cols-2 gap-12 items-end">

@@ -14,6 +14,7 @@ import {
     ScrollText,
 } from 'lucide-react';
 import type { Theme } from '../App';
+import { PageBackButton } from '../components/PageBackButton';
 
 interface AboutUsProps {
     theme?: Theme;
@@ -108,6 +109,9 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
         <div data-about-page className={`min-h-screen bb-theme-transition ${isLight ? 'bg-[#ffffff] text-black' : 'bg-black text-white'}`}>
             {/* Hero Section */}
             <section className={`relative bb-theme-transition pt-40 md:pt-48 pb-20 overflow-hidden flex flex-col items-center ${isLight ? 'bg-[#ffffff]' : ''}`}>
+                <div className="absolute top-28 left-4 sm:left-8 z-20">
+                    <PageBackButton isLight={isLight} fallbackTo="/" />
+                </div>
                 <div className="absolute inset-0 z-0 pointer-events-none" aria-hidden>
                     <div
                         className={`bb-theme-transition absolute inset-0 bg-gradient-to-br from-[#D4AF37]/10 via-transparent to-transparent ${isLight ? 'opacity-0' : 'opacity-50'

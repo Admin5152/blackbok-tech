@@ -11,6 +11,7 @@ import { ImageUpload } from '../components/ImageUpload';
 import { repairPricing, repairServicesMap } from '../data/repairPrices';
 import { createRepairRequest, getRepairRequests, updateRepairRequest } from '../lib/api';
 import { saveResumeAfterAuth, peekRestorePayload, clearRestorePayload } from '../lib/resumeAfterAuth';
+import { PageBackButton } from '../components/PageBackButton';
 
 export const Repair: React.FC = () => {
   const { user, repairs, setRepairs, notify, theme } = useAppContext();
@@ -452,6 +453,9 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
 
         {/* Header */}
         <header className="mb-10 sm:mb-16 reveal-on-scroll">
+          <div className="mb-6">
+            <PageBackButton isLight={theme === 'light'} fallbackTo="/" />
+          </div>
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-[#CDA032]/10 border border-[#CDA032]/30">
               <Wrench size={20} className="text-[#CDA032]" />

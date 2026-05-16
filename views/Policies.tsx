@@ -12,6 +12,7 @@ import {
 import { Link, useSearch } from '@tanstack/react-router';
 import type { Theme } from '../App';
 import { useAppContext } from '../App';
+import { PageBackButton } from '../components/PageBackButton';
 
 interface PoliciesProps {
     theme?: Theme;
@@ -96,6 +97,10 @@ export const Policies: React.FC<PoliciesProps> = ({ theme: themeProp }) => {
     return (
         <div className={`min-h-screen pt-24 sm:pt-32 pb-20 px-4 sm:px-6 lg:px-8 transition-colors duration-500 ${isLight ? 'bg-[#F0F0F0] text-black' : 'bg-gradient-to-b from-[#050508] via-[#08080f] to-[#050508] text-white'}`}>
             <div className="max-w-5xl mx-auto">
+
+                <div className="mb-8">
+                    <PageBackButton isLight={isLight} fallbackTo="/" />
+                </div>
 
                 {/* Header */}
                 <div className="text-center mb-12 sm:mb-20 space-y-4">

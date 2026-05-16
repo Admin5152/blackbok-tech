@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { Search, Filter, Grid3x3, List, Smartphone, Laptop as LaptopIcon, Tablet as TabletIcon, Headphones, Watch, Gamepad2, LayoutGrid, X, ArrowLeft, Tag, Repeat2, PanelLeftClose } from 'lucide-react';
+import { Search, Filter, Grid3x3, List, Smartphone, Laptop as LaptopIcon, Tablet as TabletIcon, Headphones, Watch, Gamepad2, LayoutGrid, X, Tag, Repeat2, PanelLeftClose } from 'lucide-react';
+import { PageBackButton } from '../components/PageBackButton';
 import { Product, Category } from '../types';
 import { ProductCard } from '../components/ProductCard';
 import { StoreFilterPanel, type StoreCategoryRow } from '../components/StoreFilterPanel';
@@ -383,37 +384,27 @@ export const Store: React.FC<StoreProps> = ({
       <div className="sticky top-16 sm:top-20 lg:top-24 z-40 border-b backdrop-blur-md" style={{ backgroundColor: `${pageBg}e6`, borderColor: borderFaint }}>
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3">
           <div className="flex min-w-0 flex-col gap-2">
-            {/* Toolbar: on small screens stack so search keeps a full row of width */}
-            <div className="flex min-w-0 flex-col gap-2 min-[480px]:flex-row min-[480px]:items-center sm:gap-3">
-              <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
-                <button
-                  onClick={() => navigateTo('home')}
-                  className="flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 px-2 py-2 transition-colors hover:border-white/20 sm:gap-2 sm:px-3"
-                  style={{ backgroundColor: panelBg, color: isLight ? '#000' : '#fff' }}
-                >
-                  <ArrowLeft size={16} />
-                  <span className="hidden text-sm font-medium sm:inline">Back</span>
-                </button>
+            <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+              <PageBackButton isLight={isLight} fallbackTo="/" iconOnly />
 
-                <div className="relative min-w-0 flex-1">
-                  <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 sm:left-3" style={{ color: textMuted }} aria-hidden />
-                  <input
-                    type="search"
-                    enterKeyHint="search"
-                    placeholder="Search shop…"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full min-w-0 rounded-lg py-2.5 pl-8 pr-3 text-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032]/40 sm:rounded-xl sm:py-2.5 sm:pl-10"
-                    style={{
-                      backgroundColor: panelBg,
-                      border: `1px solid ${borderSubtle}`,
-                      color: isLight ? '#000' : '#fff',
-                    }}
-                  />
-                </div>
+              <div className="relative min-w-0 flex-1">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 sm:left-3" style={{ color: textMuted }} aria-hidden />
+                <input
+                  type="search"
+                  enterKeyHint="search"
+                  placeholder="Search shop…"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full min-w-0 rounded-lg py-2.5 pl-8 pr-2 text-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032]/40 sm:rounded-xl sm:py-2.5 sm:pl-10"
+                  style={{
+                    backgroundColor: panelBg,
+                    border: `1px solid ${borderSubtle}`,
+                    color: isLight ? '#000' : '#fff',
+                  }}
+                />
               </div>
 
-              <div className="flex shrink-0 items-center justify-end gap-1 sm:justify-start sm:gap-1.5">
+              <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
                 {/* View mode — all breakpoints (compact on mobile) */}
                 <div className="flex items-center gap-0.5 rounded-lg border p-0.5" style={{ borderColor: borderSubtle }}>
                   <button
@@ -489,7 +480,6 @@ export const Store: React.FC<StoreProps> = ({
                 </button>
               </div>
             </div>
-
             {/* Active filters summary when panel closed or on mobile */}
             {activeFiltersCount > 0 && (
               <div className={`flex items-center gap-2 ${showDesktopFilters ? 'lg:hidden' : ''}`}>

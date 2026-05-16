@@ -6,6 +6,7 @@ import {
 import { Product } from '../types';
 import { formatCurrency } from '../lib/utils';
 import { useAppContext } from '../App';
+import { PageBackButton } from '../components/PageBackButton';
 
 export const Compare: React.FC = () => {
     const {
@@ -59,6 +60,10 @@ export const Compare: React.FC = () => {
     return (
         <div className={`min-h-screen pt-24 sm:pt-32 pb-20 px-4 sm:px-6 lg:px-8 transition-colors duration-500 ${isLight ? 'bg-[#F0F0F0]' : 'bg-gradient-to-b from-[#050508] via-[#0a0a12] to-[#050508]'}`}>
             <div className="max-w-[1440px] mx-auto">
+
+                <div className="mb-6">
+                    <PageBackButton isLight={isLight} fallbackTo="/store" />
+                </div>
 
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-12 sm:mb-16">

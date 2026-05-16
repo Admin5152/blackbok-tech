@@ -5,6 +5,7 @@ import { formatCurrency } from '../lib/utils';
 import { ProductImageGallery } from '../components/product/ProductImageGallery';
 import { ProductAvailabilityBadge } from '../components/ProductAvailabilityBadge';
 import { getProductOptionGroups, initialSelectedFromGroups, toOptionString, getAvailableStock } from '../lib/productOptions';
+import { PageBackButton } from '../components/PageBackButton';
 
 interface ProductDetailProps {
   product: Product;
@@ -148,18 +149,9 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             }`}
           >
             <li>
-              <button
-                onClick={() => navigateTo('home')}
-                type="button"
-                className={`flex items-center gap-1 transition-colors ${
-                  isLight ? 'hover:text-black' : 'hover:text-white'
-                }`}
-              >
-                <ArrowLeft size={16} />
-                <span>Back</span>
-              </button>
+              <PageBackButton isLight={isLight} fallbackTo="/store" label="Back" />
             </li>
-            <li>/</li>
+            <li className="hidden sm:inline">/</li>
             <li>
               <button
                 type="button"

@@ -13,6 +13,7 @@ import {
 import { useAppContext } from '../App';
 import { useReturns, type ReturnStatus, type ReturnCondition, type RefundMethod, type Return } from '../hooks/useReturns';
 import { formatCurrency } from '../lib/utils';
+import { PageBackButton } from '../components/PageBackButton';
 
 interface StatusMeta {
   label: string;
@@ -149,6 +150,9 @@ export const ReturnsPage: React.FC = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10">
           <div>
+            <div className="mb-4">
+              <PageBackButton isLight={isLight} fallbackTo="/profile" />
+            </div>
             <p
               className={`text-[10px] font-black uppercase tracking-[0.4em] mb-2 ${
                 isLight ? 'text-black/40' : 'text-[#CDA032]/80'
