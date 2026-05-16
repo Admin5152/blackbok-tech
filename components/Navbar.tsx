@@ -143,7 +143,13 @@ export const Navbar: React.FC<{
       };
       const onLenisScroll = (ev: Event) => {
         const y = (ev as CustomEvent<{ y: number }>).detail?.y;
-        if (typeof y === 'number') applyY(y);
+        if (typeof y !== 'number') return;
+        if (ticking) return;
+        ticking = true;
+        window.requestAnimationFrame(() => {
+          applyY(y);
+          ticking = false;
+        });
       };
       handleScroll();
       window.addEventListener('scroll', handleScroll, { passive: true });

@@ -76,13 +76,13 @@ const StatusBadge = ({ status }: { status: TradeRequest['status'] }) => {
 
 // ══════════════════════════════════════════════════════════════════════════════
 export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
-  const { user, theme } = useAppContext();
+  const { user, theme, trades: appTrades, setTrades } = useAppContext();
   const navigate = useNavigate();
   const isDark = theme === 'dark';
 
   const [tradeDevices, setTradeDevices] = useState(DEFAULT_TRADE_DEVICES);
-  const [myTrades, setMyTrades]         = useState<TradeRequest[]>([]);
   const [loadingTrades, setLoadingTrades] = useState(false);
+  const myTrades = appTrades;
   const [submitting, setSubmitting]     = useState(false);
 
   // The freshly-submitted trade — kept around so the success step
@@ -159,10 +159,10 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     if (!user) return;
     setLoadingTrades(true);
     getTradeRequests(user.id)
-      .then(d => setMyTrades(d as TradeRequest[]))
+      .then(d => setTrades(d as TradeRequest[]))
       .catch(() => {})
       .finally(() => setLoadingTrades(false));
-  }, [user]);
+  }, [user, setTrades]);
 
   // After login: restore trade-in wizard from session (see submitRequest when !user).
   useEffect(() => {
@@ -535,7 +535,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
         estimatedValue: 0,
       } as TradeRequest;
       setLastSubmittedTrade(newTrade);
-      setMyTrades(prev => [newTrade, ...prev]);
+      setTrades([newTrade, ...appTrades]);
       notify("Trade-in request submitted! We'll review and send you an offer within 24 hours.", 'success');
       go(5);
     } catch (err: any) {
@@ -548,7 +548,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
   const handleOfferResponse = async (tradeId: string, accept: boolean) => {
     try {
       await updateTradeRequest(tradeId, { status: accept ? 'Accepted' : 'Rejected' });
-      setMyTrades(prev => prev.map(t => t.id === tradeId ? { ...t, status: accept ? 'Accepted' : 'Rejected' } : t));
+      setTrades(appTrades.map(t => t.id === tradeId ? { ...t, status: accept ? 'Accepted' : 'Rejected' } : t));
       notify(accept ? "Offer accepted! We'll contact you to arrange the trade-in." : 'Offer declined.', accept ? 'success' : 'info');
     } catch { notify('Failed to update. Please try again.', 'error'); }
   };

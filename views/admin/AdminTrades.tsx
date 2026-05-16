@@ -3,6 +3,7 @@ import { RefreshCcw, Smartphone, Plus, Trash2, Check, X, Send, DollarSign, Packa
 import { Badge, SearchInput, Modal, ModalClose, EmptyState, Td, Th, TableWrapper, TRADE_DEVICES_KEY } from './adminUtils';
 import { useAppContext } from '../../App';
 import { getTradeRequests, updateTradeRequest } from '../../lib/api';
+import { supabase } from '../../lib/supabase';
 import { readStoredUpgradeProductIds, persistUpgradeProductIds } from '../../lib/tradeUpgradePicks';
 import type { TradeRequest, ProductVariant } from '../../types';
 import { formatCurrency } from '../../lib/utils';
@@ -23,6 +24,30 @@ const TRADE_STATUS_LABELS: Record<string, string> = {
     accepted: 'Accepted',
     completed: 'Completed',
     rejected: 'Rejected',
+};
+
+const QUICK_TRADE_STATUSES = [
+    'submitted',
+    'inspecting',
+    'offer_made',
+    'awaiting_user',
+    'accepted',
+    'completed',
+    'rejected',
+] as const;
+
+type QuickTradeStatus = (typeof QUICK_TRADE_STATUSES)[number];
+
+const tradeUpdateErrorMessage = (e: unknown): string => {
+    const err = e as { message?: string; details?: string; hint?: string };
+    const raw = [err?.message, err?.details, err?.hint].filter(Boolean).join(' — ');
+    if (/out of stock|insufficient stock/i.test(raw)) {
+        return 'Cannot mark completed: target product or variant is out of stock. Restock or pick another SKU.';
+    }
+    if (/target variant/i.test(raw)) {
+        return 'Cannot mark completed: pick a valid target variant for this catalogue product.';
+    }
+    return raw || 'Could not save trade update. Check your connection and try again.';
 };
 
 const toDbTradeStatus = (status?: string) => {
@@ -55,7 +80,7 @@ const formatCatalogVariantLabel = (v: ProductVariant): string => {
 interface Props { canEdit?: boolean; }
 
 export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
-    const { products } = useAppContext();
+    const { products, notify } = useAppContext();
     const [trades, setTrades] = useState<TradeRequest[]>([]);
     const [devices, setDevices] = useState<TradeInCatalogDevice[]>(DEFAULT_TRADE_DEVICES);
     const [loading, setLoading] = useState(true);
@@ -77,12 +102,19 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
     const [upgradePickDraftIds, setUpgradePickDraftIds] = useState<string[]>([]);
     const [draftTargetVariantId, setDraftTargetVariantId] = useState('');
 
+    const reloadTrades = useCallback(() => {
+        return getTradeRequests()
+            .then(d => setTrades(d as any))
+            .catch(e => {
+                console.error('Trades load error:', e);
+                notify?.('Could not load trade-ins.', 'error');
+            });
+    }, [notify]);
+
     // load trades from Supabase, devices from localStorage (admin-managed list)
     useEffect(() => {
-        getTradeRequests()
-            .then(d => setTrades(d as any))
-            .catch(e => console.error('Trades load error:', e))
-            .finally(() => setLoading(false));
+        setLoading(true);
+        void reloadTrades().finally(() => setLoading(false));
         try {
             const d = localStorage.getItem(TRADE_DEVICES_KEY);
             if (d) {
@@ -90,7 +122,23 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                 setDevices(mergeTradeDevicesFromStorageArray(parsed));
             }
         } catch { /* keep DEFAULT_TRADE_DEVICES */ }
-    }, []);
+    }, [reloadTrades]);
+
+    // Live refresh when another admin or the customer updates a row
+    useEffect(() => {
+        if (!supabase) return;
+        const channel = supabase
+            .channel('admin-trade-in-requests')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'trade_in_requests' },
+                () => { void reloadTrades(); },
+            )
+            .subscribe();
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [reloadTrades]);
 
     useEffect(() => {
         if (!showUpgradeMgr) return;
@@ -125,16 +173,25 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
         setSaving(true);
         try {
             const payload = { ...updates, ...(updates.status ? { status: toDbTradeStatus(updates.status) } : {}) };
-            await updateTradeRequest(id, payload);
+            const updated = await updateTradeRequest(id, payload);
             const fresh = await getTradeRequests();
             setTrades(fresh as any);
             setSel(prev => {
                 if (!prev || prev.id !== id) return prev;
-                return fresh.find(x => x.id === id) ?? null;
+                return fresh.find(x => x.id === id) ?? updated ?? null;
             });
-        } catch (e) { console.error(e); }
-        finally { setSaving(false); }
-    }, []);
+            if (updates.status && toDbTradeStatus(updates.status) === 'completed') {
+                notify?.('Trade-in marked completed. Customer history and stock are updated.', 'success');
+            }
+            return true;
+        } catch (e) {
+            console.error(e);
+            notify?.(tradeUpdateErrorMessage(e), 'error');
+            return false;
+        } finally {
+            setSaving(false);
+        }
+    }, [notify]);
 
     // When the linked catalogue product has SKUs but the trade row has none yet, default the first variant server-side so completion cannot slip through on a null.
     useEffect(() => {
@@ -266,15 +323,34 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
         await persistTradeTargetVariantId(null);
     };
 
-    const applyQuickTradeStatus = async (s: 'submitted' | 'inspecting' | 'completed' | 'rejected') => {
+    const ensureTargetVariantBeforeComplete = async (): Promise<boolean> => {
+        if (!sel || catalogTargetVariants.length === 0) return true;
+        const saved = savedTargetVariantOnSel(sel);
+        const pick = (saved || draftTargetVariantId || catalogTargetVariants[0]?.id || '').trim();
+        if (!pick) {
+            notify?.('Pick a target variant before marking this trade completed.', 'error');
+            return false;
+        }
+        if (!saved || saved !== pick) {
+            await persistTradeTargetVariantId(pick);
+        }
+        return true;
+    };
+
+    const applyQuickTradeStatus = async (s: QuickTradeStatus) => {
         if (!sel) return;
-        if (s === 'completed' && catalogTargetVariants.length > 0 && !savedTargetVariantOnSel(sel)) {
-            window.alert(
-                'This catalogue product has variants. Pick a target variant (it saves when you change the dropdown) before completing the trade.',
-            );
-            return;
+        if (s === 'completed') {
+            const ok = await ensureTargetVariantBeforeComplete();
+            if (!ok) return;
         }
         await patchTrade(sel.id, { status: s });
+    };
+
+    const markTradeCompleted = async () => {
+        if (!sel) return;
+        const ok = await ensureTargetVariantBeforeComplete();
+        if (!ok) return;
+        await patchTrade(sel.id, { status: 'completed' });
     };
 
     const addUpgradePick = (id: string) => {
@@ -504,13 +580,23 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                 <div>
                                     <p className="text-[9px] text-white/30 uppercase tracking-widest mb-2">Quick Status</p>
                                     <div className="flex flex-wrap gap-2">
-                                        {(['submitted', 'inspecting', 'completed', 'rejected'] as const).map(s => (
+                                        {QUICK_TRADE_STATUSES.map(s => (
                                             <button key={s} onClick={() => void applyQuickTradeStatus(s)} disabled={saving}
                                                 className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${toDbTradeStatus(sel.status) === s ? 'bg-[#B38B21] text-black' : 'bg-white/5 text-white/40 hover:text-white border border-white/10'}`}>
                                                 {TRADE_STATUS_LABELS[s]}
                                             </button>
                                         ))}
                                     </div>
+                                    {toDbTradeStatus(sel.status) !== 'completed' && (
+                                        <button
+                                            type="button"
+                                            onClick={() => void markTradeCompleted()}
+                                            disabled={saving}
+                                            className="mt-3 w-full py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30 transition-all disabled:opacity-40"
+                                        >
+                                            {saving ? 'Saving…' : 'Mark trade-in completed'}
+                                        </button>
+                                    )}
                                 </div>
 
                                 {/* Send offer */}

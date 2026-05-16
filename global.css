@@ -527,16 +527,15 @@ html.bb-is-scrolling .bb-home-marquee-track {
 /* Scroll-reveal (add class `reveal-on-scroll`; toggled to `reveal-visible` via IntersectionObserver) */
 .reveal-on-scroll {
   opacity: 0;
-  transform: translateY(28px);
+  transform: translate3d(0, 20px, 0);
   transition:
-    opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1),
-    transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: opacity, transform;
+    opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .reveal-on-scroll.reveal-visible {
   opacity: 1;
-  transform: translateY(0);
+  transform: translate3d(0, 0, 0);
 }
 
 .reveal-on-scroll.reveal-from-left {
@@ -1235,7 +1234,7 @@ body {
   background: var(--bb-bg);
   color: var(--bb-text);
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: none;
+  overscroll-behavior-y: contain;
 }
 
 /* Ease GPU load during fast scroll — pause decorative motion */
@@ -1250,16 +1249,11 @@ html.bb-is-scrolling .bb-home-marquee-track {
   animation-play-state: paused !important;
 }
 
-html.bb-is-scrolling .glow-border {
-  transition: none !important;
-}
-
 /* Reusable premium border + glow */
 .glow-border {
   border: var(--bb-border-width) solid var(--bb-border);
   border-radius: var(--bb-radius);
   transition: box-shadow 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
-  will-change: box-shadow;
 }
 
 .glow-border:hover {

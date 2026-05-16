@@ -1150,6 +1150,7 @@ const normalizeTradePayload = (updates: Record<string, any>, mode: 'insert' | 'u
     ['deviceName', 'device_name'],
     ['targetDevice', 'target_device'],
     ['targetProductId', 'target_product_id'],
+    ['targetVariantId', 'target_variant_id'],
     ['estimatedValue', 'estimated_value'],
     ['offeredPrice', 'offered_price'],
     ['finalValue', 'final_value'],
