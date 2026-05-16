@@ -273,6 +273,84 @@ export const deleteProduct = async (id: string) => {
   if (error) throw error;
 };
 
+export type SkuVariantInput = {
+  id?: string;
+  color?: string | null;
+  storage?: string | null;
+  ram?: string | null;
+  stock: number;
+  price_modifier?: number;
+  sku?: string | null;
+};
+
+const normSkuDim = (v: string | null | undefined) => (v ?? '').trim().toLowerCase();
+
+const skuDimsMatch = (
+  a: { color?: string | null; storage?: string | null; ram?: string | null },
+  b: { color?: string | null; storage?: string | null; ram?: string | null },
+) =>
+  normSkuDim(a.color) === normSkuDim(b.color) &&
+  normSkuDim(a.storage) === normSkuDim(b.storage) &&
+  normSkuDim(a.ram) === normSkuDim(b.ram);
+
+/** Upsert SKU rows and remove combinations no longer in the matrix. */
+export const syncProductVariants = async (productId: string, rows: SkuVariantInput[]) => {
+  const { data: existing, error: fetchErr } = await supabase
+    .from('product_variants')
+    .select('id, color, storage, ram')
+    .eq('product_id', productId);
+  if (fetchErr) throw fetchErr;
+
+  const keptIds = new Set<string>();
+  const existingRows = existing || [];
+
+  for (const row of rows) {
+    const payload = {
+      product_id: productId,
+      color: row.color?.trim() || null,
+      storage: row.storage?.trim() || null,
+      ram: row.ram?.trim() || null,
+      stock: Math.max(0, Math.floor(Number(row.stock) || 0)),
+      price_modifier: Number(row.price_modifier ?? 0) || 0,
+      sku: row.sku?.trim() || null,
+    };
+
+    if (row.id) {
+      const { error: uerr } = await supabase.from('product_variants').update(payload).eq('id', row.id);
+      if (uerr) throw uerr;
+      keptIds.add(row.id);
+      continue;
+    }
+
+    const match = existingRows.find((e) => skuDimsMatch(e, row));
+    if (match?.id) {
+      const { error: uerr } = await supabase.from('product_variants').update(payload).eq('id', match.id);
+      if (uerr) throw uerr;
+      keptIds.add(match.id);
+    } else {
+      const { data: inserted, error: ierr } = await supabase
+        .from('product_variants')
+        .insert(payload)
+        .select('id')
+        .single();
+      if (ierr) throw ierr;
+      if (inserted?.id) keptIds.add(inserted.id);
+    }
+  }
+
+  const toDelete = existingRows.filter((e) => e.id && !keptIds.has(e.id)).map((e) => e.id as string);
+  if (toDelete.length > 0) {
+    const { error: derr } = await supabase.from('product_variants').delete().in('id', toDelete);
+    if (derr) throw derr;
+  }
+};
+
+/** Remove all SKU rows when staff switches back to single product-level stock. */
+export const clearProductVariants = async (productId: string) => {
+  const { error } = await supabase.from('product_variants').delete().eq('product_id', productId);
+  if (error) throw error;
+};
+
 // Sort embedded product_images by `sort_order` ascending so consumers get a
 // stable order. Primary images are surfaced first by the gallery component
 // itself, not here, so list views with simple "first image" rendering still

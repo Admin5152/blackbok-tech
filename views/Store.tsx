@@ -9,7 +9,7 @@ import { formatCurrency } from '../lib/utils';
 import { normalizeProductCategory } from '../lib/api';
 import { scanScrollReveal } from '../hooks/useScrollReveal';
 import { ProductAvailabilityBadge } from '../components/ProductAvailabilityBadge';
-import { getProductOptionGroups, initialSelectedFromGroups, getAvailableStock } from '../lib/productOptions';
+import { defaultSelectedOptionsForProduct, getAvailableStock, sortProductsStockFirst } from '../lib/productOptions';
 import type { Theme } from '../App';
 
 interface StoreProps {
@@ -302,7 +302,7 @@ export const Store: React.FC<StoreProps> = ({
       return matchesCategory;
     });
 
-    return results.sort((a, b) => b.stock - a.stock);
+    return sortProductsStockFirst(results);
   }, [baseFilteredProducts, selectedCategories]);
 
   useEffect(() => {
@@ -576,7 +576,7 @@ export const Store: React.FC<StoreProps> = ({
                 {filteredProducts.map((product) => {
                   const listAvailable = getAvailableStock(
                     product,
-                    initialSelectedFromGroups(getProductOptionGroups(product)),
+                    defaultSelectedOptionsForProduct(product),
                   );
                   return (
                   <div

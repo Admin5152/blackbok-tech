@@ -124,12 +124,122 @@ export function getProductOptionGroups(product: Product | null | undefined): Pro
   return skuGroups;
 }
 
+/** First chip per group (may be out of stock). */
 export function initialSelectedFromGroups(groups: ProductOptionGroup[]): Record<string, string> {
   const initial: Record<string, string> = {};
   for (const g of groups) {
     if (g.options.length > 0) initial[g.name] = g.options[0];
   }
   return initial;
+}
+
+function skuVariantRows(product: Product): Array<Record<string, unknown>> {
+  return (product.variants || []).filter((v: unknown) => {
+    if (!v || typeof v !== 'object') return false;
+    const o = v as { name?: unknown; options?: unknown };
+    return !(typeof o.name === 'string' && Array.isArray(o.options));
+  }) as unknown as Array<Record<string, unknown>>;
+}
+
+function selectionFromVariantRow(
+  row: Record<string, unknown>,
+  groups: ProductOptionGroup[],
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const g of groups) {
+    const field = mapOptionGroupToVariantField(g.name);
+    let pick = '';
+    if (field) {
+      const cell = toOptionString(row[field]);
+      if (cell) {
+        const match = g.options.find((o) => normOpt(o) === normOpt(cell));
+        pick = match ?? cell;
+      }
+    }
+    if (!pick && g.options.length > 0) pick = g.options[0];
+    if (pick) out[g.name] = pick;
+  }
+  return out;
+}
+
+function findFirstInStockCombination(
+  product: Product,
+  groups: ProductOptionGroup[],
+): Record<string, string> | null {
+  const cur: Record<string, string> = {};
+  const walk = (idx: number): boolean => {
+    if (idx >= groups.length) {
+      return getAvailableStock(product, cur) > 0;
+    }
+    const g = groups[idx];
+    for (const opt of g.options) {
+      cur[g.name] = opt;
+      if (walk(idx + 1)) return true;
+    }
+    delete cur[g.name];
+    return false;
+  };
+  return walk(0) ? { ...cur } : null;
+}
+
+/**
+ * Default Color / Storage / RAM when a product has option groups:
+ * first variant row with stock, else first in-stock combination, else first chips.
+ */
+export function defaultSelectedOptionsForProduct(product: Product): Record<string, string> {
+  const groups = getProductOptionGroups(product);
+  if (groups.length === 0) return {};
+
+  const rows = skuVariantRows(product);
+  for (const row of rows) {
+    const stock = Math.max(0, Math.floor(Number(row.stock ?? 0)));
+    if (stock > 0) return selectionFromVariantRow(row, groups);
+  }
+
+  if (rows.length > 0) {
+    return initialSelectedFromGroups(groups);
+  }
+
+  const combo = findFirstInStockCombination(product, groups);
+  return combo ?? initialSelectedFromGroups(groups);
+}
+
+/**
+ * Keep the customer's choice when possible; otherwise jump to the next in-stock SKU/combo.
+ */
+export function snapSelectionToInStock(
+  product: Product,
+  groups: ProductOptionGroup[],
+  preferred: Record<string, string>,
+): Record<string, string> {
+  if (groups.length === 0) return {};
+
+  const filled: Record<string, string> = { ...preferred };
+  for (const g of groups) {
+    if (!toOptionString(filled[g.name]) && g.options.length > 0) {
+      filled[g.name] = g.options[0];
+    }
+  }
+  if (getAvailableStock(product, filled) > 0) return filled;
+
+  const rows = skuVariantRows(product);
+  const locked = Object.entries(preferred).filter(([, v]) => toOptionString(v));
+
+  for (const row of rows) {
+    const stock = Math.max(0, Math.floor(Number(row.stock ?? 0)));
+    if (stock <= 0) continue;
+    const sel = selectionFromVariantRow(row, groups);
+    const matches = locked.every(([k, v]) => normOpt(sel[k]) === normOpt(v));
+    if (matches) return sel;
+  }
+
+  for (const row of rows) {
+    const stock = Math.max(0, Math.floor(Number(row.stock ?? 0)));
+    if (stock > 0) return selectionFromVariantRow(row, groups);
+  }
+
+  const combo = findFirstInStockCombination(product, groups);
+  return combo ?? initialSelectedFromGroups(groups);
 }
 
 function mapOptionGroupToVariantField(groupName: string): 'color' | 'storage' | 'ram' | null {
@@ -149,6 +259,75 @@ function normOpt(s: unknown): string {
  * Uses per-SKU `product_variants` stock when a row matches all selected
  * Color / Storage / RAM fields; otherwise falls back to `product.stock`.
  */
+/** Human label for cart / trade-in summaries, e.g. "Black · 256GB · 8GB". */
+export function formatSelectedOptionsLabel(selectedOptions: Record<string, string> = {}): string {
+  const parts = Object.entries(selectedOptions)
+    .map(([k, v]) => {
+      const s = toOptionString(v);
+      return s ? `${k}: ${s}` : '';
+    })
+    .filter(Boolean);
+  return parts.join(' · ');
+}
+
+/** Match `product_variants.id` for Color / Storage / RAM selection (checkout & trade-in). */
+export function findVariantIdForOptions(
+  product: Product,
+  selectedOptions: Record<string, string> = {},
+): string | null {
+  const rows = skuVariantRows(product);
+  if (rows.length === 0) return null;
+
+  const selectedEntries = Object.entries(selectedOptions).filter(([, v]) => toOptionString(v));
+  if (selectedEntries.length === 0) return null;
+
+  for (const row of rows) {
+    let ok = true;
+    for (const [groupName, val] of selectedEntries) {
+      const field = mapOptionGroupToVariantField(groupName);
+      if (!field) continue;
+      const cell = toOptionString(row[field]);
+      if (!cell || normOpt(cell) !== normOpt(val)) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) {
+      const id = toOptionString((row as { id?: unknown }).id);
+      return id || null;
+    }
+  }
+  return null;
+}
+
+/** True when the product has at least one unit (any SKU row or base stock). */
+export function productHasAnyStock(product: Product | null | undefined): boolean {
+  if (!product) return false;
+  return getProductMaxStock(product) > 0;
+}
+
+/** Best available qty for listing/sort (sum of SKU rows, else base stock). */
+export function getProductMaxStock(product: Product): number {
+  const base = Math.max(0, Math.floor(Number(product.stock ?? 0)));
+  const rows = skuVariantRows(product);
+  if (rows.length === 0) return base;
+  const sum = rows.reduce(
+    (s, row) => s + Math.max(0, Math.floor(Number(row.stock ?? 0))),
+    0,
+  );
+  return sum > 0 ? sum : base;
+}
+
+/** In-stock products first; out-of-stock at the bottom (stable within each group). */
+export function sortProductsStockFirst<T extends Product>(products: T[]): T[] {
+  return [...products].sort((a, b) => {
+    const aOk = productHasAnyStock(a) ? 1 : 0;
+    const bOk = productHasAnyStock(b) ? 1 : 0;
+    if (bOk !== aOk) return bOk - aOk;
+    return getProductMaxStock(b) - getProductMaxStock(a);
+  });
+}
+
 export function getAvailableStock(product: Product, selectedOptions: Record<string, string> = {}): number {
   const base = Math.max(0, Math.floor(Number(product.stock ?? 0)));
 

@@ -25,7 +25,12 @@ import { ScrollReveal } from './components/ScrollReveal';
 import { whatsAppUrl } from './lib/contact';
 import { formatCustomerStatusShort } from './lib/customerStatusLabels';
 import { INITIAL_PRODUCTS } from './constants';
-import { getAvailableStock, getProductOptionGroups, initialSelectedFromGroups, toOptionString } from './lib/productOptions';
+import {
+  getAvailableStock,
+  getProductOptionGroups,
+  defaultSelectedOptionsForProduct,
+  toOptionString,
+} from './lib/productOptions';
 import { Navbar } from './components/Navbar';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { Footer } from './components/Footer';
@@ -1146,7 +1151,7 @@ function RootComponent() {
     const resolvedOptions =
       Object.keys(options).some((k) => toOptionString(options[k]))
         ? options
-        : initialSelectedFromGroups(getProductOptionGroups(product));
+        : defaultSelectedOptionsForProduct(product);
     const available = getAvailableStock(product, resolvedOptions);
     if (available <= 0) {
       notify('This item is out of stock.', 'error');

@@ -5,7 +5,13 @@ import { Product } from '../types';
 import { formatCurrency, TW_DARK_BTN_DEPTH, TW_DARK_GOLD_BTN_DEPTH } from '../lib/utils';
 import { useAppContext } from '../App';
 import { ProductAvailabilityBadge } from './ProductAvailabilityBadge';
-import { getProductOptionGroups, initialSelectedFromGroups, toOptionString, getAvailableStock } from '../lib/productOptions';
+import {
+  getProductOptionGroups,
+  defaultSelectedOptionsForProduct,
+  snapSelectionToInStock,
+  toOptionString,
+  getAvailableStock,
+} from '../lib/productOptions';
 
 interface ProductCardProps {
   product: Product;
@@ -38,20 +44,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   );
 
   useEffect(() => {
-    setSelectedOptions(initialSelectedFromGroups(optionGroups));
-  }, [product.id, optionGroups]);
+    setSelectedOptions(defaultSelectedOptionsForProduct(product));
+  }, [product.id, optionGroups, product]);
 
   const handleAddToCartWithOptions = () => {
-    const missing = optionGroups.filter((g) => !selectedOptions[g.name]?.trim());
-    if (missing.length > 0) {
-      window.alert(`Select ${missing.map((m) => m.name).join(', ')} before adding to cart.`);
-      return;
-    }
+    const resolved = snapSelectionToInStock(product, optionGroups, selectedOptions);
     if (availableStock <= 0) {
       window.alert('This item is out of stock.');
       return;
     }
-    onAddToCart(product, selectedOptions, 1);
+    onAddToCart(product, resolved, 1);
   };
 
   return (
@@ -199,32 +201,46 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                     {variant.options.map((opt, optIdx) => {
                       const o = toOptionString(opt);
                       const ol = o.toLowerCase();
+                      const trialOpts = snapSelectionToInStock(product, optionGroups, {
+                        ...selectedOptions,
+                        [variant.name]: o,
+                      });
+                      const optStock = getAvailableStock(product, trialOpts);
+                      const optDisabled = optStock <= 0;
                       return (
                         <button
                           key={`${variant.name}-${optIdx}-${o}`}
                           type="button"
-                          title={o}
-                          aria-label={`${variant.name} ${o}${selectedValue === o ? ', selected' : ''}`}
+                          title={optDisabled ? `${o} (out of stock)` : o}
+                          disabled={optDisabled}
+                          aria-label={`${variant.name} ${o}${selectedValue === o ? ', selected' : ''}${optDisabled ? ', out of stock' : ''}`}
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            setSelectedOptions((prev) => ({ ...prev, [variant.name]: o }));
+                            if (optDisabled) return;
+                            setSelectedOptions((prev) =>
+                              snapSelectionToInStock(product, optionGroups, { ...prev, [variant.name]: o }),
+                            );
                           }}
                           className={
                             isColor
                               ? `shrink-0 w-5 h-5 rounded-full border-2 transition-all ${ol === 'white' ? (isLight ? 'ring-1 ring-black/20 ' : 'ring-1 ring-white/35 ') : ''}${
-                                  selectedValue === o
-                                    ? 'border-[#CDA032] ring-1 ring-[#CDA032]/50 scale-105'
-                                    : isLight
-                                      ? 'border-black/25 hover:border-black/45'
-                                      : 'border-white/25 hover:border-white/45'
+                                  optDisabled
+                                    ? 'opacity-30 cursor-not-allowed border-black/10'
+                                    : selectedValue === o
+                                      ? 'border-[#CDA032] ring-1 ring-[#CDA032]/50 scale-105'
+                                      : isLight
+                                        ? 'border-black/25 hover:border-black/45'
+                                        : 'border-white/25 hover:border-white/45'
                                 }`
                               : `shrink-0 min-w-0 max-w-full px-1.5 py-0.5 rounded-md text-[7px] font-black tracking-wide transition-all border truncate ${
-                                  selectedValue === o
-                                    ? 'border-[#CDA032] bg-[#CDA032]/15 text-[#CDA032]'
-                                    : isLight
-                                      ? 'border-black/20 bg-zinc-100 text-black/85 hover:border-black/40 hover:bg-zinc-200 hover:text-black'
-                                      : 'border-white/15 text-white/55 hover:border-white/35 hover:text-white'
+                                  optDisabled
+                                    ? 'opacity-30 cursor-not-allowed border-black/10'
+                                    : selectedValue === o
+                                      ? 'border-[#CDA032] bg-[#CDA032]/15 text-[#CDA032]'
+                                      : isLight
+                                        ? 'border-black/20 bg-zinc-100 text-black/85 hover:border-black/40 hover:bg-zinc-200 hover:text-black'
+                                        : 'border-white/15 text-white/55 hover:border-white/35 hover:text-white'
                                 }`
                           }
                           style={

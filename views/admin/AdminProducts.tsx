@@ -2,8 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Package, Plus, Edit2, Trash2, Save, X, AlertTriangle, Box, Star } from 'lucide-react';
 import { SearchInput, Modal, ModalClose, Td, Th, TableWrapper, PROD_KEY } from './adminUtils';
 import {
-    getProducts, createProduct, updateProduct, deleteProduct
+    getProducts, createProduct, updateProduct, deleteProduct,
+    syncProductVariants, clearProductVariants, type SkuVariantInput,
 } from '../../lib/api';
+import {
+    parseSkuVariants, skuMatrixEnabledForProduct, totalSkuStock,
+} from '../../lib/productSkuMatrix';
+import type { SkuMatrixRow } from '../../lib/productSkuMatrix';
+import { ProductSkuMatrix } from './ProductSkuMatrix';
 // Products are sourced exclusively from Supabase.
 import type { Product } from '../../types';
 import { formatCurrency } from '../../lib/utils';
@@ -35,7 +41,15 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
     const [storageIn, setStorageIn] = useState('');
     const [ramIn, setRamIn] = useState('');
     const [specsIn, setSpecsIn] = useState('');
+    const [skuMatrixEnabled, setSkuMatrixEnabled] = useState(false);
+    const [skuRows, setSkuRows] = useState<SkuMatrixRow[]>([]);
     const [error, setError] = useState('');
+
+    const resetSkuState = (p?: Product | ProductDraft) => {
+        const rows = parseSkuVariants(p?.variants);
+        setSkuRows(rows);
+        setSkuMatrixEnabled(rows.length > 0 || (p ? skuMatrixEnabledForProduct(p as Product) : false));
+    };
 
     const load = async (opts?: { silent?: boolean }) => {
         if (!opts?.silent) setLoading(true);
@@ -53,8 +67,18 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
 
     useEffect(() => { load(); }, []);
 
-    const openAdd = () => { setDraft({ ...EMPTY }); setColorIn(''); setStorageIn(''); setRamIn(''); setSpecsIn(''); setError(''); setShowForm(true); };
-    const openEdit = (p: Product) => { setDraft({ ...p } as any); setColorIn(''); setStorageIn(''); setRamIn(''); setSpecsIn(''); setError(''); setShowForm(true); };
+    const openAdd = () => {
+        setDraft({ ...EMPTY });
+        setColorIn(''); setStorageIn(''); setRamIn(''); setSpecsIn('');
+        setSkuRows([]); setSkuMatrixEnabled(false);
+        setError(''); setShowForm(true);
+    };
+    const openEdit = (p: Product) => {
+        setDraft({ ...p } as ProductDraft);
+        setColorIn(''); setStorageIn(''); setRamIn(''); setSpecsIn('');
+        resetSkuState(p);
+        setError(''); setShowForm(true);
+    };
 
     const del = async (id: string) => {
         if (!confirm('Delete this product?')) return;
@@ -73,47 +97,72 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
             setError('Name and price are required.');
             return;
         }
+        if (skuMatrixEnabled && skuRows.length === 0) {
+            setError('Generate SKU rows from your chips or turn off per-combination stock.');
+            return;
+        }
+
         setSaving(true); setError('');
+        const useMatrix = skuMatrixEnabled && skuRows.length > 0;
+        const matrixStock = useMatrix ? totalSkuStock(skuRows) : (draft.stock != null ? Number(draft.stock) : 0);
+
         try {
+            let productId = draft.id;
+            const productPayload = {
+                name: draft.name,
+                description: draft.description || '',
+                price: priceNum,
+                image: draft.image || '',
+                category: draft.category || 'iPhone',
+                stock: matrixStock,
+                rating: draft.rating != null ? Number(draft.rating) : undefined,
+                discount: draft.discount != null ? Number(draft.discount) : undefined,
+                new: draft.new ?? false,
+                colors: draft.colors,
+                storage: draft.storage,
+                ram: draft.ram,
+                specs: draft.specs,
+                featured: Boolean((draft as any).featured),
+            };
+
             if (draft.id) {
                 await updateProduct(draft.id, {
-                    name: draft.name,
-                    description: draft.description || '',
-                    price: priceNum,
-                    image: draft.image || '',
-                    category: draft.category || 'iPhone',
-                    stock: draft.stock != null ? Number(draft.stock) : 0,
-                    rating: draft.rating != null ? Number(draft.rating) : undefined,
-                    discount: draft.discount != null ? Number(draft.discount) : undefined,
-                    new: draft.new ?? false,
+                    ...productPayload,
                     reviewCount: (draft as any).reviewCount,
-                    colors: draft.colors,
-                    storage: draft.storage,
-                    ram: draft.ram,
-                    specs: draft.specs,
-                    featured: Boolean((draft as any).featured),
                 });
             } else {
-                await createProduct({
+                const created = await createProduct({
+                    ...productPayload,
                     name: draft.name!,
-                    description: draft.description || '',
-                    price: priceNum,
-                    image: draft.image || '',
-                    category: draft.category || 'iPhone',
-                    stock: draft.stock ?? 10,
-                    rating: draft.rating ?? 4.5,
-                    discount: draft.discount != null ? Number(draft.discount) : undefined,
-                    new: draft.new ?? false,
                     reviewCount: 0,
-                    colors: draft.colors,
-                    storage: draft.storage,
-                    ram: draft.ram,
+                    stock: matrixStock || (draft.stock ?? 10),
+                    rating: draft.rating ?? 4.5,
                     specs: draft.specs?.length ? draft.specs : [],
-                    featured: Boolean((draft as any).featured),
                 });
+                productId = created.id;
             }
+
+            if (productId) {
+                if (useMatrix) {
+                    const variantPayload: SkuVariantInput[] = skuRows.map((r) => ({
+                        id: r.id,
+                        color: r.color || null,
+                        storage: r.storage || null,
+                        ram: r.ram || null,
+                        stock: r.stock,
+                        price_modifier: r.price_modifier,
+                        sku: r.sku || null,
+                    }));
+                    await syncProductVariants(productId, variantPayload);
+                } else {
+                    await clearProductVariants(productId);
+                }
+            }
+
             setShowForm(false);
             setDraft(EMPTY);
+            setSkuRows([]);
+            setSkuMatrixEnabled(false);
             await load({ silent: true });
             window.dispatchEvent(new CustomEvent('products:refresh'));
         } catch (e: any) {
@@ -270,7 +319,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
 
             {/* Product Form Modal */}
             {showForm && (
-                <Modal onClose={() => { setShowForm(false); setError(''); }} maxW="max-w-xl">
+                <Modal onClose={() => { setShowForm(false); setError(''); }} maxW="max-w-3xl">
                     <ModalClose onClose={() => { setShowForm(false); setError(''); }} />
                     <div className="p-6 overflow-y-auto max-h-[88vh]">
                         <h3 className="text-base font-black text-white mb-5">{draft.id ? 'Edit Product' : 'Add New Product'}</h3>
@@ -299,7 +348,23 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
                                         {CATEGORIES.map(c => <option key={c}>{c}</option>)}
                                     </select>
                                 </div>
-                                {[['Stock', 'stock'], ['Discount (%)', 'discount'], ['Rating (0-5)', 'rating']].map(([l, k]) => (
+                                {!skuMatrixEnabled && (
+                                    <div>
+                                        <label className="text-[9px] font-black uppercase tracking-widest text-white/30 block mb-1">Stock</label>
+                                        <input type="number" placeholder="Stock" value={draft.stock ?? ''}
+                                            onChange={e => setDraft({ ...draft, stock: parseFloat(e.target.value) || 0 })}
+                                            className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:border-[#B38B21]/50 focus:outline-none" />
+                                    </div>
+                                )}
+                                {skuMatrixEnabled && skuRows.length > 0 && (
+                                    <div>
+                                        <label className="text-[9px] font-black uppercase tracking-widest text-white/30 block mb-1">Total stock</label>
+                                        <p className="w-full bg-black/30 border border-white/10 rounded-xl px-3 py-2 text-white/50 text-sm">
+                                            {totalSkuStock(skuRows)} <span className="text-[10px] text-white/30">(sum of SKU rows)</span>
+                                        </p>
+                                    </div>
+                                )}
+                                {[['Discount (%)', 'discount'], ['Rating (0-5)', 'rating']].map(([l, k]) => (
                                     <div key={k}>
                                         <label className="text-[9px] font-black uppercase tracking-widest text-white/30 block mb-1">{l}</label>
                                         <input type="number" placeholder={l} value={(draft as any)[k] ?? ''}
@@ -338,6 +403,16 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true }) => {
                                 placeholder="e.g. 16GB" onAdd={() => addChip('ram', ramIn, () => setRamIn(''))} onRemove={v => rmChip('ram', v)} />
                             <ChipField label="Spec highlights (PDP)" chips={draft.specs || []} inputVal={specsIn} setInputVal={setSpecsIn}
                                 placeholder="e.g. A18 chip, Ceramic Shield" onAdd={() => addChip('specs', specsIn, () => setSpecsIn(''))} onRemove={v => rmChip('specs', v)} />
+
+                            <ProductSkuMatrix
+                                colors={draft.colors || []}
+                                storage={draft.storage || []}
+                                ram={draft.ram || []}
+                                enabled={skuMatrixEnabled}
+                                onEnabledChange={setSkuMatrixEnabled}
+                                rows={skuRows}
+                                onRowsChange={setSkuRows}
+                            />
 
                             {/* Checkboxes */}
                             <div className="flex gap-6">

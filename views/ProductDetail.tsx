@@ -4,7 +4,13 @@ import { X, Plus, Minus, Heart, Share2, Star, Check, Truck, Shield, RefreshCw, A
 import { formatCurrency } from '../lib/utils';
 import { ProductImageGallery } from '../components/product/ProductImageGallery';
 import { ProductAvailabilityBadge } from '../components/ProductAvailabilityBadge';
-import { getProductOptionGroups, initialSelectedFromGroups, toOptionString, getAvailableStock } from '../lib/productOptions';
+import {
+  getProductOptionGroups,
+  defaultSelectedOptionsForProduct,
+  snapSelectionToInStock,
+  toOptionString,
+  getAvailableStock,
+} from '../lib/productOptions';
 import { PageBackButton } from '../components/PageBackButton';
 
 interface ProductDetailProps {
@@ -72,9 +78,9 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
   const totalReviews = mockReviews.length;
 
   useEffect(() => {
-    setSelectedOptions(initialSelectedFromGroups(normalizedVariants));
+    setSelectedOptions(defaultSelectedOptionsForProduct(product));
     setQuantity(1);
-  }, [normalizedVariants, product.id]);
+  }, [normalizedVariants, product.id, product]);
 
   useEffect(() => {
     setQuantity((q) => Math.min(q, Math.max(1, availableStock || 1)));
@@ -85,23 +91,18 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
   };
 
   const handleOptionChange = (variantName: string, option: string) => {
-    setSelectedOptions(prev => ({
-      ...prev,
-      [variantName]: option
-    }));
+    setSelectedOptions((prev) =>
+      snapSelectionToInStock(product, normalizedVariants, { ...prev, [variantName]: option }),
+    );
   };
 
   const handleAddToCart = () => {
-    const missing = normalizedVariants.filter((g) => !selectedOptions[g.name]?.trim());
-    if (missing.length > 0) {
-      window.alert(`Please select: ${missing.map((g) => g.name).join(', ')}`);
-      return;
-    }
     if (availableStock <= 0) {
       window.alert('This configuration is out of stock.');
       return;
     }
-    addToCart(product, selectedOptions, quantity);
+    const resolved = snapSelectionToInStock(product, normalizedVariants, selectedOptions);
+    addToCart(product, resolved, quantity);
   };
 
   const incrementQuantity = () => setQuantity((prev) => Math.min(prev + 1, Math.max(1, availableStock)));
@@ -283,23 +284,31 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                           const opt = toOptionString(option);
                           const ol = opt.toLowerCase();
                           const isSelected = selectedOptions[variant.name] === opt;
+                          const trialOpts = snapSelectionToInStock(product, normalizedVariants, {
+                            ...selectedOptions,
+                            [variant.name]: opt,
+                          });
+                          const optDisabled = getAvailableStock(product, trialOpts) <= 0;
                           if (isColorGroup) {
                             return (
                               <button
                                 key={`${variant.name}-${optIdx}-${opt}`}
                                 type="button"
-                                title={opt}
-                                aria-label={`${variant.name}: ${opt}${isSelected ? ', selected' : ''}`}
+                                disabled={optDisabled}
+                                title={optDisabled ? `${opt} (out of stock)` : opt}
+                                aria-label={`${variant.name}: ${opt}${isSelected ? ', selected' : ''}${optDisabled ? ', out of stock' : ''}`}
                                 aria-pressed={isSelected}
-                                onClick={() => handleOptionChange(variant.name, opt)}
+                                onClick={() => !optDisabled && handleOptionChange(variant.name, opt)}
                                 className={`relative shrink-0 w-10 h-10 rounded-full border-2 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B38B21] ${
                                   isLight ? 'focus-visible:ring-offset-2 focus-visible:ring-offset-white' : 'focus-visible:ring-offset-2 focus-visible:ring-offset-[#060605]'
                                 } ${ol === 'white' ? (isLight ? 'ring-1 ring-black/25' : 'ring-1 ring-white/30') : ''} ${
-                                  isSelected
-                                    ? 'border-[#B38B21] ring-2 ring-[#B38B21]/35 scale-[1.03]'
-                                    : isLight
-                                      ? 'border-black/20 hover:border-black/40'
-                                      : 'border-white/30 hover:border-white/55'
+                                  optDisabled
+                                    ? 'opacity-35 cursor-not-allowed'
+                                    : isSelected
+                                      ? 'border-[#B38B21] ring-2 ring-[#B38B21]/35 scale-[1.03]'
+                                      : isLight
+                                        ? 'border-black/20 hover:border-black/40'
+                                        : 'border-white/30 hover:border-white/55'
                                 }`}
                                 style={{
                                   backgroundColor:
@@ -334,13 +343,16 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                             <button
                               key={`${variant.name}-${optIdx}-${opt}`}
                               type="button"
-                              onClick={() => handleOptionChange(variant.name, opt)}
+                              disabled={optDisabled}
+                              onClick={() => !optDisabled && handleOptionChange(variant.name, opt)}
                               className={`shrink-0 min-w-[2.5rem] px-3.5 py-2 rounded-xl text-xs font-bold tracking-wide transition-all border ${
-                                isSelected
-                                  ? 'border-[#B38B21] bg-[#B38B21]/15 text-[#B38B21]'
-                                  : isLight
-                                    ? 'border-black/15 bg-zinc-100 text-black/90 hover:border-black/30 hover:bg-zinc-200'
-                                    : 'border-white/12 bg-white/[0.04] text-white/80 hover:border-white/28'
+                                optDisabled
+                                  ? 'opacity-35 cursor-not-allowed border-black/10'
+                                  : isSelected
+                                    ? 'border-[#B38B21] bg-[#B38B21]/15 text-[#B38B21]'
+                                    : isLight
+                                      ? 'border-black/15 bg-zinc-100 text-black/90 hover:border-black/30 hover:bg-zinc-200'
+                                      : 'border-white/12 bg-white/[0.04] text-white/80 hover:border-white/28'
                               }`}
                             >
                               {opt}

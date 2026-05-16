@@ -3,7 +3,13 @@ import { X, Minus, Plus, ShoppingCart, Star, ShieldCheck, ArrowLeft, Package } f
 import { Product } from '../types';
 import { formatCurrency } from '../lib/utils';
 import { useAppContext } from '../App';
-import { getProductOptionGroups, initialSelectedFromGroups, toOptionString, getAvailableStock } from '../lib/productOptions';
+import {
+  getProductOptionGroups,
+  defaultSelectedOptionsForProduct,
+  snapSelectionToInStock,
+  toOptionString,
+  getAvailableStock,
+} from '../lib/productOptions';
 import { ProductAvailabilityBadge } from './ProductAvailabilityBadge';
 
 interface QuickViewModalProps {
@@ -27,7 +33,7 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
   );
 
   useEffect(() => {
-    setSelectedOptions(initialSelectedFromGroups(groupedVariants));
+    setSelectedOptions(product ? defaultSelectedOptionsForProduct(product) : {});
     setQuantity(1);
   }, [product, groupedVariants]);
 
@@ -38,16 +44,12 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
   if (!product || !isOpen) return null;
 
   const handleAddToCart = () => {
-    const missing = groupedVariants.filter((g) => !selectedOptions[g.name]?.trim());
-    if (missing.length > 0) {
-      window.alert(`Please select: ${missing.map((g) => g.name).join(', ')}`);
-      return;
-    }
     if (!product || availableStock <= 0) {
       window.alert('This configuration is out of stock.');
       return;
     }
-    onAddToCart(product, selectedOptions, quantity);
+    const resolved = snapSelectionToInStock(product, groupedVariants, selectedOptions);
+    onAddToCart(product, resolved, quantity);
     onClose();
   };
 
@@ -182,11 +184,27 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
                     {variant.options.map((option, optIdx) => {
                       const opt = toOptionString(option);
                       const ol = opt.toLowerCase();
+                      const trialOpts = product
+                        ? snapSelectionToInStock(product, groupedVariants, {
+                            ...selectedOptions,
+                            [variant.name]: opt,
+                          })
+                        : selectedOptions;
+                      const optDisabled = product ? getAvailableStock(product, trialOpts) <= 0 : false;
                       return (
                       <button
                         key={`${variant.name}-${optIdx}-${opt}`}
-                        onClick={() => setSelectedOptions(prev => ({ ...prev, [variant.name]: opt }))}
-                        className={`group relative px-4 sm:px-6 py-3 rounded-2xl border text-[9px] sm:text-[11px] font-black transition-all duration-300 ${selectedOptions[variant.name] === opt
+                        type="button"
+                        disabled={optDisabled}
+                        onClick={() => {
+                          if (!product || optDisabled) return;
+                          setSelectedOptions((prev) =>
+                            snapSelectionToInStock(product, groupedVariants, { ...prev, [variant.name]: opt }),
+                          );
+                        }}
+                        className={`group relative px-4 sm:px-6 py-3 rounded-2xl border text-[9px] sm:text-[11px] font-black transition-all duration-300 ${optDisabled
+                          ? 'opacity-35 cursor-not-allowed border-black/10'
+                          : selectedOptions[variant.name] === opt
                           ? 'border-[#CDA032] bg-[#CDA032] text-black shadow-2xl shadow-[#CDA032]/20'
                           : isLight
                             ? 'border-black/15 bg-zinc-100 text-black/90 shadow-sm hover:border-black/25 hover:bg-zinc-200'

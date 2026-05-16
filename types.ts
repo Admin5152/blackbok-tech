@@ -98,9 +98,9 @@ export interface ProductVariant {
   stock?: number;
   created_at?: string;
   updated_at?: string;
-  // Backward comp (used in constants.ts seed data & UI)
-  name: string;
-  options: string[];
+  // Legacy seed / grouped selectors (not DB SKU rows)
+  name?: string;
+  options?: string[];
 }
 
 export interface CartItem {

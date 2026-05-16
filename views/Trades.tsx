@@ -21,6 +21,16 @@ import { formatCurrency } from '../lib/utils';
 import { PageBackButton } from '../components/PageBackButton';
 import { BrandLogo } from '../components/BrandLogo';
 import { findDeviceBrand, sortDeviceBrands } from '../data/deviceBrands';
+import { ProductOptionPickers } from '../components/ProductOptionPickers';
+import {
+  defaultSelectedOptionsForProduct,
+  findVariantIdForOptions,
+  formatSelectedOptionsLabel,
+  getAvailableStock,
+  getProductOptionGroups,
+  productHasAnyStock,
+  sortProductsStockFirst,
+} from '../lib/productOptions';
 
 interface TradesProps {
   products: Product[];
@@ -96,6 +106,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
   const [selectedDevice, setSelectedDevice]         = useState<typeof tradeDevices[0] | null>(null);
   const [selectedVariant, setSelectedVariant]       = useState('');
   const [targetProductId, setTargetProductId]       = useState('');
+  const [targetSelectedOptions, setTargetSelectedOptions] = useState<Record<string, string>>({});
   const [notes, setNotes]                           = useState('');
 
   const [formData, setFormData] = useState({
@@ -198,7 +209,15 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
       if (dev) setSelectedDevice(dev);
     }
     if (typeof payload.selectedVariant === 'string') setSelectedVariant(payload.selectedVariant);
-    if (typeof payload.targetProductId === 'string') setTargetProductId(payload.targetProductId);
+    if (typeof payload.targetProductId === 'string') {
+      setTargetProductId(payload.targetProductId);
+      if (payload.targetSelectedOptions && typeof payload.targetSelectedOptions === 'object') {
+        setTargetSelectedOptions(payload.targetSelectedOptions as Record<string, string>);
+      } else if (payload.targetProductId) {
+        const p = products.find((x) => x.id === payload.targetProductId);
+        setTargetSelectedOptions(p ? defaultSelectedOptionsForProduct(p) : {});
+      }
+    }
     if (typeof payload.notes === 'string') setNotes(payload.notes);
     if (payload.formData && typeof payload.formData === 'object') {
       setFormData((prev) => ({ ...prev, ...(payload.formData as typeof prev) }));
@@ -304,7 +323,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
   }, []);
 
   const upgradeProducts = useMemo(
-    () => resolveUpgradeTargetProducts(products),
+    () => sortProductsStockFirst(resolveUpgradeTargetProducts(products)),
     [products, upgradePicksRev],
   );
 
@@ -312,6 +331,31 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     products.find(p => p.id === targetProductId),
     [products, targetProductId],
   );
+
+  const targetOptionGroups = useMemo(
+    () => (targetProduct ? getProductOptionGroups(targetProduct) : []),
+    [targetProduct],
+  );
+
+  const targetOptionsLabel = useMemo(
+    () => formatSelectedOptionsLabel(targetSelectedOptions),
+    [targetSelectedOptions],
+  );
+
+  const selectTargetProduct = (id: string) => {
+    if (!id) {
+      setTargetProductId('');
+      setTargetSelectedOptions({});
+      return;
+    }
+    const p = products.find((x) => x.id === id);
+    if (p && !productHasAnyStock(p)) {
+      notify('This product is out of stock and cannot be selected.', 'error');
+      return;
+    }
+    setTargetProductId(id);
+    setTargetSelectedOptions(p ? defaultSelectedOptionsForProduct(p) : {});
+  };
 
   const pendingOffer = myTrades.find(
     t => t.status === 'Awaiting User' || t.status === 'Offer sent' || t.status === 'Offer Made',
@@ -452,6 +496,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
         selectedDeviceId: selectedDevice?.id ?? null,
         selectedVariant,
         targetProductId,
+        targetSelectedOptions,
         notes,
         formData,
         deviceDetails,
@@ -478,6 +523,16 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
       return;
     }
     if (!formData.name || !formData.email || !formData.phone) { notify('Please fill in all contact details', 'error'); return; }
+    if (targetProduct) {
+      if (!productHasAnyStock(targetProduct)) {
+        notify('Your selected upgrade product is out of stock. Pick another or choose “Not sure yet”.', 'error');
+        return;
+      }
+      if (targetOptionGroups.length > 0 && getAvailableStock(targetProduct, targetSelectedOptions) <= 0) {
+        notify('That color/storage/RAM combination is out of stock. Pick another configuration.', 'error');
+        return;
+      }
+    }
     setSubmitting(true);
     try {
       const accessoriesList = Object.entries(accessories).filter(([,v]) => v).map(([k]) => k);
@@ -494,8 +549,13 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
             : `${selectedDevice!.name} — ${selectedVariant}`,
         user_description: detailsText,
         accessories: accessoriesList,
-        target_device: targetProduct?.name || '',
+        target_device: targetProduct
+          ? [targetProduct.name, targetOptionsLabel].filter(Boolean).join(' — ')
+          : '',
         target_product_id: targetProduct?.id || undefined,
+        target_variant_id: targetProduct
+          ? findVariantIdForOptions(targetProduct, targetSelectedOptions) || undefined
+          : undefined,
         preferred_date: formData.date || undefined,
         preferred_time: timeSlots.find(t => t.id === formData.timeSlot)?.time || '',
         contact_name: formData.name,
@@ -952,7 +1012,11 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
               <div className="flex justify-between items-center py-6 border-b border-[var(--bb-border)] animate-in fade-in transition-all">
                 <div className="space-y-1">
                   <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032]">Device Details</p>
-                  <h3 className="text-xl font-black text-[color:var(--bb-text)]">{targetProduct ? `Upgrading to ${targetProduct.name}` : 'Details recorded'}</h3>
+                  <h3 className="text-xl font-black text-[color:var(--bb-text)]">
+                    {targetProduct
+                      ? `Upgrading to ${targetProduct.name}${targetOptionsLabel ? ` (${targetOptionsLabel})` : ''}`
+                      : 'Details recorded'}
+                  </h3>
                 </div>
                 <button type="button" onClick={() => openStep(2)} className="text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors">Change</button>
               </div>
@@ -999,24 +1063,54 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                 <div>
                   <p className="text-xs text-[color:var(--bb-muted)] mb-4">Pick a product you have in mind, or skip if you are not sure yet.</p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[min(52vh,28rem)] overflow-y-auto pr-0.5">
-                    <button onClick={() => setTargetProductId('')}
+                    <button type="button" onClick={() => selectTargetProduct('')}
                       className={`py-3 px-4 rounded-xl border text-xs font-bold text-center transition-all ${!targetProductId
                         ? 'border-[#CDA032] bg-[#CDA032]/10 text-[#CDA032]'
                         : 'border-[var(--bb-border)] bg-[var(--bb-surface)] opacity-60 hover:opacity-100'}`}>
                       Not sure yet
                     </button>
-                    {upgradeProducts.map(p => (
-                      <button key={p.id} onClick={() => setTargetProductId(p.id)}
-                        className={`flex flex-col items-center py-3 px-3 rounded-xl border text-xs font-bold text-center transition-all ${targetProductId === p.id
-                          ? 'border-[#CDA032] bg-[#CDA032]/10 text-[#CDA032]'
-                          : 'border-[var(--bb-border)] bg-[var(--bb-surface)] opacity-60 hover:opacity-100'}`}>
+                    {upgradeProducts.map(p => {
+                      const inStock = productHasAnyStock(p);
+                      return (
+                      <button
+                        type="button"
+                        key={p.id}
+                        disabled={!inStock}
+                        onClick={() => selectTargetProduct(p.id)}
+                        className={`flex flex-col items-center py-3 px-3 rounded-xl border text-xs font-bold text-center transition-all ${
+                          !inStock
+                            ? 'border-[var(--bb-border)] bg-[var(--bb-surface)] opacity-35 cursor-not-allowed'
+                            : targetProductId === p.id
+                              ? 'border-[#CDA032] bg-[#CDA032]/10 text-[#CDA032]'
+                              : 'border-[var(--bb-border)] bg-[var(--bb-surface)] opacity-60 hover:opacity-100'
+                        }`}>
                         {p.image && <img src={p.image} alt={p.name} className="h-8 w-auto object-contain mb-1.5" />}
                         <span className="text-[10px] leading-tight">{p.name}</span>
-                        <span className="text-[#CDA032] font-black mt-0.5">{formatCurrency(p.price)}</span>
+                        {inStock ? (
+                          <span className="text-[#CDA032] font-black mt-0.5">{formatCurrency(p.price)}</span>
+                        ) : (
+                          <span className="text-[10px] text-red-400/80 font-bold mt-0.5 uppercase tracking-wide">Out of stock</span>
+                        )}
                       </button>
-                    ))}
+                    );})}
                   </div>
                 </div>
+
+                {targetProduct && targetOptionGroups.length > 0 && (
+                  <div className="rounded-2xl border border-[var(--bb-border)] bg-[var(--bb-surface-2)] p-5 space-y-3">
+                    <p className="text-xs font-bold text-[color:var(--bb-text)]">
+                      Choose configuration for <span className="text-[#CDA032]">{targetProduct.name}</span>
+                    </p>
+                    <ProductOptionPickers
+                      product={targetProduct}
+                      groups={targetOptionGroups}
+                      selectedOptions={targetSelectedOptions}
+                      onChange={setTargetSelectedOptions}
+                      strictStock
+                      showStockHints
+                    />
+                  </div>
+                )}
 
                 <div className="flex flex-wrap gap-3 pt-6">
                   <button
@@ -1358,7 +1452,15 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032] mb-2">Trade-In Device</p>
                         <h3 className="text-2xl font-black">{tradeInDeviceLabel}</h3>
-                        {targetProduct && <p className="text-sm text-[color:var(--bb-muted)] mt-1">Upgrading to: <span className="text-[color:var(--bb-text)] font-bold">{targetProduct.name}</span></p>}
+                        {targetProduct && (
+                          <p className="text-sm text-[color:var(--bb-muted)] mt-1">
+                            Upgrading to:{' '}
+                            <span className="text-[color:var(--bb-text)] font-bold">
+                              {targetProduct.name}
+                              {targetOptionsLabel ? ` — ${targetOptionsLabel}` : ''}
+                            </span>
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1512,6 +1614,9 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                       <div>
                         <p className="text-[10px] uppercase font-bold tracking-widest opacity-50 mb-0.5">Upgrading To</p>
                         <p className="text-sm font-bold leading-snug">{targetProduct.name}</p>
+                        {targetOptionsLabel && (
+                          <p className="text-[10px] text-[color:var(--bb-muted)] mt-0.5">{targetOptionsLabel}</p>
+                        )}
                         <p className="text-xs text-[#CDA032] font-black">{formatCurrency(targetProduct.price)}</p>
                       </div>
                     </div>
