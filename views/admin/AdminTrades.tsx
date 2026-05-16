@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase';
 import { readStoredUpgradeProductIds, persistUpgradeProductIds } from '../../lib/tradeUpgradePicks';
 import type { TradeRequest, ProductVariant } from '../../types';
 import { formatCurrency } from '../../lib/utils';
+import { parseOfferInput, tradeHasValidOffer, tradeOfferAmount } from '../../lib/tradeOffer';
 import {
   DEFAULT_TRADE_DEVICES,
   mergeTradeDevicesFromStorageArray,
@@ -47,8 +48,13 @@ const tradeUpdateErrorMessage = (e: unknown): string => {
     if (/target variant/i.test(raw)) {
         return 'Cannot mark completed: pick a valid target variant for this catalogue product.';
     }
+    if (/offer requires|offer value/i.test(raw)) {
+        return 'Cannot set Offer sent without a positive offer value. Enter the amount in Send offer below.';
+    }
     return raw || 'Could not save trade update. Check your connection and try again.';
 };
+
+const OFFER_REQUIRED_STATUSES = new Set<QuickTradeStatus>(['offer_made', 'awaiting_user']);
 
 const toDbTradeStatus = (status?: string) => {
     const value = String(status || '').trim();
@@ -207,18 +213,28 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
     }, [sel, products, patchTrade]);
 
     const sendOffer = async () => {
-        if (!sel || !offer || !condition) return;
-        const amount = parseFloat(offer);
-        if (!Number.isFinite(amount)) return;
-        // offer_made = inspection finished; customer is notified and can accept/decline.
-        await patchTrade(sel.id, {
+        if (!sel) return;
+        if (!condition.trim()) {
+            notify?.('Set device condition before sending an offer.', 'error');
+            return;
+        }
+        const amount = parseOfferInput(offer);
+        if (amount == null) {
+            notify?.('Enter a valid offer value greater than zero.', 'error');
+            return;
+        }
+        const ok = await patchTrade(sel.id, {
             status: 'offer_made',
             condition,
             final_value: amount,
             offered_price: amount,
             admin_note: offerNote,
         });
-        setOffer(''); setOfferNote(''); setCondition('');
+        if (ok) {
+            setOffer('');
+            setOfferNote('');
+            setCondition('');
+        }
     };
 
     const statuses = ['All', 'submitted', 'inspecting', 'offer_made', 'awaiting_user', 'accepted', 'completed', 'rejected'];
@@ -337,11 +353,42 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
         return true;
     };
 
+    const resolveOfferAmountForStatus = (): number | null => {
+        const fromInput = parseOfferInput(offer);
+        if (fromInput != null) return fromInput;
+        return tradeOfferAmount(sel);
+    };
+
+    const canQuickSetOfferStatus = (s: QuickTradeStatus) => {
+        if (!OFFER_REQUIRED_STATUSES.has(s)) return true;
+        return resolveOfferAmountForStatus() != null;
+    };
+
     const applyQuickTradeStatus = async (s: QuickTradeStatus) => {
         if (!sel) return;
         if (s === 'completed') {
             const ok = await ensureTargetVariantBeforeComplete();
             if (!ok) return;
+        }
+        if (OFFER_REQUIRED_STATUSES.has(s)) {
+            const amount = resolveOfferAmountForStatus();
+            if (amount == null) {
+                notify?.('Enter an offer value in Send offer below before setting Offer sent or Awaiting User.', 'error');
+                return;
+            }
+            if (s === 'offer_made' && !condition.trim()) {
+                notify?.('Set device condition before sending an offer.', 'error');
+                return;
+            }
+            const payload: Record<string, unknown> = {
+                status: s,
+                final_value: amount,
+                offered_price: amount,
+            };
+            if (condition.trim()) payload.condition = condition;
+            if (offerNote.trim()) payload.admin_note = offerNote;
+            await patchTrade(sel.id, payload);
+            return;
         }
         await patchTrade(sel.id, { status: s });
     };
@@ -581,8 +628,18 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                     <p className="text-[9px] text-white/30 uppercase tracking-widest mb-2">Quick Status</p>
                                     <div className="flex flex-wrap gap-2">
                                         {QUICK_TRADE_STATUSES.map(s => (
-                                            <button key={s} onClick={() => void applyQuickTradeStatus(s)} disabled={saving}
-                                                className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${toDbTradeStatus(sel.status) === s ? 'bg-[#B38B21] text-black' : 'bg-white/5 text-white/40 hover:text-white border border-white/10'}`}>
+                                            <button
+                                                key={s}
+                                                type="button"
+                                                onClick={() => void applyQuickTradeStatus(s)}
+                                                disabled={saving || !canQuickSetOfferStatus(s)}
+                                                title={
+                                                    !canQuickSetOfferStatus(s)
+                                                        ? 'Enter offer value in Send offer section first'
+                                                        : undefined
+                                                }
+                                                className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${toDbTradeStatus(sel.status) === s ? 'bg-[#B38B21] text-black' : 'bg-white/5 text-white/40 hover:text-white border border-white/10'} disabled:opacity-30 disabled:cursor-not-allowed`}
+                                            >
                                                 {TRADE_STATUS_LABELS[s]}
                                             </button>
                                         ))}
@@ -620,13 +677,25 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                     </div>
                                     <div className="relative">
                                         <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
-                                        <input type="number" value={offer} onChange={e => setOffer(e.target.value)} placeholder="Offer value"
-                                            className="w-full pl-8 pr-3 py-2 bg-black/50 border border-white/10 rounded-xl text-white text-sm focus:border-[#B38B21]/50 focus:outline-none" />
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            step="0.01"
+                                            required
+                                            value={offer}
+                                            onChange={e => setOffer(e.target.value)}
+                                            placeholder="Offer value (required)"
+                                            className="w-full pl-8 pr-3 py-2 bg-black/50 border border-white/10 rounded-xl text-white text-sm focus:border-[#B38B21]/50 focus:outline-none"
+                                        />
                                     </div>
                                     <textarea rows={2} value={offerNote} onChange={e => setOfferNote(e.target.value)} placeholder="Note to user (optional)..."
                                         className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs resize-none focus:border-[#B38B21]/50 focus:outline-none" />
-                                    <button onClick={sendOffer} disabled={!offer || !condition || saving}
-                                        className="w-full py-2.5 bg-[#B38B21] text-black font-black text-xs uppercase tracking-widest rounded-xl hover:bg-[#D4AF37] transition-all disabled:opacity-40 flex items-center justify-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => void sendOffer()}
+                                        disabled={!parseOfferInput(offer) || !condition.trim() || saving}
+                                        className="w-full py-2.5 bg-[#B38B21] text-black font-black text-xs uppercase tracking-widest rounded-xl hover:bg-[#D4AF37] transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    >
                                         <Send size={13} /> {saving ? 'Sending...' : 'Send offer to customer'}
                                     </button>
                                 </div>

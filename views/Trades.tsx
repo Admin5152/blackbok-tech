@@ -21,6 +21,7 @@ import { formatCurrency } from '../lib/utils';
 import { PageBackButton } from '../components/PageBackButton';
 import { BrandLogo } from '../components/BrandLogo';
 import { findDeviceBrand, sortDeviceBrands } from '../data/deviceBrands';
+import { tradeHasValidOffer, tradeOfferAmount } from '../lib/tradeOffer';
 import { ProductOptionPickers } from '../components/ProductOptionPickers';
 import {
   defaultSelectedOptionsForProduct,
@@ -358,7 +359,9 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
   };
 
   const pendingOffer = myTrades.find(
-    t => t.status === 'Awaiting User' || t.status === 'Offer sent' || t.status === 'Offer Made',
+    (t) =>
+      (t.status === 'Awaiting User' || t.status === 'Offer sent' || t.status === 'Offer Made') &&
+      tradeHasValidOffer(t),
   );
 
   const timeSlots = [
@@ -594,6 +597,11 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
   };
 
   const handleOfferResponse = async (tradeId: string, accept: boolean) => {
+    const row = appTrades.find((t) => t.id === tradeId);
+    if (accept && row && !tradeHasValidOffer(row)) {
+      notify('This offer is not ready yet — staff must set an offer value first.', 'error');
+      return;
+    }
     try {
       await updateTradeRequest(tradeId, { status: accept ? 'Accepted' : 'Rejected' });
       setTrades(appTrades.map(t => t.id === tradeId ? { ...t, status: accept ? 'Accepted' : 'Rejected' } : t));
@@ -640,7 +648,12 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                 <p className="text-[10px] font-black uppercase tracking-widest text-purple-400 mb-1">🎉 You Have a Trade-In Offer!</p>
                 <p className="text-[color:var(--bb-text)] font-black text-lg">{pendingOffer.device}</p>
                 {pendingOffer.condition && <p className="text-xs text-[color:var(--bb-muted)] mt-0.5">Condition: <span className="text-[color:var(--bb-text)] font-bold">{pendingOffer.condition}</span></p>}
-                {(pendingOffer as any).finalValue && <p className="text-2xl font-black text-[#B38B21] mt-2">{formatCurrency(Number((pendingOffer as any).finalValue))} <span className="text-xs text-[color:var(--bb-muted)] font-normal">trade-in value</span></p>}
+                {tradeOfferAmount(pendingOffer) != null && (
+                  <p className="text-2xl font-black text-[#B38B21] mt-2">
+                    {formatCurrency(tradeOfferAmount(pendingOffer)!)}{' '}
+                    <span className="text-xs text-[color:var(--bb-muted)] font-normal">trade-in value</span>
+                  </p>
+                )}
                 {(pendingOffer as any).adminNote && <p className="text-xs text-[color:var(--bb-muted)] mt-1 bg-[var(--bb-surface-2)] border border-[var(--bb-border)] rounded-xl p-2">{(pendingOffer as any).adminNote}</p>}
               </div>
               <div className="flex gap-2">
@@ -1658,7 +1671,8 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                             <StatusBadge status={t.status} />
                             {(t as any).finalValue && <span className="text-[10px] font-black text-[#CDA032]">{formatCurrency(Number((t as any).finalValue))}</span>}
                           </div>
-                          {(t.status === 'Awaiting User' || t.status === 'Offer sent' || t.status === 'Offer Made') && (
+                          {(t.status === 'Awaiting User' || t.status === 'Offer sent' || t.status === 'Offer Made') &&
+                            tradeHasValidOffer(t) && (
                             <div className="flex gap-1.5 mt-2">
                               <button onClick={() => handleOfferResponse(t.id, true)}
                                 className="flex-1 py-1.5 bg-green-500/20 text-green-400 text-[9px] font-black uppercase rounded-lg hover:bg-green-500/30 transition-all">Accept</button>
