@@ -495,10 +495,10 @@ export const Checkout: React.FC = () => {
 
           <div className="space-y-4">
             <h2 className="text-4xl font-black uppercase tracking-tighter italic">
-              Checkout <span className="text-[#B38B21]">Aborted</span>
+              Your cart is <span className="text-[#B38B21]">empty</span>
             </h2>
-            <p className="text-xs font-black uppercase tracking-[0.4em] text-black/45 dark:text-white/40 leading-relaxed">
-              No active payload detected in the transaction buffer. Return to the store to capture units.
+            <p className="text-sm font-medium text-black/55 dark:text-white/50 leading-relaxed normal-case tracking-normal max-w-sm mx-auto">
+              Add items from the store before checking out. We&apos;ll bring you right back here when you&apos;re ready.
             </p>
           </div>
 
@@ -507,7 +507,7 @@ export const Checkout: React.FC = () => {
               onClick={() => navigate({ to: '/store' })}
               className="w-full py-5 bg-[#B38B21] text-black rounded-2xl text-[10px] font-black uppercase tracking-[0.4em] hover:bg-[#D4AF37] transition-all hover:scale-105 active:scale-95 shadow-xl shadow-[#B38B21]/10"
             >
-              Initialize Procurement
+              Browse the store
             </button>
           </div>
         </div>

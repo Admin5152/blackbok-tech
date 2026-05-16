@@ -151,10 +151,13 @@ export const Cart: React.FC<CartProps> = ({
                     </div>
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="space-y-3 max-w-sm mx-auto">
                     <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tighter italic">
-                      Inventory <span className="text-[#CDA032]">Void</span>
+                      Your cart is <span className="text-[#CDA032]">empty</span>
                     </h2>
+                    <p className="text-sm font-medium text-[var(--bb-text)]/60 leading-relaxed normal-case tracking-normal">
+                      Browse our store and add items you like—we&apos;ll keep them here until you&apos;re ready to checkout.
+                    </p>
                   </div>
 
                   <div className="pt-2">
@@ -162,7 +165,7 @@ export const Cart: React.FC<CartProps> = ({
                       onClick={() => navigateTo("store")}
                       className="px-10 py-4 bg-[#CDA032] text-black rounded-xl text-[10px] font-black uppercase tracking-[0.3em] hover:bg-[#B38B21] transition-all hover:scale-105 active:scale-95 shadow-[0_15px_30px_rgba(205,160,50,0.2)] flex items-center gap-3 mx-auto"
                     >
-                      Initialize Catalog
+                      Browse the store
                       <ArrowLeft className="rotate-180" size={14} />
                     </button>
                   </div>

@@ -17,6 +17,8 @@ export const Repair: React.FC = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [subStep, setSubStep] = useState(1); // 1=deviceType, 2=brand, 3=model
+  const [issuePhase, setIssuePhase] = useState<1 | 2 | 3>(1); // step 2: issues → details → photos
+  const [bookingPhase, setBookingPhase] = useState<1 | 2 | 3>(1); // step 3: schedule → contact → device access
   const [transitionKey, setTransitionKey] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [myRepairs, setMyRepairs] = useState<RepairRequest[]>([]);
@@ -87,6 +89,12 @@ export const Repair: React.FC = () => {
 
     if (typeof payload.step === 'number' && payload.step >= 1 && payload.step <= 6) setStep(payload.step);
     if (typeof payload.subStep === 'number' && payload.subStep >= 1 && payload.subStep <= 3) setSubStep(payload.subStep);
+    if (typeof payload.issuePhase === 'number' && payload.issuePhase >= 1 && payload.issuePhase <= 3) {
+      setIssuePhase(payload.issuePhase as 1 | 2 | 3);
+    }
+    if (typeof payload.bookingPhase === 'number' && payload.bookingPhase >= 1 && payload.bookingPhase <= 3) {
+      setBookingPhase(payload.bookingPhase as 1 | 2 | 3);
+    }
     if (typeof payload.transitionKey === 'number') setTransitionKey(payload.transitionKey);
     if (typeof payload.selectedSeries === 'string') setSelectedSeries(payload.selectedSeries);
     if (Array.isArray(payload.selectedIssueKeys)) {
@@ -114,7 +122,7 @@ export const Repair: React.FC = () => {
         }, 80);
       }
     }
-  }, [step, subStep]);
+  }, [step, subStep, issuePhase, bookingPhase]);
 
   const getServiceCost = (key: keyof typeof repairServicesMap): number => {
     if (formData.brand !== 'Apple' || !formData.model || key === 'UNKNOWN') return 0;
@@ -152,6 +160,8 @@ export const Repair: React.FC = () => {
       saveResumeAfterAuth('repair', {
         step,
         subStep,
+        issuePhase,
+        bookingPhase,
         transitionKey,
         formData: { ...formData, photos: [] },
         selectedIssueKeys: Array.from(selectedIssueKeys),
@@ -230,6 +240,47 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
     setTransitionKey(k => k + 1);
     setStep(n);
     setSubStep(1);
+    if (n === 2) setIssuePhase(1);
+    if (n === 3) setBookingPhase(1);
+  };
+
+  const needsDetailedIssueDescription = () =>
+    selectedIssueKeys.has('H') || selectedIssueKeys.has('UNKNOWN');
+
+  const validateIssueDescription = (): boolean => {
+    if (!needsDetailedIssueDescription()) return true;
+    if (formData.description.trim().length >= 5) return true;
+    const issueName = selectedIssueKeys.has('H') ? 'Audio / Speaker' : 'Unspecified';
+    notify(`Please provide details for the ${issueName} issue.`, 'error');
+    return false;
+  };
+
+  const advanceIssuePhase = (next: 2 | 3) => {
+    setIssuePhase(next);
+    setTransitionKey((k) => k + 1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const advanceBookingPhase = (next: 2 | 3) => {
+    setBookingPhase(next);
+    setTransitionKey((k) => k + 1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const validateBookingSchedule = (): boolean => {
+    if (!formData.date || !formData.timeSlot) {
+      notify('Please select a date and time slot.', 'error');
+      return false;
+    }
+    return true;
+  };
+
+  const validateBookingContact = (): boolean => {
+    if (!formData.name?.trim() || !formData.phone?.trim() || !formData.email?.trim()) {
+      notify('Please fill in your name, phone, and email.', 'error');
+      return false;
+    }
+    return true;
   };
 
   const modelPickerSubStep = () =>
@@ -305,6 +356,8 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
 
   const openRepairStep = (n: number) => {
     setStep(n);
+    if (n === 2) setIssuePhase(1);
+    if (n === 3) setBookingPhase(1);
     setTransitionKey((k) => k + 1);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -781,7 +834,40 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                 </button>
               </div>
             ) : step === 2 && (
-              <div key={`step-2-${transitionKey}`} className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-4 active-form-section">
+              <div key={`step-2-${transitionKey}-${issuePhase}`} className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-4 active-form-section">
+
+                <nav aria-label="Repair issue steps" className="flex flex-wrap items-center gap-2 sm:gap-3">
+                  {([
+                    { n: 1 as const, label: 'Select issues' },
+                    { n: 2 as const, label: 'More details' },
+                    { n: 3 as const, label: 'Photos' },
+                  ]).map(({ n, label }, i) => (
+                    <React.Fragment key={n}>
+                      {i > 0 && <ChevronRight size={14} className="opacity-30 shrink-0" aria-hidden />}
+                      <button
+                        type="button"
+                        disabled={n > issuePhase}
+                        onClick={() => {
+                          if (n >= issuePhase) return;
+                          setIssuePhase(n);
+                          setTransitionKey((k) => k + 1);
+                        }}
+                        className={`rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition-all ${
+                          issuePhase === n
+                            ? 'bg-[#CDA032] text-black'
+                            : issuePhase > n
+                              ? 'bg-[var(--bb-surface-2)] border border-[var(--bb-border)] opacity-80 hover:border-[#CDA032]/40'
+                              : 'opacity-40 cursor-not-allowed'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    </React.Fragment>
+                  ))}
+                </nav>
+
+                {issuePhase === 1 && (
+                  <>
 
                 <div className="space-y-2">
                   <h2 className="text-2xl font-bold tracking-tight">What's happening with your {formData.model}?</h2>
@@ -851,23 +937,42 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                   </div>
                 )}
 
-                {/* Tell us more details section - Always visible once an issue is selected for better flow */}
-                {selectedIssueKeys.size > 0 && (
-                  <div className={`space-y-6 animate-in fade-in slide-in-from-top-4 duration-300 pt-6 border-t border-[var(--bb-border)]`}>
+                <div className="flex flex-wrap gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedIssueKeys.size === 0) {
+                        notify('Please select at least one issue.', 'error');
+                        return;
+                      }
+                      advanceIssuePhase(2);
+                    }}
+                    className="flex items-center gap-2 px-8 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] hover:scale-[1.02] active:scale-95 transition-all"
+                  >
+                    Next: Add details <ArrowRight size={16} />
+                  </button>
+                </div>
+                  </>
+                )}
+
+                {issuePhase === 2 && (
+                  <>
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-bold tracking-tight">Tell us more details</h2>
+                  <p className="opacity-60 text-sm">Help our technicians understand the problem and what you are bringing in.</p>
+                </div>
+
                     <div className={`space-y-4 p-5 rounded-3xl border-2 transition-all duration-500 ${(() => {
-                      const needsDetailedInfo = selectedIssueKeys.has('H') || selectedIssueKeys.has('UNKNOWN');
+                      const needsDetailedInfo = needsDetailedIssueDescription();
                       const isMissing = needsDetailedInfo && formData.description.trim().length < 5;
                       return isMissing
                         ? 'border-[#CDA032]/30 bg-[#CDA032]/5 shadow-[0_0_20px_rgba(205,160,50,0.05)]'
                         : 'border-[var(--bb-border)] bg-[var(--bb-surface-2)]';
                     })()}`}>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-xl font-bold tracking-tight">Tell us more details</h3>
-                          {(selectedIssueKeys.has('H') || selectedIssueKeys.has('UNKNOWN')) && (
-                            <span className="text-[9px] font-black bg-[#CDA032] text-black px-2 py-0.5 rounded-full uppercase tracking-tighter animate-pulse">Required</span>
+                      <div className="flex items-center justify-end gap-2 mb-2">
+                          {needsDetailedIssueDescription() && (
+                            <span className="text-[9px] font-black bg-[#CDA032] text-black px-2 py-0.5 rounded-full uppercase tracking-tighter">Required</span>
                           )}
-                        </div>
                         <Info size={16} className="text-[#CDA032] opacity-50 transition-opacity hover:opacity-100" />
                       </div>
 
@@ -958,41 +1063,76 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                       </div>
                     </div>
 
-                    <div className="space-y-4 pt-4">
-                      <h3 className="text-xl font-bold tracking-tight">Upload Photos (Optional)</h3>
-                      <p className="opacity-60 text-sm">Upload photos of the damage to help our technicians estimate better.</p>
+                <div className="flex flex-wrap gap-3 pt-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIssuePhase(1);
+                      setTransitionKey((k) => k + 1);
+                    }}
+                    className="flex items-center gap-2 px-6 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider border border-[var(--bb-border)] hover:border-[#CDA032]/40 transition-all"
+                  >
+                    <ArrowLeft size={16} /> Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!validateIssueDescription()) return;
+                      advanceIssuePhase(3);
+                    }}
+                    className="flex items-center gap-2 px-8 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] hover:scale-[1.02] active:scale-95 transition-all"
+                  >
+                    Next: Photos <ArrowRight size={16} />
+                  </button>
+                </div>
+                  </>
+                )}
+
+                {issuePhase === 3 && (
+                  <>
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-bold tracking-tight">Upload photos (optional)</h2>
+                  <p className="opacity-60 text-sm">Photos of the damage help our technicians give you a better estimate.</p>
+                </div>
                       <ImageUpload
                         images={formData.photos}
                         onImagesChange={photos => setFormData({ ...formData, photos })}
                         maxImages={3}
                         maxSize={5}
                       />
-                    </div>
-                  </div>
-                )}
 
-                <div className="pt-8">
+                <div className="flex flex-wrap gap-3 pt-8">
                   <button
+                    type="button"
+                    onClick={() => {
+                      setIssuePhase(2);
+                      setTransitionKey((k) => k + 1);
+                    }}
+                    className="flex items-center gap-2 px-6 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider border border-[var(--bb-border)] hover:border-[#CDA032]/40 transition-all"
+                  >
+                    <ArrowLeft size={16} /> Back
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => {
                       if (selectedIssueKeys.size === 0) {
                         notify('Please select at least one issue.', 'error');
+                        setIssuePhase(1);
                         return;
                       }
-
-                      const needsInfo = selectedIssueKeys.has('H') || selectedIssueKeys.has('UNKNOWN');
-                      if (needsInfo && formData.description.trim().length < 5) {
-                        const issueName = selectedIssueKeys.has('H') ? 'Audio / Speaker' : 'Unspecified';
-                        notify(`Please provide details for the ${issueName} issue.`, 'error');
+                      if (!validateIssueDescription()) {
+                        setIssuePhase(2);
                         return;
                       }
-
                       go(3);
                     }}
                     className="flex items-center gap-2 px-8 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] hover:scale-[1.02] active:scale-95 transition-all"
                   >
-                    Continue to Booking <ArrowRight size={16} />
+                    Continue to booking <ArrowRight size={16} />
                   </button>
                 </div>
+                  </>
+                )}
               </div>
             )}
 
@@ -1010,7 +1150,40 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                 </button>
               </div>
             ) : step === 3 && (
-              <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-4 active-form-section">
+              <div key={`step-3-${transitionKey}-${bookingPhase}`} className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-4 active-form-section">
+
+                <nav aria-label="Booking steps" className="flex flex-wrap items-center gap-2 sm:gap-3">
+                  {([
+                    { n: 1 as const, label: 'Schedule' },
+                    { n: 2 as const, label: 'Your details' },
+                    { n: 3 as const, label: 'Device access' },
+                  ]).map(({ n, label }, i) => (
+                    <React.Fragment key={n}>
+                      {i > 0 && <ChevronRight size={14} className="opacity-30 shrink-0" aria-hidden />}
+                      <button
+                        type="button"
+                        disabled={n > bookingPhase}
+                        onClick={() => {
+                          if (n >= bookingPhase) return;
+                          setBookingPhase(n);
+                          setTransitionKey((k) => k + 1);
+                        }}
+                        className={`rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition-all ${
+                          bookingPhase === n
+                            ? 'bg-[#CDA032] text-black'
+                            : bookingPhase > n
+                              ? 'bg-[var(--bb-surface-2)] border border-[var(--bb-border)] opacity-80 hover:border-[#CDA032]/40'
+                              : 'opacity-40 cursor-not-allowed'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    </React.Fragment>
+                  ))}
+                </nav>
+
+                {bookingPhase === 1 && (
+                  <>
                 <div className="space-y-8">
                   <div className="space-y-2">
                     <h2 className="text-2xl font-bold tracking-tight">Schedule your drop-off or pickup</h2>
@@ -1103,10 +1276,27 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                   </div>
                 </div>
 
-                <div className="space-y-6 pt-8 border-t border-[var(--bb-border)]">
+                <div className="flex flex-wrap gap-3 pt-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!validateBookingSchedule()) return;
+                      advanceBookingPhase(2);
+                    }}
+                    className="flex items-center gap-2 px-8 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] hover:scale-[1.02] active:scale-95 transition-all"
+                  >
+                    Next: Your details <ArrowRight size={16} />
+                  </button>
+                </div>
+                  </>
+                )}
+
+                {bookingPhase === 2 && (
+                  <>
+                <div className="space-y-6">
                   <div className="space-y-2">
-                    <h2 className="text-2xl font-bold tracking-tight">Your Details</h2>
-                    <p className="opacity-60 text-sm">We'll use this to keep you updated on your repair status.</p>
+                    <h2 className="text-2xl font-bold tracking-tight">Your details</h2>
+                    <p className="opacity-60 text-sm">We&apos;ll use this to keep you updated on your repair status.</p>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     {[
@@ -1144,12 +1334,39 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                       />
                     </div>
                   </div>
-                  
-                  {/* Device Access Section */}
-                  <div className="mt-8 pt-8 border-t border-[var(--bb-border)]">
-                    <div className="space-y-2 mb-4">
-                      <h2 className="text-xl font-bold tracking-tight">Device Access</h2>
-                      <p className="opacity-60 text-sm">Required for our technicians to perform post-repair diagnostics.</p>
+                </div>
+
+                <div className="flex flex-wrap gap-3 pt-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBookingPhase(1);
+                      setTransitionKey((k) => k + 1);
+                    }}
+                    className="flex items-center gap-2 px-6 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider border border-[var(--bb-border)] hover:border-[#CDA032]/40 transition-all"
+                  >
+                    <ArrowLeft size={16} /> Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!validateBookingContact()) return;
+                      advanceBookingPhase(3);
+                    }}
+                    className="flex items-center gap-2 px-8 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] hover:scale-[1.02] active:scale-95 transition-all"
+                  >
+                    Next: Device access <ArrowRight size={16} />
+                  </button>
+                </div>
+                  </>
+                )}
+
+                {bookingPhase === 3 && (
+                  <>
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                      <h2 className="text-2xl font-bold tracking-tight">Device access</h2>
+                      <p className="opacity-60 text-sm">Optional, but helps our technicians run post-repair diagnostics on your device.</p>
                     </div>
                     <div className="relative">
                       <div className="absolute left-4 top-1/2 -translate-y-1/2 opacity-40 pointer-events-none">
@@ -1168,20 +1385,38 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                       Passwords are treated with strict confidentiality
                     </p>
                   </div>
-                </div>
 
-                <div className="pt-8">
+                <div className="flex flex-wrap gap-3 pt-8">
                   <button
+                    type="button"
                     onClick={() => {
-                      if (!formData.date || !formData.timeSlot) { notify('Please select a date and time slot.', 'error'); return; }
-                      if (!formData.name || !formData.phone || !formData.email) { notify('Please fill in all contact details.', 'error'); return; }
+                      setBookingPhase(2);
+                      setTransitionKey((k) => k + 1);
+                    }}
+                    className="flex items-center gap-2 px-6 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider border border-[var(--bb-border)] hover:border-[#CDA032]/40 transition-all"
+                  >
+                    <ArrowLeft size={16} /> Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!validateBookingSchedule()) {
+                        setBookingPhase(1);
+                        return;
+                      }
+                      if (!validateBookingContact()) {
+                        setBookingPhase(2);
+                        return;
+                      }
                       go(4);
                     }}
                     className="flex items-center gap-2 px-8 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] hover:scale-[1.02] active:scale-95 transition-all"
                   >
-                    Proceed to Authorization <ArrowRight size={16} />
+                    Proceed to authorization <ArrowRight size={16} />
                   </button>
                 </div>
+                  </>
+                )}
               </div>
             )}
 

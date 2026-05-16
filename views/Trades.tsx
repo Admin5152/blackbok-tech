@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   RefreshCcw, Smartphone, Laptop, Tablet, Gamepad2, Watch, MonitorSmartphone,
   ArrowLeft, ArrowRight, Check, Send, User, Phone, Mail, Calendar,
-  Package, Info, CheckCircle2, XCircle, MapPin, Clock
+  Package, Info, CheckCircle2, XCircle, MapPin, Clock, ChevronRight
 } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import type { Product, TradeRequest } from '../types';
@@ -17,6 +17,7 @@ import { DEFAULT_TRADE_DEVICES, mergeTradeDevicesFromStorageArray } from '../dat
 import { createTradeRequest, getTradeRequests, updateTradeRequest } from '../lib/api';
 import { customerTradeStatusShort } from '../lib/customerStatusLabels';
 import { saveResumeAfterAuth, peekRestorePayload, clearRestorePayload } from '../lib/resumeAfterAuth';
+import { formatCurrency } from '../lib/utils';
 
 interface TradesProps {
   products: Product[];
@@ -95,6 +96,8 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
   // step 4 = review & submit
   const [step, setStep]         = useState(1);
   const [subStep, setSubStep]   = useState(1); // 1=deviceType, 2=brand, 3=model
+  const [tradePhase, setTradePhase] = useState<1 | 2 | 3>(1); // step 2: upgrade → condition → notes
+  const [bookingPhase, setBookingPhase] = useState<1 | 2>(1); // step 3: schedule → contact
   const [transitionKey, setTransitionKey] = useState(0);
 
   const [selectedDeviceType, setSelectedDeviceType] = useState('');
@@ -137,7 +140,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
         }, 80);
       }
     }
-  }, [step, subStep]);
+  }, [step, subStep, tradePhase, bookingPhase]);
 
   // Admin device list override (merged onto catalog so deviceType/brand/img stay valid)
   useEffect(() => {
@@ -190,6 +193,12 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
 
     if (typeof payload.step === 'number' && payload.step >= 1 && payload.step <= 5) setStep(payload.step);
     if (typeof payload.subStep === 'number' && payload.subStep >= 1 && payload.subStep <= 3) setSubStep(payload.subStep);
+    if (typeof payload.tradePhase === 'number' && payload.tradePhase >= 1 && payload.tradePhase <= 3) {
+      setTradePhase(payload.tradePhase as 1 | 2 | 3);
+    }
+    if (typeof payload.bookingPhase === 'number' && payload.bookingPhase >= 1 && payload.bookingPhase <= 2) {
+      setBookingPhase(payload.bookingPhase as 1 | 2);
+    }
     if (typeof payload.transitionKey === 'number') setTransitionKey(payload.transitionKey);
     if (typeof payload.selectedDeviceType === 'string') setSelectedDeviceType(payload.selectedDeviceType);
     if (typeof payload.selectedBrand === 'string') setSelectedBrand(payload.selectedBrand);
@@ -331,7 +340,41 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     setTransitionKey(k => k + 1);
     setStep(n);
     setSubStep(1);
+    if (n === 2) setTradePhase(1);
+    if (n === 3) setBookingPhase(1);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const advanceTradePhase = (next: 2 | 3) => {
+    setTradePhase(next);
+    setTransitionKey((k) => k + 1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const advanceBookingPhase = (next: 2) => {
+    setBookingPhase(next);
+    setTransitionKey((k) => k + 1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const validateBookingSchedule = (): boolean => {
+    if (!formData.date || !formData.timeSlot) {
+      notify('Please select a date and time slot.', 'error');
+      return false;
+    }
+    return true;
+  };
+
+  const validateBookingContact = (): boolean => {
+    if (!formData.name?.trim() || !formData.phone?.trim() || !formData.email?.trim()) {
+      notify('Please fill in your name, phone, and email.', 'error');
+      return false;
+    }
+    if (formData.fulfillmentMethod === 'Pickup' && !formData.address?.trim()) {
+      notify('Please enter your address for pickup service.', 'error');
+      return false;
+    }
+    return true;
   };
 
   /** Step 1 wizard: Back drops downstream picks; Change only reopens that slice (keeps other choices / later steps). */
@@ -399,6 +442,8 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
 
   const openStep = (n: number) => {
     setStep(n);
+    if (n === 2) setTradePhase(1);
+    if (n === 3) setBookingPhase(1);
     setTransitionKey((k) => k + 1);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -408,6 +453,8 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
       saveResumeAfterAuth('trades', {
         step,
         subStep,
+        tradePhase,
+        bookingPhase,
         transitionKey,
         selectedDeviceType,
         selectedBrand,
@@ -541,7 +588,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                 <p className="text-[10px] font-black uppercase tracking-widest text-purple-400 mb-1">🎉 You Have a Trade-In Offer!</p>
                 <p className="text-[color:var(--bb-text)] font-black text-lg">{pendingOffer.device}</p>
                 {pendingOffer.condition && <p className="text-xs text-[color:var(--bb-muted)] mt-0.5">Condition: <span className="text-[color:var(--bb-text)] font-bold">{pendingOffer.condition}</span></p>}
-                {(pendingOffer as any).finalValue && <p className="text-2xl font-black text-[#B38B21] mt-2">${(pendingOffer as any).finalValue} <span className="text-xs text-[color:var(--bb-muted)] font-normal">trade-in value</span></p>}
+                {(pendingOffer as any).finalValue && <p className="text-2xl font-black text-[#B38B21] mt-2">{formatCurrency(Number((pendingOffer as any).finalValue))} <span className="text-xs text-[color:var(--bb-muted)] font-normal">trade-in value</span></p>}
                 {(pendingOffer as any).adminNote && <p className="text-xs text-[color:var(--bb-muted)] mt-1 bg-[var(--bb-surface-2)] border border-[var(--bb-border)] rounded-xl p-2">{(pendingOffer as any).adminNote}</p>}
               </div>
               <div className="flex gap-2">
@@ -909,17 +956,47 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                 <button type="button" onClick={() => openStep(2)} className="text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors">Change</button>
               </div>
             ) : step === 2 && (
-              <div key={`step-2-${transitionKey}`} className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-4 active-form-section">
+              <div key={`step-2-${transitionKey}-${tradePhase}`} className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-4 active-form-section">
 
+                <nav aria-label="Trade-in detail steps" className="flex flex-wrap items-center gap-2 sm:gap-3">
+                  {([
+                    { n: 1 as const, label: 'Upgrade' },
+                    { n: 2 as const, label: 'Condition' },
+                    { n: 3 as const, label: 'Notes' },
+                  ]).map(({ n, label }, i) => (
+                    <React.Fragment key={n}>
+                      {i > 0 && <ChevronRight size={14} className="opacity-30 shrink-0" aria-hidden />}
+                      <button
+                        type="button"
+                        disabled={n > tradePhase}
+                        onClick={() => {
+                          if (n >= tradePhase) return;
+                          setTradePhase(n);
+                          setTransitionKey((k) => k + 1);
+                        }}
+                        className={`rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition-all ${
+                          tradePhase === n
+                            ? 'bg-[#CDA032] text-black'
+                            : tradePhase > n
+                              ? 'bg-[var(--bb-surface-2)] border border-[var(--bb-border)] opacity-80 hover:border-[#CDA032]/40'
+                              : 'opacity-40 cursor-not-allowed'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    </React.Fragment>
+                  ))}
+                </nav>
+
+                {tradePhase === 1 && (
+                  <>
                 <div className="space-y-2">
-                  <h2 className="text-2xl font-bold tracking-tight">Tell us about your {usesFreeTextModel ? customModelName.trim() || resolvedBrand : selectedDevice?.name}</h2>
-                  <p className="opacity-60 text-sm">The more detail you give, the better offer we can make.</p>
+                  <h2 className="text-2xl font-bold tracking-tight">What are you upgrading to?</h2>
+                  <p className="opacity-60 text-sm">Optional — helps us tailor your trade-in offer.</p>
                 </div>
 
-                {/* Upgrade target */}
                 <div>
-                  <h3 className="text-base font-bold mb-1">What would you like to upgrade to?</h3>
-                  <p className="text-xs text-[color:var(--bb-muted)] mb-4">Optional — helps us tailor the offer.</p>
+                  <p className="text-xs text-[color:var(--bb-muted)] mb-4">Pick a product you have in mind, or skip if you are not sure yet.</p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[min(52vh,28rem)] overflow-y-auto pr-0.5">
                     <button onClick={() => setTargetProductId('')}
                       className={`py-3 px-4 rounded-xl border text-xs font-bold text-center transition-all ${!targetProductId
@@ -934,19 +1011,36 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                           : 'border-[var(--bb-border)] bg-[var(--bb-surface)] opacity-60 hover:opacity-100'}`}>
                         {p.image && <img src={p.image} alt={p.name} className="h-8 w-auto object-contain mb-1.5" />}
                         <span className="text-[10px] leading-tight">{p.name}</span>
-                        <span className="text-[#CDA032] font-black mt-0.5">${p.price}</span>
+                        <span className="text-[#CDA032] font-black mt-0.5">{formatCurrency(p.price)}</span>
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Device condition — mirrors Repair's "tell us more" section */}
+                <div className="flex flex-wrap gap-3 pt-6">
+                  <button
+                    type="button"
+                    onClick={() => advanceTradePhase(2)}
+                    className="flex items-center gap-2 px-8 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] hover:scale-[1.02] active:scale-95 transition-all"
+                  >
+                    Next: Device condition <ArrowRight size={16} />
+                  </button>
+                </div>
+                  </>
+                )}
+
+                {tradePhase === 2 && (
+                  <>
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-bold tracking-tight">Device condition</h2>
+                  <p className="opacity-60 text-sm">Tell us about your {usesFreeTextModel ? customModelName.trim() || resolvedBrand : selectedDevice?.name} — honest details get you a better offer.</p>
+                </div>
+
                 <div className="space-y-4 p-5 rounded-3xl border border-[var(--bb-border)] bg-[var(--bb-surface-2)]">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-xl font-bold tracking-tight">Device Condition</h3>
+                  <div className="flex items-center justify-end mb-2">
                     <Info size={16} className="text-[#CDA032] opacity-50 transition-opacity hover:opacity-100" />
                   </div>
-                  <p className="text-xs opacity-60 font-medium">Describe the current state of your device honestly — this helps us give you the best offer.</p>
+                  <p className="text-xs opacity-60 font-medium">Describe scratches, faults, and what you are including with the device.</p>
 
                   <input type="text" placeholder="Serial / IMEI Number (Optional)"
                     value={deviceDetails.serialNumber}
@@ -991,20 +1085,62 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                   </div>
                 </div>
 
-                {/* Additional notes */}
+                <div className="flex flex-wrap gap-3 pt-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTradePhase(1);
+                      setTransitionKey((k) => k + 1);
+                    }}
+                    className="flex items-center gap-2 px-6 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider border border-[var(--bb-border)] hover:border-[#CDA032]/40 transition-all"
+                  >
+                    <ArrowLeft size={16} /> Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => advanceTradePhase(3)}
+                    className="flex items-center gap-2 px-8 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] hover:scale-[1.02] active:scale-95 transition-all"
+                  >
+                    Next: Notes <ArrowRight size={16} />
+                  </button>
+                </div>
+                  </>
+                )}
+
+                {tradePhase === 3 && (
+                  <>
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-bold tracking-tight">Anything else?</h2>
+                  <p className="opacity-60 text-sm">Optional notes before you book your drop-off or pickup.</p>
+                </div>
+
                 <div className="space-y-4">
-                  <h3 className="text-xl font-bold tracking-tight">Additional Notes (Optional)</h3>
-                  <textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)}
+                  <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)}
                     placeholder="Anything else we should know about the device..."
                     className="w-full border border-[var(--bb-border)] rounded-2xl px-5 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50 resize-none leading-relaxed" />
                 </div>
 
-                <div className="pt-8">
-                  <button onClick={() => go(3)}
-                    className="flex items-center gap-2 px-8 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] hover:scale-[1.02] active:scale-95 transition-all">
-                    Continue to Booking <ArrowRight size={16} />
+                <div className="flex flex-wrap gap-3 pt-8">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTradePhase(2);
+                      setTransitionKey((k) => k + 1);
+                    }}
+                    className="flex items-center gap-2 px-6 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider border border-[var(--bb-border)] hover:border-[#CDA032]/40 transition-all"
+                  >
+                    <ArrowLeft size={16} /> Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => go(3)}
+                    className="flex items-center gap-2 px-8 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] hover:scale-[1.02] active:scale-95 transition-all"
+                  >
+                    Continue to booking <ArrowRight size={16} />
                   </button>
                 </div>
+                  </>
+                )}
               </div>
             )}
 
@@ -1023,11 +1159,43 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                 <button type="button" onClick={() => openStep(3)} className="text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors">Change</button>
               </div>
             ) : step === 3 && (
-              <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-4 active-form-section">
+              <div key={`step-3-${transitionKey}-${bookingPhase}`} className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-4 active-form-section">
+
+                <nav aria-label="Booking steps" className="flex flex-wrap items-center gap-2 sm:gap-3">
+                  {([
+                    { n: 1 as const, label: 'Schedule' },
+                    { n: 2 as const, label: 'Your details' },
+                  ]).map(({ n, label }, i) => (
+                    <React.Fragment key={n}>
+                      {i > 0 && <ChevronRight size={14} className="opacity-30 shrink-0" aria-hidden />}
+                      <button
+                        type="button"
+                        disabled={n > bookingPhase}
+                        onClick={() => {
+                          if (n >= bookingPhase) return;
+                          setBookingPhase(n);
+                          setTransitionKey((k) => k + 1);
+                        }}
+                        className={`rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition-all ${
+                          bookingPhase === n
+                            ? 'bg-[#CDA032] text-black'
+                            : bookingPhase > n
+                              ? 'bg-[var(--bb-surface-2)] border border-[var(--bb-border)] opacity-80 hover:border-[#CDA032]/40'
+                              : 'opacity-40 cursor-not-allowed'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    </React.Fragment>
+                  ))}
+                </nav>
+
+                {bookingPhase === 1 && (
+                  <>
                 <div className="space-y-8">
                   <div className="space-y-2">
                     <h2 className="text-2xl font-bold tracking-tight">Schedule your drop-off or pickup</h2>
-                    <p className="opacity-60 text-sm">Choose how you'd like to get your device to us.</p>
+                    <p className="opacity-60 text-sm">Choose how you&apos;d like to get your device to us.</p>
                   </div>
 
                   {/* Fulfillment method */}
@@ -1086,11 +1254,27 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                   </div>
                 </div>
 
-                {/* Contact details */}
-                <div className="space-y-6 pt-8 border-t border-[var(--bb-border)]">
+                <div className="flex flex-wrap gap-3 pt-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!validateBookingSchedule()) return;
+                      advanceBookingPhase(2);
+                    }}
+                    className="flex items-center gap-2 px-8 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] hover:scale-[1.02] active:scale-95 transition-all"
+                  >
+                    Next: Your details <ArrowRight size={16} />
+                  </button>
+                </div>
+                  </>
+                )}
+
+                {bookingPhase === 2 && (
+                  <>
+                <div className="space-y-6">
                   <div className="space-y-2">
-                    <h2 className="text-2xl font-bold tracking-tight">Your Details</h2>
-                    <p className="opacity-60 text-sm">We'll use this to send you your offer and keep you updated.</p>
+                    <h2 className="text-2xl font-bold tracking-tight">Your details</h2>
+                    <p className="opacity-60 text-sm">We&apos;ll use this to send you your offer and keep you updated.</p>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     {[
@@ -1120,17 +1304,34 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                   </div>
                 </div>
 
-                <div className="pt-8">
+                <div className="flex flex-wrap gap-3 pt-8">
                   <button
+                    type="button"
                     onClick={() => {
-                      if (!formData.date || !formData.timeSlot) { notify('Please select a date and time slot.', 'error'); return; }
-                      if (!formData.name || !formData.phone || !formData.email) { notify('Please fill in all contact details.', 'error'); return; }
+                      setBookingPhase(1);
+                      setTransitionKey((k) => k + 1);
+                    }}
+                    className="flex items-center gap-2 px-6 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider border border-[var(--bb-border)] hover:border-[#CDA032]/40 transition-all"
+                  >
+                    <ArrowLeft size={16} /> Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!validateBookingSchedule()) {
+                        setBookingPhase(1);
+                        return;
+                      }
+                      if (!validateBookingContact()) return;
                       go(4);
                     }}
-                    className="flex items-center gap-2 px-8 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] hover:scale-[1.02] active:scale-95 transition-all">
-                    Review Request <ArrowRight size={16} />
+                    className="flex items-center gap-2 px-8 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] hover:scale-[1.02] active:scale-95 transition-all"
+                  >
+                    Review request <ArrowRight size={16} />
                   </button>
                 </div>
+                  </>
+                )}
               </div>
             )}
 
@@ -1310,7 +1511,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                       <div>
                         <p className="text-[10px] uppercase font-bold tracking-widest opacity-50 mb-0.5">Upgrading To</p>
                         <p className="text-sm font-bold leading-snug">{targetProduct.name}</p>
-                        <p className="text-xs text-[#CDA032] font-black">${targetProduct.price}</p>
+                        <p className="text-xs text-[#CDA032] font-black">{formatCurrency(targetProduct.price)}</p>
                       </div>
                     </div>
                   )}
@@ -1349,7 +1550,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                           <p className="text-xs font-black text-[color:var(--bb-text)] truncate">{(t as any).device}</p>
                           <div className="flex items-center justify-between mt-1">
                             <StatusBadge status={t.status} />
-                            {(t as any).finalValue && <span className="text-[10px] font-black text-[#CDA032]">${(t as any).finalValue}</span>}
+                            {(t as any).finalValue && <span className="text-[10px] font-black text-[#CDA032]">{formatCurrency(Number((t as any).finalValue))}</span>}
                           </div>
                           {(t.status === 'Awaiting User' || t.status === 'Offer sent' || t.status === 'Offer Made') && (
                             <div className="flex gap-1.5 mt-2">

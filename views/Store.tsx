@@ -1,8 +1,9 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { Search, Filter, Grid3x3, List, Smartphone, Laptop as LaptopIcon, Tablet as TabletIcon, Headphones, Watch, Gamepad2, LayoutGrid, X, ChevronDown, ArrowLeft, Plus, Minus, Tag, Menu, Repeat2 } from 'lucide-react';
+import { Search, Filter, Grid3x3, List, Smartphone, Laptop as LaptopIcon, Tablet as TabletIcon, Headphones, Watch, Gamepad2, LayoutGrid, X, ArrowLeft, Tag, Repeat2, PanelLeftClose } from 'lucide-react';
 import { Product, Category } from '../types';
 import { ProductCard } from '../components/ProductCard';
+import { StoreFilterPanel, type StoreCategoryRow } from '../components/StoreFilterPanel';
 import { formatCurrency } from '../lib/utils';
 import { normalizeProductCategory } from '../lib/api';
 import { scanScrollReveal } from '../hooks/useScrollReveal';
@@ -75,10 +76,16 @@ export const Store: React.FC<StoreProps> = ({
 
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [showDesktopFilters, setShowDesktopFilters] = useState(() => {
+    try {
+      return localStorage.getItem('bb-store-show-filters') !== 'false';
+    } catch {
+      return true;
+    }
+  });
   const [priceRange, setPriceRange] = useState({ min: 0, max: 15000 });
   const [showPromotionsOnly, setShowPromotionsOnly] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [showMobileNav, setShowMobileNav] = useState(false);
   const navigate = useNavigate();
 
   // Buffer state for the price inputs (desktop + mobile). Lets the user
@@ -87,9 +94,15 @@ export const Store: React.FC<StoreProps> = ({
   // grid doesn't churn while the user is mid-edit either.
   const [desktopMinInput, setDesktopMinInput] = useState('0');
   const [desktopMaxInput, setDesktopMaxInput] = useState('15000');
-  const [mobileMinInput, setMobileMinInput] = useState('0');
-  const [mobileMaxInput, setMobileMaxInput] = useState('15000');
   const isLight = theme === 'light';
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('bb-store-show-filters', String(showDesktopFilters));
+    } catch {
+      /* ignore */
+    }
+  }, [showDesktopFilters]);
 
   const commitDesktopPrice = () => {
     const minRaw = desktopMinInput.trim() === '' ? 0 : Number(desktopMinInput);
@@ -131,11 +144,27 @@ export const Store: React.FC<StoreProps> = ({
   // fight local typing while `searchQuery` is still empty until the debounced URL sync runs.
 
   React.useEffect(() => {
-    setMobileMinInput(String(priceRange.min));
-    setMobileMaxInput(String(priceRange.max));
     setDesktopMinInput(String(priceRange.min));
     setDesktopMaxInput(String(priceRange.max));
   }, [priceRange.min, priceRange.max]);
+
+  useEffect(() => {
+    if (!showFilters) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowFilters(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [showFilters]);
+
+  useEffect(() => {
+    if (!showFilters || window.matchMedia('(min-width: 1024px)').matches) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [showFilters]);
 
   // Keep URL in sync with search + category so header search preserves filters and links are shareable.
   const buildStoreSearchParams = useCallback(() => {
@@ -183,11 +212,6 @@ export const Store: React.FC<StoreProps> = ({
     () => products.filter(productPassesStoreBaseFilters),
     [products, searchTerm, priceRange.min, priceRange.max, showPromotionsOnly]
   );
-
-  type StoreCategoryRow =
-    | { key: string; label: string; value: 'All'; icon: React.ReactNode; count: number }
-    | { key: string; label: string; value: Category; icon: React.ReactNode; count: number }
-    | { key: string; label: string; value: '__promotions__'; icon: React.ReactNode; count: number };
 
   const categoryOptions: StoreCategoryRow[] = useMemo(() => {
     const catalogKeys: Record<string, true> = {};
@@ -305,6 +329,47 @@ export const Store: React.FC<StoreProps> = ({
     setShowPromotionsOnly(false);
   };
 
+  const handleFilterCategoryClick = (cat: StoreCategoryRow) => {
+    if (cat.value === '__promotions__') {
+      setShowPromotionsOnly((v) => !v);
+      return;
+    }
+    toggleCategory(cat.value);
+  };
+
+  const handlePresetPrice = (range: { min: number; max: number }) => {
+    setPriceRange(range);
+    setDesktopMinInput(String(range.min));
+    setDesktopMaxInput(String(range.max));
+  };
+
+  const filterPanelProps = {
+    isLight,
+    categoryOptions,
+    isCategoryRowActive,
+    onCategoryClick: handleFilterCategoryClick,
+    showPromotionsOnly,
+    onTogglePromotions: () => setShowPromotionsOnly((v) => !v),
+    priceRange,
+    minInput: desktopMinInput,
+    maxInput: desktopMaxInput,
+    onMinInputChange: setDesktopMinInput,
+    onMaxInputChange: setDesktopMaxInput,
+    onCommitPrice: commitDesktopPrice,
+    onAdjustMin: (delta: number) =>
+      setPriceRange((prev) => ({ ...prev, min: Math.max(0, Math.min(prev.max, prev.min + delta)) })),
+    onAdjustMax: (delta: number) =>
+      setPriceRange((prev) => ({
+        ...prev,
+        max: Math.min(15000, Math.max(prev.min, prev.max + delta)),
+      })),
+    onPresetPrice: handlePresetPrice,
+    onPriceRangeChange: handlePresetPrice,
+    activeFiltersCount,
+    onClearAll: clearAllFilters,
+    resultCount: filteredProducts.length,
+  };
+
   const pageBg = isLight ? '#F0F0F0' : '#060605';
   const panelBg = isLight ? '#FFFFFF' : '#0d0d0b';
   const borderSubtle = isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)';
@@ -369,22 +434,10 @@ export const Store: React.FC<StoreProps> = ({
                   </button>
                 </div>
 
-                {/* Categories — mobile / tablet drawer */}
                 <button
                   type="button"
-                  onClick={() => setShowMobileNav(!showMobileNav)}
-                  className="flex items-center gap-1.5 rounded-lg border border-white/10 px-2 py-2 transition-colors hover:border-white/20 lg:hidden"
-                  style={{ backgroundColor: panelBg, color: isLight ? '#000' : '#fff' }}
-                  aria-label="Browse categories"
-                >
-                  <Menu size={16} />
-                  <span className="hidden text-sm font-medium sm:inline">Categories</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setShowFilters(!showFilters)}
-                  className={`flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-all sm:gap-2 sm:px-3 ${activeFiltersCount > 0 ? 'border-transparent bg-[#CDA032] text-black' : 'border border-white/10 hover:border-white/20'}`}
+                  onClick={() => setShowFilters(true)}
+                  className={`lg:hidden flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-all sm:gap-2 sm:px-3 ${activeFiltersCount > 0 ? 'border-transparent bg-[#CDA032] text-black' : 'border border-white/10 hover:border-white/20'}`}
                   style={{
                     backgroundColor: activeFiltersCount > 0 ? '#CDA032' : panelBg,
                     borderColor: activeFiltersCount > 0 ? 'transparent' : borderSubtle,
@@ -400,12 +453,46 @@ export const Store: React.FC<StoreProps> = ({
                     </span>
                   )}
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowDesktopFilters((v) => !v)}
+                  className={`hidden lg:flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-all border ${showDesktopFilters ? 'border-[#CDA032]/40 bg-[#CDA032]/15 text-[#CDA032]' : activeFiltersCount > 0 ? 'border-transparent bg-[#CDA032] text-black' : 'border-white/10 hover:border-white/20'}`}
+                  style={{
+                    backgroundColor:
+                      !showDesktopFilters && activeFiltersCount > 0
+                        ? '#CDA032'
+                        : showDesktopFilters
+                          ? undefined
+                          : panelBg,
+                    borderColor:
+                      showDesktopFilters || activeFiltersCount > 0 ? undefined : borderSubtle,
+                    color:
+                      !showDesktopFilters && activeFiltersCount > 0
+                        ? '#000'
+                        : showDesktopFilters
+                          ? undefined
+                          : isLight
+                            ? '#000'
+                            : '#fff',
+                  }}
+                  aria-expanded={showDesktopFilters}
+                  aria-label={showDesktopFilters ? 'Hide filters panel' : 'Show filters panel'}
+                >
+                  {showDesktopFilters ? <PanelLeftClose size={14} /> : <Filter size={14} />}
+                  <span>{showDesktopFilters ? 'Hide filters' : 'Filters'}</span>
+                  {!showDesktopFilters && activeFiltersCount > 0 && (
+                    <span className="rounded-full bg-black/20 px-1.5 py-0.5 text-[10px] text-white">
+                      {activeFiltersCount}
+                    </span>
+                  )}
+                </button>
               </div>
             </div>
 
-            {/* Active filters summary — mobile only, only when needed */}
+            {/* Active filters summary when panel closed or on mobile */}
             {activeFiltersCount > 0 && (
-              <div className="flex items-center gap-2 lg:hidden">
+              <div className={`flex items-center gap-2 ${showDesktopFilters ? 'lg:hidden' : ''}`}>
                 <div className="flex items-center gap-2 rounded-full border border-[#CDA032]/30 bg-[#CDA032]/20 px-3 py-1">
                   <span className="text-xs font-black text-[#CDA032]">{activeFiltersCount} Filters</span>
                   <button
@@ -426,338 +513,33 @@ export const Store: React.FC<StoreProps> = ({
       <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
         <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
 
-          {/* Filters Sidebar Drawer — backdrop (mobile + desktop) */}
+          {/* Mobile / tablet filter drawer */}
           <div
-            className={`fixed inset-0 bg-black/60 z-[60] backdrop-blur-sm transition-opacity duration-300 ${showFilters ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+            className={`lg:hidden fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${showFilters ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
             onClick={() => setShowFilters(false)}
+            aria-hidden={!showFilters}
           />
-
-          {/* Filters Sidebar Drawer — panel (mobile + desktop) */}
           <div
-            className={`fixed top-0 left-0 h-full w-[88vw] max-w-[400px] sm:w-[400px] z-[70] transform transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)] ${showFilters ? 'translate-x-0' : '-translate-x-full'}`}
-            style={{ backgroundColor: panelBg, borderRight: `1px solid ${borderSubtle}` }}
+            className={`lg:hidden fixed top-0 left-0 z-[70] h-full w-[min(100vw,24rem)] max-w-[400px] transform transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)] ${showFilters ? 'translate-x-0' : '-translate-x-full'}`}
+            role="dialog"
+            aria-modal={showFilters}
+            aria-label="Shop filters"
           >
-            <div className="h-full overflow-y-auto p-6 sm:p-8 space-y-8 no-scrollbar">
-              <div className="flex items-center justify-between pb-6 border-b" style={{ borderColor: borderSubtle }}>
-                <h2 className="text-2xl font-bold tracking-tight">Filters</h2>
-                <button
-                  onClick={() => setShowFilters(false)}
-                  className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-                >
-                  <X size={24} />
-                </button>
-              </div>
-
-              {/* Categories */}
-              <div>
-                <h3 className="text-xs font-black mb-4 uppercase tracking-[0.2em] opacity-60">Categories</h3>
-                <div className="space-y-2">
-                  {categoryOptions.map((cat) => (
-                    <button
-                      key={cat.key}
-                      onClick={() => {
-                        if (cat.value === '__promotions__') {
-                          setShowPromotionsOnly((v) => !v);
-                          return;
-                        }
-                        toggleCategory(cat.value);
-                      }}
-                      className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 group
-                    ${isCategoryRowActive(cat)
-                          ? 'bg-[#CDA032] border-[#CDA032] text-black shadow-lg shadow-[#CDA032]/20'
-                          : 'bg-white/5 border-white/5 hover:border-white/10'
-                        }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        {cat.icon}
-                        <span>{cat.label}</span>
-                      </div>
-                      <span className={`text-xs ${isCategoryRowActive(cat) ? 'opacity-80' : 'opacity-40'}`}>{cat.count}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Promotions Toggle */}
-              <div>
-                <button
-                  onClick={() => setShowPromotionsOnly(!showPromotionsOnly)}
-                  className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 group
-                    ${showPromotionsOnly
-                      ? 'bg-[#CDA032] border-[#CDA032] text-black shadow-lg shadow-[#CDA032]/20'
-                      : 'bg-white/5 border-white/5 hover:border-white/10'
-                    }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Tag size={16} />
-                    <span className="font-bold uppercase tracking-wider text-xs">Active Promotions</span>
-                  </div>
-                  <div className={`w-10 h-5 rounded-full relative transition-colors ${showPromotionsOnly ? 'bg-black/20' : 'bg-black/10'}`}>
-                    <div className={`absolute top-1 w-3 h-3 rounded-full bg-current transition-all ${showPromotionsOnly ? 'left-6' : 'left-1'}`} />
-                  </div>
-                </button>
-              </div>
-
-              {/* Price Range */}
-              <div>
-                <h3 className="text-xs font-black mb-4 uppercase tracking-[0.2em] opacity-60">Price Range</h3>
-                <div className="space-y-6">
-                  <div>
-                    <label className="text-xs opacity-60 font-medium mb-2 block">Min Price</label>
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => setPriceRange(prev => ({ ...prev, min: Math.max(0, prev.min - 100) }))}
-                        className="p-2 sm:p-3 rounded-xl border border-transparent bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors flex items-center justify-center shrink-0 w-11 h-11"
-                      >
-                        <Minus size={16} />
-                      </button>
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        min="0"
-                        max="15000"
-                        step="100"
-                        value={desktopMinInput}
-                        onChange={(e) => setDesktopMinInput(e.target.value)}
-                        onBlur={commitDesktopPrice}
-                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commitDesktopPrice(); } }}
-                        className="flex-1 w-full px-4 py-3 border rounded-xl text-center text-sm font-medium focus:outline-none focus:border-[#CDA032] focus:ring-1 focus:ring-[#CDA032] transition-colors"
-                        style={{
-                          backgroundColor: isLight ? '#fff' : '#000',
-                          borderColor: borderSubtle,
-                          color: isLight ? '#000' : '#fff'
-                        }}
-                      />
-                      <button
-                        onClick={() => setPriceRange(prev => ({ ...prev, min: Math.min(prev.max, prev.min + 100) }))}
-                        className="p-2 sm:p-3 rounded-xl border border-transparent bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors flex items-center justify-center shrink-0 w-11 h-11"
-                      >
-                        <Plus size={16} />
-                      </button>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-xs opacity-60 font-medium mb-2 block">Max Price</label>
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => setPriceRange(prev => ({ ...prev, max: Math.max(prev.min, prev.max - 100) }))}
-                        className="p-2 sm:p-3 rounded-xl border border-transparent bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors flex items-center justify-center shrink-0 w-11 h-11"
-                      >
-                        <Minus size={16} />
-                      </button>
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        min="0"
-                        max="15000"
-                        step="100"
-                        value={desktopMaxInput}
-                        onChange={(e) => setDesktopMaxInput(e.target.value)}
-                        onBlur={commitDesktopPrice}
-                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commitDesktopPrice(); } }}
-                        className="flex-1 w-full px-4 py-3 border rounded-xl text-center text-sm font-medium focus:outline-none focus:border-[#CDA032] focus:ring-1 focus:ring-[#CDA032] transition-colors"
-                        style={{
-                          backgroundColor: isLight ? '#fff' : '#000',
-                          borderColor: borderSubtle,
-                          color: isLight ? '#000' : '#fff'
-                        }}
-                      />
-                      <button
-                        onClick={() => setPriceRange(prev => ({ ...prev, max: Math.min(15000, prev.max + 100) }))}
-                        className="p-2 sm:p-3 rounded-xl border border-transparent bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors flex items-center justify-center shrink-0 w-11 h-11"
-                      >
-                        <Plus size={16} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-
-              {/* Clear Filters */}
-              {activeFiltersCount > 0 && (
-                <div className="pt-6 border-t" style={{ borderColor: borderSubtle }}>
-                  <button
-                    onClick={clearAllFilters}
-                    className="w-full py-4 border-2 border-transparent bg-black/5 dark:bg-white/5 rounded-xl text-sm font-bold tracking-wide transition-all hover:bg-black/10 dark:hover:bg-white/10"
-                  >
-                    Clear All Filters
-                  </button>
-                </div>
-              )}
-            </div>
+            <StoreFilterPanel
+              {...filterPanelProps}
+              variant="drawer"
+              onClose={() => setShowFilters(false)}
+            />
           </div>
 
-          {/* Shop grid */}
-          {/* Mobile Category Navigation - Collapsible */}
-          <div className={`lg:hidden w-full transition-all duration-300 overflow-hidden ${showMobileNav ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
-            <div className="py-3 sm:py-4 mb-4">
-              <div className="flex flex-col gap-2">
-                {categoryOptions.map((cat) => (
-                  <button
-                    key={cat.key}
-                    onClick={() => {
-                      if (cat.value === '__promotions__') {
-                        setShowPromotionsOnly((v) => !v);
-                        setShowMobileNav(false);
-                        return;
-                      }
-                      toggleCategory(cat.value);
-                      setShowMobileNav(false); // Close nav after selection
-                    }}
-                    className={`flex items-center gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all border ${isCategoryRowActive(cat)
-                      ? 'bg-[#CDA032] border-[#CDA032] text-black shadow-lg shadow-[#CDA032]/20'
-                      : 'bg-white/5 border-white/5 text-white/40'
-                      }`}
-                  >
-                    {cat.icon}
-                    <span className="flex-1 text-left text-xs sm:text-sm">{cat.label}</span>
-                    <span className={`text-[9px] sm:text-xs ${isCategoryRowActive(cat)
-                      ? 'opacity-80'
-                      : 'opacity-40'
-                      }`}>
-                      {cat.count}
-                    </span>
-                  </button>
-                ))}
-
-                {/* Mobile Filter Options */}
-                <div className="pt-2 mt-2 border-t border-white/10">
-                  <div className="px-2 sm:px-3 py-2">
-                    <h4 className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] opacity-60 mb-3">Quick Filters</h4>
-
-                    {/* Promotions Toggle */}
-                    <button
-                      onClick={() => setShowPromotionsOnly(!showPromotionsOnly)}
-                      className={`w-full flex items-center justify-between p-2.5 sm:p-3 rounded-xl border transition-all duration-300 mb-2 ${showPromotionsOnly
-                        ? 'bg-[#CDA032] border-[#CDA032] text-black'
-                        : 'bg-white/5 border-white/5 text-white/40'
-                        }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <Tag size={12} className="sm:size-14" />
-                        <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider">Promotions</span>
-                      </div>
-                      <div className={`w-6 sm:w-8 h-3 sm:h-4 rounded-full relative transition-colors ${showPromotionsOnly ? 'bg-black/20' : 'bg-black/10'}`}>
-                        <div className={`absolute top-0.5 w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-full bg-current transition-all ${showPromotionsOnly ? 'left-3.5 sm:left-4.5' : 'left-0.5'}`} />
-                      </div>
-                    </button>
-
-                    <div className="space-y-2">
-                      {[
-                        { label: 'Under $5,000', range: { min: 0, max: 5000 } },
-                        { label: '$5,000 - $10,000', range: { min: 5000, max: 10000 } },
-                        { label: '$10,000+', range: { min: 10000, max: 15000 } }
-                      ].map(({ label, range }) => (
-                        <button
-                          key={label}
-                          onClick={() => {
-                            setPriceRange(range);
-                            setShowMobileNav(false);
-                          }}
-                          className="w-full flex items-center justify-between p-2.5 sm:p-3 rounded-xl bg-white/5 border border-white/5 text-white/40 hover:border-white/10 transition-all"
-                        >
-                          <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider">{label}</span>
-                        </button>
-                      ))}
-                    </div>
-
-                    <div
-                      className="mt-3 p-3 rounded-xl border"
-                      style={{
-                        backgroundColor: isLight ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.05)',
-                        borderColor: borderSubtle,
-                      }}
-                    >
-                      <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider mb-3" style={{ color: isLight ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.7)' }}>
-                        Custom Price Range
-                      </p>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-[9px] font-bold uppercase tracking-wider opacity-50 mb-1 block">Min</label>
-                          <input
-                            type="number"
-                            inputMode="numeric"
-                            min="0"
-                            value={mobileMinInput}
-                            onChange={(e) => setMobileMinInput(e.target.value)}
-                            className="w-full px-3 py-2.5 rounded-lg border text-sm font-medium focus:outline-none focus:border-[#CDA032] focus:ring-1 focus:ring-[#CDA032]"
-                            style={{
-                              backgroundColor: isLight ? '#fff' : '#000',
-                              borderColor: borderSubtle,
-                              color: isLight ? '#000' : '#fff',
-                            }}
-                            placeholder="0"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[9px] font-bold uppercase tracking-wider opacity-50 mb-1 block">Max</label>
-                          <input
-                            type="number"
-                            inputMode="numeric"
-                            min="0"
-                            value={mobileMaxInput}
-                            onChange={(e) => setMobileMaxInput(e.target.value)}
-                            className="w-full px-3 py-2.5 rounded-lg border text-sm font-medium focus:outline-none focus:border-[#CDA032] focus:ring-1 focus:ring-[#CDA032]"
-                            style={{
-                              backgroundColor: isLight ? '#fff' : '#000',
-                              borderColor: borderSubtle,
-                              color: isLight ? '#000' : '#fff',
-                            }}
-                            placeholder="15000"
-                          />
-                        </div>
-                      </div>
-                      <div className="mt-3 grid grid-cols-2 gap-2">
-                        <button
-                          onClick={() => {
-                            // Allow empty inputs to mean "no bound" — they
-                            // collapse to the default extremes here without
-                            // forcing the user to type during edit.
-                            const minRaw = mobileMinInput.trim() === '' ? 0 : Number(mobileMinInput);
-                            const maxRaw = mobileMaxInput.trim() === '' ? 15000 : Number(mobileMaxInput);
-                            const min = Number.isFinite(minRaw) ? Math.max(0, minRaw) : 0;
-                            const max = Number.isFinite(maxRaw) ? Math.min(15000, Math.max(min, maxRaw)) : 15000;
-                            setPriceRange({ min, max });
-                            setShowMobileNav(false);
-                          }}
-                          className="px-3 py-2.5 rounded-lg bg-[#CDA032] text-black text-[10px] sm:text-[11px] font-black uppercase tracking-wider hover:brightness-110 active:scale-[0.98] transition-all"
-                        >
-                          Apply
-                        </button>
-                        <button
-                          onClick={() => {
-                            setPriceRange({ min: 0, max: 15000 });
-                            setMobileMinInput('0');
-                            setMobileMaxInput('15000');
-                          }}
-                          className="px-3 py-2.5 rounded-lg border text-[10px] sm:text-[11px] font-black uppercase tracking-wider hover:bg-black/5 dark:hover:bg-white/5 transition-all"
-                          style={{
-                            borderColor: borderSubtle,
-                            color: isLight ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.7)',
-                          }}
-                        >
-                          Reset
-                        </button>
-                      </div>
-                    </div>
-
-                    {activeFiltersCount > 0 && (
-                      <button
-                        onClick={() => {
-                          clearAllFilters();
-                          setShowMobileNav(false);
-                        }}
-                        className="w-full p-2.5 sm:p-3 mt-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-[9px] sm:text-[10px] font-black uppercase tracking-wider transition-all"
-                      >
-                        Clear All Filters
-                      </button>
-                    )}
-                  </div>
-                </div>
+          {/* Desktop sidebar filters */}
+          {showDesktopFilters && (
+            <aside className="hidden lg:block w-72 xl:w-80 shrink-0">
+              <div className="sticky top-28">
+                <StoreFilterPanel {...filterPanelProps} variant="sidebar" />
               </div>
-            </div>
-          </div>
+            </aside>
+          )}
 
           <div data-store-products className="flex-1 min-w-0 w-full">
             <div className="mb-4 flex items-center justify-between">
@@ -767,7 +549,13 @@ export const Store: React.FC<StoreProps> = ({
             </div>
 
             {viewMode === 'grid' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              <div
+                className={`grid gap-3 sm:gap-4 ${
+                  showDesktopFilters
+                    ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3'
+                    : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+                }`}
+              >
                 {filteredProducts.map((product, index) => (
                   <div
                     key={product.id}
@@ -807,7 +595,7 @@ export const Store: React.FC<StoreProps> = ({
                     style={{ backgroundColor: panelBg, borderColor: borderSubtle }}
                   >
                     <div
-                      className="bb-product-card-media bb-product-card-media--store-list shrink-0 cursor-pointer rounded-lg bg-black/5 dark:bg-white/5"
+                      className="bb-product-card-media bb-product-card-media--store-list shrink-0 cursor-pointer rounded-lg"
                       onClick={() => navigateTo('product', product.id)}
                     >
                       <img
