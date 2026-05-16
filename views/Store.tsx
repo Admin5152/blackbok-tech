@@ -282,6 +282,12 @@ export const Store: React.FC<StoreProps> = ({
 
   useEffect(() => {
     scanScrollReveal();
+    const t = window.setTimeout(() => {
+      document.querySelectorAll('[data-store-products] .reveal-on-scroll').forEach((el) => {
+        el.classList.add('reveal-visible');
+      });
+    }, 120);
+    return () => window.clearTimeout(t);
   }, [filteredProducts.length, viewMode, searchTerm, selectedCategories]);
 
   const activeFiltersCount = [
@@ -753,7 +759,7 @@ export const Store: React.FC<StoreProps> = ({
             </div>
           </div>
 
-          <div className="flex-1 reveal-on-scroll">
+          <div data-store-products className="flex-1 min-w-0 w-full">
             <div className="mb-4 flex items-center justify-between">
               <span className="text-sm" style={{ color: textMuted }}>
                 {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'} found
@@ -765,7 +771,7 @@ export const Store: React.FC<StoreProps> = ({
                 {filteredProducts.map((product, index) => (
                   <div
                     key={product.id}
-                    className={`group cursor-pointer reveal-on-scroll reveal-delay-${(index % 3) + 1}`}
+                    className={`group cursor-pointer reveal-on-scroll ${['reveal-delay-1', 'reveal-delay-2', 'reveal-delay-3'][index % 3]}`}
                     onMouseEnter={e => {
                       (e.currentTarget as HTMLElement).style.borderColor = 'rgba(205,160,50,0.4)';
                       (e.currentTarget as HTMLElement).style.boxShadow = '0 0 16px rgba(205,160,50,0.12)';

@@ -29,7 +29,10 @@ export function useScrollReveal(rescanKey?: string): void {
           observer.unobserve(entry.target);
         });
       },
-      { threshold: 0.12, rootMargin: '0px 0px -48px 0px' },
+      {
+        threshold: 0.08,
+        rootMargin: '0px 0px 0px 0px',
+      },
     );
 
     const scan = () => {

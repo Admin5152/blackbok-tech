@@ -100,7 +100,16 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ theme }) => 
   } = useNotifications();
 
   const [isOpen, setIsOpen] = useState(false);
+  const [isMobilePanel, setIsMobilePanel] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1023px)');
+    const sync = () => setIsMobilePanel(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
 
   // Close on outside click and on Escape. Both are scoped to when the panel
   // is open so we don't add listeners when they aren't needed.
@@ -171,11 +180,24 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ theme }) => 
         )}
       </button>
 
+      {isOpen && isMobilePanel && (
+        <button
+          type="button"
+          className="fixed inset-0 z-[190] bg-black/50 backdrop-blur-[2px] lg:hidden"
+          aria-label="Close notifications"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+
       {isOpen && (
         <div
           role="dialog"
           aria-label="Notifications"
-          className={`absolute right-0 top-full mt-2 w-[360px] max-w-[calc(100vw-2rem)] rounded-2xl border shadow-2xl overflow-hidden z-[120] backdrop-blur-3xl ${
+          className={`flex flex-col overflow-hidden rounded-2xl border shadow-2xl backdrop-blur-3xl z-[200] ${
+            isMobilePanel
+              ? 'fixed left-3 right-3 max-h-[min(72dvh,calc(100dvh-env(safe-area-inset-top,0px)-5rem))] top-[max(4.25rem,calc(env(safe-area-inset-top,0px)+3.75rem))]'
+              : 'absolute right-0 top-full mt-2 w-[360px] max-w-[calc(100vw-2rem)] max-h-[min(420px,70vh)]'
+          } ${
             isLight
               ? 'bg-white/95 border-black/10 text-black'
               : 'bg-[#121212]/95 border-white/10 text-white'
@@ -183,7 +205,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ theme }) => 
         >
           {/* Header */}
           <div
-            className={`px-4 py-3 flex flex-col gap-2 border-b ${
+            className={`shrink-0 px-4 py-3 flex flex-col gap-2 border-b ${
               isLight ? 'border-black/5' : 'border-white/5'
             }`}
           >
@@ -242,7 +264,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ theme }) => 
           </div>
 
           {/* List */}
-          <div className="max-h-[420px] overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]">
             {loading && notifications.length === 0 ? (
               <div className="p-8 text-center">
                 <div
@@ -367,7 +389,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ theme }) => 
           {/* Footer */}
           {visible.length > 0 && (
             <div
-              className={`px-4 py-2.5 text-center border-t ${
+              className={`shrink-0 px-4 py-2.5 text-center border-t ${
                 isLight ? 'border-black/5' : 'border-white/5'
               }`}
             >

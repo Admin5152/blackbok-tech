@@ -119,10 +119,7 @@ export const NotificationContainer: React.FC<NotificationContainerProps> = ({
 
   return (
     <div
-      className="fixed z-[300] pointer-events-none flex flex-col gap-2 sm:gap-3 overflow-x-hidden overflow-y-auto max-h-[min(70vh,100dvh)] overscroll-contain left-2 right-2 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:w-full sm:max-w-md"
-      style={{
-        top: 'max(0.5rem, env(safe-area-inset-top, 0px))',
-      }}
+      className="fixed z-[300] pointer-events-none flex flex-col-reverse gap-2 max-h-[min(42vh,100dvh)] overflow-x-hidden overflow-y-auto overscroll-contain left-3 right-3 bottom-[max(5.5rem,calc(env(safe-area-inset-bottom,0px)+4.5rem))] sm:bottom-auto sm:flex-col sm:gap-3 sm:max-h-[min(70vh,100dvh)] sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:w-full sm:max-w-md sm:top-[max(4.75rem,calc(env(safe-area-inset-top,0px)+4rem))]"
       aria-label="Notifications"
     >
       {notifications.map((notification) => (

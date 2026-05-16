@@ -416,6 +416,23 @@ export const Navbar: React.FC<{
                 {isLight ? <Moon size={18} /> : <Sun size={18} />}
               </button>
 
+              {!user && (
+                <Link
+                  to="/auth"
+                  title="Sign in"
+                  aria-label="Sign in"
+                  className={[
+                    'sm:hidden flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-all',
+                    isLight
+                      ? 'border-black/10 bg-black/5 text-black hover:bg-[#CDA032] hover:text-black hover:border-[#CDA032]/50'
+                      : 'border-white/10 bg-white/5 text-white hover:bg-[#CDA032] hover:text-black hover:border-[#CDA032]/50',
+                    TW_DARK_BTN_DEPTH,
+                  ].join(' ')}
+                >
+                  <UserIcon size={20} strokeWidth={2.25} />
+                </Link>
+              )}
+
               <Link
                 to="/store"
                 title="Shop"
@@ -520,26 +537,30 @@ export const Navbar: React.FC<{
               </div>
             </div>
 
-            {/* User summary — fixed; links scroll below */}
+            {/* User summary — tap guest profile to sign in */}
             <div className="shrink-0 border-b border-white/10 p-6">
-              <div className="flex items-center gap-4">
+              <Link
+                to={user ? '/profile' : '/auth'}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="flex items-center gap-4 rounded-xl transition-colors hover:bg-white/5 active:bg-white/10 -m-2 p-2"
+              >
                 {/* Avatar */}
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#CDA032] to-[#B38B21] flex items-center justify-center">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#CDA032] to-[#B38B21] flex items-center justify-center shrink-0">
                   <span className="text-black text-xl font-black italic">
                     {user ? (user.avatarLetter || user.name.charAt(0)) : 'U'}
                   </span>
                 </div>
 
                 {/* User Info */}
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 text-left">
                   <h3 className="truncate text-lg font-bold text-white">
                     {user ? user.name : 'Guest User'}
                   </h3>
                   <p className="truncate text-sm text-white/60">
-                    {user ? user.email : 'Not logged in'}
+                    {user ? user.email : 'Tap to sign in'}
                   </p>
                 </div>
-              </div>
+              </Link>
             </div>
 
             {/* Mobile: catalog search */}
