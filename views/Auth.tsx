@@ -5,20 +5,28 @@ import { SignUp } from '../components/SignUp';
 import { Sun, Moon } from 'lucide-react';
 import { useAppContext } from '../App';
 import { PageBackButton } from '../components/PageBackButton';
+import { SESSION_EXPIRED_MESSAGE, SESSION_EXPIRED_REASON } from '../lib/sessionIdleConfig';
 
 interface AuthProps {
   setUser: (user: User | null) => void;
   navigateTo: (view: string) => void;
   notify: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
+  sessionReason?: string;
+  returnTo?: string;
 }
 
 /** Gridline spacing: all divisions align to 24px padding; sections end at same boundaries. */
-export const Auth: React.FC<AuthProps> = ({ setUser, navigateTo, notify }) => {
+export const Auth: React.FC<AuthProps> = ({
+  setUser,
+  navigateTo,
+  notify,
+  sessionReason,
+  returnTo,
+}) => {
   const { theme, setTheme } = useAppContext();
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [signUpPrefillEmail, setSignUpPrefillEmail] = useState<string | undefined>(undefined);
-
-  
+  const showSessionExpired = sessionReason === SESSION_EXPIRED_REASON;
 
   const isDark = theme === 'dark';
   const leftBg = isDark ? 'bg-black' : 'bg-[#E8E8E8]';
@@ -96,6 +104,21 @@ export const Auth: React.FC<AuthProps> = ({ setUser, navigateTo, notify }) => {
               </p>
             </div>
 
+            {showSessionExpired && mode === 'login' && (
+              <div
+                role="status"
+                aria-live="polite"
+                tabIndex={0}
+                className={`mb-4 rounded-xl border px-4 py-3 text-sm leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032] ${
+                  isDark
+                    ? 'border-amber-500/30 bg-amber-500/10 text-amber-100'
+                    : 'border-amber-600/25 bg-amber-50 text-amber-950'
+                }`}
+              >
+                {SESSION_EXPIRED_MESSAGE}
+              </div>
+            )}
+
             <div className="space-y-2.5 flex-1 min-h-0 flex flex-col">
               {mode === 'login' ? (
                 <Login
@@ -103,6 +126,7 @@ export const Auth: React.FC<AuthProps> = ({ setUser, navigateTo, notify }) => {
                   navigateTo={navigateTo}
                   theme={theme}
                   notify={notify}
+                  returnTo={returnTo}
                   onSwitchToSignUp={(email) => {
                     setSignUpPrefillEmail(email || undefined);
                     setMode('signup');

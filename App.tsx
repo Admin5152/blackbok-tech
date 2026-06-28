@@ -70,6 +70,7 @@ import { WelcomeScreen } from './components/WelcomeScreen';
 import { NotificationSystem } from './components/NotificationSystem';
 import { generateId } from './lib/utils';
 import { getProduct } from './lib/api';
+import { SessionTimeoutProvider } from './components/SessionTimeoutProvider';
 
 const STORAGE_KEYS = {
   PRODUCTS: 'bb_v4_products',
@@ -364,10 +365,21 @@ const authRoute = createRoute({
   path: '/auth',
   validateSearch: (search: Record<string, unknown>) => ({
     message: typeof search.message === 'string' ? search.message : undefined,
+    reason: typeof search.reason === 'string' ? search.reason : undefined,
+    returnTo: typeof search.returnTo === 'string' ? search.returnTo : undefined,
   }),
   component: () => {
     const context = useAppContext();
-    return <Auth setUser={context.setUser} navigateTo={context.navigateTo} notify={context.notify} />;
+    const { reason, returnTo } = authRoute.useSearch();
+    return (
+      <Auth
+        setUser={context.setUser}
+        navigateTo={context.navigateTo}
+        notify={context.notify}
+        sessionReason={reason}
+        returnTo={returnTo}
+      />
+    );
   },
 });
 
@@ -1251,6 +1263,7 @@ function RootComponent() {
 
   return (
     <AppContext.Provider value={contextValues}>
+      <SessionTimeoutProvider />
       <ScrollToTop />
       <SmoothScroll />
       <ScrollReveal />

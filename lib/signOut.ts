@@ -1,5 +1,6 @@
 import AuthService from './auth';
 import type { User } from '../interface/interface';
+import { MANUAL_SIGNOUT_FLAG } from './sessionIdleConfig';
 
 // Sign Out Handler
 export const handleSignOut = async (
@@ -8,6 +9,12 @@ export const handleSignOut = async (
   notify?: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void
 ): Promise<void> => {
   try {
+    try {
+      sessionStorage.setItem(MANUAL_SIGNOUT_FLAG, '1');
+    } catch {
+      /* sessionStorage unavailable */
+    }
+
     console.log('Starting sign out process...');
     
     const result = await AuthService.signOut();

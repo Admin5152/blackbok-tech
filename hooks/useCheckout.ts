@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import AuthService from '../lib/auth';
 import type { AppliedCoupon } from './useCoupons';
 
 /**
@@ -240,7 +241,7 @@ export function useCheckout(): UseCheckoutResult {
         (err as { message?: unknown } | null)?.message;
       const message =
         typeof rawMessage === 'string' && rawMessage.length > 0
-          ? rawMessage
+          ? AuthService.formatAuthError(rawMessage, 'session')
           : 'Failed to place order';
       setError(message);
       throw err instanceof Error ? err : new Error(message);

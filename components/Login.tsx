@@ -5,6 +5,7 @@ import type { User } from '../interface/interface';
 import { useLocation } from '@tanstack/react-router';
 import { canAccessAdminDashboard, normalizeCanonicalRole } from '../lib/roles';
 import { activateResumeAfterLogin, clearResumeAfterAuth } from '../lib/resumeAfterAuth';
+import { sanitizeReturnTo } from '../lib/returnTo';
 
 interface LoginProps {
   setUser: (user: User | null) => void;
@@ -13,9 +14,18 @@ interface LoginProps {
   notify: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
   /** Switches parent Auth to Sign up and can pre-fill email after a failed login. */
   onSwitchToSignUp?: (email: string) => void;
+  /** Internal path to restore after re-authentication (idle logout). */
+  returnTo?: string;
 }
 
-export const Login: React.FC<LoginProps> = ({ setUser, navigateTo, theme, notify, onSwitchToSignUp }) => {
+export const Login: React.FC<LoginProps> = ({
+  setUser,
+  navigateTo,
+  theme,
+  notify,
+  onSwitchToSignUp,
+  returnTo,
+}) => {
   const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -141,6 +151,13 @@ export const Login: React.FC<LoginProps> = ({ setUser, navigateTo, theme, notify
         console.log('Final user object:', user);
         setUser(user);
         notify(`Login successful! Welcome back, ${user.name}!`, 'success');
+
+        const safeReturnTo = sanitizeReturnTo(returnTo);
+        if (safeReturnTo && !canAccessAdminDashboard(resolvedRole)) {
+          clearResumeAfterAuth();
+          navigateTo(safeReturnTo);
+          return;
+        }
 
         if (canAccessAdminDashboard(resolvedRole)) {
           clearResumeAfterAuth();
