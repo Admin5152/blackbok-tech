@@ -22,7 +22,9 @@ interface ProductCardProps {
   isCompared: boolean;
   onToggleCompare: (productId: string) => void;
   theme?: 'light' | 'dark';
-  /** Tighter layout for 2-column mobile store grid */
+  /** Tighter layout for store grid */
+  compact?: boolean;
+  /** @deprecated Use compact — tighter layout for 2-column mobile store grid */
   compactOnMobile?: boolean;
 }
 
@@ -34,10 +36,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onAddToCart,
   isCompared,
   onToggleCompare,
+  compact = false,
   compactOnMobile = false,
 }) => {
   const { theme } = useAppContext();
   const isLight = theme === 'light';
+  const isCompact = compact || compactOnMobile;
   const optionGroups = useMemo(() => getProductOptionGroups(product), [product]);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
 
@@ -65,7 +69,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   return (
     <div
       className={`group overflow-hidden rounded-xl transition-all duration-300 flex flex-col h-full cursor-pointer relative border ${
-        compactOnMobile ? 'max-sm:rounded-lg' : ''
+        isCompact ? 'max-sm:rounded-lg' : ''
       } ${
         isCompared
           ? 'border-[#CDA032] shadow-[0_0_0_1px_rgba(205,160,50,0.35)]'
@@ -74,7 +78,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             : 'border-white/15 bg-black hover:border-white/25 shadow-2xl'
       }`}
     >
-      <div className={`absolute top-2 left-2 z-20 flex flex-col gap-1 ${compactOnMobile ? 'max-sm:top-1 max-sm:left-1' : ''}`}>
+      <div className={`absolute top-2 left-2 z-20 flex flex-col gap-1 ${isCompact ? 'top-1.5 left-1.5 max-sm:top-1 max-sm:left-1' : ''}`}>
         {product.new && (
           <span className="bg-white text-black text-[7px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest shadow-lg">NEW</span>
         )}
@@ -83,11 +87,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         )}
       </div>
 
-      <div className={`absolute top-2 right-2 z-30 flex flex-col gap-1.5 ${compactOnMobile ? 'max-sm:top-1 max-sm:right-1 max-sm:gap-1' : ''}`}>
+      <div className={`absolute top-2 right-2 z-30 flex flex-col gap-1.5 ${isCompact ? 'top-1.5 right-1.5 gap-1 max-sm:top-1 max-sm:right-1' : ''}`}>
         <button
           type="button"
           className={`transition-all rounded-full border hover:bg-[#CDA032] hover:text-black hover:border-[#CDA032] ${
-            compactOnMobile ? 'max-sm:p-1.5 p-2' : 'p-2'
+            isCompact ? 'p-1.5' : 'p-2'
           } ${
             isLight
               ? 'border-black/10 bg-white/85 text-black/50'
@@ -121,7 +125,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       </div>
 
       <Link to="/product/$productId" params={{ productId: product.id } as any} className="flex-1 flex flex-col relative z-10 min-h-0">
-        <div className={`bb-product-card-media bb-product-card-media--store relative ${compactOnMobile ? 'bb-product-card-media--store-compact' : ''}`}>
+        <div className={`bb-product-card-media bb-product-card-media--store relative ${isCompact ? 'bb-product-card-media--store-compact' : ''}`}>
           <img
             src={product.image || product.image_url || ''}
             alt={product.name}
@@ -144,24 +148,24 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </div>
 
         <div
-          className={`flex flex-col gap-1.5 ${compactOnMobile ? 'max-sm:p-2 p-2.5' : 'p-2.5'} ${isLight ? 'bg-white' : 'bg-black'}`}
+          className={`flex flex-col gap-1 ${isCompact ? 'p-2' : 'p-2.5'} ${isLight ? 'bg-white' : 'bg-black'}`}
         >
           <div className="space-y-1 min-w-0">
             <p
               className={`font-bold uppercase tracking-[0.18em] truncate ${
-                compactOnMobile ? 'max-sm:text-[7px] text-[8px]' : 'text-[8px]'
+                isCompact ? 'text-[7px]' : 'text-[8px]'
               } ${isLight ? 'text-[#B38B21]' : 'text-[#CDA032]'}`}
             >
               {product.category}
             </p>
             <h3
               className={`font-bold leading-snug line-clamp-2 group-hover:text-[#CDA032] transition-colors ${
-                compactOnMobile ? 'max-sm:text-[11px] text-xs' : 'text-xs'
+                isCompact ? 'text-[11px]' : 'text-xs'
               } ${isLight ? 'text-black' : 'text-white'}`}
             >
               {product.name}
             </h3>
-            <div className={`flex items-center gap-1 ${compactOnMobile ? 'max-sm:hidden' : ''}`}>
+            <div className={`flex items-center gap-1 ${isCompact ? 'max-sm:hidden' : ''}`}>
               <div className="flex gap-px">
                 {[...Array(5)].map((_, i) => (
                   <Star
@@ -185,7 +189,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
           {cardOptionGroups.length > 0 && (
             <div
-              className={`flex flex-wrap items-center gap-1 min-h-0 ${compactOnMobile ? 'max-sm:hidden' : ''}`}
+              className={`flex flex-wrap items-center gap-1 min-h-0 ${isCompact ? 'max-sm:hidden' : ''}`}
             >
               {cardOptionGroups.flatMap((variant) => {
                 const selectedValue = toOptionString(selectedOptions[variant.name] || '');
@@ -280,10 +284,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </div>
           )}
 
-          <div className={`flex items-end justify-between gap-2 pt-0.5 ${compactOnMobile ? 'max-sm:gap-1' : ''}`}>
+          <div className={`flex items-end justify-between gap-2 pt-0.5 ${isCompact ? 'gap-1' : ''}`}>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
-                <span className={`font-black tracking-tight tabular-nums ${compactOnMobile ? 'max-sm:text-sm text-base' : 'text-base'} ${isLight ? 'text-black' : 'text-white'}`}>
+                <span className={`font-black tracking-tight tabular-nums ${isCompact ? 'text-sm' : 'text-base'} ${isLight ? 'text-black' : 'text-white'}`}>
                   {formatCurrency(product.price)}
                 </span>
                 {product.discount && (
@@ -306,10 +310,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               title={availableStock <= 0 ? 'Out of stock' : 'Add to cart'}
               aria-label={availableStock <= 0 ? 'Out of stock' : 'Add to cart'}
               className={`shrink-0 bg-[#CDA032] hover:bg-[#c29a28] text-black rounded-full font-bold transition-all flex items-center justify-center shadow-md active:scale-[0.96] disabled:opacity-40 disabled:pointer-events-none ${
-                compactOnMobile ? 'max-sm:h-8 max-sm:w-8 h-9 w-9' : 'h-9 w-9'
+                isCompact ? 'h-8 w-8' : 'h-9 w-9'
               } ${TW_DARK_GOLD_BTN_DEPTH}`}
             >
-              <ShoppingCart size={compactOnMobile ? 14 : 15} strokeWidth={2.25} />
+              <ShoppingCart size={isCompact ? 14 : 15} strokeWidth={2.25} />
             </button>
           </div>
         </div>

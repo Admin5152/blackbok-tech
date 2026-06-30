@@ -305,33 +305,33 @@ export const Store: React.FC<StoreProps> = ({
   };
 
   const gridCols = showDesktopFilters
-    ? 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3'
-    : 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4';
+    ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4'
+    : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5';
 
   return (
     <div className="bb-store-page">
       <div className="bb-store-toolbar">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3">
           <div className="flex min-w-0 flex-col gap-2">
-            <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+            <div className="bb-store-toolbar-row flex min-w-0 items-center gap-1.5 sm:gap-2">
               <PageBackButton isLight={isLight} fallbackTo="/" iconOnly />
 
-              <div className="relative min-w-0 flex-1">
+              <div className="bb-store-search-wrap relative min-w-0">
                 <Search
-                  className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 sm:left-3 text-[color:var(--bb-muted)]"
+                  className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-[color:var(--bb-muted)]"
                   aria-hidden
                 />
                 <input
                   type="search"
                   enterKeyHint="search"
-                  placeholder="Search products…"
+                  placeholder="Search…"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="bb-store-search-input"
                 />
               </div>
 
-              <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
+              <div className="bb-store-toolbar-actions ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
                 <div className="flex items-center gap-0.5 rounded-lg border border-[var(--bb-border)] p-0.5">
                   <button
                     type="button"
@@ -452,7 +452,7 @@ export const Store: React.FC<StoreProps> = ({
             </p>
 
             {filteredProducts.length > 0 && viewMode === 'grid' && (
-              <div className={`bb-store-product-grid grid gap-2 sm:gap-4 ${gridCols}`}>
+              <div className={`bb-store-product-grid grid gap-2 sm:gap-3 ${gridCols}`}>
                 {filteredProducts.map((product, index) => (
                   <div
                     key={product.id}
@@ -466,7 +466,7 @@ export const Store: React.FC<StoreProps> = ({
                       onAddToCart={onAddToCart}
                       isCompared={compareIds.includes(product.id)}
                       onToggleCompare={onToggleCompare}
-                      compactOnMobile
+                      compact
                     />
                   </div>
                 ))}
