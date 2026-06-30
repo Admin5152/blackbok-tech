@@ -4,7 +4,7 @@ import {
   normalizeTradeModelKey,
 } from '../data/tradeInPrices';
 import { readLocalStorageJson, writeLocalStorageJson } from './localStorageJson';
-import { TRADE_COMPONENT_KEYS, type TradeComponentKey } from './tradeValuation';
+import { TRADE_COMPONENT_KEYS, type TradeComponentKey } from './tradeComponentKeys';
 
 export const TRADE_DEVICE_PRICES_KEY = 'bb_v4_trade_device_prices';
 export const TRADE_COMPONENT_PERCENTS_KEY = 'bb_v4_trade_component_percents';

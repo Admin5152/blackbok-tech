@@ -978,7 +978,7 @@ function RootComponent() {
   //      a `type=recovery` or `type=email_confirm` marker in either the
   //      search string or the hash.
   useEffect(() => {
-    if (!supabase) return;
+    if (!isSupabaseConfigured()) return;
 
     const goTo = (path: string) => {
       if (location.pathname !== path) {
@@ -1033,7 +1033,7 @@ function RootComponent() {
   // for their orders, trade-ins and repairs. Refetches on every change so
   // the user sees admin updates instantly without a refresh.
   useEffect(() => {
-    if (!user?.id || !supabase) return;
+    if (!user?.id || !isSupabaseConfigured()) return;
 
     const refetchOrders  = () => getOrders(user.id).then((d) => setOrders(d as any)).catch(() => {});
     const refetchTrades  = () => getTradeRequests(user.id).then((d) => setTrades(d as any)).catch(() => {});
@@ -1074,7 +1074,7 @@ function RootComponent() {
       .subscribe();
 
     return () => {
-      if (supabase) supabase.removeChannel(channel);
+      if (isSupabaseConfigured()) supabase.removeChannel(channel);
     };
   }, [user?.id, refreshProducts]);
 

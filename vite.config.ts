@@ -33,7 +33,8 @@ export default defineConfig(({ mode }) => {
     return {
       server: {
         port: 3000,
-        host: '0.0.0.0',
+        strictPort: true,
+        host: 'localhost',
       },
       esbuild: isProd
         ? { drop: ['console', 'debugger'] as const, legalComments: 'none' }

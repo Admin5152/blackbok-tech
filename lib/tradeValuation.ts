@@ -3,19 +3,9 @@ import {
   lookupTradeBasePrice,
   readTradeComponentPercentOverrides,
 } from './tradePricingStore';
+import { type TradeComponentKey } from './tradeComponentKeys';
 
-export const TRADE_COMPONENT_KEYS = [
-  'battery',
-  'screen',
-  'camera',
-  'biometrics',
-  'charging_port',
-  'speakers',
-  'back_glass',
-  'buttons',
-] as const;
-
-export type TradeComponentKey = (typeof TRADE_COMPONENT_KEYS)[number];
+export { TRADE_COMPONENT_KEYS, type TradeComponentKey } from './tradeComponentKeys';
 
 export type TradePricingMode = 'matrix_estimate' | 'inspection_quote';
 

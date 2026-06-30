@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 export type ReturnCondition = 'unopened' | 'opened' | 'damaged';
 export type ReturnStatus = 'requested' | 'approved' | 'rejected' | 'completed';
@@ -46,6 +46,13 @@ export function useReturns(): UseReturnsResult {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isSupabaseConfigured()) {
+      setUserId(null);
+      setReturns([]);
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
 
     supabase.auth.getUser()
