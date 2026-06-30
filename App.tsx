@@ -65,10 +65,10 @@ import { RepairReceipt } from './views/RepairReceipt';
 import { ReturnsPage } from './views/ReturnsPage';
 // import { orders } from './data/orders'; 
 import { QuickViewModal } from './components/QuickViewModal';
-import { CompareModal } from './components/CompareModal';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { NotificationSystem } from './components/NotificationSystem';
 import { generateId } from './lib/utils';
+import { COMPARE_MAX_ITEMS } from './lib/compareProducts';
 import { getProduct } from './lib/api';
 import { SessionTimeoutProvider } from './components/SessionTimeoutProvider';
 
@@ -99,7 +99,7 @@ export interface AppContextType {
   setSearchQuery: (q: string) => void;
   selectedCategories: Category[];
   setSelectedCategories: (c: Category[]) => void;
-  setUser: (u: User | null) => void;
+  setUser: React.Dispatch<React.SetStateAction<User | null>>;
   setCart: React.Dispatch<React.SetStateAction<CartItem[]>>;
   setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
   setRepairs: (r: RepairRequest[]) => void;
@@ -339,12 +339,7 @@ const tradesRoute = createRoute({
   path: '/trades',
   component: () => {
     const context = useAppContext();
-    return <Trades
-      products={context.products}
-      onAddToCart={context.onAddToCart}
-      notify={context.notify}
-      onQuickView={context.onQuickView}
-    />;
+    return <Trades products={context.products} notify={context.notify} />;
   },
 });
 
@@ -803,7 +798,6 @@ function RootComponent() {
   const [repairs, setRepairs] = useState<RepairRequest[]>([]);
   const [trades, setTrades] = useState<TradeRequest[]>([]);
 
-  const [isCompareOpen, setIsCompareOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<Category[]>([]);
@@ -1210,7 +1204,7 @@ function RootComponent() {
   const toggleCompare = (productId: string) => {
     setCompareIds(prev => {
       if (prev.includes(productId)) return prev.filter(id => id !== productId);
-      if (prev.length >= 4) { notify('Comparison limit reached (4)', 'error'); return prev; }
+      if (prev.length >= COMPARE_MAX_ITEMS) { notify(`Comparison limit reached (${COMPARE_MAX_ITEMS})`, 'error'); return prev; }
       return [...prev, productId];
     });
   };
@@ -1317,7 +1311,7 @@ function RootComponent() {
           {compareIds.length > 0 && (
           <div className="fixed top-24 right-5 z-[100] flex items-center bg-[#B38B21] rounded-full shadow-[0_10px_40px_rgba(179,139,33,0.4)] transition-transform hover:scale-[1.02] overflow-hidden">
             <button
-              onClick={() => setIsCompareOpen(true)}
+              onClick={() => navigateTo('/compare')}
               className="pl-6 pr-4 py-4 text-black font-black text-[10px] uppercase tracking-[0.4em] flex items-center gap-3 border-r border-black/10 hover:bg-black/5 transition-colors"
             >
               <Scale size={16} /> Compare ({compareIds.length})
@@ -1337,16 +1331,6 @@ function RootComponent() {
           onClose={() => setIsQuickViewOpen(false)}
           product={quickViewProduct}
           onAddToCart={addToCart}
-        />
-
-        <CompareModal
-          isOpen={isCompareOpen}
-          onClose={() => setIsCompareOpen(false)}
-          products={products.filter(p => compareIds.includes(p.id))}
-          allProducts={products}
-          onRemove={toggleCompare}
-          onAdd={toggleCompare}
-          onAddToCart={(p) => addToCart(p)}
         />
 
         {/* Legacy single-toast removed — all notifications now flow through

@@ -1,3 +1,5 @@
+import type { DeviceType, PricingMode } from './lib/repairDeviceTypes';
+
 /** Aligns with Postgres public.app_role (user | admin | staff). */
 export type AppRole = 'user' | 'admin' | 'staff';
 
@@ -206,6 +208,8 @@ export interface RepairRequest {
   user_name?: string;
   device_brand?: string;
   device_model?: string;
+  device_type?: DeviceType;
+  pricing_mode?: PricingMode;
   issue_type?: string;
   issue_description?: string;
   ai_diagnosis?: string;
@@ -254,6 +258,13 @@ export interface TradeInRequest {
   user_description?: string;
   device_brand?: string;
   device_name?: string;
+  device_type?: 'smartphone' | 'tablet';
+  pricing_mode?: 'matrix_estimate' | 'inspection_quote';
+  base_trade_value?: number;
+  deduction_breakdown?: Array<{ key: string; label: string; percent: number; amount: number }>;
+  component_flags?: string[];
+  target_product_price?: number;
+  top_up_amount?: number;
   condition?: string;
   accessories?: string[];
   target_device?: string;

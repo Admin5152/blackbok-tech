@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from '@tanstack/react-router';
-import { ShoppingCart, Heart, Eye, Star, Scale, FileText } from 'lucide-react';
+import { ShoppingCart, Heart, Eye, Star, Scale } from 'lucide-react';
 import { Product } from '../types';
 import { formatCurrency, TW_DARK_BTN_DEPTH, TW_DARK_GOLD_BTN_DEPTH } from '../lib/utils';
 import { useAppContext } from '../App';
@@ -22,6 +22,8 @@ interface ProductCardProps {
   isCompared: boolean;
   onToggleCompare: (productId: string) => void;
   theme?: 'light' | 'dark';
+  /** Tighter layout for 2-column mobile store grid */
+  compactOnMobile?: boolean;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
@@ -31,7 +33,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onToggleWishlist,
   onAddToCart,
   isCompared,
-  onToggleCompare
+  onToggleCompare,
+  compactOnMobile = false,
 }) => {
   const { theme } = useAppContext();
   const isLight = theme === 'light';
@@ -56,9 +59,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     onAddToCart(product, resolved, 1);
   };
 
+  const colorGroup = optionGroups.find((g) => g.name.toLowerCase() === 'color');
+  const cardOptionGroups = colorGroup ? [colorGroup] : optionGroups.slice(0, 1);
+
   return (
     <div
-      className={`group overflow-hidden rounded-2xl transition-all duration-300 flex flex-col h-full cursor-pointer relative border ${
+      className={`group overflow-hidden rounded-xl transition-all duration-300 flex flex-col h-full cursor-pointer relative border ${
+        compactOnMobile ? 'max-sm:rounded-lg' : ''
+      } ${
         isCompared
           ? 'border-[#CDA032] shadow-[0_0_0_1px_rgba(205,160,50,0.35)]'
           : isLight
@@ -66,7 +74,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             : 'border-white/15 bg-black hover:border-white/25 shadow-2xl'
       }`}
     >
-      <div className="absolute top-2 left-2 z-20 flex flex-col gap-1">
+      <div className={`absolute top-2 left-2 z-20 flex flex-col gap-1 ${compactOnMobile ? 'max-sm:top-1 max-sm:left-1' : ''}`}>
         {product.new && (
           <span className="bg-white text-black text-[7px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest shadow-lg">NEW</span>
         )}
@@ -75,10 +83,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         )}
       </div>
 
-      <div className="absolute top-2 right-2 z-30 flex flex-col gap-1.5">
+      <div className={`absolute top-2 right-2 z-30 flex flex-col gap-1.5 ${compactOnMobile ? 'max-sm:top-1 max-sm:right-1 max-sm:gap-1' : ''}`}>
         <button
           type="button"
-          className={`transition-all p-2 rounded-full border hover:bg-[#CDA032] hover:text-black hover:border-[#CDA032] ${
+          className={`transition-all rounded-full border hover:bg-[#CDA032] hover:text-black hover:border-[#CDA032] ${
+            compactOnMobile ? 'max-sm:p-1.5 p-2' : 'p-2'
+          } ${
             isLight
               ? 'border-black/10 bg-white/85 text-black/50'
               : 'border-white/15 bg-black/55 text-white/70 backdrop-blur-md'
@@ -111,7 +121,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       </div>
 
       <Link to="/product/$productId" params={{ productId: product.id } as any} className="flex-1 flex flex-col relative z-10 min-h-0">
-        <div className="bb-product-card-media bb-product-card-media--store relative">
+        <div className={`bb-product-card-media bb-product-card-media--store relative ${compactOnMobile ? 'bb-product-card-media--store-compact' : ''}`}>
           <img
             src={product.image || product.image_url || ''}
             alt={product.name}
@@ -134,29 +144,29 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </div>
 
         <div
-          className={`p-3 flex-1 flex flex-col justify-between gap-2 ${isLight ? 'bg-white' : 'bg-black'}`}
+          className={`flex flex-col gap-1.5 ${compactOnMobile ? 'max-sm:p-2 p-2.5' : 'p-2.5'} ${isLight ? 'bg-white' : 'bg-black'}`}
         >
-          <div className="space-y-1.5">
+          <div className="space-y-1 min-w-0">
             <p
-              className={`text-[8px] font-black uppercase tracking-[0.22em] italic ${
-                isLight ? 'text-[#B38B21]' : 'text-[#CDA032]'
-              }`}
+              className={`font-bold uppercase tracking-[0.18em] truncate ${
+                compactOnMobile ? 'max-sm:text-[7px] text-[8px]' : 'text-[8px]'
+              } ${isLight ? 'text-[#B38B21]' : 'text-[#CDA032]'}`}
             >
               {product.category}
             </p>
             <h3
-              className={`text-[10px] font-black leading-snug uppercase italic tracking-wide line-clamp-2 group-hover:text-[#CDA032] transition-colors ${
-                isLight ? 'text-black' : 'text-white'
-              }`}
+              className={`font-bold leading-snug line-clamp-2 group-hover:text-[#CDA032] transition-colors ${
+                compactOnMobile ? 'max-sm:text-[11px] text-xs' : 'text-xs'
+              } ${isLight ? 'text-black' : 'text-white'}`}
             >
               {product.name}
             </h3>
-            <div className="flex items-center gap-1.5 pt-0.5">
-              <div className="flex gap-0.5">
+            <div className={`flex items-center gap-1 ${compactOnMobile ? 'max-sm:hidden' : ''}`}>
+              <div className="flex gap-px">
                 {[...Array(5)].map((_, i) => (
                   <Star
                     key={i}
-                    size={8}
+                    size={9}
                     className={
                       i < Math.floor(product.rating || 4)
                         ? 'fill-[#CDA032] text-[#CDA032]'
@@ -167,168 +177,140 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                   />
                 ))}
               </div>
-              <span className={`text-[8px] font-semibold ${isLight ? 'text-black/45' : 'text-white/50'}`}>
+              <span className={`text-[9px] ${isLight ? 'text-black/45' : 'text-white/50'}`}>
                 ({product.reviewCount || 0})
               </span>
             </div>
           </div>
 
-          {/* Variant selection — compact row */}
-          <div
-            className={`grid gap-1.5 sm:gap-2 ${
-              optionGroups.length > 3
-                ? 'grid-cols-[repeat(auto-fit,minmax(3.75rem,1fr))]'
-                : optionGroups.length === 3
-                  ? 'grid-cols-3'
-                  : optionGroups.length === 2
-                    ? 'grid-cols-2'
-                    : optionGroups.length === 1
-                      ? 'grid-cols-1'
-                      : 'hidden'
-            }`}
-          >
-            {optionGroups.map((variant) => {
-              const selectedValue = toOptionString(selectedOptions[variant.name] || '');
-              const isColor = variant.name.toLowerCase() === 'color';
+          {cardOptionGroups.length > 0 && (
+            <div
+              className={`flex flex-wrap items-center gap-1 min-h-0 ${compactOnMobile ? 'max-sm:hidden' : ''}`}
+            >
+              {cardOptionGroups.flatMap((variant) => {
+                const selectedValue = toOptionString(selectedOptions[variant.name] || '');
+                const isColor = variant.name.toLowerCase() === 'color';
 
-              return (
-                <div key={variant.name} className="min-w-0 flex flex-col gap-1">
-                  <span className={`text-[7px] font-black uppercase tracking-wider truncate ${isLight ? 'text-black/55' : 'text-white/45'}`}>
-                    {variant.name}
-                  </span>
+                return variant.options.slice(0, isColor ? 5 : 3).map((opt, optIdx) => {
+                  const o = toOptionString(opt);
+                  const ol = o.toLowerCase();
+                  const trialOpts = snapSelectionToInStock(product, optionGroups, {
+                    ...selectedOptions,
+                    [variant.name]: o,
+                  });
+                  const optStock = getAvailableStock(product, trialOpts);
+                  const optDisabled = optStock <= 0;
+                  return (
+                    <button
+                      key={`${variant.name}-${optIdx}-${o}`}
+                      type="button"
+                      title={`${variant.name}: ${o}`}
+                      disabled={optDisabled}
+                      aria-label={`${variant.name} ${o}${selectedValue === o ? ', selected' : ''}${optDisabled ? ', out of stock' : ''}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (optDisabled) return;
+                        setSelectedOptions((prev) =>
+                          snapSelectionToInStock(product, optionGroups, { ...prev, [variant.name]: o }),
+                        );
+                      }}
+                      className={
+                        isColor
+                          ? `shrink-0 w-4 h-4 rounded-full border transition-all ${ol === 'white' ? (isLight ? 'ring-1 ring-black/20 ' : 'ring-1 ring-white/35 ') : ''}${
+                              optDisabled
+                                ? 'opacity-30 cursor-not-allowed border-black/10'
+                                : selectedValue === o
+                                  ? 'border-[#CDA032] ring-1 ring-[#CDA032]/50'
+                                  : isLight
+                                    ? 'border-black/25 hover:border-black/45'
+                                    : 'border-white/25 hover:border-white/45'
+                            }`
+                          : `shrink-0 px-1.5 py-0.5 rounded text-[8px] font-semibold transition-all border ${
+                              optDisabled
+                                ? 'opacity-30 cursor-not-allowed border-black/10'
+                                : selectedValue === o
+                                  ? 'border-[#CDA032] bg-[#CDA032]/15 text-[#CDA032]'
+                                  : isLight
+                                    ? 'border-black/15 bg-zinc-50 text-black/80 hover:border-black/30'
+                                    : 'border-white/15 text-white/60 hover:border-white/35'
+                            }`
+                      }
+                      style={
+                        isColor
+                          ? {
+                              backgroundColor:
+                                ol === 'black'
+                                  ? '#000'
+                                  : ol === 'white'
+                                    ? '#fff'
+                                    : ol === 'red'
+                                      ? '#ef4444'
+                                      : ol === 'blue'
+                                        ? '#3b82f6'
+                                        : ol === 'green'
+                                          ? '#10b981'
+                                          : ol === 'purple'
+                                            ? '#a855f7'
+                                            : ol === 'pink'
+                                              ? '#ec4899'
+                                              : ol === 'gold'
+                                                ? '#f59e0b'
+                                                : ol === 'silver'
+                                                  ? '#9ca3af'
+                                                  : ol.includes('space gray')
+                                                    ? '#4B4B4D'
+                                                    : ol.includes('midnight')
+                                                      ? '#1C2938'
+                                                      : '#6b7280',
+                            }
+                          : {}
+                      }
+                    >
+                      {!isColor && o}
+                    </button>
+                  );
+                });
+              })}
+              {optionGroups.length > cardOptionGroups.length && (
+                <span className={`text-[8px] font-medium ${isLight ? 'text-black/40' : 'text-white/40'}`}>
+                  +{optionGroups.length - cardOptionGroups.length} more
+                </span>
+              )}
+            </div>
+          )}
 
-                  <div className="flex flex-wrap gap-1 content-start">
-                    {variant.options.map((opt, optIdx) => {
-                      const o = toOptionString(opt);
-                      const ol = o.toLowerCase();
-                      const trialOpts = snapSelectionToInStock(product, optionGroups, {
-                        ...selectedOptions,
-                        [variant.name]: o,
-                      });
-                      const optStock = getAvailableStock(product, trialOpts);
-                      const optDisabled = optStock <= 0;
-                      return (
-                        <button
-                          key={`${variant.name}-${optIdx}-${o}`}
-                          type="button"
-                          title={optDisabled ? `${o} (out of stock)` : o}
-                          disabled={optDisabled}
-                          aria-label={`${variant.name} ${o}${selectedValue === o ? ', selected' : ''}${optDisabled ? ', out of stock' : ''}`}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            if (optDisabled) return;
-                            setSelectedOptions((prev) =>
-                              snapSelectionToInStock(product, optionGroups, { ...prev, [variant.name]: o }),
-                            );
-                          }}
-                          className={
-                            isColor
-                              ? `shrink-0 w-5 h-5 rounded-full border-2 transition-all ${ol === 'white' ? (isLight ? 'ring-1 ring-black/20 ' : 'ring-1 ring-white/35 ') : ''}${
-                                  optDisabled
-                                    ? 'opacity-30 cursor-not-allowed border-black/10'
-                                    : selectedValue === o
-                                      ? 'border-[#CDA032] ring-1 ring-[#CDA032]/50 scale-105'
-                                      : isLight
-                                        ? 'border-black/25 hover:border-black/45'
-                                        : 'border-white/25 hover:border-white/45'
-                                }`
-                              : `shrink-0 min-w-0 max-w-full px-1.5 py-0.5 rounded-md text-[7px] font-black tracking-wide transition-all border truncate ${
-                                  optDisabled
-                                    ? 'opacity-30 cursor-not-allowed border-black/10'
-                                    : selectedValue === o
-                                      ? 'border-[#CDA032] bg-[#CDA032]/15 text-[#CDA032]'
-                                      : isLight
-                                        ? 'border-black/20 bg-zinc-100 text-black/85 hover:border-black/40 hover:bg-zinc-200 hover:text-black'
-                                        : 'border-white/15 text-white/55 hover:border-white/35 hover:text-white'
-                                }`
-                          }
-                          style={
-                            isColor
-                              ? {
-                                  backgroundColor:
-                                    ol === 'black'
-                                      ? '#000'
-                                      : ol === 'white'
-                                        ? '#fff'
-                                        : ol === 'red'
-                                          ? '#ef4444'
-                                          : ol === 'blue'
-                                            ? '#3b82f6'
-                                            : ol === 'green'
-                                              ? '#10b981'
-                                              : ol === 'purple'
-                                                ? '#a855f7'
-                                                : ol === 'pink'
-                                                  ? '#ec4899'
-                                                  : ol === 'gold'
-                                                    ? '#f59e0b'
-                                                    : ol === 'silver'
-                                                      ? '#9ca3af'
-                                                      : ol.includes('space gray')
-                                                        ? '#4B4B4D'
-                                                        : ol.includes('midnight')
-                                                          ? '#1C2938'
-                                                          : '#6b7280',
-                                }
-                              : {}
-                          }
-                        >
-                          {!isColor && o}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="mt-auto flex flex-col gap-1.5">
-            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-              <div className="flex min-w-0 shrink items-baseline gap-2">
-                <span className={`text-lg font-black tracking-tight tabular-nums ${isLight ? 'text-black' : 'text-white'}`}>
+          <div className={`flex items-end justify-between gap-2 pt-0.5 ${compactOnMobile ? 'max-sm:gap-1' : ''}`}>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+                <span className={`font-black tracking-tight tabular-nums ${compactOnMobile ? 'max-sm:text-sm text-base' : 'text-base'} ${isLight ? 'text-black' : 'text-white'}`}>
                   {formatCurrency(product.price)}
                 </span>
                 {product.discount && (
-                  <span className={`text-[8px] line-through font-bold ${isLight ? 'text-black/40' : 'text-white/35'}`}>
+                  <span className={`line-through text-[10px] ${isLight ? 'text-black/40' : 'text-white/35'}`}>
                     {formatCurrency(product.price * (1 + product.discount / 100))}
                   </span>
                 )}
               </div>
-              <div className="ml-auto min-w-0 flex shrink-0 justify-end">
-                <ProductAvailabilityBadge available={availableStock} isLight={isLight} inline />
-              </div>
+              <ProductAvailabilityBadge available={availableStock} isLight={isLight} minimal />
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleAddToCartWithOptions();
-                }}
-                disabled={availableStock <= 0}
-                className={`w-full py-2.5 bg-[#CDA032] hover:bg-[#c29a28] text-black rounded-full text-[9px] font-black uppercase tracking-[0.28em] transition-all flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none ${TW_DARK_GOLD_BTN_DEPTH}`}
-              >
-                <ShoppingCart size={14} strokeWidth={2.5} /> {availableStock <= 0 ? 'Out of stock' : 'ADD TO CART'}
-              </button>
-
-              <Link
-                to="/product/$productId"
-                params={{ productId: product.id } as any}
-                onClick={(e) => e.stopPropagation()}
-                className={`w-full py-2.5 rounded-full text-[8px] font-black uppercase tracking-[0.28em] transition-all flex items-center justify-center gap-2 border active:scale-[0.98] ${
-                  isLight
-                    ? 'bg-zinc-50 hover:bg-zinc-100 text-black border-black/12'
-                    : 'bg-black text-white border-white/20 hover:border-white/35 hover:bg-white/[0.06]'
-                }`}
-              >
-                <FileText size={12} strokeWidth={2.25} className={isLight ? 'text-black/60' : 'text-white/80'} />{' '}
-                VIEW DETAILS
-              </Link>
-            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleAddToCartWithOptions();
+              }}
+              disabled={availableStock <= 0}
+              title={availableStock <= 0 ? 'Out of stock' : 'Add to cart'}
+              aria-label={availableStock <= 0 ? 'Out of stock' : 'Add to cart'}
+              className={`shrink-0 bg-[#CDA032] hover:bg-[#c29a28] text-black rounded-full font-bold transition-all flex items-center justify-center shadow-md active:scale-[0.96] disabled:opacity-40 disabled:pointer-events-none ${
+                compactOnMobile ? 'max-sm:h-8 max-sm:w-8 h-9 w-9' : 'h-9 w-9'
+              } ${TW_DARK_GOLD_BTN_DEPTH}`}
+            >
+              <ShoppingCart size={compactOnMobile ? 14 : 15} strokeWidth={2.25} />
+            </button>
           </div>
         </div>
       </Link>

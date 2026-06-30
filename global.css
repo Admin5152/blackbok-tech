@@ -253,8 +253,13 @@ html[data-theme="light"] .bg-\[\#050505\] {
   background-color: var(--bb-surface) !important;
 }
 
-html[data-theme="light"] .bg-\[\#030303\] {
+html[data-theme="light"] .bg-\[\#030303\]:not(.bb-home-hero) {
   background-color: var(--bb-surface) !important;
+}
+
+/* Home hero stays dark in light mode so overlay copy keeps contrast */
+html[data-theme="light"] .bb-home-hero {
+  background-color: #030303 !important;
 }
 
 /* Force white text on media overlays (home/category cards, heroes, etc.).
@@ -1029,6 +1034,71 @@ html[data-theme='light'] .bb-store-filter-step {
   box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.25);
 }
 
+/* Store page shell */
+.bb-store-page {
+  min-height: 100vh;
+  background-color: var(--bb-bg);
+  color: var(--bb-text);
+}
+
+.bb-store-toolbar {
+  position: sticky;
+  top: 4rem;
+  z-index: 40;
+  border-bottom: 1px solid var(--bb-border);
+  background-color: color-mix(in srgb, var(--bb-bg) 92%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+@media (min-width: 640px) {
+  .bb-store-toolbar {
+    top: 5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .bb-store-toolbar {
+    top: 6rem;
+  }
+}
+
+.bb-store-search-input {
+  width: 100%;
+  min-width: 0;
+  border-radius: 0.75rem;
+  padding: 0.625rem 0.5rem 0.625rem 2rem;
+  font-size: 0.875rem;
+  background-color: var(--bb-surface);
+  border: 1px solid var(--bb-border);
+  color: var(--bb-text);
+  transition: box-shadow 0.15s ease;
+}
+
+.bb-store-search-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(205, 160, 50, 0.35);
+}
+
+@media (min-width: 640px) {
+  .bb-store-search-input {
+    padding-left: 2.5rem;
+  }
+}
+
+.bb-store-empty {
+  text-align: center;
+  padding: 4rem 1.5rem;
+  border-radius: 1.5rem;
+  border: 1px dashed var(--bb-border);
+  background-color: var(--bb-surface);
+}
+
+@media (min-width: 640px) {
+  .bb-store-empty {
+    padding: 6rem 2rem;
+  }
+}
+
 /* Store: never leave product cards invisible if scroll-reveal misses on mobile */
 [data-store-products] .reveal-on-scroll {
   opacity: 1;
@@ -1055,13 +1125,38 @@ html[data-theme='light'] .bb-store-filter-step {
   position: relative;
   display: block;
   width: 100%;
-  aspect-ratio: 2 / 1;
-  min-height: 9.5rem;
+  aspect-ratio: 4 / 3;
+  max-height: 11rem;
+  min-height: 0;
   padding: 0;
   overflow: hidden;
   flex-shrink: 0;
   border-radius: 1rem 1rem 0 0; /* align with parent rounded-2xl */
   background: #0f0f10;
+}
+
+/* Compact store grid (2-up on mobile) */
+.bb-product-card-media--store-compact {
+  aspect-ratio: 4 / 3;
+  max-height: 9rem;
+  min-height: 0;
+}
+
+@media (min-width: 640px) {
+  .bb-product-card-media--store {
+    max-height: 12.5rem;
+  }
+
+  .bb-product-card-media--store-compact {
+    max-height: 10.5rem;
+  }
+}
+
+@media (max-width: 639px) {
+  .bb-store-product-grid .bb-product-card-media--store-compact {
+    aspect-ratio: 4 / 3;
+    max-height: 8.5rem;
+  }
 }
 
 html[data-theme='light'] .bb-product-card-media--store {

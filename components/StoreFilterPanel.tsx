@@ -2,14 +2,13 @@ import React from 'react';
 import { X, Tag, Minus, Plus, SlidersHorizontal } from 'lucide-react';
 import { Category } from '../types';
 import { formatCurrency } from '../lib/utils';
+import { STORE_PRICE_SLIDER_MAX, STORE_PRICE_SLIDER_STEP } from '../lib/storeFilters';
+
+export { STORE_PRICE_SLIDER_MAX, STORE_PRICE_SLIDER_STEP } from '../lib/storeFilters';
 
 export type StoreCategoryRow =
   | { key: string; label: string; value: 'All'; icon: React.ReactNode; count: number }
-  | { key: string; label: string; value: Category; icon: React.ReactNode; count: number }
-  | { key: string; label: string; value: '__promotions__'; icon: React.ReactNode; count: number };
-
-export const STORE_PRICE_SLIDER_MAX = 15000;
-export const STORE_PRICE_SLIDER_STEP = 100;
+  | { key: string; label: string; value: Category; icon: React.ReactNode; count: number };
 
 const PRICE_PRESETS = [
   { label: 'Under GH₵5k', range: { min: 0, max: 5000 } },
@@ -33,7 +32,6 @@ export interface StoreFilterPanelProps {
   onCommitPrice: () => void;
   onAdjustMin: (delta: number) => void;
   onAdjustMax: (delta: number) => void;
-  onPresetPrice: (range: { min: number; max: number }) => void;
   onPriceRangeChange: (range: { min: number; max: number }) => void;
   activeFiltersCount: number;
   onClearAll: () => void;
@@ -136,7 +134,6 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
   onCommitPrice,
   onAdjustMin,
   onAdjustMax,
-  onPresetPrice,
   onPriceRangeChange,
   activeFiltersCount,
   onClearAll,
@@ -215,7 +212,7 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
               <button
                 key={label}
                 type="button"
-                onClick={() => onPresetPrice(range)}
+                onClick={() => onPriceRangeChange(range)}
                 className={`bb-store-filter-preset ${active ? 'bb-store-filter-preset--active' : isLight ? 'bb-store-filter-preset--light' : 'bb-store-filter-preset--dark'}`}
               >
                 {label}

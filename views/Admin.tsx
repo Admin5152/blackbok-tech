@@ -83,7 +83,7 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
   const [section, setSection] = useState<AdminSection>('overview');
   const [sidebar, setSidebar] = useState(true);
   const [badgeCounts, setBadgeCounts] = useState<Record<AdminNavBadgeKey, number>>(ZERO_BADGES);
-  const badgePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const badgePollRef = useRef<number | null>(null);
 
   const refreshBadgeCounts = useCallback(async () => {
     const uid = user?.id;

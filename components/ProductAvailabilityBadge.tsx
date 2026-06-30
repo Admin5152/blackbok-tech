@@ -6,6 +6,8 @@ interface ProductAvailabilityBadgeProps {
   compact?: boolean;
   /** Single-line pill beside price (minimal padding) */
   inline?: boolean;
+  /** Grid cards: "In stock" / "Out of stock" without unit counts */
+  minimal?: boolean;
 }
 
 /** Clear in-stock count / out-of-stock callout for PDP, cards, and quick view. */
@@ -14,10 +16,36 @@ export function ProductAvailabilityBadge({
   isLight,
   compact,
   inline,
+  minimal,
 }: ProductAvailabilityBadgeProps) {
   const inStock = available > 0;
-  const dense = compact || inline;
+  const dense = compact || inline || minimal;
   const gap = dense ? 'gap-x-1' : 'gap-x-2';
+
+  if (minimal) {
+    return (
+      <span
+        role="status"
+        className={`inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wide ${
+          inStock
+            ? isLight
+              ? 'text-emerald-700'
+              : 'text-emerald-400'
+            : isLight
+              ? 'text-red-700'
+              : 'text-red-400'
+        }`}
+      >
+        <span
+          className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+            inStock ? 'bg-emerald-500' : 'bg-red-500'
+          }`}
+          aria-hidden
+        />
+        {inStock ? 'In stock' : 'Out of stock'}
+      </span>
+    );
+  }
 
   return (
     <div

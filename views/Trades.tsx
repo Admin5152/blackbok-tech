@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
-  RefreshCcw, Smartphone, Laptop, Tablet, Gamepad2, Watch, MonitorSmartphone,
+  RefreshCcw, Smartphone, Tablet,
   ArrowLeft, ArrowRight, Check, Send, User, Phone, Mail, Calendar,
   Package, Info, CheckCircle2, XCircle, MapPin, Clock, ChevronRight
 } from 'lucide-react';
@@ -9,19 +9,32 @@ import type { Product, TradeRequest } from '../types';
 import { useAppContext } from '../App';
 import { TRADE_DEVICES_KEY } from './admin/adminUtils';
 import {
+  isEligibleTradeUpgradeProduct,
   resolveUpgradeTargetProducts,
   TRADE_UPGRADE_PICKS_UPDATED_EVENT,
   TRADE_UPGRADE_PRODUCT_IDS_KEY,
 } from '../lib/tradeUpgradePicks';
 import { DEFAULT_TRADE_DEVICES, mergeTradeDevicesFromStorageArray } from '../data/tradeInDevices';
-import { createTradeRequest, getTradeRequests, updateTradeRequest } from '../lib/api';
-import { customerTradeStatusShort } from '../lib/customerStatusLabels';
+import { createTradeRequest, updateTradeRequest } from '../lib/api';
+import { customerStatusBadgeClasses, customerTradeStatusShort } from '../lib/customerStatusLabels';
+import { TRADE_BOOKING_TIME_SLOTS, getTradeBookingTimeSlot } from '../data/repairBooking';
 import { saveResumeAfterAuth, peekRestorePayload, clearRestorePayload } from '../lib/resumeAfterAuth';
 import { formatCurrency } from '../lib/utils';
+import { FlowStepper } from '../components/FlowStepper';
 import { PageBackButton } from '../components/PageBackButton';
 import { BrandLogo } from '../components/BrandLogo';
-import { DEVICE_BRANDS, findDeviceBrand, sortDeviceBrands } from '../data/deviceBrands';
 import { tradeHasValidOffer, tradeOfferAmount } from '../lib/tradeOffer';
+import {
+  getTradeComponentDefs,
+  computeTopUpAmount,
+  computeTradeValuation,
+  resolveTradeModelKey,
+  isTradeComponentKey,
+  type TradeComponentKey,
+} from '../lib/tradeValuation';
+import { TRADE_PRICING_UPDATED_EVENT } from '../lib/tradePricingStore';
+import { TRADE_FLOW_STEPS, formatTradeDeviceDisplayLabel, formatTradeDeviceNameForApi } from '../lib/tradeWizard';
+import { TradeValuationCard } from '../components/TradeValuationCard';
 import { ProductOptionPickers } from '../components/ProductOptionPickers';
 import {
   defaultSelectedOptionsForProduct,
@@ -35,53 +48,22 @@ import {
 
 interface TradesProps {
   products: Product[];
-  onAddToCart: (p: Product, options?: Record<string, string>, qty?: number) => void;
   notify: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
-  onQuickView?: (product: Product) => void;
 }
 
-// ── Device types (Step 1 — mirrors Repair's "What can we help you with?") ──────
+// Apple trade-in only: iPhone & iPad
 const DEVICE_TYPES = [
-  { id: 'smartphone', label: 'Smartphone', icon: Smartphone },
-  { id: 'laptop',     label: 'Laptop',     icon: Laptop     },
-  { id: 'tablet',     label: 'Tablet',     icon: Tablet     },
-  { id: 'gaming',     label: 'Console',    icon: Gamepad2   },
-  { id: 'watch',      label: 'Watch',      icon: Watch      },
-  { id: 'other',      label: 'Other',      icon: MonitorSmartphone },
-];
-
-// ── Status badge ───────────────────────────────────────────────────────────────
-const StatusBadge = ({ status }: { status: TradeRequest['status'] }) => {
-  const map: Record<string, string> = {
-    'Pending':       'bg-yellow-500/10 text-yellow-400',
-    'Inspecting':    'bg-blue-500/10 text-blue-400',
-    'Offer sent':    'bg-purple-500/10 text-purple-400',
-    'Offer Made':    'bg-purple-500/10 text-purple-400',
-    'Awaiting User': 'bg-purple-500/10 text-purple-400',
-    'Accepted':      'bg-amber-500/10 text-amber-400',
-    'Completed':     'bg-emerald-500/10 text-emerald-400',
-    'Rejected':      'bg-red-500/10 text-red-400',
-  };
-  const label = customerTradeStatusShort(String(status));
-  return (
-    <span
-      className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full max-w-[140px] truncate ${map[status] || 'bg-[var(--bb-surface-2)] text-[color:var(--bb-muted)] border border-[var(--bb-border)]'}`}
-      title={label}
-    >
-      {label}
-    </span>
-  );
-};
+  { id: 'smartphone', label: 'iPhone', icon: Smartphone },
+  { id: 'tablet', label: 'iPad', icon: Tablet },
+] as const;
 
 // ══════════════════════════════════════════════════════════════════════════════
 export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
   const { user, theme, trades: appTrades, setTrades } = useAppContext();
   const navigate = useNavigate();
-  const isDark = theme === 'dark';
+  const isLight = theme === 'light';
 
   const [tradeDevices, setTradeDevices] = useState(DEFAULT_TRADE_DEVICES);
-  const [loadingTrades, setLoadingTrades] = useState(false);
-  const myTrades = appTrades;
   const [submitting, setSubmitting]     = useState(false);
 
   // The freshly-submitted trade — kept around so the success step
@@ -125,9 +107,14 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     chargers: false, caseCover: false, cables: false, memory: false, other: false,
   });
 
+  const [faultyComponents, setFaultyComponents] = useState<Set<TradeComponentKey>>(new Set());
+
   const formRef = useRef<HTMLDivElement>(null);
   const tradesRestoreDone = useRef(false);
   const [upgradePicksRev, setUpgradePicksRev] = useState(0);
+  const [tradePricingRev, setTradePricingRev] = useState(0);
+
+  const tradeComponentDefs = useMemo(() => getTradeComponentDefs(), [tradePricingRev]);
 
   // Scroll to active section on step/subStep change — mirrors Repair
   useEffect(() => {
@@ -153,16 +140,6 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
       }
     } catch { /* keep DEFAULT_TRADE_DEVICES */ }
   }, []);
-
-  // Load past trades
-  useEffect(() => {
-    if (!user) return;
-    setLoadingTrades(true);
-    getTradeRequests(user.id)
-      .then(d => setTrades(d as TradeRequest[]))
-      .catch(() => {})
-      .finally(() => setLoadingTrades(false));
-  }, [user, setTrades]);
 
   // After login: restore trade-in wizard from session (see submitRequest when !user).
   useEffect(() => {
@@ -193,7 +170,6 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     tradesRestoreDone.current = true;
 
     if (typeof payload.step === 'number' && payload.step >= 1 && payload.step <= 5) setStep(payload.step);
-    if (typeof payload.subStep === 'number' && payload.subStep >= 1 && payload.subStep <= 3) setSubStep(payload.subStep);
     if (typeof payload.tradePhase === 'number' && payload.tradePhase >= 1 && payload.tradePhase <= 3) {
       setTradePhase(payload.tradePhase as 1 | 2 | 3);
     }
@@ -201,8 +177,15 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
       setBookingPhase(payload.bookingPhase as 1 | 2);
     }
     if (typeof payload.transitionKey === 'number') setTransitionKey(payload.transitionKey);
-    if (typeof payload.selectedDeviceType === 'string') setSelectedDeviceType(payload.selectedDeviceType);
-    if (typeof payload.selectedBrand === 'string') setSelectedBrand(payload.selectedBrand);
+    if (typeof payload.selectedDeviceType === 'string') {
+      setSelectedDeviceType(payload.selectedDeviceType);
+      setSelectedBrand('Apple');
+    }
+    if (typeof payload.subStep === 'number') {
+      const ss = payload.subStep === 2 ? 3 : payload.subStep;
+      if (ss >= 1 && ss <= 3) setSubStep(ss);
+    }
+    if (typeof payload.selectedBrand === 'string' && payload.selectedBrand) setSelectedBrand('Apple');
     if (typeof payload.customBrandName === 'string') setCustomBrandName(payload.customBrandName);
     if (typeof payload.customModelName === 'string') setCustomModelName(payload.customModelName);
     if (needId) {
@@ -211,12 +194,17 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     }
     if (typeof payload.selectedVariant === 'string') setSelectedVariant(payload.selectedVariant);
     if (typeof payload.targetProductId === 'string') {
-      setTargetProductId(payload.targetProductId);
-      if (payload.targetSelectedOptions && typeof payload.targetSelectedOptions === 'object') {
-        setTargetSelectedOptions(payload.targetSelectedOptions as Record<string, string>);
-      } else if (payload.targetProductId) {
-        const p = products.find((x) => x.id === payload.targetProductId);
-        setTargetSelectedOptions(p ? defaultSelectedOptionsForProduct(p) : {});
+      const restoredTarget = products.find((x) => x.id === payload.targetProductId);
+      if (restoredTarget && isEligibleTradeUpgradeProduct(restoredTarget)) {
+        setTargetProductId(payload.targetProductId);
+        if (payload.targetSelectedOptions && typeof payload.targetSelectedOptions === 'object') {
+          setTargetSelectedOptions(payload.targetSelectedOptions as Record<string, string>);
+        } else {
+          setTargetSelectedOptions(defaultSelectedOptionsForProduct(restoredTarget));
+        }
+      } else {
+        setTargetProductId('');
+        setTargetSelectedOptions({});
       }
     }
     if (typeof payload.notes === 'string') setNotes(payload.notes);
@@ -229,29 +217,22 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     if (payload.accessories && typeof payload.accessories === 'object') {
       setAccessories((prev) => ({ ...prev, ...(payload.accessories as typeof prev) }));
     }
+    if (Array.isArray(payload.faultyComponents)) {
+      setFaultyComponents(
+        new Set((payload.faultyComponents as string[]).filter((k): k is TradeComponentKey => isTradeComponentKey(k))),
+      );
+    }
     notify('Your trade-in progress was restored.', 'success');
-  }, [user, tradeDevices, notify]);
-
-  // Full brand list for every device type (incl. Other); merge any extra brands from catalog
-  const brandsForType = useMemo(() => {
-    const ids = new Set<string>(DEVICE_BRANDS.map((b) => b.id));
-    tradeDevices
-      .filter((d) => d.deviceType === selectedDeviceType)
-      .forEach((d) => ids.add(d.brand));
-    const rows = [...ids].map((id) => {
-      const preset = findDeviceBrand(id);
-      return preset ?? { id, label: id };
-    });
-    return sortDeviceBrands(rows);
-  }, [tradeDevices, selectedDeviceType]);
-
-  const isMiscDeviceCategory = selectedDeviceType === 'other';
+  }, [user, tradeDevices, products, notify]);
 
   useEffect(() => {
-    if (subStep === 2 && isMiscDeviceCategory) {
-      setSelectedBrand('Other');
+    if (!targetProductId) return;
+    const p = products.find((x) => x.id === targetProductId);
+    if (p && !isEligibleTradeUpgradeProduct(p)) {
+      setTargetProductId('');
+      setTargetSelectedOptions({});
     }
-  }, [subStep, isMiscDeviceCategory]);
+  }, [products, targetProductId]);
 
   // Devices filtered by type + brand
   const devicesForBrand = useMemo(() =>
@@ -282,28 +263,31 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     }
   }, [subStep, usesFreeTextModel, devicesForBrand, selectedDevice]);
 
-  const tradeInDeviceLabel = useMemo(() => {
-    if (usesFreeTextModel) {
-      const model = customModelName.trim();
-      return model ? `${resolvedBrand} ${model}` : resolvedBrand || '—';
-    }
-    if (!selectedDevice) return resolvedBrand || selectedBrand || '—';
-    if (variantNeedsCustomName && customModelName.trim()) {
-      return `${resolvedBrand} ${selectedDevice.name} — ${customModelName.trim()}`;
-    }
-    if (selectedVariant) {
-      return `${resolvedBrand} ${selectedDevice.name} — ${selectedVariant}`;
-    }
-    return `${resolvedBrand} ${selectedDevice.name}`;
-  }, [
-    usesFreeTextModel,
-    customModelName,
-    resolvedBrand,
-    selectedBrand,
-    selectedDevice,
-    variantNeedsCustomName,
-    selectedVariant,
-  ]);
+  const deviceLabelInput = useMemo(
+    () => ({
+      usesFreeTextModel,
+      customModelName,
+      resolvedBrand,
+      selectedBrand,
+      selectedDevice,
+      selectedVariant,
+      variantNeedsCustomName,
+    }),
+    [
+      usesFreeTextModel,
+      customModelName,
+      resolvedBrand,
+      selectedBrand,
+      selectedDevice,
+      selectedVariant,
+      variantNeedsCustomName,
+    ],
+  );
+
+  const tradeInDeviceLabel = useMemo(
+    () => formatTradeDeviceDisplayLabel(deviceLabelInput),
+    [deviceLabelInput],
+  );
 
   const clearDeviceLinePicks = () => {
     setSelectedDevice(null);
@@ -316,6 +300,12 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     setCustomBrandName('');
     clearDeviceLinePicks();
   };
+
+  useEffect(() => {
+    const bump = () => setTradePricingRev((v) => v + 1);
+    window.addEventListener(TRADE_PRICING_UPDATED_EVENT, bump);
+    return () => window.removeEventListener(TRADE_PRICING_UPDATED_EVENT, bump);
+  }, []);
 
   useEffect(() => {
     const bump = () => setUpgradePicksRev((v) => v + 1);
@@ -350,6 +340,39 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     [targetSelectedOptions],
   );
 
+  const tradeModelKey = useMemo(
+    () =>
+      resolveTradeModelKey({
+        selectedVariant,
+        customModelName,
+        usesFreeTextModel,
+      }),
+    [selectedVariant, customModelName, usesFreeTextModel],
+  );
+
+  const tradeValuation = useMemo(
+    () => computeTradeValuation(tradeModelKey, faultyComponents),
+    [tradeModelKey, faultyComponents],
+  );
+
+  const targetProductPrice = targetProduct?.price ?? 0;
+  const topUpAmount = useMemo(
+    () =>
+      tradeValuation.hasKnownBasePrice && targetProductPrice > 0
+        ? computeTopUpAmount(targetProductPrice, tradeValuation.finalTradeValue)
+        : 0,
+    [tradeValuation, targetProductPrice],
+  );
+
+  const toggleFaultyComponent = (key: TradeComponentKey) => {
+    setFaultyComponents((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
   const selectTargetProduct = (id: string) => {
     if (!id) {
       setTargetProductId('');
@@ -365,19 +388,13 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     setTargetSelectedOptions(p ? defaultSelectedOptionsForProduct(p) : {});
   };
 
-  const pendingOffer = myTrades.find(
+  const pendingOffer = appTrades.find(
     (t) =>
       (t.status === 'Awaiting User' || t.status === 'Offer sent' || t.status === 'Offer Made') &&
       tradeHasValidOffer(t),
   );
 
-  const timeSlots = [
-    { id: 'morning-1',   time: '9:00 AM',  label: 'Early Morning',   available: true  },
-    { id: 'morning-2',   time: '10:30 AM', label: 'Mid Morning',     available: true  },
-    { id: 'afternoon-2', time: '2:00 PM',  label: 'Early Afternoon', available: true  },
-    { id: 'afternoon-3', time: '3:30 PM',  label: 'Mid Afternoon',   available: true  },
-    { id: 'evening-1',   time: '5:00 PM',  label: 'Evening',         available: true  },
-  ];
+  const selectedTimeSlot = getTradeBookingTimeSlot(formData.timeSlot);
 
   const go = (n: number) => {
     setTransitionKey(k => k + 1);
@@ -430,7 +447,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
   /** Back from model step — keep type + brand, clear device line + variant. */
   const backFromModelStep = () => {
     clearDeviceLinePicks();
-    setSubStep(2);
+    setSubStep(1);
     setTransitionKey((k) => k + 1);
   };
 
@@ -447,21 +464,8 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
       reopenModelPickerKeepTypeAndBrand();
       return;
     }
-    if (subStep === 2 && selectedDeviceType) {
-      clearBrandAndBelow();
-      setSubStep(1);
-      setTransitionKey((k) => k + 1);
-      return;
-    }
     clearBrandAndBelow();
     setSubStep(1);
-    setTransitionKey((k) => k + 1);
-  };
-
-  /** Change on brand summary — re-pick brand; keep device category (type). */
-  const changeBrandSection = () => {
-    clearBrandAndBelow();
-    setSubStep(2);
     setTransitionKey((k) => k + 1);
   };
 
@@ -511,6 +515,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
         formData,
         deviceDetails,
         accessories,
+        faultyComponents: Array.from(faultyComponents),
       });
       notify('Sign in to submit. Your progress will be restored after you log in.', 'info');
       navigate({ to: '/auth' });
@@ -534,6 +539,10 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     }
     if (!formData.name || !formData.email || !formData.phone) { notify('Please fill in all contact details', 'error'); return; }
     if (targetProduct) {
+      if (!isEligibleTradeUpgradeProduct(targetProduct)) {
+        notify('Trade-in upgrades are limited to iPhone and iPad products only.', 'error');
+        return;
+      }
       if (!productHasAnyStock(targetProduct)) {
         notify('Your selected upgrade product is out of stock. Pick another or choose “Not sure yet”.', 'error');
         return;
@@ -546,17 +555,28 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     setSubmitting(true);
     try {
       const accessoriesList = Object.entries(accessories).filter(([,v]) => v).map(([k]) => k);
-      const detailsText = `${notes ? notes + '\n\n' : ''}Serial/IMEI: ${deviceDetails.serialNumber || 'N/A'}\nPhysical: ${deviceDetails.physicalDesc || 'N/A'}\nIssues: ${deviceDetails.issueDesc || 'N/A'}\nWhen Started: ${deviceDetails.whenStarted || 'N/A'}\nPrevious Repairs: ${deviceDetails.previousRepairs || 'N/A'}\nAccessories: ${accessoriesList.length ? accessoriesList.join(', ') : 'None'}`;
+      const componentSummary = tradeValuation.deductions.length
+        ? `\nComponent deductions:\n${tradeValuation.deductions.map((d) => `- ${d.label} (${d.percent}%): -${d.amount}`).join('\n')}`
+        : '';
+      const valuationSummary = tradeValuation.hasKnownBasePrice
+        ? `\n[Estimate]\nBase purchase: ${tradeValuation.basePurchasePrice}\nDeductions: ${tradeValuation.totalDeductionAmount}\nFinal credit: ${tradeValuation.finalTradeValue}${targetProduct ? `\nTop-up: ${topUpAmount}` : ''}`
+        : '\n[Estimate] Quote after inspection';
+      const detailsText = `${notes ? notes + '\n\n' : ''}Serial/IMEI: ${deviceDetails.serialNumber || 'N/A'}\nPhysical: ${deviceDetails.physicalDesc || 'N/A'}${componentSummary}${valuationSummary}\nWhen Started: ${deviceDetails.whenStarted || 'N/A'}\nPrevious Repairs: ${deviceDetails.previousRepairs || 'N/A'}\nAccessories: ${accessoriesList.length ? accessoriesList.join(', ') : 'None'}`;
       const data = await createTradeRequest({
         user_id: user.id,
         user_name: formData.name,
         user_email: formData.email,
         device_brand: resolvedBrand,
-        device_name: usesFreeTextModel
-          ? customModelName.trim()
-          : variantNeedsCustomName && customModelName.trim()
-            ? `${selectedDevice!.name} — ${customModelName.trim()}`
-            : `${selectedDevice!.name} — ${selectedVariant}`,
+        device_type: selectedDeviceType as 'smartphone' | 'tablet',
+        pricing_mode: tradeValuation.pricingMode,
+        base_trade_value: tradeValuation.hasKnownBasePrice ? tradeValuation.basePurchasePrice : undefined,
+        deduction_breakdown: tradeValuation.deductions,
+        component_flags: Array.from(faultyComponents),
+        estimated_value: tradeValuation.hasKnownBasePrice ? tradeValuation.finalTradeValue : undefined,
+        target_product_price: targetProduct ? targetProductPrice : undefined,
+        top_up_amount:
+          targetProduct && tradeValuation.hasKnownBasePrice ? topUpAmount : undefined,
+        device_name: formatTradeDeviceNameForApi(deviceLabelInput),
         user_description: detailsText,
         accessories: accessoriesList,
         target_device: targetProduct
@@ -567,7 +587,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
           ? findVariantIdForOptions(targetProduct, targetSelectedOptions) || undefined
           : undefined,
         preferred_date: formData.date || undefined,
-        preferred_time: timeSlots.find(t => t.id === formData.timeSlot)?.time || '',
+        preferred_time: selectedTimeSlot?.time || '',
         contact_name: formData.name,
         contact_email: formData.email,
         contact_phone: formData.phone,
@@ -583,14 +603,10 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
         userId: user.id,
         userName: formData.name,
         userEmail: formData.email,
-        device: usesFreeTextModel
-          ? `${resolvedBrand} ${customModelName.trim()}`
-          : variantNeedsCustomName && customModelName.trim()
-            ? `${resolvedBrand} ${selectedDevice!.name} — ${customModelName.trim()}`
-            : `${resolvedBrand} ${selectedDevice!.name} — ${selectedVariant}`,
+        device: formatTradeDeviceDisplayLabel(deviceLabelInput),
         status: 'Pending',
         date: new Date().toISOString(),
-        estimatedValue: 0,
+        estimatedValue: tradeValuation.hasKnownBasePrice ? tradeValuation.finalTradeValue : 0,
       } as TradeRequest;
       setLastSubmittedTrade(newTrade);
       setTrades([newTrade, ...appTrades]);
@@ -645,7 +661,14 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
             Trade in. Upgrade<br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#CDA032] to-[#FCE69B]">without the hassle.</span>
           </h1>
+          <p className="mt-4 text-sm text-[color:var(--bb-muted)] max-w-xl leading-relaxed">
+            Apple iPhone &amp; iPad only. Pick your device, flag any faulty parts for an instant estimate, optionally choose a new iPhone or iPad to upgrade to, then book your visit.
+          </p>
         </header>
+
+        {step >= 1 && step <= 4 && (
+          <FlowStepper steps={TRADE_FLOW_STEPS} currentStep={step} className="mb-10" />
+        )}
 
         {/* Pending offer banner */}
         {pendingOffer && (
@@ -720,13 +743,15 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                 ) : subStep === 1 && (
                   <div className="space-y-4">
                     <h2 className="text-2xl font-bold tracking-tight">What are you trading in?</h2>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+                    <p className="opacity-60 text-sm">BlackBox trade-ins are limited to Apple iPhone and iPad devices.</p>
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4 max-w-lg">
                       {DEVICE_TYPES.map(type => (
                         <button key={type.id}
                           onClick={() => {
                             setSelectedDeviceType(type.id);
-                            clearBrandAndBelow();
-                            setSubStep(2);
+                            setSelectedBrand('Apple');
+                            clearDeviceLinePicks();
+                            setSubStep(3);
                           }}
                           className={`flex flex-col items-center justify-center p-6 sm:p-8 rounded-3xl border transition-all duration-300 ${selectedDeviceType === type.id
                             ? 'bg-[#CDA032]/10 border-[#CDA032] shadow-[0_0_30px_rgba(205,160,50,0.15)] ring-1 ring-[#CDA032]'
@@ -743,141 +768,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                   </div>
                 )}
 
-                {/* ── subStep 1b: Brand (image cards — same as Repair) ── */}
-                {subStep > 2 ? (
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between py-5 border-b border-[var(--bb-border)] animate-in fade-in">
-                    <h3 className="text-lg font-bold">{resolvedBrand || selectedBrand}</h3>
-                    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                      <button
-                        type="button"
-                        onClick={reopenModelPickerKeepTypeAndBrand}
-                        className="text-xs font-bold text-[color:var(--bb-muted)] hover:text-[#CDA032] transition-colors px-2 py-1 rounded-lg border border-transparent hover:border-[#CDA032]/30"
-                        title="Keep this brand; pick a different device or model"
-                      >
-                        Different model
-                      </button>
-                      <button
-                        type="button"
-                        onClick={changeBrandSection}
-                        className="text-sm font-bold text-blue-500 hover:text-blue-400"
-                        title="Choose a different brand (same category)"
-                      >
-                        Change brand
-                      </button>
-                    </div>
-                  </div>
-                ) : subStep === 2 && (
-                  <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300 pt-4">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-2">
-                        <p className="text-xs font-black uppercase tracking-widest text-[#CDA032] opacity-70">
-                          {DEVICE_TYPES.find(d => d.id === selectedDeviceType)?.label}
-                        </p>
-                        <h2 className="text-2xl font-bold tracking-tight">Which brand?</h2>
-                      </div>
-                      <button type="button" onClick={undoToDeviceTypeStep} className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-[color:var(--bb-muted)] hover:text-[#CDA032] transition-colors">
-                        <ArrowLeft size={14} /> Back
-                      </button>
-                    </div>
-                    {isMiscDeviceCategory ? (
-                      <div className="rounded-3xl border border-[#CDA032]/40 bg-[#CDA032]/5 p-6 sm:p-8 space-y-4 max-w-xl">
-                        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-[#CDA032] block">
-                          Brand name
-                        </label>
-                        <input
-                          type="text"
-                          value={customBrandName}
-                          onChange={(e) => setCustomBrandName(e.target.value)}
-                          placeholder="e.g. Huawei, Bose, DJI"
-                          className="w-full border border-[var(--bb-border)] rounded-2xl px-5 py-4 text-sm font-semibold bg-[var(--bb-surface)] text-[color:var(--bb-text)] outline-none focus:border-[#CDA032] focus:ring-1 focus:ring-[#CDA032]/30"
-                          autoFocus
-                        />
-                        <p className="text-[10px] text-[color:var(--bb-muted)] leading-relaxed">
-                          Enter the manufacturer or brand printed on your device.
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!customBrandName.trim()) {
-                              notify('Please enter the brand name.', 'error');
-                              return;
-                            }
-                            setSubStep(3);
-                            setTransitionKey((k) => k + 1);
-                          }}
-                          className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl text-xs font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] w-full sm:w-auto"
-                        >
-                          Continue <ArrowRight size={16} />
-                        </button>
-                      </div>
-                    ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                      {brandsForType.map(brand => (
-                        <button key={brand.id}
-                          onClick={() => {
-                            setSelectedBrand(brand.id);
-                            clearDeviceLinePicks();
-                            if (brand.id === 'Other') {
-                              setCustomBrandName('');
-                              return;
-                            }
-                            setCustomBrandName('');
-                            setSubStep(3);
-                          }}
-                          className={`group flex flex-col items-center justify-center p-6 rounded-3xl border transition-all duration-300 ${selectedBrand === brand.id
-                            ? 'bg-[#CDA032]/10 border-[#CDA032] shadow-[0_0_30px_rgba(205,160,50,0.15)] ring-1 ring-[#CDA032]'
-                            : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:bg-[var(--bb-surface-2)] hover:border-[#CDA032]/40'}`}
-                        >
-                          <div className="h-16 w-full max-w-[7rem] mb-4 flex items-center justify-center px-2">
-                            <BrandLogo
-                              brand={brand.id}
-                              className={`h-12 w-full transition-all duration-500 scale-90 group-hover:scale-105 ${selectedBrand === brand.id ? 'opacity-100 text-[#CDA032]' : 'opacity-50 text-[color:var(--bb-text)] group-hover:opacity-90'}`}
-                            />
-                          </div>
-                          <span className={`text-xs font-black uppercase tracking-widest text-center ${selectedBrand === brand.id ? 'text-[#CDA032]' : 'text-[color:var(--bb-muted)]'}`}>
-                            {brand.label}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                    )}
-
-                    {!isMiscDeviceCategory && isCatalogOtherBrand && (
-                      <div className="mt-6 rounded-3xl border border-[#CDA032]/40 bg-[#CDA032]/5 p-6 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-[#CDA032] block">
-                          Brand name
-                        </label>
-                        <input
-                          type="text"
-                          value={customBrandName}
-                          onChange={(e) => setCustomBrandName(e.target.value)}
-                          placeholder="e.g. Huawei, OnePlus, Toshiba"
-                          className="w-full border border-[var(--bb-border)] rounded-2xl px-5 py-4 text-sm font-semibold bg-[var(--bb-surface)] text-[color:var(--bb-text)] outline-none focus:border-[#CDA032] focus:ring-1 focus:ring-[#CDA032]/30"
-                          autoFocus
-                        />
-                        <p className="text-[10px] text-[color:var(--bb-muted)] leading-relaxed">
-                          Type the manufacturer name exactly as it appears on the device or box.
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!customBrandName.trim()) {
-                              notify('Please enter the brand name.', 'error');
-                              return;
-                            }
-                            setSubStep(3);
-                            setTransitionKey((k) => k + 1);
-                          }}
-                          className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl text-xs font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] w-full sm:w-auto"
-                        >
-                          Continue <ArrowRight size={16} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* ── subStep 1c: Model selection with preview (same as Repair) ── */}
+                {/* ── subStep 1c: Model (Apple iPhone / iPad only) ── */}
                 {subStep === 3 && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300 pt-4">
                     <div className="flex items-end justify-between gap-4 flex-wrap">
@@ -909,7 +800,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                             autoFocus
                           />
                           <p className="text-[10px] text-[color:var(--bb-muted)] leading-relaxed">
-                            Enter the full model name (for example Galaxy A54, Pavilion 15, or Watch GT 4).
+                            Enter the full model name (for example iPhone 15 Pro or iPad Air M2).
                           </p>
                         </div>
                         <button
@@ -1110,7 +1001,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                   <>
                 <div className="space-y-2">
                   <h2 className="text-2xl font-bold tracking-tight">What are you upgrading to?</h2>
-                  <p className="opacity-60 text-sm">Optional — helps us tailor your trade-in offer.</p>
+                  <p className="opacity-60 text-sm">Optional — iPhone and iPad store products only.</p>
                 </div>
 
                 <div>
@@ -1181,46 +1072,61 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                   <>
                 <div className="space-y-2">
                   <h2 className="text-2xl font-bold tracking-tight">Device condition</h2>
-                  <p className="opacity-60 text-sm">Tell us about your {usesFreeTextModel ? customModelName.trim() || resolvedBrand : selectedDevice?.name} — honest details get you a better offer.</p>
+                  <p className="opacity-60 text-sm">
+                    Flag any faulty components — we deduct a percentage of our purchase price for each issue.
+                  </p>
                 </div>
 
                 <div className="space-y-4 p-5 rounded-3xl border border-[var(--bb-border)] bg-[var(--bb-surface-2)]">
-                  <div className="flex items-center justify-end mb-2">
-                    <Info size={16} className="text-[#CDA032] opacity-50 transition-opacity hover:opacity-100" />
+                  <p className="text-xs font-black uppercase tracking-widest text-[#CDA032]">Component checklist</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {tradeComponentDefs.map((comp) => {
+                      const selected = faultyComponents.has(comp.key);
+                      return (
+                        <button
+                          key={comp.key}
+                          type="button"
+                          onClick={() => toggleFaultyComponent(comp.key)}
+                          className={`flex flex-col items-start text-left p-3 rounded-xl border transition-all ${
+                            selected
+                              ? 'border-[#CDA032] bg-[#CDA032]/10'
+                              : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:border-[#CDA032]/30'
+                          }`}
+                        >
+                          <div className="flex w-full items-start justify-between gap-2 mb-1">
+                            <span className={`text-xs font-bold ${selected ? 'text-[#CDA032]' : ''}`}>{comp.label}</span>
+                            <span className="text-[10px] font-black text-[#CDA032] shrink-0">−{comp.deductionPercent}%</span>
+                          </div>
+                          <span className="text-[10px] opacity-60 leading-snug">{comp.description}</span>
+                        </button>
+                      );
+                    })}
                   </div>
-                  <p className="text-xs opacity-60 font-medium">Describe scratches, faults, and what you are including with the device.</p>
 
-                  <input type="text" placeholder="Serial / IMEI Number (Optional)"
+                  {tradeModelKey && (
+                    <TradeValuationCard
+                      valuation={tradeValuation}
+                      targetPrice={targetProductPrice > 0 ? targetProductPrice : undefined}
+                      topUp={topUpAmount}
+                    />
+                  )}
+
+                  <input type="text" placeholder="Serial / IMEI (Optional)"
                     value={deviceDetails.serialNumber}
                     onChange={e => setDeviceDetails({ ...deviceDetails, serialNumber: e.target.value })}
-                    className="w-full border border-[var(--bb-border)] rounded-2xl px-5 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50 focus:ring-1 focus:ring-[#CDA032]/20" />
+                    className="w-full border border-[var(--bb-border)] rounded-2xl px-5 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />
 
-                  <textarea rows={3} placeholder="Physical description — scratches, cracks, dents, screen condition?"
+                  <textarea rows={2} placeholder="Anything else about cosmetic condition? (optional)"
                     value={deviceDetails.physicalDesc}
                     onChange={e => setDeviceDetails({ ...deviceDetails, physicalDesc: e.target.value })}
-                    className="w-full border border-[var(--bb-border)] rounded-2xl px-5 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50 focus:ring-1 focus:ring-[#CDA032]/20 resize-none leading-relaxed" />
-
-                  <textarea rows={2} placeholder="Any faults or issues? (e.g. battery drains fast, camera broken)"
-                    value={deviceDetails.issueDesc}
-                    onChange={e => setDeviceDetails({ ...deviceDetails, issueDesc: e.target.value })}
-                    className="w-full border border-[var(--bb-border)] rounded-2xl px-5 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50 focus:ring-1 focus:ring-[#CDA032]/20 resize-none" />
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <input type="text" placeholder="When did issues start? (e.g. 2 months ago)"
-                      value={deviceDetails.whenStarted}
-                      onChange={e => setDeviceDetails({ ...deviceDetails, whenStarted: e.target.value })}
-                      className="w-full border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />
-                    <input type="text" placeholder="Any previous repairs?"
-                      value={deviceDetails.previousRepairs}
-                      onChange={e => setDeviceDetails({ ...deviceDetails, previousRepairs: e.target.value })}
-                      className="w-full border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />
-                  </div>
+                    className="w-full border border-[var(--bb-border)] rounded-2xl px-5 py-3 text-sm bg-[var(--bb-surface)] outline-none resize-none" />
 
                   <div className="pt-2">
-                    <p className="text-xs opacity-60 font-medium mb-3">Accessories Included</p>
+                    <p className="text-xs opacity-60 font-medium mb-3">Accessories included</p>
                     <div className="flex flex-wrap gap-2">
                       {(Object.entries({ chargers: 'Charger', caseCover: 'Case / Cover', cables: 'Cables', memory: 'Memory Card', other: 'Other' }) as [keyof typeof accessories, string][]).map(([k, label]) => (
                         <button key={k}
+                          type="button"
                           onClick={() => setAccessories({ ...accessories, [k]: !accessories[k] })}
                           className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all border ${accessories[k]
                             ? 'bg-[#CDA032]/10 border-[#CDA032] text-[#CDA032]'
@@ -1301,7 +1207,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                 <div className="space-y-1">
                   <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032]">Booking Details</p>
                   <h3 className="text-xl font-black text-[color:var(--bb-text)]">
-                    {formData.date} at {timeSlots.find(t => t.id === formData.timeSlot)?.time}
+                    {formData.date} at {selectedTimeSlot?.time}
                   </h3>
                 </div>
                 <button type="button" onClick={() => openStep(3)} className="text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors">Change</button>
@@ -1380,7 +1286,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                           onClick={e => (e.target as any).showPicker?.()}
                           min={new Date().toISOString().split('T')[0]}
                           className="w-full border border-[var(--bb-border)] rounded-xl pl-12 pr-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50 cursor-pointer h-[54px]"
-                          style={{ colorScheme: isDark ? 'dark' : 'light' }} />
+                          style={{ colorScheme: isLight ? 'light' : 'dark' }} />
                         <Calendar size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#CDA032] pointer-events-none" />
                       </div>
                     </div>
@@ -1390,7 +1296,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                         <select value={formData.timeSlot} onChange={e => setFormData({ ...formData, timeSlot: e.target.value })}
                           className="w-full border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50 appearance-none cursor-pointer h-[54px]">
                           <option value="">Select an available time...</option>
-                          {timeSlots.map(t => (
+                          {TRADE_BOOKING_TIME_SLOTS.map(t => (
                             <option key={t.id} value={t.id} disabled={!t.available}>
                               {t.time} — {t.available ? t.label : 'Fully Booked'}
                             </option>
@@ -1490,8 +1396,8 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
             {step === 4 && (
               <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 active-form-section">
                 <div className="space-y-2">
-                  <h2 className="text-3xl font-black tracking-tight">Review your request</h2>
-                  <p className="opacity-60 text-sm">Our team will assess your device and send you an offer within 24 hours.</p>
+                  <h2 className="text-3xl font-black tracking-tight">Review your trade-in</h2>
+                  <p className="opacity-60 text-sm">Your estimate is below — final credit is confirmed after we inspect the device.</p>
                 </div>
 
                 <div className="rounded-3xl border border-[var(--bb-border)] bg-[var(--bb-surface)] overflow-hidden shadow-2xl">
@@ -1519,10 +1425,16 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                   </div>
 
                   <div className="p-8 space-y-4">
+                    <TradeValuationCard
+                      valuation={tradeValuation}
+                      targetPrice={targetProductPrice > 0 ? targetProductPrice : undefined}
+                      topUp={topUpAmount}
+                    />
+
                     <div className="flex gap-3 items-start p-4 bg-[#CDA032]/10 rounded-xl">
                       <Info size={16} className="text-[#CDA032] shrink-0 mt-0.5" />
                       <p className="text-xs leading-relaxed text-[#CDA032] font-semibold">
-                        Trade-in value is confirmed after physical assessment. We will never commit you without your explicit approval.
+                        Final credit may change after physical inspection. You approve every offer before we proceed.
                       </p>
                     </div>
 
@@ -1530,7 +1442,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                       <div>
                         <p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">Appointment</p>
                         <p className="text-sm font-semibold">{formData.date}</p>
-                        <p className="text-sm opacity-80">{timeSlots.find(t => t.id === formData.timeSlot)?.time} · {formData.fulfillmentMethod}</p>
+                        <p className="text-sm opacity-80">{selectedTimeSlot?.time} · {formData.fulfillmentMethod}</p>
                       </div>
                       <div>
                         <p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">Contact</p>
@@ -1579,7 +1491,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                 </div>
                 <div className="bg-[var(--bb-surface)] border border-[var(--bb-border)] rounded-2xl p-4 text-left max-w-xs mx-auto space-y-2 text-xs text-[color:var(--bb-muted)]">
                   <p className="font-black text-[color:var(--bb-text)] text-sm mb-2">What happens next?</p>
-                  {['Our team reviews your request','We inspect & assess the condition','You receive an offer within 24h','Accept or decline — no pressure'].map((s, i) => (
+                  {['We verify your device on arrival','Component checklist is confirmed in person','You receive a final offer within 24h','Accept or decline — upgrade to iPhone/iPad only'].map((s, i) => (
                     <div key={i} className="flex items-center gap-2">
                       <div className="w-4 h-4 bg-[#CDA032] rounded-full flex items-center justify-center text-[8px] text-black font-black shrink-0">{i + 1}</div>
                       {s}
@@ -1675,6 +1587,17 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                     </div>
                   )}
 
+                  {step >= 2 && tradeValuation.hasKnownBasePrice && (
+                    <div className="pt-6 border-t border-[var(--bb-border)] animate-in fade-in">
+                      <TradeValuationCard
+                        valuation={tradeValuation}
+                        targetPrice={step > 2 && targetProductPrice > 0 ? targetProductPrice : undefined}
+                        topUp={step > 2 && targetProductPrice > 0 ? topUpAmount : undefined}
+                        compact
+                      />
+                    </div>
+                  )}
+
                   {/* Booking */}
                   {step > 3 && formData.date && formData.timeSlot && (
                     <div className="flex gap-4 animate-in fade-in">
@@ -1684,7 +1607,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                       <div>
                         <p className="text-[10px] uppercase font-bold tracking-widest opacity-50 mb-0.5">Schedule</p>
                         <p className="text-sm font-bold">{formData.date}</p>
-                        <p className="text-xs opacity-70 mt-0.5">{timeSlots.find(t => t.id === formData.timeSlot)?.time}</p>
+                        <p className="text-xs opacity-70 mt-0.5">{selectedTimeSlot?.time}</p>
                       </div>
                     </div>
                   )}
@@ -1692,14 +1615,11 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
               </div>
 
               {/* Past trades */}
-              {user && myTrades.length > 0 && (
+              {user && appTrades.length > 0 && (
                 <div className="mt-4 rounded-3xl border border-[var(--bb-border)] bg-[var(--bb-surface)] p-6 shadow-xl">
                   <h3 className="text-[10px] font-black uppercase tracking-widest text-[#CDA032] mb-4 border-b border-[var(--bb-border)] pb-4">My Requests</h3>
-                  {loadingTrades ? (
-                    <p className="text-xs text-[color:var(--bb-muted)] opacity-80">Loading...</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {myTrades.slice(0, 5).map(t => (
+                  <div className="space-y-3">
+                      {appTrades.slice(0, 5).map(t => (
                         <div key={t.id} className="border border-[var(--bb-border)] rounded-xl p-3">
                           {t.display_id && (
                             <p className="text-[9px] font-black uppercase tracking-[0.25em] text-[#CDA032] mb-1">
@@ -1708,7 +1628,12 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                           )}
                           <p className="text-xs font-black text-[color:var(--bb-text)] truncate">{(t as any).device}</p>
                           <div className="flex items-center justify-between mt-1">
-                            <StatusBadge status={t.status} />
+                            <span
+                              className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full max-w-[140px] truncate ${customerStatusBadgeClasses(t.status, 'trade', isLight)}`}
+                              title={customerTradeStatusShort(String(t.status))}
+                            >
+                              {customerTradeStatusShort(String(t.status))}
+                            </span>
                             {(t as any).finalValue && <span className="text-[10px] font-black text-[#CDA032]">{formatCurrency(Number((t as any).finalValue))}</span>}
                           </div>
                           {(t.status === 'Awaiting User' || t.status === 'Offer sent' || t.status === 'Offer Made') &&
@@ -1726,7 +1651,6 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                         </div>
                       ))}
                     </div>
-                  )}
                 </div>
               )}
             </div>

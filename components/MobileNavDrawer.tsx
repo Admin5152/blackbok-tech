@@ -84,7 +84,7 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
   const navigate = useNavigate();
 
   const goTo = (path: string, search?: Record<string, string>) => {
-    navigate({ to: path, search: search as Record<string, unknown> | undefined });
+    navigate({ to: path, search: search as never });
     onAfterNavigate();
   };
 
@@ -235,6 +235,7 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
                               </div>
                             );
                           }
+                          if (!('path' in sub)) return null;
                           const SubIcon = sub.icon;
                           return (
                             <button

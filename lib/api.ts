@@ -1,4 +1,11 @@
 import { supabase } from './supabase';
+import {
+  assertRepairPricingConstraint,
+  parseDeviceType,
+  PRICING_MODE,
+  REPAIR_REQUEST_CONSTRAINT_MESSAGE,
+  type PricingMode,
+} from './repairDeviceTypes';
 import { 
   Profile, 
   UserRole, 
@@ -36,7 +43,7 @@ import {
 // "Laptops & Notebooks", "Apple iPhones") to canonical values used by
 // the UI (`iPhone`, `Laptop`, …) plus any extra DB labels (e.g.
 // `Trades`) passed through trimmed when no rule matches. Keep in sync
-// with store filters (`views/Store.tsx`).
+// with store filters (`lib/storeFilters.ts`, `views/Store.tsx`).
 export function normalizeProductCategory(category?: string | null): string {
   if (category == null || category === '') return 'Accessories';
   const raw = String(category).trim();
@@ -905,9 +912,28 @@ export const updateOrderStatus = async (id: string, status: string) => {
 // ==========================================
 
 export const getTrackingUpdates = async (orderId: string): Promise<TrackingUpdate[]> => {
-  const { data, error } = await supabase.from('tracking_updates').select('*').eq('order_id', orderId).order('created_at', { ascending: true });
-  if (error) throw error;
-  return data.map((t: any) => ({ ...t, timestamp: t.created_at }));
+  let rows: Record<string, unknown>[] = [];
+  const primary = await supabase
+    .from('tracking_updates')
+    .select('*')
+    .eq('order_id', orderId)
+    .order('created_at', { ascending: true });
+
+  if (!primary.error && primary.data) {
+    rows = primary.data;
+  } else {
+    const fallback = await supabase
+      .from('order_tracking_updates')
+      .select('*')
+      .eq('order_id', orderId)
+      .order('timestamp', { ascending: true });
+    if (!fallback.error && fallback.data) rows = fallback.data;
+  }
+
+  return rows.map((r) => ({
+    ...r,
+    timestamp: (r.timestamp || r.created_at || r.updated_at) as string,
+  })) as TrackingUpdate[];
 };
 
 export const addTrackingUpdate = async (update: Omit<TrackingUpdate, 'id' | 'created_at'>) => {
@@ -970,6 +996,8 @@ export function mapRepairFromDb(r: any): RepairRequest {
     ...r,
     userId: r.user_id,
     userName: r.user_name || '',
+    device_type: r.device_type ?? undefined,
+    pricing_mode: r.pricing_mode ?? undefined,
     status: uiStatus,
     device: `${r.device_brand || ''} ${r.device_model || ''}`.trim() || '—',
     issue: r.issue_description || r.issue_type || '',
@@ -999,6 +1027,8 @@ const REPAIR_DB_COLUMNS = new Set<string>([
   'user_name',
   'device_brand',
   'device_model',
+  'device_type',
+  'pricing_mode',
   'issue_type',
   'issue_description',
   'ai_diagnosis',
@@ -1086,6 +1116,21 @@ const normalizeRepairPayload = (repair: Partial<RepairRequest>) => {
     delete normalized.preferred_time;
   }
 
+  if (normalized.device_type !== undefined && normalized.device_type !== null) {
+    const parsedType = parseDeviceType(String(normalized.device_type));
+    if (parsedType) normalized.device_type = parsedType;
+    else delete normalized.device_type;
+  }
+
+  if (normalized.pricing_mode !== undefined && normalized.pricing_mode !== null) {
+    const mode = String(normalized.pricing_mode) as PricingMode;
+    if (mode === PRICING_MODE.APPLE_MATRIX || mode === PRICING_MODE.DIAGNOSTIC_QUOTE) {
+      normalized.pricing_mode = mode;
+    } else {
+      delete normalized.pricing_mode;
+    }
+  }
+
   // Drop anything that's not a real DB column. This is the safety
   // net that prevents PostgREST "could not find the 'foo' column"
   // errors when a stale bundle (or future UI) sends extra keys.
@@ -1098,14 +1143,30 @@ const normalizeRepairPayload = (repair: Partial<RepairRequest>) => {
   return normalized;
 };
 
+function throwRepairRequestError(error: { code?: string; message?: string }): never {
+  if (error?.code === '23514') {
+    throw new Error(REPAIR_REQUEST_CONSTRAINT_MESSAGE);
+  }
+  throw error;
+}
+
+export { REPAIR_REQUEST_CONSTRAINT_MESSAGE };
+
 export const createRepairRequest = async (repair: Partial<RepairRequest>) => {
   const payload = normalizeRepairPayload({ ...repair, status: repair.status || 'pending' });
+
+  if (!payload.pricing_mode) {
+    payload.pricing_mode = PRICING_MODE.DIAGNOSTIC_QUOTE;
+  }
+
+  assertRepairPricingConstraint(payload);
+
   const { data, error } = await supabase
     .from('repair_requests')
     .insert(payload)
     .select()
     .single();
-  if (error) throw error;
+  if (error) throwRepairRequestError(error);
   return mapRepairFromDb(data);
 };
 
@@ -1164,6 +1225,13 @@ const TRADE_DB_COLUMNS = new Set([
   'user_description',
   'device_brand',
   'device_name',
+  'device_type',
+  'pricing_mode',
+  'base_trade_value',
+  'deduction_breakdown',
+  'component_flags',
+  'target_product_price',
+  'top_up_amount',
   'condition',
   'accessories',
   'target_device',
@@ -1202,6 +1270,13 @@ export const mapTradeFromDb = (t: any): TradeInRequest => {
     estimatedValue: Number(t.estimated_value) || 0,
     finalValue: num(t.final_value),
     offeredPrice: num(t.offered_price),
+    base_trade_value: num(t.base_trade_value),
+    top_up_amount: num(t.top_up_amount),
+    target_product_price: num(t.target_product_price),
+    deduction_breakdown: t.deduction_breakdown ?? undefined,
+    component_flags: t.component_flags ?? undefined,
+    pricing_mode: t.pricing_mode ?? undefined,
+    device_type: t.device_type ?? undefined,
     adminNote: t.admin_notes,
     targetDevice: t.target_device,
     targetVariantId: t.target_variant_id,

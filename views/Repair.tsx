@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
   Send, Activity, Smartphone, Laptop, Tablet, Gamepad2, Watch, Check,
   ArrowLeft, ArrowRight, Calendar, AlertCircle, Clock, MapPin, Phone, Mail, User,
@@ -8,12 +8,42 @@ import { useNavigate } from '@tanstack/react-router';
 import type { RepairRequest } from '../types';
 import { useAppContext } from '../App';
 import { ImageUpload } from '../components/ImageUpload';
-import { repairPricing, repairServicesMap } from '../data/repairPrices';
-import { createRepairRequest, getRepairRequests, updateRepairRequest } from '../lib/api';
+import { getEffectiveRepairPricing } from '../lib/repairPricingStore';
+import {
+  type RepairIssueKey,
+  supportsAppleComponentPricing,
+  getIssuesForDevice,
+  filterAppleIssuesForModel,
+  getIssueLabel,
+  getAppleIssuePrice,
+  isRepairIssueKey,
+  issueKeysNeedDetail,
+  getQuickTagsForIssues,
+  getAccessoryOptions,
+  getSerialFieldLabel,
+} from '../lib/repairIssueCatalog';
+import { buildRepairDeviceFields, PRICING_MODE } from '../lib/repairDeviceTypes';
+import {
+  buildAppleIphoneSeriesGroups,
+  getIphoneModelImage,
+  isAppleIphoneRepairFlow,
+  repairModelPickerSubStep,
+} from '../lib/repairAppleModels';
+import {
+  formatRepairEstimateDisplay,
+  sumRepairMatrixTotal,
+} from '../lib/repairEstimates';
+import {
+  REPAIR_TIME_SLOTS,
+  REPAIR_URGENCY_LEVELS,
+  getRepairTimeSlot,
+  getRepairUrgencyLevel,
+} from '../data/repairBooking';
+import { createRepairRequest, updateRepairRequest, REPAIR_REQUEST_CONSTRAINT_MESSAGE } from '../lib/api';
 import { saveResumeAfterAuth, peekRestorePayload, clearRestorePayload } from '../lib/resumeAfterAuth';
 import { PageBackButton } from '../components/PageBackButton';
 import { BrandLogo } from '../components/BrandLogo';
-import { DEVICE_BRANDS } from '../data/deviceBrands';
+import { getBrandsForDeviceType } from '../data/deviceBrands';
 
 export const Repair: React.FC = () => {
   const { user, repairs, setRepairs, notify, theme } = useAppContext();
@@ -24,8 +54,7 @@ export const Repair: React.FC = () => {
   const [bookingPhase, setBookingPhase] = useState<1 | 2 | 3>(1); // step 3: schedule → contact → device access
   const [transitionKey, setTransitionKey] = useState(0);
   const [submitting, setSubmitting] = useState(false);
-  const [myRepairs, setMyRepairs] = useState<RepairRequest[]>([]);
-  const [selectedIssueKeys, setSelectedIssueKeys] = useState<Set<keyof typeof repairServicesMap>>(new Set());
+  const [selectedIssueKeys, setSelectedIssueKeys] = useState<Set<RepairIssueKey>>(new Set());
   const [selectedSeries, setSelectedSeries] = useState<string>('');
   const [formData, setFormData] = useState({
     deviceType: '',
@@ -42,7 +71,11 @@ export const Repair: React.FC = () => {
       caseCover: false,
       cables: false,
       memorySim: false,
-      other: false
+      stylus: false,
+      controller: false,
+      powerAdapter: false,
+      band: false,
+      other: false,
     },
     date: '',
     timeSlot: '',
@@ -65,14 +98,7 @@ export const Repair: React.FC = () => {
 
   const formRef = useRef<HTMLDivElement>(null);
   const repairRestoreDone = useRef(false);
-
-  // Load past repairs from Supabase
-  useEffect(() => {
-    if (!user) return;
-    getRepairRequests(user.id)
-      .then(d => setMyRepairs(d as RepairRequest[]))
-      .catch(() => { });
-  }, [user]);
+  const prevDeviceSelection = useRef({ deviceType: '', brand: '' });
 
   useEffect(() => {
     if (!user) {
@@ -101,9 +127,7 @@ export const Repair: React.FC = () => {
     if (typeof payload.transitionKey === 'number') setTransitionKey(payload.transitionKey);
     if (typeof payload.selectedSeries === 'string') setSelectedSeries(payload.selectedSeries);
     if (Array.isArray(payload.selectedIssueKeys)) {
-      const valid = (payload.selectedIssueKeys as string[]).filter(
-        (k): k is keyof typeof repairServicesMap => k in repairServicesMap,
-      );
+      const valid = (payload.selectedIssueKeys as string[]).filter(isRepairIssueKey);
       setSelectedIssueKeys(new Set(valid));
     }
     if (payload.formData && typeof payload.formData === 'object') {
@@ -127,30 +151,63 @@ export const Repair: React.FC = () => {
     }
   }, [step, subStep, issuePhase, bookingPhase]);
 
-  const getServiceCost = (key: keyof typeof repairServicesMap): number => {
-    if (formData.brand !== 'Apple' || !formData.model || key === 'UNKNOWN') return 0;
-    const mp = repairPricing[formData.model as keyof typeof repairPricing];
-    if (!mp) return 0;
-    const str = mp[key as keyof typeof mp];
-    if (!str || str === 'N/A' || str === 'Consult' || str.includes('xxxxx')) return 0;
-    return parseInt(str.split('-')[0].replace(/\D/g, ''));
-  };
+  const usesApplePricing = supportsAppleComponentPricing(
+    formData.deviceType,
+    formData.brand,
+    formData.model,
+  );
 
-  const getTotalRepairCost = (): number => {
-    let total = 0;
-    selectedIssueKeys.forEach(key => { total += getServiceCost(key); });
-    return total;
-  };
+  useEffect(() => {
+    const prev = prevDeviceSelection.current;
+    const changed =
+      prev.deviceType !== formData.deviceType || prev.brand !== formData.brand;
+    if (changed && (prev.deviceType || prev.brand)) {
+      setSelectedIssueKeys(new Set());
+    }
+    prevDeviceSelection.current = {
+      deviceType: formData.deviceType,
+      brand: formData.brand,
+    };
+  }, [formData.deviceType, formData.brand]);
 
-  const getEstimatedCost = () => {
-    const add = urgencyLevels.find(u => u.id === formData.urgency)?.price || 0;
-    const base = getTotalRepairCost();
-    if (base > 0) return `₵${base + add}`;
-    if (add > 0) return `Diagnostic + ₵${add}`;
-    return 'Subject to Diagnostic';
-  };
+  useEffect(() => {
+    if (!usesApplePricing || !formData.model) return;
+    const allowed = new Set(
+      filterAppleIssuesForModel(
+        getIssuesForDevice(formData.deviceType, formData.brand),
+        formData.model,
+      ).map((i) => i.key),
+    );
+    setSelectedIssueKeys((prev) => {
+      const next = new Set([...prev].filter((k) => allowed.has(k)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [formData.model, usesApplePricing, formData.deviceType, formData.brand]);
 
-  const toggleIssue = (key: keyof typeof repairServicesMap) => {
+  const matrixCostOpts = useMemo(
+    () => ({
+      deviceType: formData.deviceType,
+      brand: formData.brand,
+      model: formData.model,
+    }),
+    [formData.deviceType, formData.brand, formData.model],
+  );
+
+  const getTotalRepairCost = useCallback(
+    () => sumRepairMatrixTotal(selectedIssueKeys, matrixCostOpts),
+    [selectedIssueKeys, matrixCostOpts],
+  );
+
+  const getEstimatedCost = useCallback(
+    () =>
+      formatRepairEstimateDisplay(selectedIssueKeys, {
+        ...matrixCostOpts,
+        urgencyId: formData.urgency,
+      }),
+    [selectedIssueKeys, matrixCostOpts, formData.urgency],
+  );
+
+  const toggleIssue = (key: RepairIssueKey) => {
     setSelectedIssueKeys(prev => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key); else next.add(key);
@@ -175,7 +232,7 @@ export const Repair: React.FC = () => {
       return;
     }
     if (submitting) return;
-    const selectedLabels = Array.from(selectedIssueKeys).map(k => repairServicesMap[k as keyof typeof repairServicesMap].label);
+    const selectedLabels = Array.from(selectedIssueKeys).map(getIssueLabel);
     const accessoriesList = Object.entries(formData.accessories).filter(([_, v]) => v).map(([k]) => k).join(', ');
     const effectiveSignature = (formData.clientSignature || formData.name || user.name || '').trim();
     const issueText = `
@@ -196,6 +253,20 @@ Repair Cost Auth: ${formData.repairApproval === 'authorize' ? 'Authorized up to 
 Data Backup: ${formData.dataBackup === 'requests' ? 'Client Requests Backup' : 'Client acknowledges data loss'}
 Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Yes' : 'No'})
     `.trim();
+
+    const matrixAmount =
+      usesApplePricing && getTotalRepairCost() > 0 ? getTotalRepairCost() : 0;
+    const deviceFields = buildRepairDeviceFields({
+      deviceType: formData.deviceType,
+      brand: formData.brand,
+      model: formData.model,
+      matrixEstimateAmount: matrixAmount,
+    });
+    if (deviceFields.ok === false) {
+      notify(deviceFields.message, 'error');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const created = await createRepairRequest({
@@ -203,7 +274,9 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
         user_name: formData.name || user.name,
         device_brand: formData.brand,
         device_model: formData.model,
-        issue_type: Array.from(selectedIssueKeys).map(k => repairServicesMap[k as keyof typeof repairServicesMap].label).join(', ') || 'General Diagnostics',
+        device_type: deviceFields.device_type,
+        pricing_mode: deviceFields.pricing_mode,
+        issue_type: Array.from(selectedIssueKeys).map(getIssueLabel).join(', ') || 'General Diagnostics',
         issue_description: issueText,
         image_urls: formData.photos.length > 0 ? formData.photos : [],
         accessories: Object.entries(formData.accessories).filter(([, v]) => v).map(([k]) => k),
@@ -211,7 +284,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
         ai_diagnosis: '',
         fulfillment_method: formData.fulfillmentMethod,
         preferred_date: formData.date || undefined,
-        preferred_time: timeSlots.find(t => t.id === formData.timeSlot)?.time || undefined,
+        preferred_time: getRepairTimeSlot(formData.timeSlot)?.time || undefined,
         contact_name: formData.name || user.name,
         contact_phone: formData.phone || undefined,
         contact_email: formData.email || user.email || undefined,
@@ -220,7 +293,10 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
         diagnostic_fee: formData.diagnosticFee,
         agrees_to_terms: formData.agreesToTerms,
         client_signature: effectiveSignature || undefined,
-        estimated_cost: getTotalRepairCost() > 0 ? getTotalRepairCost() : undefined,
+        estimated_cost:
+          deviceFields.pricing_mode === PRICING_MODE.APPLE_MATRIX && matrixAmount > 0
+            ? matrixAmount
+            : undefined,
       });
       const newRepair: RepairRequest = {
         ...created,
@@ -228,12 +304,15 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
         date: created.date || new Date().toISOString(),
       };
       setRepairs([newRepair, ...repairs]);
-      setMyRepairs(prev => [newRepair, ...prev]);
       const refLabel = created.display_id ? ` (${created.display_id})` : '';
       notify(`Repair request submitted${refLabel}! We’ll review and confirm your booking.`, 'success');
       navigate({ to: '/profile' });
-    } catch (err: any) {
-      notify('Submission failed: ' + (err.message || 'Please try again'), 'error');
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error && err.message === REPAIR_REQUEST_CONSTRAINT_MESSAGE
+          ? err.message
+          : `Submission failed: ${err instanceof Error ? err.message : 'Please try again'}`;
+      notify(message, 'error');
     } finally {
       setSubmitting(false);
     }
@@ -247,14 +326,12 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
     if (n === 3) setBookingPhase(1);
   };
 
-  const needsDetailedIssueDescription = () =>
-    selectedIssueKeys.has('H') || selectedIssueKeys.has('UNKNOWN');
+  const needsDetailedIssueDescription = () => issueKeysNeedDetail(selectedIssueKeys);
 
   const validateIssueDescription = (): boolean => {
     if (!needsDetailedIssueDescription()) return true;
     if (formData.description.trim().length >= 5) return true;
-    const issueName = selectedIssueKeys.has('H') ? 'Audio / Speaker' : 'Unspecified';
-    notify(`Please provide details for the ${issueName} issue.`, 'error');
+    notify('Please provide details about the issue so our technicians can help.', 'error');
     return false;
   };
 
@@ -287,7 +364,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
   };
 
   const modelPickerSubStep = () =>
-    formData.brand === 'Apple' && formData.deviceType === 'smartphone' ? 4 : 3;
+    repairModelPickerSubStep(formData.deviceType, formData.brand);
 
   const undoToDeviceTypeStep = () => {
     setFormData((f) => ({ ...f, brand: '', model: '' }));
@@ -305,7 +382,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
   };
 
   const changeDeviceTypeSection = () => {
-    const applePhone = formData.brand === 'Apple' && formData.deviceType === 'smartphone';
+    const applePhone = isAppleIphoneRepairFlow(formData.deviceType, formData.brand);
     const mps = applePhone ? 4 : 3;
     if (subStep >= mps && formData.deviceType && formData.brand) {
       reopenModelPickerKeepTypeBrand();
@@ -374,51 +451,53 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
     { id: 'other', label: 'Other', icon: MonitorSmartphone },
   ];
 
-  const brands = DEVICE_BRANDS.map((b) => b.label);
+  const brandsForType = useMemo(
+    () => getBrandsForDeviceType(formData.deviceType),
+    [formData.deviceType],
+  );
 
-  const timeSlots = [
-    { id: 'morning-1', time: '9:00 AM', label: 'Early Morning', available: true },
-    { id: 'morning-2', time: '10:30 AM', label: 'Mid Morning', available: true },
-    { id: 'afternoon-1', time: '12:00 PM', label: 'Noon', available: false },
-    { id: 'afternoon-2', time: '2:00 PM', label: 'Early Afternoon', available: true },
-    { id: 'afternoon-3', time: '3:30 PM', label: 'Mid Afternoon', available: true },
-    { id: 'evening-1', time: '5:00 PM', label: 'Evening', available: true },
-  ];
+  const urgencyLevels = useMemo(
+    () =>
+      REPAIR_URGENCY_LEVELS.map((level) => ({
+        ...level,
+        icon: level.id === 'standard' ? Package : level.id === 'express' ? Wrench : Activity,
+      })),
+    [],
+  );
 
-  const urgencyLevels = [
-    { id: 'standard', label: 'Standard', desc: '2–3 days', price: 0, icon: Package },
-    { id: 'express', label: 'Express', desc: '24 hours', price: 50, icon: Wrench },
-    { id: 'emergency', label: 'Emergency', desc: 'Same day', price: 150, icon: Activity },
-  ];
+  const isAppleIphoneFlow = isAppleIphoneRepairFlow(formData.deviceType, formData.brand);
 
-  const isApple = formData.brand === 'Apple';
-  const modelOptions = isApple ? Object.keys(repairPricing) : [];
+  const modelOptions = useMemo(
+    () => (isAppleIphoneFlow ? Object.keys(getEffectiveRepairPricing()) : []),
+    [isAppleIphoneFlow],
+  );
 
-  const appleSeriesGroups = React.useMemo(() => {
-    if (!isApple || formData.deviceType !== 'smartphone') return {};
-    const groups: Record<string, string[]> = {};
-    modelOptions.forEach(m => {
-      const match = m.match(/iPhone (\d+|X[sr]?|SE)/i);
-      let series = match ? match[0] : 'Other iPhones';
-      if (series.startsWith('iPhone X')) series = 'iPhone X Series';
-      if (series.startsWith('iPhone 6')) series = 'iPhone 6 Series';
-      if (!groups[series]) groups[series] = [];
-      groups[series].push(m);
-    });
-    return groups;
-  }, [modelOptions, isApple, formData.deviceType]);
+  const appleSeriesGroups = useMemo(
+    () => (isAppleIphoneFlow ? buildAppleIphoneSeriesGroups(modelOptions) : {}),
+    [isAppleIphoneFlow, modelOptions],
+  );
 
-  const mappedServices = Object.entries(repairServicesMap).map(([key, service]) => ({
-    serviceKey: key as keyof typeof repairServicesMap, ...service,
-  }));
+  const availableIssues = React.useMemo(() => {
+    const base = getIssuesForDevice(formData.deviceType, formData.brand);
+    if (usesApplePricing) {
+      return filterAppleIssuesForModel(base, formData.model);
+    }
+    return base;
+  }, [formData.deviceType, formData.brand, formData.model, usesApplePricing]);
 
-  const pendingRepairEstimate = myRepairs.find((r) => r.status === 'Estimate Sent');
+  const serialFieldLabel = getSerialFieldLabel(formData.deviceType);
+  const accessoryOptions = getAccessoryOptions(formData.deviceType);
+  const quickTags = getQuickTagsForIssues(selectedIssueKeys);
+
+  const selectedTimeSlot = getRepairTimeSlot(formData.timeSlot);
+  const selectedUrgency = getRepairUrgencyLevel(formData.urgency);
+
+  const pendingRepairEstimate = repairs.find((r) => r.status === 'Estimate Sent');
 
   const handleRepairEstimateResponse = async (repairId: string, accept: boolean) => {
     try {
       const status = accept ? 'In Repair' : 'Rejected';
       await updateRepairRequest(repairId, { status });
-      setMyRepairs((prev) => prev.map((r) => (r.id === repairId ? { ...r, status } : r)));
       setRepairs(repairs.map((r) => (r.id === repairId ? { ...r, status } : r)));
       notify(
         accept ? 'Estimate approved — we will proceed with the repair.' : 'Repair estimate declined.',
@@ -582,7 +661,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                       </button>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                      {DEVICE_BRANDS.map(brand => (
+                      {brandsForType.map(brand => (
                         <button key={brand.id}
                           onClick={() => {
                             setFormData({ ...formData, brand: brand.label, model: '' });
@@ -607,7 +686,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                 ) as any}
 
                 {/* 1c: Series (Apple Smartphones Only) */}
-                {isApple && formData.deviceType === 'smartphone' && (
+                {isAppleIphoneFlow && (
                   subStep > 3 ? (
                     <div className="flex justify-between items-center py-5 border-b border-[var(--bb-border)] animate-in fade-in">
                       <h3 className="text-lg font-bold">{selectedSeries}</h3>
@@ -640,10 +719,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 content-start pr-1">
                         {Object.keys(appleSeriesGroups).reverse().map(series => {
-                          const num = parseInt(series.replace(/\D/g, '')) || 0;
-                          const hasHome = num <= 8 || series.includes('SE');
-                          const hasDI = num >= 14;
-                          const img = hasHome ? '/iphone_classic.png' : hasDI ? '/iphone_modern.png' : '/iphone_notch.png';
+                          const img = getIphoneModelImage(series);
 
                           return (
                             <button key={series}
@@ -667,7 +743,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                   )
                 )}
                 {/* 1d: Model Selection */}
-                {subStep === (isApple && formData.deviceType === 'smartphone' ? 4 : 3) && (
+                {subStep === (isAppleIphoneFlow ? 4 : 3) && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300 pt-4">
                     <div className="flex items-end justify-between gap-4 flex-wrap">
                       <div className="space-y-1">
@@ -680,7 +756,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                         type="button"
                         onClick={() => {
                           setFormData((f) => ({ ...f, model: '' }));
-                          setSubStep(isApple && formData.deviceType === 'smartphone' ? 3 : 2);
+                          setSubStep(isAppleIphoneFlow ? 3 : 2);
                           setTransitionKey((k) => k + 1);
                         }}
                         className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-white/40 hover:text-[#CDA032] transition-colors"
@@ -689,7 +765,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                       </button>
                     </div>
 
-                    {isApple && formData.deviceType === 'smartphone' ? (
+                    {isAppleIphoneFlow ? (
                       <div className="flex flex-col lg:flex-row gap-6">
                         {/* Left: Large phone image preview */}
                         <div className="lg:w-52 shrink-0">
@@ -699,10 +775,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                             }`}>
                             {(() => {
                               const m = formData.model;
-                              const num = m ? parseInt(m.replace(/\D/g, '')) || 0 : 0;
-                              const hasHome = num <= 8 || (m || '').includes('SE');
-                              const hasDI = num >= 14;
-                              const img = hasHome ? '/iphone_classic.png' : hasDI ? '/iphone_modern.png' : '/iphone_notch.png';
+                              const img = getIphoneModelImage(m || '');
                               return (
                                 <div className={`relative transition-all duration-500 ${m ? 'opacity-100 scale-100' : 'opacity-20 scale-90'}`}
                                   style={{ height: 160 }}>
@@ -765,7 +838,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                           </div>
                           <div className="space-y-3 pt-4 border-t border-[var(--bb-border)]/50">
                             <h3 className="text-xs font-bold opacity-80 uppercase tracking-widest text-[#CDA032]">Device Specifics</h3>
-                            <input placeholder="Serial / IMEI Number (Optional)" value={formData.serialImei} onChange={e => setFormData({ ...formData, serialImei: e.target.value })} className="w-full bg-[var(--bb-surface-2)] border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm focus:border-[#CDA032] outline-none" />
+                            <input placeholder={`${serialFieldLabel} (Optional)`} value={formData.serialImei} onChange={e => setFormData({ ...formData, serialImei: e.target.value })} className="w-full bg-[var(--bb-surface-2)] border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm focus:border-[#CDA032] outline-none" />
                             <textarea placeholder="Physical Description (Color, scratches, visible defects)" value={formData.physicalDescription} onChange={e => setFormData({ ...formData, physicalDescription: e.target.value })} rows={2} className="w-full bg-[var(--bb-surface-2)] border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm focus:border-[#CDA032] outline-none resize-none" />
                           </div>
                           <div className="pt-2">
@@ -798,7 +871,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                         </div>
                         <div className="space-y-4 pt-4 border-t border-[var(--bb-border)]/50">
                           <h3 className="text-xs font-bold opacity-80 uppercase tracking-widest text-[#CDA032]">Device Specifics (Optional)</h3>
-                          <input placeholder="Serial / IMEI Number" value={formData.serialImei} onChange={e => setFormData({ ...formData, serialImei: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm focus:border-[#CDA032] outline-none" />
+                          <input placeholder={serialFieldLabel} value={formData.serialImei} onChange={e => setFormData({ ...formData, serialImei: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm focus:border-[#CDA032] outline-none" />
                           <textarea placeholder="Physical Description (Color, inscriptions, visible defects)" value={formData.physicalDescription} onChange={e => setFormData({ ...formData, physicalDescription: e.target.value })} rows={2} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm focus:border-[#CDA032] outline-none resize-none" />
                         </div>
                         <button
@@ -823,7 +896,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                 <div className="space-y-1">
                   <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032]">Device Issues</p>
                   <h3 className="text-xl font-black text-white">
-                    {Array.from(selectedIssueKeys).map(k => repairServicesMap[k as keyof typeof repairServicesMap].label).join(' + ')}
+                    {Array.from(selectedIssueKeys).map(getIssueLabel).join(' + ')}
                   </h3>
                 </div>
                 <button type="button" onClick={() => openRepairStep(2)} className="text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors">
@@ -868,63 +941,60 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
 
                 <div className="space-y-2">
                   <h2 className="text-2xl font-bold tracking-tight">What's happening with your {formData.model}?</h2>
-                  <p className="opacity-60 text-sm">Select one or more issues — we'll add up the estimates for you.</p>
+                  <p className="opacity-60 text-sm">
+                    {usesApplePricing
+                      ? 'Select one or more issues — we will add up the estimates for you.'
+                      : 'Select what seems wrong — our team will confirm the exact repair after inspection.'}
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  {mappedServices.map(service => {
-                    let costStr = '';
-                    let costNum = 0;
-                    if (isApple && formData.model && repairPricing[formData.model as keyof typeof repairPricing]) {
-                      if (service.serviceKey !== 'UNKNOWN') {
-                        costStr = (repairPricing[formData.model as keyof typeof repairPricing] as Record<string, string>)[service.serviceKey];
-                        if (costStr && costStr !== 'N/A' && costStr !== 'Consult' && !costStr.includes('xxxxx')) {
-                          costNum = parseInt(costStr.split('-')[0].replace(/\D/g, ''));
-                        }
-                      }
-                    }
-                    if (costStr === 'N/A' || costStr.includes('xxxxx')) return null;
-                    const selected = selectedIssueKeys.has(service.serviceKey);
+                  {availableIssues.map((issue) => {
+                    const selected = selectedIssueKeys.has(issue.key);
+                    const price =
+                      usesApplePricing && issue.pricingKey
+                        ? getAppleIssuePrice(formData.model, issue.pricingKey)
+                        : null;
                     return (
-                      <button key={service.serviceKey}
-                        onClick={() => toggleIssue(service.serviceKey)}
+                      <button key={issue.key}
+                        onClick={() => toggleIssue(issue.key)}
                         className={`flex flex-col text-left p-5 rounded-3xl border transition-all duration-300 relative overflow-hidden group ${selected
                           ? 'border-[#CDA032] bg-[#CDA032]/10 shadow-[0_0_20px_rgba(205,160,50,0.15)] ring-1 ring-[#CDA032]'
                           : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:bg-[var(--bb-surface-2)] hover:border-[#CDA032]/40'}`}
                       >
                         <div className="flex justify-between w-full items-start mb-2 z-10">
-                          <span className={`font-extrabold text-base sm:text-lg ${selected ? 'text-[#CDA032]' : ''}`}>{service.label}</span>
+                          <span className={`font-extrabold text-base sm:text-lg ${selected ? 'text-[#CDA032]' : ''}`}>{issue.label}</span>
                           <div className={`w-5 h-5 rounded-md flex items-center justify-center border transition-all shrink-0 ml-2 ${selected ? 'border-[#CDA032] bg-[#CDA032]' : 'border-[var(--bb-border)] opacity-30 group-hover:opacity-100 group-hover:border-[#CDA032]/50'}`}>
                             {selected && <Check size={11} className="text-black" strokeWidth={4} />}
                           </div>
                         </div>
-                        <span className="text-xs opacity-60 leading-relaxed mb-6 z-10 flex-1">{service.desc}</span>
-                        <div className="w-full pt-4 border-t border-[var(--bb-border)] z-10">
-                          {costNum > 0 ? (
-                            <div className="flex items-end gap-2">
-                              <span className="text-xs font-bold uppercase tracking-wider opacity-60">Estimate:</span>
-                              <span className="text-lg font-black text-[#CDA032] leading-none">
-                                {costStr.includes('-') ? `₵${costStr}` : `₵${costNum}`}
+                        <span className="text-xs opacity-60 leading-relaxed mb-6 z-10 flex-1">{issue.desc}</span>
+                        {usesApplePricing && (
+                          <div className="w-full pt-4 border-t border-[var(--bb-border)] z-10">
+                            {price ? (
+                              <div className="flex items-end gap-2">
+                                <span className="text-xs font-bold uppercase tracking-wider opacity-60">Estimate:</span>
+                                <span className="text-lg font-black text-[#CDA032] leading-none">{price.display}</span>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">
+                                {issue.key === 'UNKNOWN' ? 'Diagnostic Needed' : 'Custom Quote'}
                               </span>
-                            </div>
-                          ) : (
-                            <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">
-                              {service.serviceKey === 'UNKNOWN' ? 'Diagnostic Needed' : 'Custom Quote'}
-                            </span>
-                          )}
-                        </div>
+                            )}
+                          </div>
+                        )}
                       </button>
                     );
                   })}
                 </div>
 
-                {/* Running total */}
-                {selectedIssueKeys.size > 0 && (
+                {/* Running total — Apple iPhone only */}
+                {usesApplePricing && selectedIssueKeys.size > 0 && (
                   <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl border border-[#CDA032]/30 bg-[#CDA032]/5 animate-in fade-in duration-300">
                     <div>
                       <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-0.5">Selected Services</p>
                       <p className="text-sm font-bold">
-                        {Array.from(selectedIssueKeys).map(k => repairServicesMap[k as keyof typeof repairServicesMap].label).join(' + ')}
+                        {Array.from(selectedIssueKeys).map(getIssueLabel).join(' + ')}
                       </p>
                     </div>
                     <div className="text-right">
@@ -974,18 +1044,13 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                       </div>
 
                       <p className="text-xs opacity-60 mb-2 font-medium">
-                        {selectedIssueKeys.has('H')
-                          ? "For audio issues, please describe if it's the mic, main speaker, or earpiece."
-                          : selectedIssueKeys.has('UNKNOWN')
-                            ? "Please describe the symptoms (e.g. constant rebooting, won't turn on, etc.)"
-                            : "Any additional context helps our technicians work faster."
-                        }
+                        {needsDetailedIssueDescription()
+                          ? 'Please describe the symptoms so our technicians know what to look for.'
+                          : 'Any additional context helps our technicians work faster.'}
                       </p>
 
                       <div className="flex flex-wrap gap-2 mb-4">
-                        {(selectedIssueKeys.has('H') ? ['Microphone', 'Earpiece', 'Main Speaker', 'Crackling Sound', 'No Sound'] :
-                          selectedIssueKeys.has('UNKNOWN') ? ['Wont turn on', 'Water Damage', 'Overheating', 'Software Loop', 'Random Shutdowns'] : []
-                        ).map(tag => (
+                        {quickTags.map(tag => (
                           <button
                             key={tag}
                             type="button"
@@ -1004,9 +1069,9 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
 
                       <div className="space-y-4">
                         <textarea
-                          placeholder={selectedIssueKeys.has('UNKNOWN') || selectedIssueKeys.has('H')
-                            ? "Please explain the symptoms as best as you can..."
-                            : "Describe the problem in detail"}
+                          placeholder={needsDetailedIssueDescription()
+                            ? 'Please explain the symptoms as best as you can...'
+                            : 'Describe the problem in detail'}
                           value={formData.description}
                           onChange={e => setFormData({ ...formData, description: e.target.value })}
                           rows={3}
@@ -1039,13 +1104,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                         <div className="pt-2">
                           <p className="text-xs opacity-60 font-medium mb-3">Check Included Accessories</p>
                           <div className="flex flex-wrap gap-2">
-                            {([
-                              { id: 'charger', label: 'Charger' },
-                              { id: 'caseCover', label: 'Case/Cover' },
-                              { id: 'cables', label: 'Cables' },
-                              { id: 'memorySim', label: 'Memory Card/SIM' },
-                              { id: 'other', label: 'Other' },
-                            ] as const).map(acc => (
+                            {accessoryOptions.map(acc => (
                               <button
                                 key={acc.id}
                                 onClick={() => setFormData({ ...formData, accessories: { ...formData.accessories, [acc.id]: !formData.accessories[acc.id] } })}
@@ -1139,7 +1198,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                 <div className="space-y-1">
                   <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032]">Booking Details</p>
                   <h3 className="text-xl font-black text-white">
-                    {formData.date} at {timeSlots.find(t => t.id === formData.timeSlot)?.time}
+                    {formData.date} at {selectedTimeSlot?.time}
                   </h3>
                 </div>
                 <button type="button" onClick={() => openRepairStep(3)} className="text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors">
@@ -1261,7 +1320,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                           className="w-full border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50 appearance-none cursor-pointer h-[54px]"
                         >
                           <option value="">Select an available time...</option>
-                          {timeSlots.map(t => (
+                          {REPAIR_TIME_SLOTS.map(t => (
                             <option key={t.id} value={t.id} disabled={!t.available}>
                               {t.time} - {t.available ? t.label : 'Fully Booked'}
                             </option>
@@ -1422,7 +1481,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
               <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 active-form-section">
 
                 <div className="space-y-2">
-                  <h2 className="text-3xl font-black tracking-tight">Review your quote</h2>
+                  <h2 className="text-3xl font-black tracking-tight">{usesApplePricing ? 'Review your quote' : 'Review your request'}</h2>
                   <p className="opacity-60 text-sm">Please verify your details before submitting the final request.</p>
                 </div>
 
@@ -1434,7 +1493,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                     <h3 className="text-2xl font-black mb-1">{formData.brand} {formData.model}</h3>
                     <p className="text-lg opacity-80">
                       {selectedIssueKeys.size > 0
-                        ? Array.from(selectedIssueKeys).map(k => repairServicesMap[k as keyof typeof repairServicesMap].label).join(' + ')
+                        ? Array.from(selectedIssueKeys).map(getIssueLabel).join(' + ')
                         : 'Diagnostic Request'}
                     </p>
                   </div>
@@ -1442,24 +1501,47 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                   <div className="p-8 space-y-8">
                     {/* Cost */}
                     <div className="space-y-4">
-                      <div className="flex justify-between items-center text-sm font-medium">
-                        <span className="opacity-70">Estimated Repair Cost</span>
-                        <span className="font-bold">{getTotalRepairCost() > 0 ? `₵${getTotalRepairCost()}` : 'Post-Diagnostic'}</span>
-                      </div>
-                      {formData.urgency !== 'standard' && (
-                        <div className="flex justify-between items-center text-sm font-medium">
-                          <span className="opacity-70 capitalize">{formData.urgency} Priority Level</span>
-                          <span className="font-bold">+ ₵{urgencyLevels.find(u => u.id === formData.urgency)?.price}</span>
-                        </div>
+                      {usesApplePricing ? (
+                        <>
+                          <div className="flex justify-between items-center text-sm font-medium">
+                            <span className="opacity-70">Estimated Repair Cost</span>
+                            <span className="font-bold">{getTotalRepairCost() > 0 ? `₵${getTotalRepairCost()}` : 'Post-Diagnostic'}</span>
+                          </div>
+                          {formData.urgency !== 'standard' && (
+                            <div className="flex justify-between items-center text-sm font-medium">
+                              <span className="opacity-70 capitalize">{formData.urgency} Priority Level</span>
+                              <span className="font-bold">+ ₵{selectedUrgency?.price ?? 0}</span>
+                            </div>
+                          )}
+                          <div className="pt-4 mt-4 border-t border-[var(--bb-border)] flex justify-between items-end">
+                            <span className="text-base font-black">Total Estimate</span>
+                            <span className="text-3xl font-black text-[#CDA032]">{getEstimatedCost()}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex justify-between items-center text-sm font-medium">
+                            <span className="opacity-70">Repair pricing</span>
+                            <span className="font-bold">Quote after diagnostic</span>
+                          </div>
+                          {formData.urgency !== 'standard' && (
+                            <div className="flex justify-between items-center text-sm font-medium">
+                              <span className="opacity-70 capitalize">{formData.urgency} priority fee</span>
+                              <span className="font-bold">+ ₵{selectedUrgency?.price ?? 0}</span>
+                            </div>
+                          )}
+                          <div className="pt-4 mt-4 border-t border-[var(--bb-border)] flex justify-between items-end">
+                            <span className="text-base font-black">Total due now</span>
+                            <span className="text-3xl font-black text-[#CDA032]">{getEstimatedCost()}</span>
+                          </div>
+                        </>
                       )}
-                      <div className="pt-4 mt-4 border-t border-[var(--bb-border)] flex justify-between items-end">
-                        <span className="text-base font-black">Total Estimate</span>
-                        <span className="text-3xl font-black text-[#CDA032]">{getEstimatedCost()}</span>
-                      </div>
                       <div className="flex gap-3 items-start p-4 bg-[#CDA032]/10 rounded-xl mt-4">
                         <Info size={16} className="text-[#CDA032] shrink-0 mt-0.5" />
                         <p className="text-xs leading-relaxed text-[#CDA032] font-semibold">
-                          Final price confirmed after physical diagnostic. We will never charge you without your explicit approval.
+                          {usesApplePricing
+                            ? 'Final price confirmed after physical diagnostic. We will never charge you without your explicit approval.'
+                            : 'We will inspect your device and send a quote before any repair work begins. You approve every charge.'}
                         </p>
                       </div>
                     </div>
@@ -1469,7 +1551,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                       <div>
                         <p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">Appointment</p>
                         <p className="text-sm font-semibold">{formData.date}</p>
-                        <p className="text-sm opacity-80">{timeSlots.find(t => t.id === formData.timeSlot)?.time} · <span className="capitalize">{formData.urgency}</span></p>
+                        <p className="text-sm opacity-80">{selectedTimeSlot?.time} · <span className="capitalize">{formData.urgency}</span></p>
                       </div>
                       <div>
                         <p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">Customer Info</p>
@@ -1604,7 +1686,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                       <div>
                         <p className="text-[10px] uppercase font-bold tracking-widest opacity-50 mb-0.5">Services</p>
                         <p className="text-sm font-bold leading-snug">
-                          {Array.from(selectedIssueKeys).map(k => repairServicesMap[k as keyof typeof repairServicesMap].label).join(', ')}
+                          {Array.from(selectedIssueKeys).map(getIssueLabel).join(', ')}
                         </p>
                       </div>
                     </div>
@@ -1618,12 +1700,12 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                       <div>
                         <p className="text-[10px] uppercase font-bold tracking-widest opacity-50 mb-0.5">Schedule</p>
                         <p className="text-sm font-bold">{formData.date}</p>
-                        <p className="text-xs opacity-70 mt-0.5">{timeSlots.find(t => t.id === formData.timeSlot)?.time}</p>
+                        <p className="text-xs opacity-70 mt-0.5">{selectedTimeSlot?.time}</p>
                       </div>
                     </div>
                   )}
 
-                  {step >= 2 && selectedIssueKeys.size > 0 && (
+                  {usesApplePricing && step >= 2 && selectedIssueKeys.size > 0 && (
                     <div className="pt-6 border-t border-[var(--bb-border)]">
                       <p className="text-[10px] uppercase font-bold tracking-widest opacity-50 mb-2">Estimated Total</p>
                       <p className="text-2xl font-black text-[#CDA032] tracking-tighter">{getEstimatedCost()}</p>

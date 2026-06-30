@@ -4,7 +4,27 @@ import { normalizeProductCategory } from './api';
 export const TRADE_UPGRADE_PRODUCT_IDS_KEY = 'bb_v4_trade_upgrade_product_ids';
 export const TRADE_UPGRADE_PICKS_UPDATED_EVENT = 'bb_trade_upgrade_targets_updated';
 
-const FALLBACK_CATEGORIES: string[] = ['iPhone', 'Laptop', 'Tablet', 'Gaming'];
+/** Trade-in upgrades may only target store iPhone / iPad products. */
+export function isEligibleTradeUpgradeProduct(product: Product): boolean {
+  const name = (product.name || '').toLowerCase();
+  const rawCat = String(product.category || '').toLowerCase();
+  const normCat = normalizeProductCategory(product.category ?? '').toLowerCase();
+
+  const mentionsIphoneOrIpad =
+    name.includes('iphone') ||
+    name.includes('ipad') ||
+    rawCat.includes('iphone') ||
+    rawCat.includes('ipad');
+
+  if (!mentionsIphoneOrIpad) return false;
+  if (rawCat.includes('accessor') || normCat === 'accessories') return false;
+
+  const blocked =
+    /macbook|mac book|imac|mac mini|mac studio|airpod|air pod|apple watch|watch series|magic keyboard|pencil tip|case for|cover for|screen protector|tempered glass|charger|cable\b|lightning to|usb-c to|adapter\b|folio\b|band for|strap for|gaming|playstation|xbox|nintendo|galaxy tab|samsung tab|pixel tab/;
+
+  if (blocked.test(name)) return false;
+  return true;
+}
 
 export function readStoredUpgradeProductIds(): string[] | null {
   try {
@@ -20,9 +40,10 @@ export function readStoredUpgradeProductIds(): string[] | null {
 }
 
 export function resolveUpgradeTargetProducts(products: Product[]): Product[] {
+  const eligible = products.filter(isEligibleTradeUpgradeProduct);
   const ids = readStoredUpgradeProductIds();
   if (ids?.length) {
-    const map = new Map(products.map((p) => [p.id, p]));
+    const map = new Map(eligible.map((p) => [p.id, p]));
     const out: Product[] = [];
     for (const id of ids) {
       const p = map.get(id);
@@ -30,7 +51,7 @@ export function resolveUpgradeTargetProducts(products: Product[]): Product[] {
     }
     if (out.length > 0) return out;
   }
-  return products.filter((p) => FALLBACK_CATEGORIES.includes(normalizeProductCategory(p.category ?? '')));
+  return eligible;
 }
 
 export function persistUpgradeProductIds(ids: string[]): void {

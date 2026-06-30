@@ -105,5 +105,3 @@ export const WelcomeLoadingAnimation: React.FC<{ size?: 'small' | 'medium' | 'la
     </div>
   );
 };
-
-export default WelcomeLoadingAnimation;

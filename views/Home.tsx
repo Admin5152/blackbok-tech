@@ -136,7 +136,6 @@ export const Home: React.FC<HomeProps> = ({
     return combined
       .filter(
         (p) =>
-          matchesCategory(p.category, 'Accessories') ||
           matchesCategory(p.category, 'Gaming') ||
           matchesCategory(p.category, 'Audio') ||
           matchesCategory(p.category, 'iPhone') ||
@@ -184,7 +183,7 @@ export const Home: React.FC<HomeProps> = ({
     <div className={`bb-home-page bb-theme-transition view-transition w-full min-w-0 overflow-x-hidden no-print ${isDark ? 'bg-[#030308]' : 'bg-[#f5f5f7]'}`}>
       {/* Main Content */}
       {/* Hero — collage + headline; box CTAs; slider */}
-      <section className="relative min-h-hero-viewport w-full min-w-0 overflow-hidden bg-[#030303]">
+      <section className="bb-home-hero relative min-h-hero-viewport w-full min-w-0 overflow-hidden bg-[#030303]">
         <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_120%_80%_at_50%_40%,#12121a_0%,#030303_55%,#000000_100%)]" aria-hidden />
 
         <div className={`absolute inset-0 z-[1] overflow-hidden min-h-[100%] ${heroCollageSettled ? 'bb-hero-collage-settled' : ''}`}>
@@ -217,7 +216,7 @@ export const Home: React.FC<HomeProps> = ({
         <div
           className={`bb-theme-transition pointer-events-none absolute inset-0 z-[8] ${isDark
             ? 'bg-gradient-to-b from-black/92 via-zinc-950/55 to-black sm:from-black/88 sm:via-zinc-950/45 sm:to-black'
-            : 'bg-gradient-to-b from-black/85 via-black/45 to-black/90 sm:from-black/75 sm:via-black/35 sm:to-black/85'
+            : 'bg-gradient-to-b from-black/75 via-black/55 to-black/[0.98] sm:from-black/70 sm:via-black/50 sm:to-black'
             }`}
           aria-hidden
         />
@@ -246,15 +245,15 @@ export const Home: React.FC<HomeProps> = ({
         <div className="relative z-20 flex min-h-hero-viewport w-full flex-col justify-end px-4 pb-12 pt-24 sm:px-6 sm:pb-10 sm:pt-28 md:pb-12">
           <div className="bb-home-hero-stack mx-auto flex w-full max-w-lg flex-col gap-5 sm:max-w-xl sm:gap-6">
             <div className="bb-home-hero-stack__block mx-auto w-full max-w-[min(100%,20rem)] text-center max-sm:-translate-y-2 sm:max-w-2xl sm:translate-y-0 md:max-w-3xl">
-              <h1 className="font-heading text-balance text-3xl font-bold leading-[1.12] tracking-tight text-off-white drop-shadow-[0_2px_20px_rgba(0,0,0,0.85)] sm:text-4xl sm:leading-tight md:text-5xl">
+              <h1 className="font-heading text-balance text-3xl font-bold leading-[1.12] tracking-tight bb-force-white drop-shadow-[0_2px_20px_rgba(0,0,0,0.85)] sm:text-4xl sm:leading-tight md:text-5xl">
                 <span className="block sm:inline">Redefining Your</span>{' '}
                 <span className="block sm:inline">
-                  <span className="bg-gradient-to-r bg-clip-text text-transparent from-[#D4AF37] to-[#F4E4C1]">
+                  <span className="bg-gradient-to-r bg-clip-text text-transparent from-[#D4AF37] to-[#F4E4C1] drop-shadow-[0_2px_16px_rgba(0,0,0,0.75)]">
                     Tech Experience
                   </span>
                 </span>
               </h1>
-              <p className="mx-auto mt-3 max-w-[min(100%,22rem)] text-pretty text-sm font-light leading-relaxed text-zinc-200/95 drop-shadow-[0_1px_14px_rgba(0,0,0,0.85)] sm:mt-4 sm:max-w-lg sm:text-base md:text-lg">
+              <p className="mx-auto mt-3 max-w-[min(100%,22rem)] text-pretty text-sm font-medium leading-relaxed bb-force-white sm:mt-4 sm:max-w-lg sm:text-base md:text-lg [text-shadow:0_2px_12px_rgba(0,0,0,0.85)]">
                 Premium tech, expert repairs, and seamless trade-ins for the modern enthusiast.
               </p>
             </div>
@@ -502,48 +501,48 @@ export const Home: React.FC<HomeProps> = ({
         </div>
       </section>
 
-      {/* Quick Access / Accessories Slider */}
+      {/* Quick Access / Phones Slider */}
       <section className={`section-connector py-6 md:py-10 overflow-hidden ${isDark ? 'bg-[#030308]' : 'bg-[#f5f5f7]'}`}>
         <div className="max-w-screen-2xl mx-auto">
           <div className="mb-6 px-4 md:px-8 reveal-on-scroll">
             <h2 className={`text-3xl font-heading font-bold tracking-wider md:text-4xl ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
-              Accessories
+              Phones
             </h2>
           </div>
 
           <div className="flex items-center justify-end mb-6 px-4 md:px-8 gap-3">
             <button
-              onClick={() => scrollHomeRail('accessories-slider', 'prev')}
+              onClick={() => scrollHomeRail('phones-slider', 'prev')}
               className={`w-12 h-12 rounded-full border flex items-center justify-center backdrop-blur-sm ${theme === 'dark' ? 'border-white/15 bg-white/[0.04] text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-black/20 text-black hover:bg-black hover:text-white'} ${homeScrollArrowHover} ${TW_DARK_BTN_DEPTH}`}
             >
               <ChevronLeft size={24} />
             </button>
             <button
-              onClick={() => scrollHomeRail('accessories-slider', 'next')}
+              onClick={() => scrollHomeRail('phones-slider', 'next')}
               className={`w-12 h-12 rounded-full border flex items-center justify-center backdrop-blur-sm ${theme === 'dark' ? 'border-white/15 bg-white/[0.04] text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-black/20 text-black hover:bg-black hover:text-white'} ${homeScrollArrowHover} ${TW_DARK_BTN_DEPTH}`}
             >
               <ChevronRight size={24} />
             </button>
           </div>
 
-          <div id="accessories-slider" data-lenis-prevent className="bb-home-rail flex items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar px-4 md:px-8 pb-8" style={{ scrollPaddingLeft: 'max(1rem, env(safe-area-inset-left))' }}>
+          <div id="phones-slider" data-lenis-prevent className="bb-home-rail flex items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar px-4 md:px-8 pb-8" style={{ scrollPaddingLeft: 'max(1rem, env(safe-area-inset-left))' }}>
             {/* Promo Card */}
             <div
               data-home-rail-item
               className={`bb-home-rail-promo-card group w-[300px] md:w-[400px] h-[400px] md:h-[500px] rounded-[2rem] flex-shrink-0 relative overflow-hidden shadow-sm border border-black/5 dark:border-white/5 ring-1 ring-inset ${theme === 'dark' ? 'ring-white/[0.06]' : 'ring-black/[0.06]'} ${homePromoCardHover}`}
             >
-              <img src="/cases.jpeg" alt="Accessories" className="bb-home-rail-promo-card__img" loading="lazy" decoding="async" />
+              <img src="/iPhone.jpeg" alt="Phones" className="bb-home-rail-promo-card__img" loading="lazy" decoding="async" />
               <div className="bb-home-rail-promo-card__scrim" aria-hidden />
               <div className="bb-home-rail-promo-card__content">
                 <h2 className="text-3xl md:text-5xl font-bold tracking-tight drop-shadow-sm">Take a peek</h2>
                 <p className="mt-3 max-w-[20rem] text-sm leading-relaxed text-white/75">
-                  Swipe or scroll sideways, then tap a card or the eye icon to preview accessories before you add to cart.
+                  Swipe or scroll sideways, then tap a card or the eye icon to preview phones before you add to cart.
                 </p>
               </div>
             </div>
 
             {/* Product Cards */}
-            {homeProducts.filter(p => matchesCategory(p.category, 'Accessories') || matchesCategory(p.category, 'iPhone')).slice(0, 8).map(p => (
+            {homeProducts.filter(p => matchesCategory(p.category, 'iPhone')).slice(0, 8).map(p => (
               <div
                 key={p.id}
                 data-home-rail-item
@@ -623,10 +622,10 @@ export const Home: React.FC<HomeProps> = ({
           <div className="flex justify-center mt-6 px-4 reveal-on-scroll reveal-delay-1">
             <Link
               to="/store"
-              search={{ category: 'Accessories' } as any}
+              search={{ category: 'iPhone' } as any}
               className={`group inline-flex items-center gap-4 px-10 py-5 bg-black dark:bg-white text-white dark:text-black rounded-full font-black text-xs uppercase tracking-[0.2em] shadow-2xl hover:scale-105 hover:shadow-[0_0_0_2px_rgba(212,175,55,0.35)] transition-all w-full md:w-auto justify-center ${TW_DARK_BTN_DEPTH}`}
             >
-              View All Accessories
+              View All Phones
               <div className="w-8 h-8 rounded-full bg-white/20 dark:bg-black/10 flex items-center justify-center group-hover:translate-x-2 transition-transform">
                 <ArrowRight size={16} />
               </div>
@@ -919,7 +918,7 @@ export const Home: React.FC<HomeProps> = ({
             )}
 
             {(exploreFilter === 'All Gear' || exploreFilter === 'Essentials') && (
-              <Link to="/store" search={{ category: 'Accessories' } as any} className={`col-span-1 md:col-span-1 row-span-1 md:row-span-2 rounded-[2rem] p-6 flex flex-col justify-between relative overflow-hidden group transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl hover:ring-2 hover:ring-[#D4AF37]/25 ${theme === 'light' ? 'bg-white' : 'bg-[#14141c] border border-white/[0.07] shadow-[0_12px_40px_-8px_rgba(0,0,0,0.5)]'}`}>
+              <Link to="/store" search={{ category: 'iPhone' } as any} className={`col-span-1 md:col-span-1 row-span-1 md:row-span-2 rounded-[2rem] p-6 flex flex-col justify-between relative overflow-hidden group transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl hover:ring-2 hover:ring-[#D4AF37]/25 ${theme === 'light' ? 'bg-white' : 'bg-[#14141c] border border-white/[0.07] shadow-[0_12px_40px_-8px_rgba(0,0,0,0.5)]'}`}>
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 z-10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
 
                 <div className="flex justify-between items-start z-20">
@@ -933,17 +932,17 @@ export const Home: React.FC<HomeProps> = ({
                 </div>
 
                 <div className="absolute inset-0 pt-16 pb-24 px-4 flex items-center justify-center -z-0">
-                  <img src="/iPhone.jpeg" alt="iPhone Case" className="w-[80%] h-[80%] object-contain drop-shadow-2xl group-hover:scale-110 transition-transform duration-700" />
+                  <img src="/iPhone.jpeg" alt="iPhone" className="w-[80%] h-[80%] object-contain drop-shadow-2xl group-hover:scale-110 transition-transform duration-700" />
                 </div>
 
                 <div className="z-20 transform translate-y-2 group-hover:translate-y-0 transition-transform mt-auto">
                   <span className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${theme === 'light' ? 'text-black/40' : 'text-white/40'}`}>Our Picks</span>
                   <h3 className={`text-lg font-black uppercase italic tracking-tight leading-tight mb-4 ${theme === 'light' ? 'text-black' : 'text-white'}`}>
-                    Silicone Case<br />For iPhone 15 Pro
+                    iPhone 14<br />Midnight Black
                   </h3>
                   <div className="flex items-center justify-between">
                     <span className={`px-4 py-2 rounded-xl text-xs font-black bg-[#CDA032] text-black shadow-lg`}>
-                      GHC 350
+                      From GHC 7,999
                     </span>
                   </div>
                 </div>
@@ -1077,20 +1076,20 @@ export const Home: React.FC<HomeProps> = ({
             )}
 
             {(exploreFilter === 'All Gear' || exploreFilter === 'Essentials') && (
-              <Link to="/store" search={{ category: 'Accessories' } as any} className={`col-span-1 md:col-span-2 row-span-1 rounded-[2rem] p-8 md:p-10 flex items-center relative overflow-hidden group transition-transform duration-500 hover:-translate-y-1 hover:shadow-2xl hover:ring-2 hover:ring-[#D4AF37]/25 ${theme === 'light' ? 'bg-[#F8F9FA]' : 'bg-gradient-to-r from-[#111] to-[#0A0A0A] border border-white/5'}`}>
+              <Link to="/store" search={{ category: 'iPhone' } as any} className={`col-span-1 md:col-span-2 row-span-1 rounded-[2rem] p-8 md:p-10 flex items-center relative overflow-hidden group transition-transform duration-500 hover:-translate-y-1 hover:shadow-2xl hover:ring-2 hover:ring-[#D4AF37]/25 ${theme === 'light' ? 'bg-[#F8F9FA]' : 'bg-gradient-to-r from-[#111] to-[#0A0A0A] border border-white/5'}`}>
                 <div className="relative z-10 w-2/3 md:w-1/2">
                   <h3 className={`text-2xl md:text-4xl font-black italic tracking-tighter uppercase leading-[1] mb-2 ${theme === 'light' ? 'text-black' : 'text-white'}`}>
-                    Bring Bold<br />Fashion
+                    Latest<br />iPhones
                   </h3>
                   <p className={`text-[10px] font-bold uppercase tracking-widest ${theme === 'light' ? 'text-black/40' : 'text-white/40'}`}>
-                    Layers on Layers
+                    Unlocked & ready to ship
                   </p>
                 </div>
                 <div className="absolute right-0 bottom-0 top-0 w-1/2 md:w-1/2 flex justify-end">
                   <div className={`w-full h-full flex items-center justify-center transform translate-y-4 group-hover:translate-y-0 transition-transform duration-700`}>
                     <img
-                      src="/macbook.jpeg"
-                      alt="Accessory Layer"
+                      src="/iPhone.jpeg"
+                      alt="iPhone collection"
                       className={`w-full object-cover h-[120%] ${
                         theme === 'light' ? 'opacity-95' : 'opacity-90 mix-blend-luminosity'
                       }`}

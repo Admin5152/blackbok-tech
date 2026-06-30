@@ -110,9 +110,10 @@ export const Navbar: React.FC<{
       void storeBadgeTick;
       const seen = getStoreNavSeen(user.id);
       const uid = user.id;
-      const mine = <T extends { user_id?: string; userId?: string }>(rows: T[]) =>
+      type UserOwnedRow = { user_id?: string; userId?: string; created_at?: string; date?: string };
+      const mine = (rows: UserOwnedRow[]) =>
         rows.filter((r) => (r.user_id || r.userId) === uid);
-      const rowT = (o: { created_at?: string; date?: string }) => {
+      const rowT = (o: UserOwnedRow) => {
         const s = o.created_at || o.date;
         const t = s ? new Date(s).getTime() : NaN;
         return Number.isFinite(t) ? t : 0;
@@ -121,7 +122,7 @@ export const Navbar: React.FC<{
         const t = new Date(iso).getTime();
         return Number.isFinite(t) ? t : 0;
       };
-      const countAfter = (rows: { created_at?: string; date?: string }[], iso: string) =>
+      const countAfter = (rows: UserOwnedRow[], iso: string) =>
         mine(rows).filter((r) => rowT(r) > sinceMs(iso)).length;
       return {
         orders: countAfter(orders, seen.orders),
@@ -266,7 +267,7 @@ export const Navbar: React.FC<{
         if (cat) search.category = cat;
         if (cats) search.categories = cats;
       }
-      navigate({ to: '/store', search });
+      navigate({ to: '/store', search: search as never });
       if (opts?.closeMobile) closeMobileNavAfterNav();
     };
 
@@ -585,7 +586,7 @@ export const Navbar: React.FC<{
           onSearch={(e) => handleCatalogSearch(e, { closeMobile: true })}
           applyTheme={applyTheme}
           cartCount={cartCount}
-          items={mobileNavItems as MobileNavItem[]}
+          items={mobileNavItems as unknown as MobileNavItem[]}
           activeSubmenu={activeMobileSubmenu}
           setActiveSubmenu={setActiveMobileSubmenu}
           pathname={location.pathname}

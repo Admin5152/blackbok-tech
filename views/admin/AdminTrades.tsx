@@ -4,7 +4,11 @@ import { Badge, SearchInput, Modal, ModalClose, EmptyState, Td, Th, TableWrapper
 import { useAppContext } from '../../App';
 import { getTradeRequests, updateTradeRequest } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
-import { readStoredUpgradeProductIds, persistUpgradeProductIds } from '../../lib/tradeUpgradePicks';
+import {
+    isEligibleTradeUpgradeProduct,
+    readStoredUpgradeProductIds,
+    persistUpgradeProductIds,
+} from '../../lib/tradeUpgradePicks';
 import type { TradeRequest, ProductVariant } from '../../types';
 import { formatCurrency } from '../../lib/utils';
 import { parseOfferInput, tradeHasValidOffer, tradeOfferAmount } from '../../lib/tradeOffer';
@@ -13,8 +17,16 @@ import {
   mergeTradeDevicesFromStorageArray,
   type TradeInCatalogDevice,
   TRADE_DEVICE_TYPE_OPTIONS,
-  TRADE_BRAND_OPTIONS,
 } from '../../data/tradeInDevices';
+import { getBrandsForDeviceType } from '../../data/deviceBrands';
+import { formatTradePricingModeLabel } from '../../lib/tradeValuation';
+import { AdminTradePricingModal } from './AdminTradePricingModal';
+import { AdminFlowBar } from '../../components/FlowStepper';
+import {
+    TRADE_ADMIN_WORKFLOW,
+    getTradeWorkflowStage,
+    tradePricingPathDescription,
+} from '../../lib/adminWorkflow';
 
 const CONDITION_OPTIONS = ['Like New', 'Excellent', 'Good', 'Fair', 'Poor'];
 const TRADE_STATUS_LABELS: Record<string, string> = {
@@ -99,11 +111,17 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
     const [saving, setSaving] = useState(false);
     const [showDevMgr, setShowDevMgr] = useState(false);
     const [newDevName, setNewDevName] = useState('');
-    const [newDevType, setNewDevType] = useState<TradeInCatalogDevice['deviceType']>('other');
+    const [newDevType, setNewDevType] = useState<TradeInCatalogDevice['deviceType']>('smartphone');
     const [newDevBrand, setNewDevBrand] = useState<string>('Other');
+
+    const adminBrandOptions = useMemo(
+        () => getBrandsForDeviceType(newDevType).map((b) => b.label),
+        [newDevType],
+    );
     const [newVariant, setNewVariant] = useState('');
     const [editDevId, setEditDevId] = useState<string | null>(null);
     const [showUpgradeMgr, setShowUpgradeMgr] = useState(false);
+    const [showPricingMgr, setShowPricingMgr] = useState(false);
     const [upgradeMgrQ, setUpgradeMgrQ] = useState('');
     const [upgradePickDraftIds, setUpgradePickDraftIds] = useState<string[]>([]);
     const [draftTargetVariantId, setDraftTargetVariantId] = useState('');
@@ -169,6 +187,25 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
             setDraftTargetVariantId('');
         }
     }, [sel, products]);
+
+    useEffect(() => {
+        if (!sel) {
+            setOffer('');
+            setOfferNote('');
+            setCondition('');
+            return;
+        }
+        setCondition(sel.condition || '');
+        const est = Number((sel as TradeRequest).estimated_value ?? sel.estimatedValue);
+        const existingOffer = tradeOfferAmount(sel);
+        if (existingOffer != null && existingOffer > 0) {
+            setOffer(String(existingOffer));
+        } else if (Number.isFinite(est) && est > 0) {
+            setOffer(String(est));
+        } else {
+            setOffer('');
+        }
+    }, [sel?.id]);
 
     const saveDevices = (d: TradeInCatalogDevice[]) => {
         setDevices(d);
@@ -284,7 +321,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
         };
         saveDevices([...devices, row]);
         setNewDevName('');
-        setNewDevType('other');
+        setNewDevType('smartphone');
         setNewDevBrand('Other');
     };
     const rmDevice = (id: string) => saveDevices(devices.filter(d => d.id !== id));
@@ -298,6 +335,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
 
     const uq = upgradeMgrQ.trim().toLowerCase();
     const upgradeCatalogRows = products.filter((p) => {
+        if (!isEligibleTradeUpgradeProduct(p)) return false;
         if (!uq) return true;
         return (
             p.name.toLowerCase().includes(uq)
@@ -414,7 +452,11 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
         });
     };
     const saveUpgradePicks = () => {
-        persistUpgradeProductIds(upgradePickDraftIds);
+        const eligibleIds = upgradePickDraftIds.filter((id) => {
+            const p = productById.get(id);
+            return p && isEligibleTradeUpgradeProduct(p);
+        });
+        persistUpgradeProductIds(eligibleIds);
         setShowUpgradeMgr(false);
     };
 
@@ -435,6 +477,22 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                 ))}
             </div>
 
+            <div className="bg-[#B38B21]/5 border border-[#B38B21]/20 rounded-xl p-4">
+                <p className="text-[9px] font-black uppercase tracking-widest text-[#B38B21] mb-2">Trade-in workflow</p>
+                <p className="text-[10px] text-white/45 leading-relaxed mb-3">
+                    Customer submits iPhone/iPad + component checklist → you inspect → send final offer → mark complete when upgrade stock is allocated.
+                </p>
+                <div className="flex flex-wrap gap-2 text-[9px] font-black uppercase tracking-wider text-white/50">
+                    <span className="px-2 py-1 rounded-lg bg-black/30">1 · Submitted + estimate</span>
+                    <span>→</span>
+                    <span className="px-2 py-1 rounded-lg bg-black/30">2 · Inspect device</span>
+                    <span>→</span>
+                    <span className="px-2 py-1 rounded-lg bg-black/30">3 · Send offer</span>
+                    <span>→</span>
+                    <span className="px-2 py-1 rounded-lg bg-black/30">4 · Complete + stock</span>
+                </div>
+            </div>
+
             {/* Filters */}
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -451,6 +509,10 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                     </div>
                     {canEdit && (
                         <>
+                            <button type="button" onClick={() => setShowPricingMgr(true)}
+                                className="flex items-center gap-1.5 px-3 py-2 bg-white/5 text-white/60 hover:text-white border border-white/10 rounded-xl text-[10px] font-black uppercase transition-all">
+                                <DollarSign size={12} /> Pricing
+                            </button>
                             <button type="button" onClick={() => setShowUpgradeMgr(true)}
                                 className="flex items-center gap-1.5 px-3 py-2 bg-white/5 text-white/60 hover:text-white border border-white/10 rounded-xl text-[10px] font-black uppercase transition-all">
                                 <Package size={12} /> Upgrade picks
@@ -474,7 +536,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
             ) : (
                 <TableWrapper>
                     <thead><tr>
-                        <Th>Device</Th><Th>Customer</Th><Th>Target</Th><Th>Offer</Th><Th>Condition</Th><Th>Date</Th><Th>Status</Th><Th></Th>
+                        <Th>Device</Th><Th>Customer</Th><Th>Target</Th><Th>Est. credit</Th><Th>Offer</Th><Th>Date</Th><Th>Status</Th><Th></Th>
                     </tr></thead>
                     <tbody>
                         {filtered.map(t => (
@@ -490,8 +552,19 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                         <p className="text-[9px] text-emerald-400/90 font-bold uppercase tracking-wider mt-0.5">SKU linked</p>
                                     )}
                                 </Td>
-                                <Td><p className="text-xs font-black text-[#B38B21]">{offerDisplay(t)}</p></Td>
-                                <Td><p className="text-xs text-white/50">{t.condition || <span className="text-white/20 italic">Pending</span>}</p></Td>
+                                <Td>
+                                    <p className="text-xs font-black text-[#B38B21]">
+                                        {(t as TradeRequest).estimated_value != null || t.estimatedValue
+                                            ? formatCurrency(Number((t as TradeRequest).estimated_value ?? t.estimatedValue))
+                                            : '—'}
+                                    </p>
+                                    {(t as TradeRequest).pricing_mode && (
+                                        <p className="text-[9px] text-white/30 mt-0.5">
+                                            {formatTradePricingModeLabel((t as TradeRequest).pricing_mode)}
+                                        </p>
+                                    )}
+                                </Td>
+                                <Td><p className="text-xs font-black text-white/80">{offerDisplay(t)}</p></Td>
                                 <Td><p className="text-[10px] text-white/30">{formatTradeDate(t.date)}</p></Td>
                                 <Td><Badge status={toTradeStatusLabel(t.status)} /></Td>
                                 <Td>
@@ -508,6 +581,11 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                 <Modal onClose={() => setSel(null)}>
                     <ModalClose onClose={() => setSel(null)} />
                     <div className="p-6">
+                        <AdminFlowBar
+                            steps={[...TRADE_ADMIN_WORKFLOW]}
+                            activeKey={getTradeWorkflowStage(sel.status)}
+                        />
+
                         <div className="flex items-start gap-3 mb-5">
                             <div className="w-10 h-10 bg-purple-500/10 rounded-xl flex items-center justify-center shrink-0">
                                 <Smartphone size={16} className="text-purple-400" />
@@ -523,6 +601,8 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                         <div className="grid grid-cols-2 gap-2 mb-4">
                             {[
                                 ['Device', sel.device],
+                                ['Type', (sel as TradeRequest).device_type === 'tablet' ? 'iPad' : (sel as TradeRequest).device_type === 'smartphone' ? 'iPhone' : '—'],
+                                ['Pricing', formatTradePricingModeLabel((sel as TradeRequest).pricing_mode)],
                                 ['Target', (sel as any).targetDevice || '—'],
                                 ['Description', (sel as any).userDescription || '—'],
                                 ['Preferred Date', (sel as any).preferredDate || '—'],
@@ -534,6 +614,15 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                     <p className="text-xs text-white font-bold break-words">{v}</p>
                                 </div>
                             ))}
+                            <div className="bg-black/40 rounded-xl p-2.5 col-span-2">
+                                <p className="text-[9px] text-white/30 uppercase tracking-widest mb-0.5">Pricing path</p>
+                                <p className="text-xs font-bold text-white">
+                                    {formatTradePricingModeLabel((sel as TradeRequest).pricing_mode)}
+                                </p>
+                                <p className="text-[9px] text-white/35 mt-1 leading-relaxed">
+                                    {tradePricingPathDescription((sel as TradeRequest).pricing_mode)}
+                                </p>
+                            </div>
                             {Boolean((sel as { target_product_id?: string }).target_product_id) && (
                                 <div className="bg-black/40 rounded-xl p-2.5 col-span-2">
                                     <p className="text-[9px] text-white/30 uppercase tracking-widest mb-0.5">Catalogue product</p>
@@ -543,6 +632,38 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                 </div>
                             )}
                         </div>
+
+                        {(sel as TradeRequest).base_trade_value != null && (
+                          <div className="bg-[#B38B21]/10 border border-[#B38B21]/20 rounded-xl p-3 mb-4 space-y-2">
+                            <p className="text-[9px] text-[#B38B21] uppercase tracking-widest">Customer estimate</p>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div>
+                                <span className="text-white/40">Base purchase</span>
+                                <p className="font-bold text-white">{formatCurrency(Number((sel as TradeRequest).base_trade_value))}</p>
+                              </div>
+                              <div>
+                                <span className="text-white/40">Est. credit</span>
+                                <p className="font-bold text-[#B38B21]">{formatCurrency(Number(sel.estimatedValue || sel.estimated_value))}</p>
+                              </div>
+                              {(sel as TradeRequest).top_up_amount != null && (
+                                <div className="col-span-2">
+                                  <span className="text-white/40">Top-up quoted</span>
+                                  <p className="font-bold text-white">{formatCurrency(Number((sel as TradeRequest).top_up_amount))}</p>
+                                </div>
+                              )}
+                            </div>
+                            {Array.isArray((sel as TradeRequest).deduction_breakdown) &&
+                              (sel as TradeRequest).deduction_breakdown!.length > 0 && (
+                                <ul className="text-[10px] text-white/50 space-y-0.5 pt-1 border-t border-white/10">
+                                  {(sel as TradeRequest).deduction_breakdown!.map((line) => (
+                                    <li key={line.key}>
+                                      {line.label} (−{line.percent}%): −{formatCurrency(line.amount)}
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                          </div>
+                        )}
 
                         {/* Approved offer */}
                         {showOfferReviewCard && (
@@ -662,8 +783,17 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                         <Send size={12} className="text-purple-400" /> Send offer after inspection
                                     </p>
                                     <p className="text-[9px] text-white/40 leading-relaxed">
-                                        Sending sets status to <span className="text-white/60">Offer sent</span> — inspection is recorded as done. The customer is notified and can accept or decline.
+                                        Compare with the customer estimate below after inspection. Sending sets status to Offer sent — the customer can accept or decline.
                                     </p>
+                                    {(sel as TradeRequest).estimated_value != null && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setOffer(String(Number((sel as TradeRequest).estimated_value ?? sel.estimatedValue)))}
+                                            className="text-[9px] font-black uppercase text-[#B38B21] hover:text-[#D4AF37]"
+                                        >
+                                            Use customer estimate ({formatCurrency(Number((sel as TradeRequest).estimated_value ?? sel.estimatedValue))})
+                                        </button>
+                                    )}
                                     <div>
                                         <label className="text-[9px] text-white/30 uppercase tracking-widest block mb-1">Set Condition (Admin Only)</label>
                                         <div className="flex flex-wrap gap-2">
@@ -705,6 +835,8 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                 </Modal>
             )}
 
+            <AdminTradePricingModal open={showPricingMgr} onClose={() => setShowPricingMgr(false)} />
+
             {/* Upgrade target picks (shop products shown on trade-in step 2) */}
             {showUpgradeMgr && (
                 <Modal onClose={() => setShowUpgradeMgr(false)} maxW="max-w-4xl">
@@ -712,7 +844,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                     <div className="p-6">
                         <h3 className="text-base font-black text-white mb-1">Manage upgrade picks</h3>
                         <p className="text-[10px] text-white/30 mb-4 leading-relaxed">
-                            Choose which catalogue products appear as &quot;upgrade to&quot; options in the customer trade-in flow (step 2). Order is preserved. Saves to this browser only; clear the list to fall back to iPhone / Laptop / Tablet / Gaming categories.
+                            Choose which iPhone and iPad catalogue products appear as &quot;upgrade to&quot; options in the customer trade-in flow (step 2). Order is preserved. Saves to this browser only; clear the list to show all eligible iPhone / iPad products.
                         </p>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-h-0">
                             <div className="flex flex-col min-h-0 border border-white/10 rounded-xl overflow-hidden bg-black/30">
@@ -761,7 +893,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                 </div>
                                 <div className="max-h-[48vh] overflow-y-auto p-2 space-y-1 flex-1">
                                     {upgradePickDraftIds.length === 0 ? (
-                                        <p className="text-[10px] text-white/30 p-3">Nothing selected — customers see the default category mix.</p>
+                                        <p className="text-[10px] text-white/30 p-3">Nothing selected — customers see all iPhone / iPad products.</p>
                                     ) : (
                                         upgradePickDraftIds.map((id, i) => {
                                             const p = productById.get(id);
@@ -835,7 +967,12 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                             />
                             <select
                                 value={newDevType}
-                                onChange={e => setNewDevType(e.target.value as TradeInCatalogDevice['deviceType'])}
+                                onChange={e => {
+                                    const next = e.target.value as TradeInCatalogDevice['deviceType'];
+                                    setNewDevType(next);
+                                    const allowed = getBrandsForDeviceType(next).map((b) => b.label);
+                                    if (!allowed.includes(newDevBrand)) setNewDevBrand('Other');
+                                }}
                                 className="bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:border-[#B38B21]/50 focus:outline-none"
                             >
                                 {TRADE_DEVICE_TYPE_OPTIONS.map(opt => (
@@ -847,7 +984,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                 onChange={e => setNewDevBrand(e.target.value)}
                                 className="bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:border-[#B38B21]/50 focus:outline-none"
                             >
-                                {TRADE_BRAND_OPTIONS.map(b => (
+                                {adminBrandOptions.map(b => (
                                     <option key={b} value={b}>{b}</option>
                                 ))}
                             </select>

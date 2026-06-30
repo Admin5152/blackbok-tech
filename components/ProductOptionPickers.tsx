@@ -25,6 +25,7 @@ export const ProductOptionPickers: React.FC<Props> = ({
   selectedOptions,
   onChange,
   showStockHints = true,
+  strictStock = false,
   className = '',
 }) => {
   const groups = groupsProp ?? getProductOptionGroups(product);
