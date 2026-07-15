@@ -603,6 +603,8 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                 ['Device', sel.device],
                                 ['Type', (sel as TradeRequest).device_type === 'tablet' ? 'iPad' : (sel as TradeRequest).device_type === 'smartphone' ? 'iPhone' : '—'],
                                 ['Pricing', formatTradePricingModeLabel((sel as TradeRequest).pricing_mode)],
+                                ['Storage', (sel as TradeRequest).storage_tier || '—'],
+                                ['SIM', (sel as TradeRequest).sim_variant || '—'],
                                 ['Target', (sel as any).targetDevice || '—'],
                                 ['Description', (sel as any).userDescription || '—'],
                                 ['Preferred Date', (sel as any).preferredDate || '—'],
@@ -657,7 +659,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                 <ul className="text-[10px] text-white/50 space-y-0.5 pt-1 border-t border-white/10">
                                   {(sel as TradeRequest).deduction_breakdown!.map((line) => (
                                     <li key={line.key}>
-                                      {line.label} (−{line.percent}%): −{formatCurrency(line.amount)}
+                                      {line.label}: −{formatCurrency(line.amount)}
                                     </li>
                                   ))}
                                 </ul>

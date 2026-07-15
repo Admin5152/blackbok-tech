@@ -259,9 +259,12 @@ export interface TradeInRequest {
   device_brand?: string;
   device_name?: string;
   device_type?: 'smartphone' | 'tablet';
-  pricing_mode?: 'matrix_estimate' | 'inspection_quote';
+  pricing_mode?: 'actual_pricing' | 'matrix_estimate' | 'inspection_quote';
+  storage_tier?: string;
+  sim_variant?: string;
+  needs_manual_review?: boolean;
   base_trade_value?: number;
-  deduction_breakdown?: Array<{ key: string; label: string; percent: number; amount: number }>;
+  deduction_breakdown?: Array<{ key: string; label: string; percent?: number; amount: number }>;
   component_flags?: string[];
   target_product_price?: number;
   top_up_amount?: number;

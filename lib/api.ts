@@ -1227,6 +1227,9 @@ const TRADE_DB_COLUMNS = new Set([
   'device_name',
   'device_type',
   'pricing_mode',
+  'storage_tier',
+  'sim_variant',
+  'needs_manual_review',
   'base_trade_value',
   'deduction_breakdown',
   'component_flags',
@@ -1276,6 +1279,9 @@ export const mapTradeFromDb = (t: any): TradeInRequest => {
     deduction_breakdown: t.deduction_breakdown ?? undefined,
     component_flags: t.component_flags ?? undefined,
     pricing_mode: t.pricing_mode ?? undefined,
+    storage_tier: t.storage_tier ?? undefined,
+    sim_variant: t.sim_variant ?? undefined,
+    needs_manual_review: t.needs_manual_review ?? undefined,
     device_type: t.device_type ?? undefined,
     adminNote: t.admin_notes,
     targetDevice: t.target_device,
@@ -1314,6 +1320,9 @@ const normalizeTradePayload = (updates: Record<string, any>, mode: 'insert' | 'u
     ['contactEmail', 'contact_email'],
     ['fulfillmentMethod', 'fulfillment_method'],
     ['adminNote', 'admin_notes'],
+    ['storageTier', 'storage_tier'],
+    ['simVariant', 'sim_variant'],
+    ['needsManualReview', 'needs_manual_review'],
   ];
   for (const [cam, snk] of camelToSnake) {
     if (normalized[cam] !== undefined && normalized[snk] === undefined) {

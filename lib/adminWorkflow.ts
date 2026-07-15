@@ -76,8 +76,11 @@ export function getTradeWorkflowStage(status?: string): TradeWorkflowStage {
 }
 
 export function tradePricingPathDescription(
-  mode?: 'matrix_estimate' | 'inspection_quote' | null,
+  mode?: 'actual_pricing' | 'matrix_estimate' | 'inspection_quote' | null,
 ): string {
+  if (mode === 'actual_pricing') {
+    return 'Customer received an exact quote (base purchase minus exact component faults). Confirm or adjust after physical inspection.';
+  }
   if (mode === 'matrix_estimate') {
     return 'Customer received a component-based estimate (base purchase minus faulty parts). Confirm or adjust after physical inspection.';
   }

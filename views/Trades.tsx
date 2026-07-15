@@ -24,15 +24,14 @@ import { FlowStepper } from '../components/FlowStepper';
 import { PageBackButton } from '../components/PageBackButton';
 import { BrandLogo } from '../components/BrandLogo';
 import { tradeHasValidOffer, tradeOfferAmount } from '../lib/tradeOffer';
+import { TRADE_COMPONENT_DEFS } from '../lib/tradeValuation';
+import { isTradeComponentKey, type TradeComponentKey } from '../lib/tradeComponentKeys';
 import {
-  getTradeComponentDefs,
   computeTopUpAmount,
   computeTradeValuation,
   resolveTradeModelKey,
-  isTradeComponentKey,
-  type TradeComponentKey,
 } from '../lib/tradeValuation';
-import { TRADE_PRICING_UPDATED_EVENT } from '../lib/tradePricingStore';
+import { TRADE_PRICING_UPDATED_EVENT, lookupDeductions } from '../lib/tradePricingStore';
 import { TRADE_FLOW_STEPS, formatTradeDeviceDisplayLabel, formatTradeDeviceNameForApi } from '../lib/tradeWizard';
 import { TradeValuationCard } from '../components/TradeValuationCard';
 import { ProductOptionPickers } from '../components/ProductOptionPickers';
@@ -45,6 +44,7 @@ import {
   productHasAnyStock,
   sortProductsStockFirst,
 } from '../lib/productOptions';
+import { getStorageTiersForModel, getSimVariantsForModel } from '../lib/tradePricingStore';
 
 interface TradesProps {
   products: Product[];
@@ -85,9 +85,11 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
   const [selectedDeviceType, setSelectedDeviceType] = useState('');
   const [selectedBrand, setSelectedBrand]           = useState('');
   const [customBrandName, setCustomBrandName]       = useState('');
-  const [customModelName, setCustomModelName]         = useState('');
+  const [customModelName, setCustomModelName]       = useState('');
   const [selectedDevice, setSelectedDevice]         = useState<typeof tradeDevices[0] | null>(null);
   const [selectedVariant, setSelectedVariant]       = useState('');
+  const [storageTier, setStorageTier]               = useState('');
+  const [simVariant, setSimVariant]                 = useState('');
   const [targetProductId, setTargetProductId]       = useState('');
   const [targetSelectedOptions, setTargetSelectedOptions] = useState<Record<string, string>>({});
   const [notes, setNotes]                           = useState('');
@@ -113,8 +115,6 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
   const tradesRestoreDone = useRef(false);
   const [upgradePicksRev, setUpgradePicksRev] = useState(0);
   const [tradePricingRev, setTradePricingRev] = useState(0);
-
-  const tradeComponentDefs = useMemo(() => getTradeComponentDefs(), [tradePricingRev]);
 
   // Scroll to active section on step/subStep change — mirrors Repair
   useEffect(() => {
@@ -193,6 +193,8 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
       if (dev) setSelectedDevice(dev);
     }
     if (typeof payload.selectedVariant === 'string') setSelectedVariant(payload.selectedVariant);
+    if (typeof payload.storageTier === 'string') setStorageTier(payload.storageTier);
+    if (typeof payload.simVariant === 'string') setSimVariant(payload.simVariant);
     if (typeof payload.targetProductId === 'string') {
       const restoredTarget = products.find((x) => x.id === payload.targetProductId);
       if (restoredTarget && isEligibleTradeUpgradeProduct(restoredTarget)) {
@@ -350,10 +352,20 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     [selectedVariant, customModelName, usesFreeTextModel],
   );
 
+  const availableStorageTiers = useMemo(() => getStorageTiersForModel(tradeModelKey), [tradeModelKey]);
+  const availableSimVariants = useMemo(() => getSimVariantsForModel(tradeModelKey), [tradeModelKey]);
+
+  useEffect(() => {
+    setStorageTier('');
+    setSimVariant('');
+  }, [tradeModelKey]);
+
   const tradeValuation = useMemo(
-    () => computeTradeValuation(tradeModelKey, faultyComponents),
-    [tradeModelKey, faultyComponents],
+    () => computeTradeValuation(tradeModelKey, storageTier, simVariant, faultyComponents),
+    [tradeModelKey, storageTier, simVariant, faultyComponents],
   );
+
+  const modelDeductions = useMemo(() => lookupDeductions(tradeModelKey), [tradeModelKey]);
 
   const targetProductPrice = targetProduct?.price ?? 0;
   const topUpAmount = useMemo(
@@ -509,6 +521,8 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
         customModelName,
         selectedDeviceId: selectedDevice?.id ?? null,
         selectedVariant,
+        storageTier,
+        simVariant,
         targetProductId,
         targetSelectedOptions,
         notes,
@@ -537,6 +551,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
       notify('Please type your specific model name.', 'error');
       return;
     }
+    if (!deviceDetails.serialNumber?.trim()) { notify('Please enter the Serial / IMEI number', 'error'); return; }
     if (!formData.name || !formData.email || !formData.phone) { notify('Please fill in all contact details', 'error'); return; }
     if (targetProduct) {
       if (!isEligibleTradeUpgradeProduct(targetProduct)) {
@@ -556,7 +571,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     try {
       const accessoriesList = Object.entries(accessories).filter(([,v]) => v).map(([k]) => k);
       const componentSummary = tradeValuation.deductions.length
-        ? `\nComponent deductions:\n${tradeValuation.deductions.map((d) => `- ${d.label} (${d.percent}%): -${d.amount}`).join('\n')}`
+        ? `\nComponent deductions:\n${tradeValuation.deductions.map((d) => `- ${d.label}: -${d.amount}`).join('\n')}`
         : '';
       const valuationSummary = tradeValuation.hasKnownBasePrice
         ? `\n[Estimate]\nBase purchase: ${tradeValuation.basePurchasePrice}\nDeductions: ${tradeValuation.totalDeductionAmount}\nFinal credit: ${tradeValuation.finalTradeValue}${targetProduct ? `\nTop-up: ${topUpAmount}` : ''}`
@@ -569,6 +584,8 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
         device_brand: resolvedBrand,
         device_type: selectedDeviceType as 'smartphone' | 'tablet',
         pricing_mode: tradeValuation.pricingMode,
+        storage_tier: storageTier || undefined,
+        sim_variant: simVariant || undefined,
         base_trade_value: tradeValuation.hasKnownBasePrice ? tradeValuation.basePurchasePrice : undefined,
         deduction_breakdown: tradeValuation.deductions,
         component_flags: Array.from(faultyComponents),
@@ -610,7 +627,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
       } as TradeRequest;
       setLastSubmittedTrade(newTrade);
       setTrades([newTrade, ...appTrades]);
-      notify("Trade-in request submitted! We'll review and send you an offer within 24 hours.", 'success');
+      notify("Trade-in request submitted! A final estimation will be carried out by the Black Box team and you will be notified soon.", 'success');
       go(5);
     } catch (err: any) {
       notify('Submission failed: ' + (err.message || 'Please try again'), 'error');
@@ -923,6 +940,38 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                           </div>
                         )}
 
+                        {selectedVariant && availableStorageTiers.length > 0 && (
+                          <div>
+                            <p className="text-xs font-black uppercase tracking-widest text-[#CDA032]/70 mb-3">Storage Capacity</p>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                              {availableStorageTiers.map(tier => (
+                                <button key={tier} onClick={() => setStorageTier(tier)}
+                                  className={`py-3 px-3 rounded-xl border text-xs font-bold text-center transition-all ${storageTier === tier
+                                    ? 'border-[#CDA032] bg-[#CDA032]/10 text-[#CDA032] ring-1 ring-[#CDA032]'
+                                    : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:border-[#CDA032]/40 opacity-70 hover:opacity-100'}`}>
+                                  {tier}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {selectedVariant && availableSimVariants.length > 0 && availableSimVariants.some(v => v && v !== 'Any' && v !== 'null') && (
+                          <div>
+                            <p className="text-xs font-black uppercase tracking-widest text-[#CDA032]/70 mb-3">SIM Type</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {availableSimVariants.filter(v => v && v !== 'Any' && v !== 'null').map(sim => (
+                                <button key={sim} onClick={() => setSimVariant(sim)}
+                                  className={`py-3 px-3 rounded-xl border text-xs font-bold text-center transition-all ${simVariant === sim
+                                    ? 'border-[#CDA032] bg-[#CDA032]/10 text-[#CDA032] ring-1 ring-[#CDA032]'
+                                    : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:border-[#CDA032]/40 opacity-70 hover:opacity-100'}`}>
+                                  {sim === 'Physical' ? 'Physical SIM' : sim === 'eSIM' ? 'eSIM Only' : sim}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
                         {/* Continue button */}
                         <div className="pt-2 border-t border-[var(--bb-border)]/50">
                           <button
@@ -932,6 +981,16 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                               if (variantNeedsCustomName && !customModelName.trim()) {
                                 notify('Please type your specific model name.', 'error');
                                 return;
+                              }
+                              if (!usesFreeTextModel && !variantNeedsCustomName) {
+                                if (availableStorageTiers.length > 0 && !storageTier) {
+                                  notify('Please select a storage capacity.', 'error');
+                                  return;
+                                }
+                                if (availableSimVariants.length > 0 && availableSimVariants.some(v => v && v !== 'Any' && v !== 'null') && !simVariant) {
+                                  notify('Please select a SIM type.', 'error');
+                                  return;
+                                }
                               }
                               go(2);
                             }}
@@ -1077,11 +1136,28 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                   </p>
                 </div>
 
+                {!usesFreeTextModel && availableSimVariants.length > 0 && availableSimVariants.some(v => v && v !== 'Any' && v !== 'null') && (
+                  <div className="space-y-3 p-5 rounded-3xl border border-[var(--bb-border)] bg-[var(--bb-surface-2)]">
+                    <p className="text-xs font-black uppercase tracking-widest text-[#CDA032]">SIM Type</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {availableSimVariants.filter(v => v && v !== 'Any' && v !== 'null').map(sim => (
+                        <button key={sim} onClick={() => setSimVariant(sim)}
+                          className={`py-3 px-3 rounded-xl border text-xs font-bold text-center transition-all ${simVariant === sim
+                            ? 'border-[#CDA032] bg-[#CDA032]/10 text-[#CDA032] ring-1 ring-[#CDA032]'
+                            : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:border-[#CDA032]/40 opacity-70 hover:opacity-100'}`}>
+                          {sim === 'Physical' ? 'Physical SIM' : sim === 'eSIM' ? 'eSIM Only' : sim}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-4 p-5 rounded-3xl border border-[var(--bb-border)] bg-[var(--bb-surface-2)]">
                   <p className="text-xs font-black uppercase tracking-widest text-[#CDA032]">Component checklist</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {tradeComponentDefs.map((comp) => {
+                    {TRADE_COMPONENT_DEFS.map((comp) => {
                       const selected = faultyComponents.has(comp.key);
+                      const deductionAmount = modelDeductions.get(comp.key) || 0;
                       return (
                         <button
                           key={comp.key}
@@ -1095,7 +1171,9 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                         >
                           <div className="flex w-full items-start justify-between gap-2 mb-1">
                             <span className={`text-xs font-bold ${selected ? 'text-[#CDA032]' : ''}`}>{comp.label}</span>
-                            <span className="text-[10px] font-black text-[#CDA032] shrink-0">−{comp.deductionPercent}%</span>
+                            {deductionAmount > 0 && (
+                              <span className="text-[10px] font-black text-[#CDA032] shrink-0">−{formatCurrency(deductionAmount)}</span>
+                            )}
                           </div>
                           <span className="text-[10px] opacity-60 leading-snug">{comp.description}</span>
                         </button>
@@ -1103,20 +1181,18 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                     })}
                   </div>
 
-                  {tradeModelKey && (
-                    <TradeValuationCard
-                      valuation={tradeValuation}
-                      targetPrice={targetProductPrice > 0 ? targetProductPrice : undefined}
-                      topUp={topUpAmount}
-                    />
-                  )}
+                  <TradeValuationCard
+                    valuation={tradeValuation}
+                    targetPrice={targetProductPrice > 0 ? targetProductPrice : undefined}
+                    topUp={topUpAmount}
+                  />
 
-                  <input type="text" placeholder="Serial / IMEI (Optional)"
+                  <input type="text" placeholder="Serial / IMEI *"
                     value={deviceDetails.serialNumber}
                     onChange={e => setDeviceDetails({ ...deviceDetails, serialNumber: e.target.value })}
                     className="w-full border border-[var(--bb-border)] rounded-2xl px-5 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />
 
-                  <textarea rows={2} placeholder="Anything else about cosmetic condition? (optional)"
+                  <textarea rows={2} placeholder="Anything else about cosmetic condition? "
                     value={deviceDetails.physicalDesc}
                     onChange={e => setDeviceDetails({ ...deviceDetails, physicalDesc: e.target.value })}
                     className="w-full border border-[var(--bb-border)] rounded-2xl px-5 py-3 text-sm bg-[var(--bb-surface)] outline-none resize-none" />
@@ -1167,6 +1243,12 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                   <h2 className="text-2xl font-bold tracking-tight">Anything else?</h2>
                   <p className="opacity-60 text-sm">Optional notes before you book your drop-off or pickup.</p>
                 </div>
+
+                <TradeValuationCard
+                  valuation={tradeValuation}
+                  targetPrice={targetProductPrice > 0 ? targetProductPrice : undefined}
+                  topUp={topUpAmount}
+                />
 
                 <div className="space-y-4">
                   <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)}
