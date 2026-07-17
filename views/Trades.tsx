@@ -23,6 +23,13 @@ import { formatCurrency } from '../lib/utils';
 import { FlowStepper } from '../components/FlowStepper';
 import { PageBackButton } from '../components/PageBackButton';
 import { BrandLogo } from '../components/BrandLogo';
+import { CategorySelectionGrid, type CategoryItem } from '../components/CategorySelectionGrid';
+import { IphoneSeriesSelector } from '../components/IphoneSeriesSelector';
+import {
+  buildAppleIphoneSeriesGroups,
+  getAppleIphoneModelsForSeries,
+  getOrderedAppleIphoneSeriesKeys,
+} from '../lib/repairAppleModels';
 import { tradeHasValidOffer, tradeOfferAmount } from '../lib/tradeOffer';
 import { TRADE_COMPONENT_DEFS } from '../lib/tradeValuation';
 import { isTradeComponentKey, type TradeComponentKey } from '../lib/tradeComponentKeys';
@@ -77,13 +84,14 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
   // step 3 = contact + schedule
   // step 4 = review & submit
   const [step, setStep]         = useState(1);
-  const [subStep, setSubStep]   = useState(1); // 1=deviceType, 2=brand, 3=model
+  const [subStep, setSubStep]   = useState(1); // 1=deviceType, 2=series (iPhone), 3=model
   const [tradePhase, setTradePhase] = useState<1 | 2 | 3>(1); // step 2: upgrade → condition → notes
   const [bookingPhase, setBookingPhase] = useState<1 | 2>(1); // step 3: schedule → contact
   const [transitionKey, setTransitionKey] = useState(0);
 
   const [selectedDeviceType, setSelectedDeviceType] = useState('');
   const [selectedBrand, setSelectedBrand]           = useState('');
+  const [selectedSeries, setSelectedSeries]         = useState('');
   const [customBrandName, setCustomBrandName]       = useState('');
   const [customModelName, setCustomModelName]       = useState('');
   const [selectedDevice, setSelectedDevice]         = useState<typeof tradeDevices[0] | null>(null);
@@ -182,9 +190,9 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
       setSelectedBrand('Apple');
     }
     if (typeof payload.subStep === 'number') {
-      const ss = payload.subStep === 2 ? 3 : payload.subStep;
-      if (ss >= 1 && ss <= 3) setSubStep(ss);
+      if (payload.subStep >= 1 && payload.subStep <= 3) setSubStep(payload.subStep);
     }
+    if (typeof payload.selectedSeries === 'string') setSelectedSeries(payload.selectedSeries);
     if (typeof payload.selectedBrand === 'string' && payload.selectedBrand) setSelectedBrand('Apple');
     if (typeof payload.customBrandName === 'string') setCustomBrandName(payload.customBrandName);
     if (typeof payload.customModelName === 'string') setCustomModelName(payload.customModelName);
@@ -254,13 +262,35 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     return false;
   }, [selectedBrand, isCatalogOtherBrand, devicesForBrand]);
 
+  const isIphoneCatalogFlow = selectedDeviceType === 'smartphone' && selectedBrand === 'Apple' && !usesFreeTextModel;
+
+  const iphoneCatalogDevice = useMemo(
+    () => (isIphoneCatalogFlow ? devicesForBrand.find((d) => d.id === 'iphone') ?? devicesForBrand[0] : null),
+    [isIphoneCatalogFlow, devicesForBrand],
+  );
+
+  const iphoneSeriesGroups = useMemo(() => {
+    if (!iphoneCatalogDevice?.variants) return {};
+    return buildAppleIphoneSeriesGroups(iphoneCatalogDevice.variants);
+  }, [iphoneCatalogDevice]);
+
+  const iphoneSeriesKeys = useMemo(
+    () => getOrderedAppleIphoneSeriesKeys(iphoneSeriesGroups),
+    [iphoneSeriesGroups],
+  );
+
+  const modelsForSelectedSeries = useMemo(() => {
+    if (!isIphoneCatalogFlow || !selectedSeries) return [];
+    return getAppleIphoneModelsForSeries(selectedSeries, iphoneSeriesGroups);
+  }, [isIphoneCatalogFlow, selectedSeries, iphoneSeriesGroups]);
+
   const variantNeedsCustomName = Boolean(
     selectedVariant && /^other(\s|$)/i.test(selectedVariant.trim()),
   );
 
   useEffect(() => {
-    if (subStep !== 3 || usesFreeTextModel || selectedDevice) return;
-    if (devicesForBrand.length === 1) {
+    if (usesFreeTextModel || selectedDevice) return;
+    if ((subStep === 2 || subStep === 3) && devicesForBrand.length === 1) {
       setSelectedDevice(devicesForBrand[0]);
     }
   }, [subStep, usesFreeTextModel, devicesForBrand, selectedDevice]);
@@ -295,6 +325,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     setSelectedDevice(null);
     setSelectedVariant('');
     setCustomModelName('');
+    setSelectedSeries('');
   };
 
   const clearBrandAndBelow = () => {
@@ -456,8 +487,22 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     setTransitionKey((k) => k + 1);
   };
 
-  /** Back from model step — keep type + brand, clear device line + variant. */
+  /** Back from model step — iPhone: series; iPad / free-text: device type. */
   const backFromModelStep = () => {
+    setSelectedVariant('');
+    setCustomModelName('');
+    if (isIphoneCatalogFlow) {
+      setSubStep(2);
+    } else {
+      clearDeviceLinePicks();
+      setSubStep(1);
+    }
+    setTransitionKey((k) => k + 1);
+  };
+
+  /** Back from series step — keep device type, clear series + model picks. */
+  const backFromSeriesStep = () => {
+    setSelectedSeries('');
     clearDeviceLinePicks();
     setSubStep(1);
     setTransitionKey((k) => k + 1);
@@ -465,13 +510,27 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
 
   /** Same category + brand; clear only device line + variant (re-pick model). */
   const reopenModelPickerKeepTypeAndBrand = () => {
-    clearDeviceLinePicks();
+    setSelectedVariant('');
+    setCustomModelName('');
     setSubStep(3);
     setTransitionKey((k) => k + 1);
   };
 
-  /** Change on device-type summary — model step: new device/variant only. Brand step: new category only (keeps type). Else: full category re-pick from type grid. */
+  /** Re-pick series (iPhone catalog flow). */
+  const reopenSeriesPicker = () => {
+    setSelectedSeries('');
+    setSelectedVariant('');
+    setCustomModelName('');
+    setSubStep(2);
+    setTransitionKey((k) => k + 1);
+  };
+
+  /** Change on device-type summary — model step: new series or model; else full category re-pick. */
   const changeDeviceTypeSection = () => {
+    if (subStep === 3 && isIphoneCatalogFlow) {
+      reopenSeriesPicker();
+      return;
+    }
     if (subStep === 3 && selectedDeviceType && selectedBrand) {
       reopenModelPickerKeepTypeAndBrand();
       return;
@@ -485,11 +544,18 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
   const reopenDeviceWizardFromLaterStep = () => {
     setStep(1);
     if (selectedDeviceType && selectedBrand) {
-      clearDeviceLinePicks();
-      setSubStep(3);
+      setSelectedVariant('');
+      setCustomModelName('');
+      if (isIphoneCatalogFlow && selectedSeries) {
+        setSubStep(3);
+      } else if (isIphoneCatalogFlow) {
+        setSubStep(2);
+      } else {
+        setSubStep(3);
+      }
     } else if (selectedDeviceType) {
       clearBrandAndBelow();
-      setSubStep(2);
+      setSubStep(1);
     } else {
       setSelectedDeviceType('');
       clearBrandAndBelow();
@@ -517,6 +583,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
         transitionKey,
         selectedDeviceType,
         selectedBrand,
+        selectedSeries,
         customBrandName,
         customModelName,
         selectedDeviceId: selectedDevice?.id ?? null,
@@ -724,9 +791,8 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
 
             {/* ══════════════════════════════════════
                 STEP 1 — Device selection
-                Mirrors Repair's Step 1 sub-step structure:
                   subStep 1 = device type cards
-                  subStep 2 = brand image cards
+                  subStep 2 = iPhone series (smartphone only)
                   subStep 3 = model selection with preview
             ══════════════════════════════════════ */}
 
@@ -752,46 +818,70 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                       type="button"
                       onClick={changeDeviceTypeSection}
                       className="text-sm font-bold text-blue-500 hover:text-blue-400"
-                      title={subStep === 3 ? 'Pick a different device category' : 'Change category (keeps your current type selected until you pick again)'}
+                      title={subStep >= 3 ? 'Pick a different device category' : 'Change category (keeps your current type selected until you pick again)'}
                     >
-                      {subStep === 3 ? 'Change category' : 'Change'}
+                      {subStep >= 3 ? 'Change category' : 'Change'}
                     </button>
                   </div>
                 ) : subStep === 1 && (
-                  <div className="space-y-4">
-                    <h2 className="text-2xl font-bold tracking-tight">What are you trading in?</h2>
-                    <p className="opacity-60 text-sm">BlackBox trade-ins are limited to Apple iPhone and iPad devices.</p>
-                    <div className="grid grid-cols-2 gap-3 sm:gap-4 max-w-lg">
-                      {DEVICE_TYPES.map(type => (
-                        <button key={type.id}
-                          onClick={() => {
-                            setSelectedDeviceType(type.id);
-                            setSelectedBrand('Apple');
-                            clearDeviceLinePicks();
-                            setSubStep(3);
-                          }}
-                          className={`flex flex-col items-center justify-center p-6 sm:p-8 rounded-3xl border transition-all duration-300 ${selectedDeviceType === type.id
-                            ? 'bg-[#CDA032]/10 border-[#CDA032] shadow-[0_0_30px_rgba(205,160,50,0.15)] ring-1 ring-[#CDA032]'
-                            : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:bg-[var(--bb-surface-2)] hover:border-[#CDA032]/40'}`}
-                        >
-                          <type.icon size={36} strokeWidth={1.5}
-                            className={`mb-4 transition-colors ${selectedDeviceType === type.id ? 'text-[#CDA032]' : 'opacity-60'}`} />
-                          <span className={`text-sm sm:text-base font-bold transition-colors ${selectedDeviceType === type.id ? 'text-[#CDA032]' : 'opacity-90'}`}>
-                            {type.label}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  <CategorySelectionGrid
+                    items={DEVICE_TYPES.map(type => ({
+                      id: type.id,
+                      name: type.label,
+                      imageUrl: type.id === 'smartphone' ? '/iphone_modern.png' : '/iphone_modern.png',
+                      isSelected: selectedDeviceType === type.id,
+                    }))}
+                    breadcrumb="TRADE-IN"
+                    title="Select your device type"
+                    helpUrl="https://support.apple.com/en-us/108044"
+                    helpText="Help identify your device →"
+                    onSelect={(item) => {
+                      setSelectedDeviceType(item.id as 'smartphone' | 'tablet');
+                      setSelectedBrand('Apple');
+                      clearDeviceLinePicks();
+                      setSubStep(item.id === 'smartphone' ? 2 : 3);
+                    }}
+                    isLight={theme === 'light'}
+                  />
                 )}
 
-                {/* ── subStep 1c: Model (Apple iPhone / iPad only) ── */}
-                {subStep === 3 && (
+                {/* ── subStep 2: iPhone Series ── */}
+                {isIphoneCatalogFlow && (
+                  subStep > 2 ? (
+                    <div className="flex justify-between items-center py-5 border-b border-[var(--bb-border)] animate-in fade-in">
+                      <h3 className="text-lg font-bold">{selectedSeries}</h3>
+                      <button
+                        type="button"
+                        onClick={reopenSeriesPicker}
+                        className="text-sm font-bold text-blue-500 hover:text-blue-400"
+                      >
+                        Change
+                      </button>
+                    </div>
+                  ) : subStep === 2 && (
+                    <IphoneSeriesSelector
+                      seriesKeys={iphoneSeriesKeys}
+                      breadcrumb="TRADE-IN"
+                      subtitle={resolvedBrand}
+                      selectedSeries={selectedSeries}
+                      onBack={backFromSeriesStep}
+                      onSelect={(series) => {
+                        setSelectedSeries(series);
+                        setSubStep(3);
+                      }}
+                      isLight={theme === 'light'}
+                    />
+                  )
+                )}
+
+                {/* ── subStep 3: Model (Apple iPhone / iPad only) ── */}
+                {subStep === 3 && (!isIphoneCatalogFlow || selectedSeries) && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300 pt-4">
                     <div className="flex items-end justify-between gap-4 flex-wrap">
                       <div className="space-y-1">
                         <p className="text-xs font-black uppercase tracking-widest text-[#CDA032] opacity-70">
                           {DEVICE_TYPES.find(d => d.id === selectedDeviceType)?.label} · {resolvedBrand}
+                          {isIphoneCatalogFlow && selectedSeries ? ` · ${selectedSeries}` : ''}
                         </p>
                         <h2 className="text-2xl font-bold tracking-tight">
                           {usesFreeTextModel ? 'Enter your device model' : 'Select your device & model'}
@@ -907,7 +997,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                             <p className="text-xs font-black uppercase tracking-widest text-[#CDA032]/70 mb-3">Select Model</p>
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[400px] overflow-y-auto pr-1"
                               style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(205,160,50,0.3) transparent' }}>
-                              {selectedDevice.variants.map(v => (
+                              {((isIphoneCatalogFlow ? modelsForSelectedSeries : selectedDevice.variants) ?? []).map(v => (
                                 <button key={v} onClick={() => { setSelectedVariant(v); if (!/^other(\s|$)/i.test(v.trim())) setCustomModelName(''); }}
                                   className={`relative py-3 px-3 rounded-xl border text-xs font-bold text-left transition-all ${selectedVariant === v
                                     ? 'border-[#CDA032] bg-[#CDA032]/10 text-[#CDA032] ring-1 ring-[#CDA032]'
@@ -1589,6 +1679,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                       setSubStep(1);
                       setSelectedDeviceType('');
                       setSelectedBrand('');
+                      setSelectedSeries('');
                       setSelectedDevice(null);
                       setSelectedVariant('');
                       setTargetProductId('');

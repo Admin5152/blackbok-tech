@@ -25,10 +25,13 @@ import {
 import { buildRepairDeviceFields, PRICING_MODE } from '../lib/repairDeviceTypes';
 import {
   buildAppleIphoneSeriesGroups,
+  getAppleIphoneModelsForSeries,
   getIphoneModelImage,
+  getOrderedAppleIphoneSeriesKeys,
   isAppleIphoneRepairFlow,
   repairModelPickerSubStep,
 } from '../lib/repairAppleModels';
+import { IphoneSeriesSelector } from '../components/IphoneSeriesSelector';
 import {
   formatRepairEstimateDisplay,
   sumRepairMatrixTotal,
@@ -477,6 +480,11 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
     [isAppleIphoneFlow, modelOptions],
   );
 
+  const appleSeriesKeys = useMemo(
+    () => getOrderedAppleIphoneSeriesKeys(appleSeriesGroups),
+    [appleSeriesGroups],
+  );
+
   const availableIssues = React.useMemo(() => {
     const base = getIssuesForDevice(formData.deviceType, formData.brand);
     if (usesApplePricing) {
@@ -695,51 +703,16 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                       </button>
                     </div>
                   ) : subStep === 3 && (
-                    <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300 pt-4">
-                      <div className="flex items-end justify-between gap-4 flex-wrap">
-                        <div className="space-y-1">
-                          <p className="text-xs font-black uppercase tracking-widest text-[#CDA032] opacity-70">
-                            {deviceTypes.find(d => d.id === formData.deviceType)?.label} · {formData.brand}
-                          </p>
-                          <h2 className="text-2xl font-bold tracking-tight">Select your iPhone series</h2>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <button onClick={() => setSubStep(2)} className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-white/40 hover:text-[#CDA032] transition-colors">
-                            <ArrowLeft size={14} /> Back
-                          </button>
-                          <a
-                            href="https://support.apple.com/en-us/108044"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs sm:text-sm font-black text-blue-500 hover:text-blue-400 hover:underline flex items-center gap-1 transition-colors shrink-0 px-3 py-1.5 rounded-full bg-blue-500/10"
-                          >
-                            Help identify your model →
-                          </a>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 content-start pr-1">
-                        {Object.keys(appleSeriesGroups).reverse().map(series => {
-                          const img = getIphoneModelImage(series);
-
-                          return (
-                            <button key={series}
-                              onClick={() => {
-                                setSelectedSeries(series);
-                                setSubStep(4);
-                              }}
-                              className={`relative flex flex-col items-center justify-center gap-3 p-4 pt-5 rounded-2xl border transition-all duration-200 group border-[var(--bb-border)] bg-[var(--bb-surface)] hover:bg-[var(--bb-surface-2)] hover:border-[#CDA032]/40 hover:shadow-[0_0_16px_rgba(205,160,50,0.1)]`}
-                            >
-                              <img src={img} alt={series}
-                                className="h-16 w-auto object-contain transition-all duration-200 opacity-60 group-hover:opacity-90 group-hover:scale-105" />
-                              <div className="text-center">
-                                <p className="text-[13px] font-black">{series}</p>
-                                <p className="text-[9px] opacity-40 uppercase tracking-widest mt-1 group-hover:text-[#CDA032] group-hover:opacity-100 transition-colors">Select Models</p>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
+                    <IphoneSeriesSelector
+                      seriesKeys={appleSeriesKeys}
+                      breadcrumb={`${deviceTypes.find(d => d.id === formData.deviceType)?.label} · ${formData.brand}`}
+                      onBack={() => setSubStep(2)}
+                      onSelect={(series) => {
+                        setSelectedSeries(series);
+                        setSubStep(4);
+                      }}
+                      isLight={theme === 'light'}
+                    />
                   )
                 )}
                 {/* 1d: Model Selection */}
@@ -805,12 +778,9 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                         <div className="flex-1 flex flex-col gap-4">
                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 content-start max-h-[520px] overflow-y-auto pr-1"
                             style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(205,160,50,0.3) transparent' }}>
-                            {[...appleSeriesGroups[selectedSeries]].reverse().map(model => {
+                            {getAppleIphoneModelsForSeries(selectedSeries, appleSeriesGroups).map(model => {
                               const selected = formData.model === model;
-                              const num = parseInt(model.replace(/\D/g, '')) || 0;
-                              const hasHome = num <= 8 || model.includes('SE');
-                              const hasDI = num >= 14;
-                              const img = hasHome ? '/iphone_classic.png' : hasDI ? '/iphone_modern.png' : '/iphone_notch.png';
+                              const img = getIphoneModelImage(model);
 
                               return (
                                 <button key={model}
