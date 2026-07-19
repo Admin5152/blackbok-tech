@@ -1,3 +1,17 @@
+import {
+  buildAppleIphoneSeriesGroups,
+  getAllAppleIphoneCatalogModels,
+  getAppleIphoneModelsForSeries,
+  getOrderedAppleIphoneSeriesKeys,
+} from '../data/appleIphoneCatalog';
+
+export {
+  buildAppleIphoneSeriesGroups,
+  getAllAppleIphoneCatalogModels,
+  getAppleIphoneModelsForSeries,
+  getOrderedAppleIphoneSeriesKeys,
+};
+
 /** True when the repair wizard uses the Apple iPhone series + matrix model picker. */
 export function isAppleIphoneRepairFlow(deviceType: string, brand: string): boolean {
   return brand.trim() === 'Apple' && deviceType === 'smartphone';
@@ -14,17 +28,4 @@ export function getIphoneModelImage(modelOrSeries: string): string {
   if (num <= 8 || /SE/i.test(modelOrSeries)) return '/iphone_classic.png';
   if (num >= 14) return '/iphone_modern.png';
   return '/iphone_notch.png';
-}
-
-export function buildAppleIphoneSeriesGroups(models: string[]): Record<string, string[]> {
-  const groups: Record<string, string[]> = {};
-  for (const model of models) {
-    const match = model.match(/iPhone (\d+|X[sr]?|SE)/i);
-    let series = match ? match[0] : 'Other iPhones';
-    if (series.startsWith('iPhone X')) series = 'iPhone X Series';
-    if (series.startsWith('iPhone 6')) series = 'iPhone 6 Series';
-    if (!groups[series]) groups[series] = [];
-    groups[series].push(model);
-  }
-  return groups;
 }
