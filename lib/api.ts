@@ -326,9 +326,121 @@ export const updateProduct = async (id: string, updates: Partial<Product>) => {
   return mapped;
 };
 
-export const deleteProduct = async (id: string) => {
-  const { error } = await supabase.from('products').delete().eq('id', id);
-  if (error) throw error;
+/**
+ * Permanently remove a product when safe; otherwise archive it.
+ *
+ * WHY: Past orders / inventory rows often block hard delete (FK). Staff still
+ * need a working “Delete” — archive hides it from the shop in that case.
+ * Also `.delete()` with RLS can succeed with 0 rows; we `.select()` to verify.
+ */
+export type DeleteProductResult =
+  | { mode: 'deleted' }
+  | { mode: 'archived'; reason: string };
+
+export const deleteProduct = async (id: string): Promise<DeleteProductResult> => {
+  const pid = String(id || '').trim();
+  if (!pid) throw new Error('Product id is required.');
+
+  // Best-effort cleanup of catalog children (safe if CASCADE already exists)
+  await supabase.from('product_images').delete().eq('product_id', pid);
+  await supabase.from('product_variants').delete().eq('product_id', pid);
+  await supabase.from('cart_items').delete().eq('product_id', pid);
+  await supabase.from('wishlist_items').delete().eq('product_id', pid);
+
+  // Detach from trades that pointed at this upgrade product
+  try {
+    await supabase
+      .from('trade_in_requests')
+      .update({ target_product_id: null, target_variant_id: null })
+      .eq('target_product_id', pid);
+  } catch {
+    try {
+      await supabase
+        .from('trade_in_requests')
+        .update({ target_product_id: null })
+        .eq('target_product_id', pid);
+    } catch {
+      /* non-fatal */
+    }
+  }
+
+  // Remove from upgrade-target allowlist if present
+  try {
+    const { data: cfg } = await supabase
+      .from('trade_config')
+      .select('value')
+      .eq('key', 'upgrade_target_product_ids')
+      .maybeSingle();
+    const raw = cfg?.value;
+    if (raw) {
+      let ids: string[] = [];
+      try {
+        const parsed = JSON.parse(String(raw));
+        if (Array.isArray(parsed)) ids = parsed.map(String);
+      } catch {
+        ids = String(raw)
+          .split(/[,\s]+/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+      const next = ids.filter((x) => x !== pid);
+      if (next.length !== ids.length) {
+        await supabase
+          .from('trade_config')
+          .update({ value: JSON.stringify(next) })
+          .eq('key', 'upgrade_target_product_ids');
+      }
+    }
+  } catch {
+    /* non-fatal */
+  }
+
+  const { data: removed, error } = await supabase
+    .from('products')
+    .delete()
+    .eq('id', pid)
+    .select('id');
+
+  if (!error && removed && removed.length > 0) {
+    void appendAuditNote('products', pid, 'Deleted product');
+    return { mode: 'deleted' };
+  }
+
+  if (error && !/foreign key|23503|still referenced|violates foreign key/i.test(error.message || '')) {
+    throw error;
+  }
+
+  // FK from order history (or RLS silent no-op) → archive instead
+  const { data: archived, error: archErr } = await supabase
+    .from('products')
+    .update({ status: 'archived', featured: false, stock: 0 })
+    .eq('id', pid)
+    .select('id')
+    .maybeSingle();
+
+  if (archErr) {
+    throw new Error(
+      error?.message ||
+        archErr.message ||
+        'Could not delete this product. Check you are signed in as staff/admin.',
+    );
+  }
+  if (!archived) {
+    throw new Error(
+      'Could not delete this product. You may not have permission (staff/admin role required), or it was already removed.',
+    );
+  }
+
+  void appendAuditNote(
+    'products',
+    pid,
+    'Archived product (permanent delete blocked by linked records)',
+  );
+  return {
+    mode: 'archived',
+    reason:
+      'This product is linked to past orders or other records, so it was archived (hidden from the shop) instead of permanently deleted.',
+  };
 };
 
 export type SkuVariantInput = {

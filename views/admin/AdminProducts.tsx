@@ -12,6 +12,7 @@ import {
     syncProductVariants, clearProductVariants, addProductImage,
     appendAuditNote, type SkuVariantInput,
 } from '../../lib/api';
+import { ConfirmDeleteDialog } from '../../components/ConfirmDeleteDialog';
 import {
     parseSkuVariants,
     skuMatrixEnabledForProduct,
@@ -28,6 +29,7 @@ import type { SkuMatrixRow } from '../../lib/productSkuMatrix';
 import { AdminProductForm, PRODUCT_CATEGORIES, PRODUCT_CONDITIONS, PRODUCT_STATUSES, type ProductDraft } from './AdminProductForm';
 import type { Product } from '../../types';
 import { formatCurrency } from '../../lib/utils';
+import { useAppContext } from '../../lib/appContext';
 
 interface Props { canEdit?: boolean; theme?: 'light' | 'dark'; }
 
@@ -108,11 +110,14 @@ function parseCsvText(text: string): CsvPreviewRow[] {
 }
 
 export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' }) => {
+    const { notify } = useAppContext();
     const isLight = theme === 'light';
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState('');
     const [saving, setSaving] = useState(false);
+    const [pendingDelete, setPendingDelete] = useState<Product | null>(null);
+    const [deleting, setDeleting] = useState(false);
     const [q, setQ] = useState('');
     const [catFilter, setCatFilter] = useState('All');
     const [statusFilter, setStatusFilter] = useState('All');
@@ -216,15 +221,30 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
         setError(''); setShowForm(true);
     };
 
-    const del = async (id: string) => {
-        if (!confirm('Delete this product?')) return;
+    const requestDelete = (p: Product) => {
+        setPendingDelete(p);
+    };
+
+    const confirmDelete = async () => {
+        if (!pendingDelete) return;
+        setDeleting(true);
         try {
-            await deleteProduct(id);
-            void appendAuditNote('products', id, 'Deleted product');
+            const result = await deleteProduct(pendingDelete.id);
             await load({ silent: true });
             window.dispatchEvent(new CustomEvent('products:refresh'));
+            setPendingDelete(null);
+            if (result.mode === 'archived') {
+                notify?.(result.reason, 'warning');
+            } else {
+                notify?.(`Deleted “${pendingDelete.name}”.`, 'success');
+            }
         } catch (e) {
-            alert('Delete failed: ' + (e instanceof Error ? e.message : String(e)));
+            notify?.(
+                'Delete failed: ' + (e instanceof Error ? e.message : String(e)),
+                'error',
+            );
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -679,7 +699,17 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                                     <Td>
                                         <div className="flex items-center gap-2">
                                             <button type="button" onClick={() => openEdit(p)} className={`p-1.5 rounded-lg transition-all ${isLight ? 'bg-black/5 text-black/40 hover:text-[#B38B21]' : 'bg-white/5 hover:bg-[#B38B21]/20 text-white/30 hover:text-[#B38B21]'}`}><Edit2 size={12} /></button>
-                                            <button type="button" onClick={() => void del(p.id)} className={`p-1.5 rounded-lg transition-all ${isLight ? 'bg-black/5 text-black/40 hover:text-red-500' : 'bg-white/5 hover:bg-red-500/20 text-white/30 hover:text-red-400'}`}><Trash2 size={12} /></button>
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                requestDelete(p);
+                                              }}
+                                              title="Delete product"
+                                              className={`p-1.5 rounded-lg transition-all ${isLight ? 'bg-black/5 text-black/40 hover:text-red-500' : 'bg-white/5 hover:bg-red-500/20 text-white/30 hover:text-red-400'}`}
+                                            >
+                                              <Trash2 size={12} />
+                                            </button>
                                         </div>
                                     </Td>
                                 )}
@@ -793,6 +823,20 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                     </div>
                 </Modal>
             )}
+
+            <ConfirmDeleteDialog
+                open={pendingDelete != null}
+                title="Delete product?"
+                message={
+                    pendingDelete
+                        ? `Permanently delete “${pendingDelete.name}”? If it appears on past orders, it will be archived (hidden from the shop) instead.`
+                        : ''
+                }
+                requireTypedDelete
+                busy={deleting}
+                onCancel={() => !deleting && setPendingDelete(null)}
+                onConfirm={() => void confirmDelete()}
+            />
         </div>
     );
 };
