@@ -18,6 +18,7 @@ import type { DeletionPreview } from '../lib/accountDeletionGuards';
 import { DeleteAccountModal } from '../components/DeleteAccountModal';
 import AuthService from '../lib/auth';
 import { updateUserProfile } from '../lib/api';
+import { friendlyError } from '../lib/friendlyErrors';
 import {
   customerStatusBadgeClasses,
   formatCustomerStatusShort,
@@ -186,8 +187,8 @@ export const Profile: React.FC<ProfileProps> = ({
         avatarLetter: letter,
       });
       notify?.('Display name saved.', 'success');
-    } catch (e: any) {
-      setSettingsErr(e?.message || 'Could not save name.');
+    } catch (e: unknown) {
+      setSettingsErr(friendlyError(e, 'save your display name'));
     } finally {
       setNameSaving(false);
     }
@@ -255,8 +256,8 @@ export const Profile: React.FC<ProfileProps> = ({
       } else {
         setDeleteError(result.error || 'Failed to delete account');
       }
-    } catch (error: any) {
-      setDeleteError(error.message || 'An unexpected error occurred');
+    } catch (error: unknown) {
+      setDeleteError(friendlyError(error, 'delete your account'));
     } finally {
       setIsDeleting(false);
     }
@@ -281,7 +282,7 @@ export const Profile: React.FC<ProfileProps> = ({
       setShowDeleteModal(true);
     } catch (error) {
       console.error('Error preparing delete account:', error);
-      notify?.('Something went wrong. Try again.', 'error');
+      notify?.(friendlyError(error, 'start account deletion'), 'error');
     }
   };
 

@@ -2,9 +2,11 @@
  * Friendly trade / inventory / RLS error mapping for customer + staff UI.
  *
  * WHY: PostgREST and Postgres raise opaque codes (42501, unique_violation).
- * Never show blank screens — always return a readable string from tradeCopy.
+ * Never show blank screens — always return a readable string from tradeCopy,
+ * falling through to the shared friendlyError mapper.
  */
 import { TRADE_COPY } from './tradeCopy';
+import { friendlyError } from './friendlyErrors';
 
 export function tradeFriendlyError(e: unknown): string {
   const err = e as {
@@ -35,6 +37,10 @@ export function tradeFriendlyError(e: unknown): string {
     return TRADE_COPY.errors.duplicateImei;
   }
 
+  const mapped = friendlyError(e, 'submit your trade-in');
+  if (mapped && !/^Could not submit your trade-in\. Please try again/i.test(mapped)) {
+    return mapped;
+  }
   const msg = [err?.message, err?.details, err?.hint].filter(Boolean).join(' — ');
   return msg || TRADE_COPY.errors.generic;
 }
@@ -59,7 +65,5 @@ export function staffTradeError(e: unknown): string {
   if (isOutOfStockCompletionError(e)) return TRADE_COPY.errors.outOfStock;
   const friendly = tradeFriendlyError(e);
   if (friendly !== TRADE_COPY.errors.generic) return friendly;
-  const err = e as { message?: string; details?: string; hint?: string };
-  const parts = [err?.message, err?.details, err?.hint].filter(Boolean);
-  return parts.join(' — ') || TRADE_COPY.errors.generic;
+  return friendlyError(e, 'save this trade update');
 }

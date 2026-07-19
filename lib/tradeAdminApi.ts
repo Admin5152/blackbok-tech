@@ -12,6 +12,8 @@ import { supabase } from './supabase';
 import { mapTradeFromDb, updateTradeRequest } from './api';
 import { invalidateTradePricing } from './tradePricingStore';
 import { invalidateTradeCatalogCache } from './tradeCatalogCache';
+import { TRADE_COPY } from './tradeCopy';
+import { friendlyError } from './friendlyErrors';
 import { staffTradeError } from './tradeErrors';
 import type { TradeInRequest } from '../types';
 import type {
@@ -49,9 +51,11 @@ export interface AuditLogFilters {
   limit?: number;
 }
 
-/** Surface PostgREST / constraint text; maps OOS / RLS via tradeErrors. */
-export function tradeAdminErrorMessage(e: unknown): string {
-  return staffTradeError(e);
+/** Surface PostgREST / constraint text in plain English for staff UI. */
+export function tradeAdminErrorMessage(e: unknown, action = 'save'): string {
+  const staff = staffTradeError(e);
+  if (staff && staff !== TRADE_COPY.errors.generic) return staff;
+  return friendlyError(e, action);
 }
 
 /** Pricing store + accept-catalog memory after staff edits. */

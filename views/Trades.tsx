@@ -38,6 +38,8 @@ import {
   tradeNeedsOfferResponse,
 } from '../lib/tradeOfferRespond';
 import { TRADE_COPY } from '../lib/tradeCopy';
+import { tradeFriendlyError } from '../lib/tradeErrors';
+import { friendlyError } from '../lib/friendlyErrors';
 import { TRADE_COMPONENT_DEFS } from '../lib/tradeValuation';
 import { isTradeComponentKey, type TradeComponentKey } from '../lib/tradeComponentKeys';
 import {
@@ -706,8 +708,8 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
       setTrades([newTrade, ...appTrades]);
       notify("Trade-in request submitted! A final estimation will be carried out by the Black Box team and you will be notified soon.", 'success');
       go(5);
-    } catch (err: any) {
-      notify('Submission failed: ' + (err.message || 'Please try again'), 'error');
+    } catch (err: unknown) {
+      notify(tradeFriendlyError(err), 'error');
     } finally {
       setSubmitting(false);
     }
@@ -721,7 +723,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     }
     const result = await respondToTradeOffer(row, accept);
     if (!result.ok || !result.status) {
-      notify(result.error || 'Failed to update. Please try again.', 'error');
+      notify(result.error ? friendlyError(result.error, 'respond to this offer') : 'Could not update this offer. Please try again.', 'error');
       return;
     }
     setTrades(patchTradeStatusInList(appTrades, tradeId, result.status));

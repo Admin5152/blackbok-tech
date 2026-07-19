@@ -20,7 +20,9 @@ import {
   setPrimaryProductImage,
   deleteProductImage,
   setProductImageVariant,
+  friendlyProductActionError,
 } from '../../lib/api';
+import { friendlyError } from '../../lib/friendlyErrors';
 import {
   PRODUCT_CATEGORIES,
   PRODUCT_CONDITIONS,
@@ -179,6 +181,7 @@ export const AdminProductForm: React.FC<Props> = ({
         if (!cancelled) setTradeDevices(devices);
       } catch (e) {
         console.warn('getTradeDevices failed:', e);
+        setTradeDevices([]);
       }
     })();
     return () => {
@@ -271,7 +274,7 @@ export const AdminProductForm: React.FC<Props> = ({
         });
       }
     } catch (e) {
-      setImgError(e instanceof Error ? e.message : 'Upload failed');
+      setImgError(friendlyError(e, 'upload this image'));
     } finally {
       setImgBusy(false);
     }
@@ -290,7 +293,7 @@ export const AdminProductForm: React.FC<Props> = ({
           images: gallery.map((g) => ({ ...g, is_primary: g.id === imageId })),
         });
       } catch (e) {
-        setImgError(e instanceof Error ? e.message : 'Could not set primary');
+        setImgError(friendlyError(e, 'set the main image'));
       } finally {
         setImgBusy(false);
       }
@@ -309,7 +312,7 @@ export const AdminProductForm: React.FC<Props> = ({
       try {
         await deleteProductImage(imageId, draft.id);
       } catch (e) {
-        setImgError(e instanceof Error ? e.message : 'Delete failed');
+        setImgError(friendlyProductActionError(e, 'delete'));
         return;
       }
     }
@@ -339,7 +342,7 @@ export const AdminProductForm: React.FC<Props> = ({
         await setProductImageVariant(imageId, nextVid);
       } catch (e) {
         console.warn('variant_id assign failed:', e);
-        setImgError(e instanceof Error ? e.message : 'Could not assign variant');
+        setImgError(friendlyError(e, 'link this image to a stock version'));
       }
     }
   };

@@ -18,6 +18,7 @@ import { useAppContext } from '../App';
 import { CartItem, Order, User } from '../types';
 import { formatCurrency } from '../lib/utils';
 import { clearCartItems, updateProfilePhone } from '../lib/api';
+import { friendlyError } from '../lib/friendlyErrors';
 import AuthService from '../lib/auth';
 import { OrderCompletePopup } from '../components/OrderCompletePopup';
 import { CouponInput } from '../components/checkout/CouponInput';
@@ -469,11 +470,7 @@ export const Checkout: React.FC = () => {
       notify('Order placed successfully!', 'success');
     } catch (error: unknown) {
       console.error('Error placing order:', error);
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Failed to place order. Please try again.';
-      notify(message, 'error');
+      notify(friendlyError(error, 'place your order'), 'error');
     } finally {
       setSubmitting(false);
     }

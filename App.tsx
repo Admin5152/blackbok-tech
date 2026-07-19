@@ -15,6 +15,7 @@ import { supabase, getSupabaseClient, isSupabaseConfigured } from './lib/supabas
 import { WhatsAppIcon } from './components/Icons';
 import { Product, User, CartItem, Category, RepairRequest, Order, TradeRequest } from './types';
 import { getProducts, getOrders, getTradeRequests, getRepairRequests } from './lib/api';
+import { friendlyError } from './lib/friendlyErrors';
 import { fetchTradePricing } from './lib/tradePricingStore';
 import { handleSignOut } from './lib/signOut';
 import AuthService from './lib/auth';
@@ -1086,6 +1087,15 @@ function RootComponent() {
     } catch (error) {
       console.error('Failed to fetch products from Supabase, using INITIAL_PRODUCTS fallback:', error);
       setProducts(INITIAL_PRODUCTS);
+      setNotifications((prev) => [
+        ...prev,
+        {
+          id: generateId(),
+          message: friendlyError(error, 'load the shop catalogue'),
+          type: 'warning',
+          duration: 5000,
+        },
+      ]);
     }
   }, []);
 
@@ -1318,11 +1328,31 @@ function RootComponent() {
     if (!user?.id) return;
     let cancelled = false;
     (async () => {
+      const pushErr = (e: unknown, action: string) => {
+        setNotifications((prev) => [
+          ...prev,
+          {
+            id: generateId(),
+            message: friendlyError(e, action),
+            type: 'error',
+            duration: 5000,
+          },
+        ]);
+      };
       try {
         const [ord, tr, rp] = await Promise.all([
-          getOrders(user.id).catch(() => []),
-          getTradeRequests(user.id).catch(() => []),
-          getRepairRequests(user.id).catch(() => []),
+          getOrders(user.id).catch((e) => {
+            pushErr(e, 'load your orders');
+            return [];
+          }),
+          getTradeRequests(user.id).catch((e) => {
+            pushErr(e, 'load your trade-ins');
+            return [];
+          }),
+          getRepairRequests(user.id).catch((e) => {
+            pushErr(e, 'load your repairs');
+            return [];
+          }),
         ]);
         if (cancelled) return;
         // Always replace with server truth (incl. empty) so stale localStorage
@@ -1332,6 +1362,7 @@ function RootComponent() {
         if (Array.isArray(rp)) setRepairs(rp as any);
       } catch (e) {
         console.warn('User data hydration failed:', e);
+        pushErr(e, 'load your account data');
       }
     })();
     return () => { cancelled = true; };
@@ -1448,7 +1479,7 @@ function RootComponent() {
         },
       ];
     });
-    notify(`${product.name} logged to repository.`);
+    notify(`${product.name} added to your cart.`);
   };
 
   const toggleWishlist = (productId: string) => {

@@ -3,6 +3,7 @@ import { Wrench, Send, DollarSign, UserCheck, Settings2 } from 'lucide-react';
 import { RepairStorageImage } from '../../components/RepairStorageImage';
 import { Badge, SearchInput, Modal, ModalClose, EmptyState, Td, Th, TableWrapper } from './adminUtils';
 import { getRepairRequests, updateRepairRequest } from '../../lib/api';
+import { friendlyError } from '../../lib/friendlyErrors';
 import { useAdminRepairs } from '../../hooks/useAdminRepairs';
 import type { RepairRequest } from '../../types';
 import { formatCurrency } from '../../lib/utils';
@@ -56,6 +57,8 @@ const toRepairStatusLabel = (status?: string) => {
 export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
     const [repairs, setRepairs] = useState<RepairRequest[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState('');
+    const [actionError, setActionError] = useState('');
     const [q, setQ] = useState('');
     const [statusF, setStatusF] = useState('All');
     const [pricingF, setPricingF] = useState<'all' | 'apple_matrix' | 'diagnostic_quote'>('all');
@@ -70,6 +73,7 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
 
     const patchRepair = async (id: string, updates: Record<string, any>) => {
         setSaving(true);
+        setActionError('');
         try {
             await updateRepairRequest(id, updates as Partial<RepairRequest>);
             const fresh = await getRepairRequests();
@@ -77,6 +81,7 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
             setSel((prev) => (prev && prev.id === id ? fresh.find((x) => x.id === id) ?? null : prev));
         } catch (e) {
             console.error(e);
+            setActionError(friendlyError(e, 'update this repair'));
         } finally {
             setSaving(false);
         }
@@ -106,6 +111,7 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
     const handleAssignTechnician = async (technicianId: string | null) => {
         if (!sel) return;
         setAssigning(true);
+        setActionError('');
         try {
             await assignTechnician(sel.id, technicianId);
             const fresh = await getRepairRequests();
@@ -113,6 +119,7 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
             setSel((prev) => (prev ? fresh.find((x) => x.id === prev.id) ?? prev : null));
         } catch (e) {
             console.error('Assign technician failed:', e);
+            setActionError(friendlyError(e, 'assign a technician'));
         } finally {
             setAssigning(false);
         }
@@ -122,8 +129,15 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
 
     useEffect(() => {
         getRepairRequests()
-            .then(d => setRepairs(d as any))
-            .catch(e => console.error('Repairs load error:', e))
+            .then((d) => {
+                setRepairs(d as any);
+                setLoadError('');
+            })
+            .catch((e) => {
+                console.error('Repairs load error:', e);
+                setRepairs([]);
+                setLoadError(friendlyError(e, 'load repairs'));
+            })
             .finally(() => setLoading(false));
     }, []);
 
@@ -189,6 +203,11 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
 
     return (
         <div className="space-y-5">
+            {(loadError || actionError) && (
+                <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300 font-medium">
+                    {actionError || loadError}
+                </div>
+            )}
             {/* Stats — mirror trade-in admin cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {[

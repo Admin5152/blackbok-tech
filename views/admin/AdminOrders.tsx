@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ShoppingCart, Package, Calendar, MapPin, CreditCard, ChevronRight, ChevronDown } from 'lucide-react';
 import { Badge, SearchInput, Modal, ModalClose, Td, Th, TableWrapper, EmptyState, DateFilterDropdown } from './adminUtils';
 import { getAdminOrdersFromItems, updateOrderStatus } from '../../lib/api';
+import { friendlyError } from '../../lib/friendlyErrors';
 import type { Order } from '../../types';
 import { formatCurrency } from '../../lib/utils';
 
@@ -12,6 +13,7 @@ export const AdminOrders: React.FC = () => {
     const [dateFilter, setDateFilter] = useState('All Time');
     const [sel, setSel] = useState<Order | null>(null);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState('');
     const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
     const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
     const ORDER_STATUS_OPTIONS = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled', 'Refunded'] as const;
@@ -40,10 +42,12 @@ export const AdminOrders: React.FC = () => {
     useEffect(() => {
         getAdminOrdersFromItems().then(d => {
             setOrders(d || []);
+            setLoadError('');
             setLoading(false);
         }).catch((err) => {
             console.error('Failed to load orders:', err);
             setOrders([]);
+            setLoadError(friendlyError(err, 'load orders'));
             setLoading(false);
         });
     }, []);
@@ -69,13 +73,13 @@ export const AdminOrders: React.FC = () => {
                     ...(String(newStatus).toLowerCase() === 'delivered' ? { payment_status: 'paid' } : {})
                 } : null);
             }
-            setToast({ type: 'success', message: 'Order status updated and saved to Supabase.' });
+            setToast({ type: 'success', message: 'Order status updated.' });
             setTimeout(() => setToast(null), 3000);
         } catch (error) {
             console.error('Failed to update status:', error);
-            setToast({ type: 'error', message: 'Failed to update order status in Supabase.' });
-            setTimeout(() => setToast(null), 3500);
-            alert('Failed to update order status.');
+            const msg = friendlyError(error, 'update this order');
+            setToast({ type: 'error', message: msg });
+            setTimeout(() => setToast(null), 5000);
         } finally {
             setUpdatingOrderId(null);
         }
@@ -204,6 +208,11 @@ export const AdminOrders: React.FC = () => {
                         : 'bg-red-500/10 border-red-500/30 text-red-400'
                 }`}>
                     {toast.message}
+                </div>
+            )}
+            {loadError && (
+                <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300 font-medium normal-case tracking-normal">
+                    {loadError}
                 </div>
             )}
             {/* Stats Overview */}

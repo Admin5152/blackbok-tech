@@ -196,7 +196,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
         } catch (e) {
             console.error('Failed to load products from Supabase:', e);
             setProducts([]);
-            setLoadError(e instanceof Error ? e.message : 'Failed to load products');
+            setLoadError(friendlyProductActionError(e, 'load'));
         } finally {
             if (!opts?.silent) setLoading(false);
         }
@@ -513,7 +513,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                 notes.push(`${created.id}:${row.name}`);
             } catch (e) {
                 fail++;
-                notes.push(`FAIL line ${row.line}: ${e instanceof Error ? e.message : String(e)}`);
+                notes.push(`FAIL line ${row.line}: ${friendlyProductActionError(e, 'import')}`);
             }
         }
         const summary = `CSV import: ${ok} created, ${fail} failed`;

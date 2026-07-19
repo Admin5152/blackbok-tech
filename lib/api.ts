@@ -1,3 +1,4 @@
+import { friendlyError } from './friendlyErrors';
 import { supabase } from './supabase';
 import {
   assertRepairPricingConstraint,
@@ -380,44 +381,11 @@ async function probeProductDeleteBlockers(pid: string): Promise<string[]> {
 }
 
 function englishProductError(raw: string | undefined, action: string): string {
-  const msg = String(raw || '').trim();
-  if (!msg) {
-    return `Could not ${action} this product. Please try again or ask a manager for help.`;
-  }
-  if (/permission|rls|policy|not allowed|42501/i.test(msg)) {
-    return `You don’t have permission to ${action} products. Sign in with a staff or admin account.`;
-  }
-  if (/foreign key|23503|still referenced|violates foreign key/i.test(msg)) {
-    if (/order_items/i.test(msg)) {
-      return 'Cannot permanently delete this product because it appears on past customer orders. It will be archived (hidden from the shop) instead if possible.';
-    }
-    if (/inventory/i.test(msg)) {
-      return 'Cannot permanently delete this product because inventory history is linked to it. It will be archived (hidden from the shop) instead if possible.';
-    }
-    return 'Cannot permanently delete this product because other records still reference it. It will be archived (hidden from the shop) instead if possible.';
-  }
-  if (/network|fetch|Failed to fetch/i.test(msg)) {
-    return `Network problem while trying to ${action} this product. Check your connection and try again.`;
-  }
-  if (/product_variants|column.*does not exist/i.test(msg)) {
-    return `Could not ${action} stock versions for this product. Ask IT to finish product setup in the database, then try again.`;
-  }
-  if (/Duplicate|unique|uq_variant/i.test(msg)) {
-    return 'Duplicate stock versions (same color / storage / RAM / SIM). Fix duplicates before saving.';
-  }
-  const cleaned = msg
-    .replace(/^.*Error:\s*/i, '')
-    .replace(/\s+/g, ' ')
-    .slice(0, 280);
-  return `Could not ${action} this product: ${cleaned}`;
+  return friendlyError(raw ? new Error(raw) : new Error(''), `${action} this product`);
 }
 
 export function friendlyProductActionError(err: unknown, action: string): string {
-  const msg =
-    err && typeof err === 'object' && 'message' in err
-      ? String((err as { message: string }).message)
-      : String(err || '');
-  return englishProductError(msg, action);
+  return friendlyError(err, `${action} this product`);
 }
 
 export const deleteProduct = async (id: string): Promise<DeleteProductResult> => {

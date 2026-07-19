@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Users, Shield, ShoppingBag, Check, ArrowUpDown, Eye, Mail, Phone, MapPin, Calendar, Package, DollarSign, BadgeCheck, UserX } from 'lucide-react';
 import { SearchInput, EmptyState } from './adminUtils';
 import { getUsers, getAccountDeletions, updateUserRole, type AccountDeletionRow } from '../../lib/api';
+import { friendlyError } from '../../lib/friendlyErrors';
 import type { User } from '../../types';
 import { formatCurrency } from '../../lib/utils';
 
@@ -21,6 +22,7 @@ export const AdminUsers: React.FC = () => {
     const [q, setQ] = useState('');
     const [roleFilter, setRoleFilter] = useState('all');
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState('');
     const [updating, setUpdating] = useState<string | null>(null);
     const [sortField, setSortField] = useState<keyof User>('name');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -31,10 +33,18 @@ export const AdminUsers: React.FC = () => {
         const fetchUserData = async () => {
             try {
                 const dbUsers = await getUsers();
-                if (mounted) { setUsers(dbUsers as any); setLoading(false); }
+                if (mounted) {
+                    setUsers(dbUsers as any);
+                    setLoadError('');
+                    setLoading(false);
+                }
             } catch (error) {
                 console.error("Failed to fetch users from database:", error);
-                if (mounted) { setUsers([]); setLoading(false); }
+                if (mounted) {
+                    setUsers([]);
+                    setLoadError(friendlyError(error, 'load users'));
+                    setLoading(false);
+                }
             }
         };
         fetchUserData();
@@ -81,7 +91,7 @@ export const AdminUsers: React.FC = () => {
             setUsers(users.map(u => u.id === userId ? { ...u, role } : u));
         } catch (e) {
             console.error('Failed to update role in DB:', e);
-            alert('Failed to update user role in the database.');
+            alert(friendlyError(e, 'update this user’s role'));
         } finally {
             setUpdating(null);
         }
@@ -248,6 +258,11 @@ export const AdminUsers: React.FC = () => {
 
     return (
         <div className="space-y-5">
+            {loadError && (
+                <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300 font-medium">
+                    {loadError}
+                </div>
+            )}
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <h2 className="text-2xl font-black text-white">User Roles Management</h2>

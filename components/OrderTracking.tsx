@@ -3,6 +3,7 @@ import { Package, Truck, CheckCircle, Clock, MapPin, AlertCircle, RefreshCw } fr
 import { supabase } from '../lib/supabase';
 import { Order } from '../types';
 import { formatCustomerStatusShort } from '../lib/customerStatusLabels';
+import { friendlyError } from '../lib/friendlyErrors';
 
 interface TrackingUpdate {
   id: string;
@@ -20,6 +21,7 @@ interface OrderTrackingProps {
 export const OrderTracking: React.FC<OrderTrackingProps> = ({ order, onStatusUpdate }) => {
   const [trackingUpdates, setTrackingUpdates] = useState<TrackingUpdate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [trackingNumber, setTrackingNumber] = useState(order.tracking_number || '');
 
   useEffect(() => {
@@ -29,6 +31,7 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({ order, onStatusUpd
   const fetchTrackingUpdates = async () => {
     try {
       setLoading(true);
+      setLoadError('');
       
       // Get order details with tracking number
       const { data: orderData, error: orderError } = await supabase
@@ -55,6 +58,8 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({ order, onStatusUpd
       setTrackingUpdates(updates || []);
     } catch (error) {
       console.error('Error fetching tracking updates:', error);
+      setLoadError(friendlyError(error, 'load tracking updates'));
+      setTrackingUpdates([]);
     } finally {
       setLoading(false);
     }
@@ -123,6 +128,11 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({ order, onStatusUpd
 
   return (
     <div className="space-y-6">
+      {loadError && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          {loadError}
+        </div>
+      )}
       {/* Tracking Number */}
       {trackingNumber && (
         <div className="bg-gradient-to-r from-[#B38B21]/10 to-[#D4AF37]/10 border border-[#B38B21]/20 rounded-2xl p-6">
