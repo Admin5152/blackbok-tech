@@ -3,12 +3,14 @@
  */
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { ArrowLeft, X } from 'lucide-react';
-import { useTradeFlow } from '../../components/trade/TradeFlowProvider';
+import { X } from 'lucide-react';
+import { useTradeFlow } from '../../lib/tradeFlowContext';
+import { PageBackButton } from '../../components/PageBackButton';
 import { getTradeCategories } from '../../lib/tradeApi';
 import { TRADE_COPY } from '../../lib/tradeCopy';
 import { TRADE_CARD_TILE, tradeCardSelected } from '../../lib/tradeUi';
 import { track, TRADE_ANALYTICS } from '../../lib/analytics';
+import { useAppContext } from '../../lib/appContext';
 
 function categoryLabel(deviceType: string | null, key: string): string {
   if (deviceType === 'ipad') {
@@ -20,8 +22,10 @@ function categoryLabel(deviceType: string | null, key: string): string {
 }
 
 export function TradeCategoryScreen() {
+  const { theme } = useAppContext();
   const { state, dispatch } = useTradeFlow();
   const navigate = useNavigate();
+  const isLight = theme === 'light';
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -96,7 +100,7 @@ export function TradeCategoryScreen() {
 
   return (
     <section className="space-y-6 animate-in fade-in duration-300">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-start justify-between gap-3">
         <div className="space-y-2 min-w-0">
           <p className="text-xs font-black uppercase tracking-widest text-[#CDA032] opacity-70">
             {typeLabel}
@@ -105,13 +109,11 @@ export function TradeCategoryScreen() {
             {TRADE_COPY.category.heading}
           </h2>
         </div>
-        <button
-          type="button"
-          onClick={() => void navigate({ to: '/trade/type' })}
-          className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-[color:var(--bb-muted)] hover:text-[#CDA032] transition-colors shrink-0"
-        >
-          <ArrowLeft size={14} aria-hidden /> {TRADE_COPY.back}
-        </button>
+        <PageBackButton
+          isLight={isLight}
+          to="/trade/type"
+          label={TRADE_COPY.back}
+        />
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">

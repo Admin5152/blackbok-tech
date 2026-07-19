@@ -8,7 +8,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { CheckCircle2, MapPin } from 'lucide-react';
-import { useTradeFlow } from '../../components/trade/TradeFlowProvider';
+import { useTradeFlow } from '../../lib/tradeFlowContext';
 import { useAppContext } from '../../lib/appContext';
 import { getTradeConfigValue } from '../../lib/tradeApi';
 import { formatGhs } from '../../lib/money';

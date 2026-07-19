@@ -1,20 +1,21 @@
 /**
- * Spec Screen 7 — Summary & estimate (Repair review-card layout).
+ * Spec Screen 7 — Summary: upgrade balance (top-up vs refund).
  *
- * Money lines ONLY from last compute_trade_estimate RPC.
- * Top-up display = max(target − estimate, 0); if estimate > target show D6
- * Cash/MoMo refund copy. Validity days from trade_config.
- * Zero estimate → manual review copy.
+ * Headline money = upgrade_price − trade_credit (after deductions).
+ * Red = customer tops up · Green = we balance / cash to them.
+ * Breakdown still shows base, deductions, credit, and upgrade price.
+ * Money lines ONLY from last compute_trade_estimate RPC + target snapshot.
  * TODO(D8): payment line is placeholder until client answers top-up method.
  */
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { ArrowRight, Info } from 'lucide-react';
-import { useTradeFlow } from '../../components/trade/TradeFlowProvider';
+import { useTradeFlow } from '../../lib/tradeFlowContext';
 import { TradePhasePills } from '../../components/trade/TradePhasePills';
 import { getTradeConfigValue } from '../../lib/tradeApi';
 import { formatGhs } from '../../lib/money';
 import { TRADE_COPY, simVariantLabel } from '../../lib/tradeCopy';
+import { computeTradeBalanceDisplay } from '../../lib/tradeBalanceDisplay';
 import { track, TRADE_ANALYTICS } from '../../lib/analytics';
 
 export function TradeSummaryScreen() {
@@ -43,12 +44,43 @@ export function TradeSummaryScreen() {
   const est = state.lastEstimate;
   const lock = state.deviceLock;
   const target = state.targetLock;
-  const targetPrice = target?.cashOnly ? null : target?.effectivePrice ?? null;
-  const topUpDisplay =
-    targetPrice != null ? Math.max(targetPrice - est.estimate, 0) : null;
-  const estimateExceeds =
-    targetPrice != null && est.estimate > targetPrice;
+  const balance = computeTradeBalanceDisplay({
+    estimate: est.estimate,
+    target,
+  });
   const zeroEstimate = est.estimate <= 0;
+  const isTopUp = balance.kind === 'top_up';
+  const isGreen =
+    balance.kind === 'refund' ||
+    balance.kind === 'cash' ||
+    balance.kind === 'even' ||
+    balance.kind === 'credit';
+
+  const headlineLabel =
+    balance.kind === 'top_up'
+      ? TRADE_COPY.summary.headlineTopUp
+      : balance.kind === 'refund'
+        ? TRADE_COPY.summary.headlineRefund
+        : balance.kind === 'even'
+          ? TRADE_COPY.summary.headlineEven
+          : TRADE_COPY.summary.headlineCash;
+
+  const targetLabel =
+    target && !target.cashOnly
+      ? [
+          target.productName,
+          target.storage,
+          target.ram,
+          target.simType && target.simType !== 'single'
+            ? simVariantLabel(target.simType)
+            : null,
+          target.color,
+        ]
+          .filter(Boolean)
+          .join(' · ')
+      : target?.cashOnly
+        ? TRADE_COPY.summary.cashOnlySelected
+        : null;
 
   return (
     <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-2">
@@ -79,15 +111,43 @@ export function TradeSummaryScreen() {
           <p className="text-base sm:text-lg opacity-80 relative">
             {lock.storage} · {simVariantLabel(lock.sim)} · {lock.color}
           </p>
-          {target && (
+          {targetLabel && (
             <p className="text-sm opacity-70 mt-3 relative">
               {TRADE_COPY.summary.tradingInto}:{' '}
               <span className="font-semibold text-[color:var(--bb-text)]">
-                {target.cashOnly
-                  ? TRADE_COPY.summary.cashOnlySelected
-                  : target.productName}
+                {targetLabel}
               </span>
             </p>
+          )}
+
+          {/* Headline = difference (top-up / refund), not raw trade credit */}
+          {!zeroEstimate && (
+            <div className="mt-6 relative">
+              <p
+                className={`text-[10px] font-black uppercase tracking-widest mb-1 ${
+                  isTopUp ? 'text-red-500' : 'text-emerald-600'
+                }`}
+              >
+                {headlineLabel}
+              </p>
+              <p
+                className={`text-4xl sm:text-5xl font-black tabular-nums tracking-tighter ${
+                  isTopUp ? 'text-red-500' : isGreen ? 'text-emerald-600' : 'text-[#CDA032]'
+                }`}
+              >
+                {formatGhs(balance.amount)}
+              </p>
+              {isTopUp && (
+                <p className="text-xs text-red-500/80 mt-2">
+                  {TRADE_COPY.summary.topUpPayableAtBlackBox}
+                </p>
+              )}
+              {balance.kind === 'refund' && (
+                <p className="text-xs text-emerald-600/80 mt-2">
+                  {TRADE_COPY.summary.balanceRefunded}
+                </p>
+              )}
+            </div>
           )}
         </div>
 
@@ -119,77 +179,45 @@ export function TradeSummaryScreen() {
               </div>
             )}
 
-            {!zeroEstimate && target && !target.cashOnly && targetPrice != null && (
+            {!zeroEstimate && (
               <div className="flex justify-between items-center text-sm font-medium">
-                <span className="opacity-70">{TRADE_COPY.summary.price}</span>
-                <span className="font-bold tabular-nums">{formatGhs(targetPrice)}</span>
-              </div>
-            )}
-
-            {!zeroEstimate && estimateExceeds && targetPrice != null && (
-              <div className="space-y-1">
-                <div className="flex justify-between items-center text-sm font-medium">
-                  <span className="text-emerald-600 font-bold">
-                    {TRADE_COPY.summary.refundAmountLabel}
-                  </span>
-                  <span className="font-black tabular-nums text-emerald-600">
-                    {formatGhs(est.estimate - targetPrice)}
-                  </span>
-                </div>
-                <p className="text-xs text-emerald-600/80">
-                  {TRADE_COPY.summary.balanceRefunded}
-                </p>
-              </div>
-            )}
-
-            {!zeroEstimate &&
-              !estimateExceeds &&
-              topUpDisplay != null &&
-              topUpDisplay > 0 && (
-                <div className="space-y-1">
-                  <div className="flex justify-between items-center text-sm font-medium">
-                    <span className="text-red-500 font-bold">
-                      {TRADE_COPY.summary.topUpAmountLabel}
-                    </span>
-                    <span className="font-black tabular-nums text-red-500">
-                      {formatGhs(topUpDisplay)}
-                    </span>
-                  </div>
-                  <p className="text-xs text-red-500/80">
-                    {TRADE_COPY.summary.topUpPayableAtBlackBox}
-                  </p>
-                </div>
-              )}
-
-            {!zeroEstimate && target?.cashOnly && (
-              <div className="flex justify-between items-center text-sm font-medium">
-                <span className="text-emerald-600 font-bold">
-                  {TRADE_COPY.summary.cashReceiveLabel}
-                </span>
-                <span className="font-black tabular-nums text-emerald-600">
+                <span className="opacity-70">{TRADE_COPY.summary.tradeInCredit}</span>
+                <span className="font-bold tabular-nums text-emerald-600/90">
                   {formatGhs(est.estimate)}
                 </span>
               </div>
             )}
 
-            <div className="pt-4 mt-2 border-t border-[var(--bb-border)] flex justify-between items-end gap-3">
-              <span className="text-base font-black">
-                {TRADE_COPY.summary.totalEstimate}
-              </span>
-              <span
-                className={`text-3xl font-black tabular-nums tracking-tighter ${
-                  zeroEstimate
-                    ? 'text-[#CDA032]'
-                    : topUpDisplay != null && topUpDisplay > 0 && !estimateExceeds
-                      ? 'text-red-500'
-                      : 'text-emerald-600'
-                }`}
-              >
-                {formatGhs(est.estimate)}
-              </span>
-            </div>
+            {!zeroEstimate && balance.upgradePrice != null && (
+              <div className="flex justify-between items-center text-sm font-medium">
+                <span className="opacity-70">{TRADE_COPY.summary.price}</span>
+                <span className="font-bold tabular-nums">
+                  {formatGhs(balance.upgradePrice)}
+                </span>
+              </div>
+            )}
 
-            <p className="text-xs leading-relaxed opacity-60">
+            {!zeroEstimate && isTopUp && (
+              <div className="flex justify-between items-center text-sm font-black pt-2">
+                <span className="text-red-500">{TRADE_COPY.summary.topUpAmountLabel}</span>
+                <span className="tabular-nums text-red-500">
+                  {formatGhs(balance.amount)}
+                </span>
+              </div>
+            )}
+
+            {!zeroEstimate && balance.kind === 'refund' && (
+              <div className="flex justify-between items-center text-sm font-black pt-2">
+                <span className="text-emerald-600">
+                  {TRADE_COPY.summary.refundAmountLabel}
+                </span>
+                <span className="tabular-nums text-emerald-600">
+                  {formatGhs(balance.amount)}
+                </span>
+              </div>
+            )}
+
+            <p className="text-xs leading-relaxed opacity-60 pt-2">
               {TRADE_COPY.summary.estimateIsPreliminary}
             </p>
 

@@ -51,7 +51,7 @@ function chipsFromScalar(val: unknown): string[] {
   return coerceOptionStrings(parts.length ? parts : [s]);
 }
 
-function uniqFromRows(rows: any[], key: 'color' | 'storage' | 'ram'): string[] {
+function uniqFromRows(rows: any[], key: 'color' | 'storage' | 'ram' | 'sim_type'): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
   for (const r of rows) {
@@ -66,27 +66,35 @@ function uniqFromRows(rows: any[], key: 'color' | 'storage' | 'ram'): string[] {
 }
 
 /**
- * Builds Color / Storage / RAM selectors from, in order:
- * 1) **`products.colors` / `storage` / `ram` TEXT[]** (admin dashboard chips) — **first** so PDP matches what staff saved.
- * 2) Legacy `{ name, options }[]` variant groups (seed / `INITIAL_PRODUCTS`).
- * 3) Distinct values from `product_variants` rows when chips and legacy groups are empty.
+ * Builds Color / Storage / RAM / SIM selectors.
+ *
+ * Prefer live `product_variants` dimensions when SKU rows exist so the PDP
+ * only shows combinations that are actually stocked / configured — not
+ * orphan admin chips that never got a matrix row.
+ * Fallbacks: product chip arrays → legacy named groups.
  */
 export function getProductOptionGroups(product: Product | null | undefined): ProductOptionGroup[] {
   if (!product) return [];
 
   const asAny = product as unknown as Record<string, unknown>;
 
-  const fromColors = normalizeChipArray(asAny.colors);
-  const fromStorage = normalizeChipArray(asAny.storage);
-  const fromRam = normalizeChipArray(asAny.ram);
-  const storageOpts = fromStorage.length ? fromStorage : chipsFromScalar(asAny.storage_capacity);
-  const ramOpts = fromRam.length ? fromRam : chipsFromScalar(asAny.ram_capacity);
+  const rows = (product.variants || []).filter(
+    (v: any) =>
+      v &&
+      typeof v === 'object' &&
+      !(typeof v.name === 'string' && Array.isArray((v as any).options))
+  );
 
-  const chipGroups: ProductOptionGroup[] = [];
-  if (fromColors.length) chipGroups.push({ name: 'Color', options: fromColors });
-  if (storageOpts.length) chipGroups.push({ name: 'Storage', options: storageOpts });
-  if (ramOpts.length) chipGroups.push({ name: 'RAM', options: ramOpts });
-  if (chipGroups.length > 0) return chipGroups;
+  const skuGroups: ProductOptionGroup[] = [];
+  const c = uniqFromRows(rows, 'color');
+  const s = uniqFromRows(rows, 'storage');
+  const r = uniqFromRows(rows, 'ram');
+  const sim = uniqFromRows(rows, 'sim_type');
+  if (c.length) skuGroups.push({ name: 'Color', options: c });
+  if (s.length) skuGroups.push({ name: 'Storage', options: s });
+  if (r.length) skuGroups.push({ name: 'RAM', options: r });
+  if (sim.length) skuGroups.push({ name: 'SIM', options: sim });
+  if (skuGroups.length > 0) return skuGroups;
 
   if (Array.isArray(product.variants) && product.variants.length > 0) {
     const named = product.variants.filter(
@@ -107,21 +115,17 @@ export function getProductOptionGroups(product: Product | null | undefined): Pro
     }
   }
 
-  const rows = (product.variants || []).filter(
-    (v: any) =>
-      v &&
-      typeof v === 'object' &&
-      !(typeof v.name === 'string' && Array.isArray((v as any).options))
-  );
+  const fromColors = normalizeChipArray(asAny.colors);
+  const fromStorage = normalizeChipArray(asAny.storage);
+  const fromRam = normalizeChipArray(asAny.ram);
+  const storageOpts = fromStorage.length ? fromStorage : chipsFromScalar(asAny.storage_capacity);
+  const ramOpts = fromRam.length ? fromRam : chipsFromScalar(asAny.ram_capacity);
 
-  const skuGroups: ProductOptionGroup[] = [];
-  const c = uniqFromRows(rows, 'color');
-  const s = uniqFromRows(rows, 'storage');
-  const r = uniqFromRows(rows, 'ram');
-  if (c.length) skuGroups.push({ name: 'Color', options: c });
-  if (s.length) skuGroups.push({ name: 'Storage', options: s });
-  if (r.length) skuGroups.push({ name: 'RAM', options: r });
-  return skuGroups;
+  const chipGroups: ProductOptionGroup[] = [];
+  if (fromColors.length) chipGroups.push({ name: 'Color', options: fromColors });
+  if (storageOpts.length) chipGroups.push({ name: 'Storage', options: storageOpts });
+  if (ramOpts.length) chipGroups.push({ name: 'RAM', options: ramOpts });
+  return chipGroups;
 }
 
 /** First chip per group (may be out of stock). */
@@ -242,11 +246,12 @@ export function snapSelectionToInStock(
   return combo ?? initialSelectedFromGroups(groups);
 }
 
-function mapOptionGroupToVariantField(groupName: string): 'color' | 'storage' | 'ram' | null {
+function mapOptionGroupToVariantField(groupName: string): 'color' | 'storage' | 'ram' | 'sim_type' | null {
   const n = groupName.trim().toLowerCase();
   if (n === 'color') return 'color';
   if (n === 'storage') return 'storage';
   if (n === 'ram') return 'ram';
+  if (n === 'sim' || n === 'sim type' || n === 'sim_type') return 'sim_type';
   return null;
 }
 
@@ -270,16 +275,15 @@ export function formatSelectedOptionsLabel(selectedOptions: Record<string, strin
   return parts.join(' · ');
 }
 
-/** Match `product_variants.id` for Color / Storage / RAM selection (checkout & trade-in). */
-export function findVariantIdForOptions(
+/** Resolve the matching SKU row for selected options (incl. SIM). */
+export function findVariantRowForOptions(
   product: Product,
   selectedOptions: Record<string, string> = {},
-): string | null {
+): Record<string, unknown> | null {
   const rows = skuVariantRows(product);
   if (rows.length === 0) return null;
-
   const selectedEntries = Object.entries(selectedOptions).filter(([, v]) => toOptionString(v));
-  if (selectedEntries.length === 0) return null;
+  if (selectedEntries.length === 0) return rows[0] ?? null;
 
   for (const row of rows) {
     let ok = true;
@@ -287,17 +291,27 @@ export function findVariantIdForOptions(
       const field = mapOptionGroupToVariantField(groupName);
       if (!field) continue;
       const cell = toOptionString(row[field]);
-      if (!cell || normOpt(cell) !== normOpt(val)) {
+      // Empty cell on row means that dimension doesn't apply — skip
+      if (!cell) continue;
+      if (normOpt(cell) !== normOpt(val)) {
         ok = false;
         break;
       }
     }
-    if (ok) {
-      const id = toOptionString((row as { id?: unknown }).id);
-      return id || null;
-    }
+    if (ok) return row;
   }
   return null;
+}
+
+/** Match `product_variants.id` for Color / Storage / RAM / SIM selection (checkout & trade-in). */
+export function findVariantIdForOptions(
+  product: Product,
+  selectedOptions: Record<string, string> = {},
+): string | null {
+  const row = findVariantRowForOptions(product, selectedOptions);
+  if (!row) return null;
+  const id = toOptionString((row as { id?: unknown }).id);
+  return id || null;
 }
 
 /** True when the product has at least one unit (any SKU row or base stock). */

@@ -67,18 +67,12 @@ export async function getTradeDevice(model: string): Promise<TradeDeviceRow | nu
 }
 
 /**
- * Whether any active iPad exists — Screen 1 renders the iPad card only if true.
- * Query-driven so the card auto-appears when iPad pricing is activated.
+ * Whether any tradeable iPad exists for Screen 1.
+ * Requires active device AND ≥1 active base_value (same gate as model grids).
  */
 export async function hasActiveIpadDevices(): Promise<boolean> {
-  const { count, error } = await supabase
-    .from('trade_devices')
-    .select('model', { count: 'exact', head: true })
-    .eq('device_type', 'ipad')
-    .eq('is_active', true);
-
-  if (error) throw error;
-  return (count ?? 0) >= 1;
+  const priced = await getPricedActiveModels('ipad');
+  return priced.length >= 1;
 }
 
 /**
@@ -329,10 +323,14 @@ async function getTradeTargetsFromProducts(filters?: {
 
   let productQuery = supabase
     .from('products')
-    .select('id,name,category,condition,image_url,price,stock,status,model,sim_type')
+    .select('id,name,category,condition,image_url,price,stock,status,trade_model,model')
     .eq('status', 'active');
   if (filters?.category) productQuery = productQuery.eq('category', filters.category);
-  if (filters?.tradeModel) productQuery = productQuery.eq('model', filters.tradeModel);
+  if (filters?.tradeModel) {
+    productQuery = productQuery.or(
+      `trade_model.eq.${filters.tradeModel},model.eq.${filters.tradeModel}`,
+    );
+  }
 
   const { data: products, error: pErr } = await productQuery;
   if (pErr) throw pErr;
@@ -341,12 +339,15 @@ async function getTradeTargetsFromProducts(filters?: {
   const ids = products.map((p: { id: string }) => p.id);
   const { data: variants, error: vErr } = await supabase
     .from('product_variants')
-    .select('id,product_id,color,ram,storage,price_modifier,stock,sku,attributes')
+    .select(
+      'id,product_id,color,ram,storage,sim_type,price_modifier,price,stock,sku,image_url,is_active',
+    )
     .in('product_id', ids);
   if (vErr) throw vErr;
 
-  const byProduct = new Map<string, typeof variants>();
+  const byProduct = new Map<string, NonNullable<typeof variants>>();
   for (const v of variants ?? []) {
+    if (v.is_active === false) continue;
     const list = byProduct.get(v.product_id) ?? [];
     list.push(v);
     byProduct.set(v.product_id, list);
@@ -354,6 +355,10 @@ async function getTradeTargetsFromProducts(filters?: {
 
   const rows: TradeTargetRow[] = [];
   for (const p of products) {
+    const tradeModel =
+      (p as { trade_model?: string | null }).trade_model ??
+      (p as { model?: string | null }).model ??
+      null;
     const pVars = byProduct.get(p.id) ?? [];
     if (pVars.length === 0) {
       const stock = Number(p.stock) || 0;
@@ -364,7 +369,7 @@ async function getTradeTargetsFromProducts(filters?: {
         slug: null,
         category: p.category,
         condition: p.condition,
-        trade_model: p.model ?? null,
+        trade_model: tradeModel,
         product_image: p.image_url,
         variant_id: null,
         sku: null,
@@ -381,24 +386,27 @@ async function getTradeTargetsFromProducts(filters?: {
     for (const v of pVars) {
       const stock = Number(v.stock) || 0;
       if (inStockOnly && stock <= 0) continue;
-      const modifier = Number(v.price_modifier) || 0;
+      const absolute =
+        v.price != null && Number.isFinite(Number(v.price))
+          ? Number(v.price)
+          : Number(p.price) + (Number(v.price_modifier) || 0);
       rows.push({
         product_id: p.id,
         name: p.name,
         slug: null,
         category: p.category,
         condition: p.condition,
-        trade_model: p.model ?? null,
+        trade_model: tradeModel,
         product_image: p.image_url,
         variant_id: v.id,
         sku: v.sku,
         color: v.color,
         storage: v.storage,
         ram: v.ram,
-        sim_type: null,
-        effective_price: Number(p.price) + modifier,
+        sim_type: (v.sim_type as TradeTargetRow['sim_type']) ?? null,
+        effective_price: absolute,
         variant_stock: stock,
-        display_image: p.image_url,
+        display_image: v.image_url || p.image_url,
       });
     }
   }

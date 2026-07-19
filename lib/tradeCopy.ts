@@ -22,9 +22,12 @@ export const TRADE_COPY = {
     summaryDevice: 'Device',
     summarySpecs: 'Specs',
     summaryTarget: 'Trading into',
-    summaryEstimate: 'Estimated value',
+    summaryEstimate: 'To get your upgrade',
     summaryEstimateNote: '* Confirmed after inspection',
-    summaryPending: 'Estimate appears after condition check',
+    summaryPending: 'Balance appears after condition check',
+    summaryYouAdd: 'You add',
+    summaryYouReceive: 'You receive',
+    summaryEven: 'No top-up needed',
     selectModelHint: 'Select a model →',
     selected: 'Selected',
   },
@@ -78,11 +81,34 @@ export const TRADE_COPY = {
   target: {
     heading: 'What are you upgrading to?',
     subheading: 'Optional — helps us tailor your trade-in offer.',
-    pickHint: 'Pick a product you have in mind, or skip if you are not sure yet.',
+    pickHint: 'First pick the phone you want. Then choose storage, SIM, RAM, and colour — and confirm the details.',
     browseByCategory: 'Shop by category',
     pickModel: 'Select a model',
-    configureSku: 'Configure your upgrade',
+    configureSku: 'Choose your version',
+    configureHint:
+      'Tell us the storage, SIM type, and colour you want — we’ll match stock at BlackBox.',
+    askStorage: 'Which storage do you want?',
+    askSim: 'Physical SIM or eSIM?',
+    askRam: 'Which RAM?',
+    askColor: 'Which colour?',
+    yourSelection: 'Your upgrade',
+    reviewHeading: 'Confirm your upgrade',
+    reviewSubheading: 'Check storage, RAM, SIM, and colour before you continue.',
+    reviewDetails: 'Upgrade details',
+    changeConfig: 'Change options',
+    confirmUpgrade: 'Looks good — continue',
+    detailStorage: 'Storage',
+    detailRam: 'RAM',
+    detailSim: 'SIM',
+    detailColor: 'Colour',
+    detailPrice: 'Price',
+    detailAvailability: 'Availability',
+    availabilityInStock: 'In stock (confirmed at visit)',
+    availabilityPreference: 'Preference noted — confirm at BlackBox',
+    preferenceNote:
+      'This exact combo isn’t listed in stock right now — we’ll note your preference and confirm at BlackBox.',
     storage: 'Storage',
+    ram: 'RAM',
     simType: 'SIM type',
     color: 'Color',
     price: 'Price',
@@ -91,6 +117,7 @@ export const TRADE_COPY = {
     cashOnlyConfirm: 'You chose cash — no new device. We\'ll offer a cash payout after review.',
     notSureYet: 'Not sure yet',
     nextCondition: 'Next: Device condition',
+    reviewUpgrade: 'Review upgrade',
     /**
      * D6: when trade-in estimate exceeds target price, balance is refunded.
      * Shown when an upgrade device is selected — NOT on the cash-only card.
@@ -98,7 +125,7 @@ export const TRADE_COPY = {
     d6RefundNote: 'If your trade-in value is higher than the upgrade price, we refund the difference in cash or MoMo at BlackBox.',
     outOfStock: 'Out of stock',
     /**
-     * D11: stock_reservation = none — first come, first served; no hold on submit.
+     * D11: stock_reservation=none — first come, first served; no hold on submit.
      */
     availabilityNote:
       'Availability is first come, first served; stock is confirmed when you visit BlackBox.',
@@ -107,6 +134,8 @@ export const TRADE_COPY = {
     continue: 'Continue',
     selectedLabel: 'Selected',
     noStockInCategory: 'No in-stock devices in this category right now.',
+    noConfigOptions:
+      'This model has no storage or SIM options set up yet. Pick another, or ask BlackBox to add them.',
   },
 
   /** Screen 6 — condition questionnaire */
@@ -144,7 +173,10 @@ export const TRADE_COPY = {
       spots: 'Spots',
       other: 'Other',
     },
-    liveEstimate: 'Live estimate',
+    liveEstimate: 'Live balance',
+    liveTopUp: 'You add',
+    liveRefund: 'Balance to you',
+    liveCash: 'Cash to you',
     continueSummary: 'Next: Review',
     backQuestion: 'Back',
     completeHeading: 'Condition check complete',
@@ -159,33 +191,39 @@ export const TRADE_COPY = {
     review: 'Review',
   },
 
-  /** Screen 7 — summary (Repair review-card language) */
+  /** Screen 7 — summary: headline = top-up (red) or balance to you (green) */
   summary: {
-    heading: 'Review your trade-in',
-    subheading: 'Please verify your details before continuing.',
-    bannerEyebrow: 'Device & Trade-in Value',
+    heading: 'What you pay (or receive)',
+    subheading:
+      'Upgrade price minus your trade-in credit (after condition deductions). Red = you top up. Green = we balance you.',
+    bannerEyebrow: 'Your upgrade balance',
     yourDevice: 'Your device',
-    baseValue: 'Base value',
-    deductions: 'Deductions',
+    baseValue: 'Trade-in base value',
+    deductions: 'Condition deductions',
+    tradeInCredit: 'Your trade-in credit',
     tradeInEstimate: 'Trade-in estimate',
-    totalEstimate: 'Total Estimate',
+    totalEstimate: 'Your trade-in credit',
+    headlineTopUp: 'You add to get this upgrade',
+    headlineRefund: 'Balance we pay you',
+    headlineEven: 'No extra to pay',
+    headlineCash: 'Estimated cash to you',
     tradingInto: 'You\'re trading into',
     cashOnlySelected: 'Trading in for cash',
-    price: 'Price',
+    price: 'Upgrade device price',
     youTopUp: 'You will need to add',
     youReceive: 'You will receive about',
-    balanceRefunded: 'You will be refunded the difference via Cash/MoMo',
-    refundAmountLabel: 'You will be refunded',
-    topUpAmountLabel: 'You will need to add',
+    balanceRefunded: 'We refund the difference in cash or MoMo at BlackBox.',
+    refundAmountLabel: 'Balance to you',
+    topUpAmountLabel: 'Top-up to pay',
     cashReceiveLabel: 'Estimated cash to you',
     estimateIsPreliminary:
-      'This figure is a preliminary estimate only. After you submit, we review your device and send you a final offer to accept or decline.',
+      'This balance is a preliminary estimate. After you submit, we inspect your device and send a final offer to accept or decline.',
     validityPrefix: 'Estimate valid for',
     validitySuffix: 'days. Final value confirmed after inspection.',
     disclaimer:
-      'This is a preliminary estimate based on your answers. Final value is confirmed after physical inspection at BlackBox. Device must match the condition you described.',
+      'Preliminary estimate from your answers. Final top-up or refund is confirmed after physical inspection at BlackBox. Device must match the condition you described.',
     // TODO(D8): top-up payment method pending client
-    topUpPayableAtBlackBox: 'Top-up payable at BlackBox',
+    topUpPayableAtBlackBox: 'Pay this top-up at BlackBox when you drop off.',
     manualReview:
       'Your estimate needs manual review. Our team will contact you with a final offer.',
     continueToDetails: 'Continue to your details',

@@ -47,6 +47,8 @@ export interface TradeTargetLock {
   storage: string | null;
   simType: string | null;
   color: string | null;
+  /** Optional RAM when the upgrade SKU matrix includes it */
+  ram: string | null;
   /** DISPLAY-ONLY snapshot of v_trade_targets.effective_price — server re-derives on insert */
   effectivePrice: number | null;
   displayImage: string | null;
@@ -459,10 +461,15 @@ export function loadTradeFlowState(): TradeFlowState | null {
     const raw = sessionStorage.getItem(TRADE_V2_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<TradeFlowState>;
-    return {
+    const merged: TradeFlowState = {
       ...initialTradeFlowState,
       ...parsed,
     };
+    // Backfill new lock fields for sessions started before RAM cascade shipped
+    if (merged.targetLock && merged.targetLock.ram === undefined) {
+      merged.targetLock = { ...merged.targetLock, ram: null };
+    }
+    return merged;
   } catch {
     return null;
   }

@@ -9,7 +9,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Info, MapPin } from 'lucide-react';
-import { useTradeFlow } from '../../components/trade/TradeFlowProvider';
+import { useTradeFlow } from '../../lib/tradeFlowContext';
 import { ImeiInfoTip } from '../../components/trade/ImeiInfoTip';
 import { useAppContext } from '../../lib/appContext';
 import { submitTradeRequest, getTradeConfigValue } from '../../lib/tradeApi';

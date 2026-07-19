@@ -92,11 +92,11 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
           </button>
         </div>
 
-        {/* Content Body */}
-        <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
+        {/* Content Body — whole panel scrolls on mobile; desktop splits image / info */}
+        <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-y-auto md:overflow-hidden overscroll-contain custom-scrollbar">
           {/* Visual Data Module — full-bleed image over textured panel */}
           <div
-            className={`relative w-full shrink-0 overflow-hidden md:w-1/2 md:flex-[1_1_50%] md:min-h-0 md:self-stretch md:h-auto h-[38vh] min-h-[240px] ${
+            className={`relative w-full shrink-0 overflow-hidden md:w-1/2 md:flex-[1_1_50%] md:min-h-0 md:self-stretch md:h-auto md:overflow-hidden h-[28vh] min-h-[180px] max-h-[240px] md:max-h-none ${
               isLight
                 ? 'bg-[#dfe1e6]'
                 : 'bg-gradient-to-br from-zinc-900 via-zinc-900 to-black'
@@ -111,7 +111,7 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
           </div>
 
           {/* Technical Specifications (Info) */}
-          <div className="w-full md:w-1/2 md:flex-[1_1_50%] md:min-h-0 p-6 sm:p-10 overflow-y-auto custom-scrollbar space-y-8">
+          <div className="w-full md:w-1/2 md:flex-[1_1_50%] md:min-h-0 p-6 sm:p-10 md:overflow-y-auto custom-scrollbar space-y-8">
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <span className="px-3 py-1 bg-[#CDA032]/10 text-[#CDA032] text-[8px] font-black uppercase tracking-widest rounded-full border border-[#CDA032]/20">

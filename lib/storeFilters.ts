@@ -6,6 +6,7 @@ export const STORE_PRICE_SLIDER_STEP = 100;
 
 export const STORE_PREFERRED_CATEGORIES = [
   'iPhone',
+  'iPad',
   'Laptop',
   'Tablet',
   'Gaming',
@@ -31,6 +32,7 @@ function productTextHaystack(p: Product): string {
     p.model,
     p.sku,
     p.category,
+    p.trade_model,
     Array.isArray(p.specs) ? p.specs.join(' ') : '',
   ]
     .filter(Boolean)
@@ -48,6 +50,17 @@ export function productMatchesStoreSearch(p: Product, qRaw: string): boolean {
     if (hay.includes(word)) return true;
     return normalizeProductCategory(word) === productNorm;
   });
+}
+
+/**
+ * Server-side search using GIN via PostgREST textSearch.
+ * Returns null when query empty (caller keeps full catalog).
+ */
+export async function fetchStoreSearchProducts(qRaw: string): Promise<Product[] | null> {
+  const q = qRaw.trim();
+  if (!q) return null;
+  const { searchCatalogText } = await import('./catalogApi');
+  return searchCatalogText(q);
 }
 
 export interface StoreBaseFilterOptions {
@@ -70,6 +83,9 @@ export function buildOrderedStoreCategoryKeys(products: Product[]): string[] {
   products.forEach((p) => {
     catalogKeys[normalizeProductCategory(p.category)] = true;
   });
+  // Always expose iPad filter (empty until stocked) — acceptance
+  catalogKeys['iPad'] = true;
+
   const remaining = new Set(Object.keys(catalogKeys));
   const ordered: string[] = [];
   STORE_PREFERRED_CATEGORIES.forEach((cat) => {

@@ -5,7 +5,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Smartphone, Tablet } from 'lucide-react';
-import { useTradeFlow } from '../../components/trade/TradeFlowProvider';
+import { useTradeFlow } from '../../lib/tradeFlowContext';
 import { hasActiveIpadDevices } from '../../lib/tradeApi';
 import { TRADE_COPY } from '../../lib/tradeCopy';
 import { TRADE_CARD_TYPE, tradeCardSelected } from '../../lib/tradeUi';

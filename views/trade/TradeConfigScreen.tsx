@@ -15,7 +15,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Info } from 'lucide-react';
-import { useTradeFlow } from '../../components/trade/TradeFlowProvider';
+import { useTradeFlow } from '../../lib/tradeFlowContext';
 import { ImeiInfoTip } from '../../components/trade/ImeiInfoTip';
 import { getAppleColorsForModel } from '../../lib/appleColors';
 import {

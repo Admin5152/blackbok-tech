@@ -4,9 +4,10 @@
  */
 import React from 'react';
 import { useNavigate, useRouterState } from '@tanstack/react-router';
-import { useTradeFlow } from './TradeFlowProvider';
+import { useTradeFlow } from '../../lib/tradeFlowContext';
 import { TRADE_COPY, simVariantLabel } from '../../lib/tradeCopy';
 import { formatGhs } from '../../lib/money';
+import { computeTradeBalanceDisplay } from '../../lib/tradeBalanceDisplay';
 
 type TradePath =
   | '/trade/type'
@@ -155,7 +156,17 @@ export function TradeCollapsedSteps() {
   const targetSummary = target
     ? target.cashOnly
       ? TRADE_COPY.summary.cashOnlySelected
-      : [target.productName, target.storage].filter(Boolean).join(' · ')
+      : [
+          target.productName,
+          target.storage,
+          target.ram,
+          target.simType && target.simType !== 'single'
+            ? simVariantLabel(target.simType)
+            : null,
+          target.color,
+        ]
+          .filter(Boolean)
+          .join(' · ')
     : '';
 
   const quizCount = Object.keys(state.quizAnswers).length;
@@ -165,6 +176,11 @@ export function TradeCollapsedSteps() {
       : quizCount > 0
         ? TRADE_COPY.collapsed.conditionInProgress
         : '';
+
+  const balance =
+    est != null
+      ? computeTradeBalanceDisplay({ estimate: est.estimate, target })
+      : null;
 
   /* ── Early wizard: granular collapses (Repair sub-step style) ── */
   if (step <= 4) {
@@ -220,10 +236,16 @@ export function TradeCollapsedSteps() {
           onChange={changeCondition}
         />
       )}
-      {step > 7 && est && (
+      {step > 7 && balance && (
         <CollapsedRow
-          label={TRADE_COPY.collapsed.estimate}
-          value={formatGhs(est.estimate)}
+          label={
+            balance.kind === 'top_up'
+              ? TRADE_COPY.layout.summaryYouAdd
+              : balance.kind === 'refund' || balance.kind === 'cash'
+                ? TRADE_COPY.layout.summaryYouReceive
+                : TRADE_COPY.collapsed.estimate
+          }
+          value={formatGhs(balance.amount)}
           onChange={() => go('/trade/summary')}
         />
       )}

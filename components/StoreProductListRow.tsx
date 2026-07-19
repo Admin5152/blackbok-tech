@@ -22,7 +22,14 @@ export const StoreProductListRow: React.FC<Props> = ({
   onViewDetails,
   onAddToCart,
 }) => {
-  const available = getAvailableStock(product, defaultSelectedOptionsForProduct(product));
+  const priceFrom = Number(product.price_from ?? product.price ?? 0);
+  const priceTo = Number(product.price_to ?? priceFrom);
+  const showFrom = priceTo > priceFrom;
+  const totalStock = Math.max(0, Math.floor(Number(product.total_stock ?? product.stock ?? 0)));
+  const available =
+    product.variants?.length
+      ? getAvailableStock(product, defaultSelectedOptionsForProduct(product))
+      : totalStock;
 
   return (
     <article className="bb-store-list-row flex flex-col sm:flex-row gap-4 sm:gap-6 p-4 sm:p-5 rounded-xl border border-[var(--bb-border)] bg-[var(--bb-surface)] hover:border-[#CDA032]/40 transition-colors">
@@ -46,12 +53,23 @@ export const StoreProductListRow: React.FC<Props> = ({
               onClick={() => onViewDetails(product.id)}
               className="font-bold text-base sm:text-lg text-left hover:text-[#CDA032] transition-colors min-w-0 flex-1 basis-[min(100%,12rem)]"
             >
+              {product.brand ? `${product.brand} · ` : ''}
               {product.name}
             </button>
             <div className="flex shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-1">
+              {showFrom && (
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[color:var(--bb-muted)]">
+                  from
+                </span>
+              )}
               <span className="font-black text-base sm:text-lg text-[#CDA032] tabular-nums">
-                {formatCurrency(product.price)}
+                {formatCurrency(priceFrom)}
               </span>
+              {product.trade_model && (
+                <span className="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-600/15 text-emerald-500">
+                  Trade-in eligible
+                </span>
+              )}
               <ProductAvailabilityBadge available={available} isLight={isLight} inline />
             </div>
           </div>

@@ -56,8 +56,12 @@ export const uploadImage = async (file: File, bucket: string = REPAIR_IMAGES_BUC
   try {
     if (!file) return null;
 
-    if (file.size > 5 * 1024 * 1024) {
-      throw new Error('File size must be less than 5MB');
+    if (file.size > (bucket === 'product-images' ? 10 : 5) * 1024 * 1024) {
+      throw new Error(
+        bucket === 'product-images'
+          ? 'File size must be less than 10MB'
+          : 'File size must be less than 5MB',
+      );
     }
 
     if (!file.type.startsWith('image/')) {
@@ -69,7 +73,11 @@ export const uploadImage = async (file: File, bucket: string = REPAIR_IMAGES_BUC
       error: authError,
     } = await supabase.auth.getUser();
     if (authError || !user) {
-      throw new Error('Please sign in to upload repair photos.');
+      throw new Error(
+        bucket === 'product-images'
+          ? 'Please sign in to upload product images.'
+          : 'Please sign in to upload repair photos.',
+      );
     }
 
     // Scoped path — must match storage RLS (see database/migrations/*repair_images*.sql)
@@ -87,7 +95,9 @@ export const uploadImage = async (file: File, bucket: string = REPAIR_IMAGES_BUC
       const msg = error.message || '';
       if (/bucket|not found|does not exist/i.test(msg)) {
         throw new Error(
-          'Photo storage is not set up yet. Ask an admin to run the repair-images storage migrations in Supabase.',
+          bucket === 'product-images'
+            ? 'Product image storage is not set up yet. Run database/storage_setup.sql in Supabase.'
+            : 'Photo storage is not set up yet. Ask an admin to run the repair-images storage migrations in Supabase.',
         );
       }
       throw error;

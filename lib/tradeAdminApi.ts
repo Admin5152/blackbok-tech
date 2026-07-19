@@ -21,6 +21,7 @@ import type {
   TradeAnswerRow,
   TradeBaseValueRow,
   TradeConfigRow,
+  TradeDeviceRow,
   TradeDeviceType,
   TradeFaultDeductionRow,
   TradeQuestionRow,
@@ -318,6 +319,316 @@ export async function createDeduction(input: {
   if (error) throw error;
   await invalidateTradePricing();
   return data as TradeFaultDeductionRow;
+}
+
+// ─── Trade devices (accept catalog) ────────────────────────────────────────
+
+/** All trade_devices including inactive — admin Devices tab. */
+export async function getAdminDevices(
+  includeInactive = true,
+): Promise<TradeDeviceRow[]> {
+  let q = supabase
+    .from('trade_devices')
+    .select('*')
+    .order('device_type')
+    .order('sort_order')
+    .order('model');
+  if (!includeInactive) q = q.eq('is_active', true);
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data ?? []) as TradeDeviceRow[];
+}
+
+export type UpsertTradeDeviceInput = {
+  model: string;
+  device_type: TradeDeviceType;
+  series?: string | null;
+  product_line?: string | null;
+  generation?: string | null;
+  screen_size?: string | null;
+  biometric?: 'face_id' | 'touch_id';
+  image_url?: string | null;
+  is_active?: boolean;
+  sort_order?: number;
+  threshold_value?: number | null;
+};
+
+/**
+ * Insert or update a tradable model. Customer screens only show is_active
+ * devices that also have ≥1 active base_value row.
+ */
+export async function upsertTradeDevice(
+  input: UpsertTradeDeviceInput,
+): Promise<TradeDeviceRow> {
+  const model = input.model.trim();
+  if (!model) throw new Error('Model name is required.');
+
+  const payload: Record<string, unknown> = {
+    model,
+    device_type: input.device_type,
+    series:
+      input.device_type === 'iphone'
+        ? (input.series?.trim() || inferIphoneSeries(model))
+        : null,
+    product_line:
+      input.device_type === 'ipad'
+        ? (input.product_line?.trim() || inferIpadLine(model))
+        : null,
+    generation: input.generation?.trim() || null,
+    screen_size: input.screen_size?.trim() || null,
+    biometric: input.biometric ?? 'face_id',
+    image_url: input.image_url?.trim() || null,
+    is_active: input.is_active !== false,
+    sort_order: input.sort_order ?? 100,
+    updated_at: new Date().toISOString(),
+  };
+  if (input.threshold_value !== undefined) {
+    payload.threshold_value = input.threshold_value;
+  }
+
+  const { data, error } = await supabase
+    .from('trade_devices')
+    .upsert(payload, { onConflict: 'model' })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as TradeDeviceRow;
+}
+
+/** Toggle visibility on customer trade flow (type/series/model grids). */
+export async function setDeviceActive(
+  model: string,
+  isActive: boolean,
+): Promise<TradeDeviceRow> {
+  const { data, error } = await supabase
+    .from('trade_devices')
+    .update({ is_active: isActive, updated_at: new Date().toISOString() })
+    .eq('model', model)
+    .select()
+    .single();
+  if (error) throw error;
+
+  // Soft-hide pricing when device is removed from the list so it cannot
+  // appear via priced-model filters either.
+  if (!isActive) {
+    await supabase
+      .from('trade_base_values')
+      .update({ is_active: false })
+      .eq('model', model);
+    await invalidateTradePricing();
+  }
+
+  return data as TradeDeviceRow;
+}
+
+const DEFAULT_FAULT_DEDUCTIONS: Array<{
+  fault_code: string;
+  fault_label: string;
+  deduction: number;
+}> = [
+  { fault_code: 'screen', fault_label: 'Screen', deduction: 800 },
+  { fault_code: 'battery', fault_label: 'Battery', deduction: 400 },
+  { fault_code: 'backglass', fault_label: 'Back glass', deduction: 500 },
+  { fault_code: 'charging', fault_label: 'Charging', deduction: 300 },
+  { fault_code: 'front_camera', fault_label: 'Front camera', deduction: 350 },
+  { fault_code: 'back_camera', fault_label: 'Back camera', deduction: 400 },
+  { fault_code: 'face_id', fault_label: 'Face ID / Touch ID', deduction: 600 },
+];
+
+/** Seed the 7 standard fault rows for a new model (skip existing codes). */
+export async function seedDefaultDeductionsForModel(
+  model: string,
+): Promise<number> {
+  const name = model.trim();
+  if (!name) return 0;
+  const { data: existing } = await supabase
+    .from('trade_fault_deductions')
+    .select('fault_code')
+    .eq('model', name);
+  const have = new Set((existing ?? []).map((r) => r.fault_code));
+  const missing = DEFAULT_FAULT_DEDUCTIONS.filter((d) => !have.has(d.fault_code));
+  if (missing.length === 0) return 0;
+
+  const { error } = await supabase.from('trade_fault_deductions').insert(
+    missing.map((d) => ({
+      model: name,
+      fault_code: d.fault_code,
+      fault_label: d.fault_label,
+      deduction: d.deduction,
+      is_active: true,
+    })),
+  );
+  if (error) throw error;
+  await invalidateTradePricing();
+  return missing.length;
+}
+
+function roundGhs(n: number): number {
+  return Math.max(0, Math.round(n));
+}
+
+/**
+ * Copy fault deduction amounts from one model to another.
+ * - overwrite=false: insert only missing fault codes
+ * - overwrite=true: update existing amounts to match source (optionally scaled)
+ * - scalePercent: e.g. 10 = +10%, -5 = −5% applied to copied amounts
+ */
+export async function copyDeductionsFromModel(opts: {
+  sourceModel: string;
+  targetModel: string;
+  overwrite?: boolean;
+  scalePercent?: number;
+}): Promise<{ inserted: number; updated: number }> {
+  const source = opts.sourceModel.trim();
+  const target = opts.targetModel.trim();
+  if (!source || !target) throw new Error('Source and target models are required.');
+  if (source === target) throw new Error('Pick two different models.');
+
+  const scale = 1 + (Number(opts.scalePercent) || 0) / 100;
+  const overwrite = Boolean(opts.overwrite);
+
+  const [{ data: srcRows, error: sErr }, { data: tgtRows, error: tErr }] =
+    await Promise.all([
+      supabase
+        .from('trade_fault_deductions')
+        .select('*')
+        .eq('model', source)
+        .eq('is_active', true),
+      supabase.from('trade_fault_deductions').select('*').eq('model', target),
+    ]);
+  if (sErr) throw sErr;
+  if (tErr) throw tErr;
+  if (!srcRows?.length) {
+    throw new Error(`No active deductions found for ${source}.`);
+  }
+
+  const byCode = new Map(
+    (tgtRows ?? []).map((r) => [r.fault_code, r as TradeFaultDeductionRow]),
+  );
+  let inserted = 0;
+  let updated = 0;
+
+  for (const src of srcRows) {
+    const amount = roundGhs(Number(src.deduction) * scale);
+    const existing = byCode.get(src.fault_code);
+    if (!existing) {
+      const { error } = await supabase.from('trade_fault_deductions').insert({
+        model: target,
+        fault_code: src.fault_code,
+        fault_label: src.fault_label,
+        deduction: amount,
+        is_active: true,
+      });
+      if (error) throw error;
+      inserted += 1;
+      continue;
+    }
+    if (overwrite) {
+      const { error } = await supabase
+        .from('trade_fault_deductions')
+        .update({
+          deduction: amount,
+          fault_label: src.fault_label,
+          is_active: true,
+        })
+        .eq('id', existing.id);
+      if (error) throw error;
+      updated += 1;
+    }
+  }
+
+  if (inserted + updated > 0) await invalidateTradePricing();
+  return { inserted, updated };
+}
+
+/**
+ * Market-adjust all base values for a model by percent (e.g. 5 = +5%, -10 = −10%).
+ * Returns how many rows were updated.
+ */
+export async function scaleBaseValuesForModel(
+  model: string,
+  scalePercent: number,
+): Promise<number> {
+  const name = model.trim();
+  if (!name) throw new Error('Model is required.');
+  const pct = Number(scalePercent);
+  if (!Number.isFinite(pct) || pct === 0) {
+    throw new Error('Enter a non-zero percent change.');
+  }
+  const scale = 1 + pct / 100;
+
+  const { data: rows, error } = await supabase
+    .from('trade_base_values')
+    .select('id,base_value')
+    .eq('model', name);
+  if (error) throw error;
+  if (!rows?.length) throw new Error(`No base value rows for ${name}.`);
+
+  let updated = 0;
+  for (const row of rows) {
+    const next = roundGhs(Number(row.base_value) * scale);
+    if (next === Number(row.base_value)) continue;
+    const { error: uErr } = await supabase
+      .from('trade_base_values')
+      .update({ base_value: next })
+      .eq('id', row.id);
+    if (uErr) throw uErr;
+    updated += 1;
+  }
+  if (updated > 0) await invalidateTradePricing();
+  return updated;
+}
+
+/**
+ * Market-adjust all fault deductions for a model by percent.
+ */
+export async function scaleDeductionsForModel(
+  model: string,
+  scalePercent: number,
+): Promise<number> {
+  const name = model.trim();
+  if (!name) throw new Error('Model is required.');
+  const pct = Number(scalePercent);
+  if (!Number.isFinite(pct) || pct === 0) {
+    throw new Error('Enter a non-zero percent change.');
+  }
+  const scale = 1 + pct / 100;
+
+  const { data: rows, error } = await supabase
+    .from('trade_fault_deductions')
+    .select('id,deduction')
+    .eq('model', name);
+  if (error) throw error;
+  if (!rows?.length) throw new Error(`No deduction rows for ${name}.`);
+
+  let updated = 0;
+  for (const row of rows) {
+    const next = roundGhs(Number(row.deduction) * scale);
+    if (next === Number(row.deduction)) continue;
+    const { error: uErr } = await supabase
+      .from('trade_fault_deductions')
+      .update({ deduction: next })
+      .eq('id', row.id);
+    if (uErr) throw uErr;
+    updated += 1;
+  }
+  if (updated > 0) await invalidateTradePricing();
+  return updated;
+}
+
+function inferIphoneSeries(model: string): string {
+  const m = model.replace(/^iPhone\s+/i, '').trim();
+  if (/^XR$/i.test(m) || /^iPhone XR$/i.test(model)) return 'XR';
+  const hit = m.match(/^(\d+)/);
+  return hit?.[1] ?? m.split(/\s+/)[0] ?? model;
+}
+
+function inferIpadLine(model: string): string {
+  const lower = model.toLowerCase();
+  if (lower.includes('mini')) return 'mini';
+  if (lower.includes('air')) return 'air';
+  if (lower.includes('pro')) return 'pro';
+  return 'base';
 }
 
 /** Current stock for a product_variants row (staff verify decrement on complete). */

@@ -1,9 +1,9 @@
 /**
  * Spec Screen 5 — Target device picker (live shop SKUs from v_trade_targets).
  *
- * Drilldown: category → model card → storage → SIM (when sim_type differs) →
- * colour chips with per-variant display_image swap + effective_price via
- * formatGhs(). Cross-type allowed (iPhone trade-in may pick any sellable target).
+ * Drilldown: category → model card → storage → SIM → RAM → colour.
+ * Each step only lists options that exist on in-stock SKU rows for that product
+ * (e.g. iPhone 17 → only real 256GB / eSIM / RAM / colours).
  *
  * Out-of-stock colours are HIDDEN (Decision Sheet D11: no stock reservation —
  * first come, first served; stock confirmed at BlackBox visit).
@@ -16,18 +16,23 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Banknote, Info, Smartphone } from 'lucide-react';
-import { useTradeFlow } from '../../components/trade/TradeFlowProvider';
+import { useTradeFlow } from '../../lib/tradeFlowContext';
 import { TradePhasePills } from '../../components/trade/TradePhasePills';
+import { PageBackButton } from '../../components/PageBackButton';
 import { getTradeTargets } from '../../lib/tradeApi';
+import { getProductPageRow } from '../../lib/catalogApi';
 import { formatGhs } from '../../lib/money';
 import { TRADE_COPY, simVariantLabel } from '../../lib/tradeCopy';
 import {
   distinctTargetCategories,
+  distinctTargetRam,
   distinctTargetSims,
   distinctTargetStorage,
   filterInStockTargets,
   findTargetSku,
+  formatTargetSelectionSummary,
   groupTargetsByProduct,
+  selectionHasStock,
   targetColorRows,
   type TargetProductSummary,
 } from '../../lib/tradeTargetHelpers';
@@ -35,7 +40,7 @@ import type { TradeTargetLock } from '../../lib/tradeFlowState';
 import { useAppContext } from '../../lib/appContext';
 import type { TradeTargetRow } from '../../types/supabase';
 
-type Phase = 'browse' | 'configure';
+type Phase = 'browse' | 'configure' | 'review';
 
 export function TradeTargetScreen() {
   const { theme, notify } = useAppContext();
@@ -43,15 +48,21 @@ export function TradeTargetScreen() {
   const { state, dispatch } = useTradeFlow();
   const navigate = useNavigate();
 
-  const [rows, setRows] = useState<TradeTargetRow[]>([]);
+  /** All active SKUs (incl. OOS) — so customers can pick the version they want */
+  const [allRows, setAllRows] = useState<TradeTargetRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [productDetail, setProductDetail] = useState<{
+    description: string;
+    specs: string[];
+  } | null>(null);
 
   const [phase, setPhase] = useState<Phase>('browse');
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<TargetProductSummary | null>(null);
   const [storage, setStorage] = useState<string | null>(null);
   const [sim, setSim] = useState<string | null>(null);
+  const [ram, setRam] = useState<string | null>(null);
   const [color, setColor] = useState<string | null>(null);
 
   // Guard: need deviceLock from Screen 4
@@ -66,9 +77,10 @@ export function TradeTargetScreen() {
     setLoading(true);
     (async () => {
       try {
-        // inStockOnly defaults true — D11 hide OOS
-        const data = await getTradeTargets({ inStockOnly: true });
-        if (!cancelled) setRows(filterInStockTargets(data));
+        // Load all active variants so storage / eSIM choices stay visible;
+        // browse cards still require at least one in-stock SKU (D11).
+        const data = await getTradeTargets({ inStockOnly: false });
+        if (!cancelled) setAllRows(data);
       } catch {
         if (!cancelled) setError(TRADE_COPY.states.errorPricing);
       } finally {
@@ -80,32 +92,41 @@ export function TradeTargetScreen() {
     };
   }, []);
 
-  const categories = useMemo(() => distinctTargetCategories(rows), [rows]);
+  const stockRows = useMemo(() => filterInStockTargets(allRows), [allRows]);
+
+  const categories = useMemo(() => distinctTargetCategories(stockRows), [stockRows]);
 
   const products = useMemo(() => {
     const filtered = categoryFilter
-      ? rows.filter((r) => r.category === categoryFilter)
-      : rows;
+      ? stockRows.filter((r) => r.category === categoryFilter)
+      : stockRows;
     return groupTargetsByProduct(filtered);
-  }, [rows, categoryFilter]);
+  }, [stockRows, categoryFilter]);
+
+  /** Configure against all variants for this product (incl. OOS prefs) */
+  const productRows = useMemo(() => {
+    if (!selectedProduct) return [];
+    return allRows.filter((r) => r.product_id === selectedProduct.productId);
+  }, [allRows, selectedProduct]);
 
   const storageOptions = useMemo(() => {
     if (!selectedProduct) return [];
-    return distinctTargetStorage(rows, selectedProduct.productId);
-  }, [rows, selectedProduct]);
+    return distinctTargetStorage(productRows, selectedProduct.productId);
+  }, [productRows, selectedProduct]);
 
   /** Products with no storage chip (e.g. accessories) skip the storage step */
   const storageResolved =
     storageOptions.length === 0 || storage != null;
 
+  const storageFilter =
+    selectedProduct && storageOptions.length > 0 ? storage : null;
+
   const simOptions = useMemo(() => {
     if (!selectedProduct || !storageResolved) return [];
-    return distinctTargetSims(
-      rows,
-      selectedProduct.productId,
-      storageOptions.length === 0 ? null : storage,
-    );
-  }, [rows, selectedProduct, storage, storageOptions.length, storageResolved]);
+    return distinctTargetSims(productRows, selectedProduct.productId, storageFilter);
+  }, [productRows, selectedProduct, storageFilter, storageResolved]);
+
+  const simResolved = simOptions.length === 0 || sim != null;
 
   // Auto-skip SIM when only one (or none / single)
   useEffect(() => {
@@ -119,53 +140,120 @@ export function TradeTargetScreen() {
     }
   }, [selectedProduct, storageResolved, simOptions, sim]);
 
-  const colorOptions = useMemo(() => {
-    if (!selectedProduct || !storageResolved) return [];
-    const needSim = simOptions.length > 0;
-    if (needSim && !sim) return [];
-    return targetColorRows(
-      rows,
+  const ramOptions = useMemo(() => {
+    if (!selectedProduct || !storageResolved || !simResolved) return [];
+    return distinctTargetRam(
+      productRows,
       selectedProduct.productId,
-      storageOptions.length === 0 ? null : storage,
-      sim,
+      storageFilter,
+      simOptions.length > 0 ? sim : null,
     );
   }, [
-    rows,
+    productRows,
     selectedProduct,
-    storage,
+    storageFilter,
     sim,
-    simOptions,
-    storageOptions.length,
+    simOptions.length,
     storageResolved,
+    simResolved,
+  ]);
+
+  /** Show RAM picker only when more than one RAM exists for this path */
+  const showRamPicker = ramOptions.length > 1;
+  const ramResolved =
+    !showRamPicker || ram != null || ramOptions.length === 0;
+
+  // Auto-pick sole RAM (or clear when none)
+  useEffect(() => {
+    if (!selectedProduct || !storageResolved || !simResolved) return;
+    if (ramOptions.length === 0) {
+      if (ram !== null) setRam(null);
+      return;
+    }
+    if (ramOptions.length === 1 && ram !== ramOptions[0]) {
+      setRam(ramOptions[0]);
+    }
+  }, [selectedProduct, storageResolved, simResolved, ramOptions, ram]);
+
+  const colorOptions = useMemo(() => {
+    if (!selectedProduct || !storageResolved || !simResolved) return [];
+    if (showRamPicker && !ram) return [];
+    const rows = targetColorRows(
+      productRows,
+      selectedProduct.productId,
+      storageFilter,
+      simOptions.length > 0 ? sim : null,
+      showRamPicker ? ram : ramOptions[0] ?? null,
+    );
+    // In-stock colours first; OOS still listed so customers can state preference
+    return [...rows].sort((a, b) => {
+      const as = (a.variant_stock ?? 0) > 0 ? 1 : 0;
+      const bs = (b.variant_stock ?? 0) > 0 ? 1 : 0;
+      return bs - as;
+    });
+  }, [
+    productRows,
+    selectedProduct,
+    storageFilter,
+    sim,
+    ram,
+    simOptions.length,
+    ramOptions,
+    showRamPicker,
+    storageResolved,
+    simResolved,
   ]);
 
   const selectedSku = useMemo(() => {
-    if (!selectedProduct || !storageResolved) return null;
-    const needSim = simOptions.length > 0;
-    if (needSim && !sim) return null;
-    // Colour required when multiple colour rows exist; auto-pick sole SKU
+    if (!selectedProduct || !storageResolved || !simResolved) return null;
+    if (showRamPicker && !ram) return null;
     if (colorOptions.length === 1 && color == null) {
       return colorOptions[0];
     }
     if (colorOptions.length > 1 && color == null) return null;
+    // No colour dimension — resolve by storage/SIM/RAM alone
+    if (colorOptions.length === 0 && storageResolved && simResolved && ramResolved) {
+      return findTargetSku(
+        productRows,
+        selectedProduct.productId,
+        storageFilter,
+        simOptions.length > 0 ? sim : null,
+        null,
+        showRamPicker ? ram : ramOptions[0] ?? null,
+      );
+    }
     return findTargetSku(
-      rows,
+      productRows,
       selectedProduct.productId,
-      storageOptions.length === 0 ? null : storage,
-      sim,
+      storageFilter,
+      simOptions.length > 0 ? sim : null,
       color,
+      showRamPicker ? ram : ramOptions[0] ?? null,
     );
   }, [
-    rows,
+    productRows,
     selectedProduct,
-    storage,
+    storageFilter,
     sim,
+    ram,
     color,
-    simOptions,
+    simOptions.length,
+    ramOptions,
+    showRamPicker,
     colorOptions,
-    storageOptions.length,
     storageResolved,
+    simResolved,
+    ramResolved,
   ]);
+
+  const canConfirm =
+    Boolean(selectedProduct) &&
+    storageResolved &&
+    simResolved &&
+    ramResolved &&
+    (colorOptions.length === 0
+      ? storageOptions.length === 0 || storage != null || sim != null
+      : color != null || colorOptions.length === 1);
 
   // Auto-select the only colour / sole SKU
   useEffect(() => {
@@ -173,6 +261,15 @@ export function TradeTargetScreen() {
       setColor(colorOptions[0].color);
     }
   }, [colorOptions, color]);
+
+  const selectionSummary = formatTargetSelectionSummary({
+    storage: selectedSku?.storage ?? storage,
+    sim: selectedSku?.sim_type ?? sim,
+    ram: selectedSku?.ram ?? ram,
+    color: selectedSku?.color ?? color,
+  });
+
+  const inStockSelection = selectionHasStock(selectedSku);
 
   /** Image swaps with colour — prefer variant display_image */
   const previewImage =
@@ -193,8 +290,23 @@ export function TradeTargetScreen() {
     setSelectedProduct(p);
     setStorage(null);
     setSim(null);
+    setRam(null);
     setColor(null);
+    setProductDetail(null);
     setPhase('configure');
+    void getProductPageRow(p.productId)
+      .then((prod) => {
+        if (!prod) return;
+        setProductDetail({
+          description: String(prod.description || '').trim(),
+          specs: Array.isArray(prod.specs)
+            ? prod.specs.map(String).filter(Boolean)
+            : [],
+        });
+      })
+      .catch(() => {
+        /* optional detail — configure still works */
+      });
   };
 
   const lockTarget = (lock: TradeTargetLock) => {
@@ -210,32 +322,86 @@ export function TradeTargetScreen() {
       storage: null,
       simType: null,
       color: null,
+      ram: null,
       effectivePrice: null,
       displayImage: null,
       cashOnly: true,
     });
   };
 
-  const handleConfirmSku = () => {
-    if (!selectedProduct || !selectedSku) {
+  const buildLock = (): TradeTargetLock | null => {
+    if (!selectedProduct) return null;
+    const sku = selectedSku;
+    return {
+      productId: selectedProduct.productId,
+      variantId: sku?.variant_id ?? null,
+      productName: selectedProduct.name,
+      storage: sku?.storage ?? storage,
+      simType: sku?.sim_type ?? sim,
+      color: sku?.color ?? color,
+      ram: sku?.ram ?? ram,
+      effectivePrice:
+        sku != null
+          ? Number(sku.effective_price) || 0
+          : selectedProduct.priceFrom,
+      displayImage: sku?.display_image ?? selectedProduct.image,
+      cashOnly: false,
+    };
+  };
+
+  const handleReview = () => {
+    if (!canConfirm || !selectedProduct) {
       notify(TRADE_COPY.states.errorPricing, 'error');
       return;
     }
-    // DISPLAY SNAPSHOT — server re-derives effective_price on submit (Phase 5).
-    // variantId may be null for product-level (no SKU matrix) rows; the
-    // insert trigger fn_trade_autoresolve_target fills it when possible.
-    lockTarget({
-      productId: selectedProduct.productId,
-      variantId: selectedSku.variant_id,
-      productName: selectedProduct.name,
-      storage: selectedSku.storage,
-      simType: selectedSku.sim_type,
-      color: selectedSku.color,
-      effectivePrice: Number(selectedSku.effective_price) || 0,
-      displayImage: selectedSku.display_image,
-      cashOnly: false,
-    });
+    setPhase('review');
   };
+
+  const handleConfirmSku = () => {
+    const lock = buildLock();
+    if (!lock) {
+      notify(TRADE_COPY.states.errorPricing, 'error');
+      return;
+    }
+    lockTarget(lock);
+  };
+
+  const detailRows = useMemo(() => {
+    if (!selectedProduct) return [];
+    const rows: Array<{ label: string; value: string }> = [];
+    const stor = selectedSku?.storage ?? storage;
+    const r = selectedSku?.ram ?? ram;
+    const s = selectedSku?.sim_type ?? sim;
+    const c = selectedSku?.color ?? color;
+    if (stor) rows.push({ label: TRADE_COPY.target.detailStorage, value: stor });
+    if (r) rows.push({ label: TRADE_COPY.target.detailRam, value: r });
+    if (s && s !== 'single') {
+      rows.push({ label: TRADE_COPY.target.detailSim, value: simVariantLabel(s) });
+    }
+    if (c) rows.push({ label: TRADE_COPY.target.detailColor, value: c });
+    const price =
+      selectedSku != null
+        ? Number(selectedSku.effective_price) || 0
+        : selectedProduct.priceFrom;
+    if (price > 0) {
+      rows.push({ label: TRADE_COPY.target.detailPrice, value: formatGhs(price) });
+    }
+    rows.push({
+      label: TRADE_COPY.target.detailAvailability,
+      value: inStockSelection
+        ? TRADE_COPY.target.availabilityInStock
+        : TRADE_COPY.target.availabilityPreference,
+    });
+    return rows;
+  }, [
+    selectedProduct,
+    selectedSku,
+    storage,
+    ram,
+    sim,
+    color,
+    inStockSelection,
+  ]);
 
   if (!state.deviceLock) return null;
 
@@ -255,20 +421,164 @@ export function TradeTargetScreen() {
     );
   }
 
+  // ── Review / confirm details ──
+  if (phase === 'review' && selectedProduct) {
+    return (
+      <section aria-labelledby="trade-target-review-heading" className="space-y-6">
+        <TradePhasePills active="upgrade" maxReachable="upgrade" />
+        <PageBackButton
+          isLight={isLight}
+          label={TRADE_COPY.target.changeConfig}
+          onClick={() => setPhase('configure')}
+        />
+
+        <div className="space-y-2">
+          <h1
+            id="trade-target-review-heading"
+            className="text-2xl font-black tracking-tight"
+          >
+            {TRADE_COPY.target.reviewHeading}
+          </h1>
+          <p className={`text-sm ${isLight ? 'text-black/55' : 'text-white/50'}`}>
+            {TRADE_COPY.target.reviewSubheading}
+          </p>
+        </div>
+
+        <div
+          className={`rounded-2xl border-2 overflow-hidden ${
+            isLight ? 'border-black/10 bg-white' : 'border-white/10 bg-white/[0.03]'
+          }`}
+        >
+          <div className="flex flex-col sm:flex-row gap-5 p-5 sm:p-6">
+            <div
+              className={`w-full sm:w-36 aspect-square rounded-2xl flex items-center justify-center overflow-hidden shrink-0 ${
+                isLight ? 'bg-black/[0.04]' : 'bg-white/[0.06]'
+              }`}
+            >
+              {previewImage ? (
+                <img
+                  src={previewImage}
+                  alt=""
+                  className="w-full h-full object-contain p-3"
+                />
+              ) : (
+                <Smartphone size={40} className="text-[#CDA032]/60" aria-hidden />
+              )}
+            </div>
+            <div className="min-w-0 flex-1 space-y-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#CDA032]">
+                  {TRADE_COPY.target.reviewDetails}
+                </p>
+                <h2 className="text-xl font-black mt-1">{selectedProduct.name}</h2>
+                {selectionSummary && (
+                  <p
+                    className={`text-sm mt-1 ${
+                      isLight ? 'text-black/55' : 'text-white/50'
+                    }`}
+                  >
+                    {selectionSummary}
+                  </p>
+                )}
+              </div>
+
+              <dl className="space-y-2.5">
+                {detailRows.map((row) => (
+                  <div
+                    key={row.label}
+                    className="flex justify-between gap-4 text-sm border-b border-[color:var(--bb-border)]/60 pb-2 last:border-0"
+                  >
+                    <dt
+                      className={`font-medium ${
+                        isLight ? 'text-black/45' : 'text-white/40'
+                      }`}
+                    >
+                      {row.label}
+                    </dt>
+                    <dd className="font-bold text-right tabular-nums">{row.value}</dd>
+                  </div>
+                ))}
+              </dl>
+
+              {!inStockSelection && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 leading-relaxed">
+                  {TRADE_COPY.target.preferenceNote}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {(productDetail?.description || (productDetail?.specs?.length ?? 0) > 0) && (
+            <div
+              className={`px-5 sm:px-6 py-4 border-t space-y-3 ${
+                isLight ? 'border-black/8 bg-black/[0.02]' : 'border-white/8 bg-white/[0.02]'
+              }`}
+            >
+              {productDetail?.description ? (
+                <p
+                  className={`text-sm leading-relaxed ${
+                    isLight ? 'text-black/60' : 'text-white/55'
+                  }`}
+                >
+                  {productDetail.description.length > 280
+                    ? `${productDetail.description.slice(0, 280).trim()}…`
+                    : productDetail.description}
+                </p>
+              ) : null}
+              {productDetail && productDetail.specs.length > 0 && (
+                <ul className="flex flex-wrap gap-2">
+                  {productDetail.specs.slice(0, 8).map((spec) => (
+                    <li
+                      key={spec}
+                      className={`text-[11px] font-semibold rounded-lg px-2.5 py-1 ${
+                        isLight
+                          ? 'bg-black/[0.05] text-black/65'
+                          : 'bg-white/[0.06] text-white/60'
+                      }`}
+                    >
+                      {spec}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            type="button"
+            onClick={() => setPhase('configure')}
+            className={`w-full sm:w-auto rounded-xl border-2 font-black uppercase tracking-[0.15em] text-xs px-6 py-4 ${
+              isLight
+                ? 'border-black/15 hover:border-[#CDA032]/50'
+                : 'border-white/15 hover:border-[#CDA032]/50'
+            }`}
+          >
+            {TRADE_COPY.target.changeConfig}
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirmSku}
+            className="w-full sm:flex-1 sm:max-w-sm rounded-xl bg-[#CDA032] text-black font-black uppercase tracking-[0.2em] text-xs px-8 py-4 hover:brightness-105 transition-all"
+          >
+            {TRADE_COPY.target.confirmUpgrade}
+          </button>
+        </div>
+      </section>
+    );
+  }
+
   // ── Configure SKU phase ──
   if (phase === 'configure' && selectedProduct) {
     return (
       <section aria-labelledby="trade-target-config-heading" className="space-y-6">
         <TradePhasePills active="upgrade" maxReachable="upgrade" />
-        <button
-          type="button"
+        <PageBackButton
+          isLight={isLight}
+          label={TRADE_COPY.back}
           onClick={() => setPhase('browse')}
-          className={`text-xs font-bold underline-offset-2 hover:underline ${
-            isLight ? 'text-black/50' : 'text-white/45'
-          }`}
-        >
-          ← {TRADE_COPY.back}
-        </button>
+        />
 
         <div className="flex flex-col sm:flex-row gap-6 items-start">
           <div
@@ -296,29 +606,49 @@ export function TradeTargetScreen() {
             <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#CDA032] mt-1">
               {TRADE_COPY.target.configureSku}
             </p>
+            <p
+              className={`mt-2 text-sm ${
+                isLight ? 'text-black/50' : 'text-white/45'
+              }`}
+            >
+              {TRADE_COPY.target.configureHint}
+            </p>
+            {selectionSummary && (
+              <p className="mt-3 text-sm font-bold">
+                <span className="text-[10px] font-black uppercase tracking-widest text-[#CDA032] block mb-1">
+                  {TRADE_COPY.target.yourSelection}
+                </span>
+                {selectedProduct.name}
+                {selectionSummary ? ` · ${selectionSummary}` : ''}
+              </p>
+            )}
             {/* DISPLAY-ONLY price — server re-derives on submit */}
             {selectedSku && (
               <p className="mt-3 text-2xl font-black tabular-nums text-[#CDA032]">
                 {formatGhs(Number(selectedSku.effective_price) || 0)}
               </p>
             )}
-            {selectedProduct.hasTradeModel && (
-              <p
-                className={`mt-1 text-[10px] ${
-                  isLight ? 'text-black/35' : 'text-white/30'
-                }`}
-              >
-                Linked trade model: {selectedProduct.tradeModel}
+            {selectedSku && !inStockSelection && (
+              <p className="mt-2 text-xs text-amber-600 dark:text-amber-400 leading-relaxed">
+                {TRADE_COPY.target.preferenceNote}
               </p>
             )}
           </div>
         </div>
 
+        {storageOptions.length === 0 &&
+          simOptions.length === 0 &&
+          productRows.every((r) => !r.storage && !r.sim_type) && (
+            <p className={`text-sm ${isLight ? 'text-black/50' : 'text-white/45'}`}>
+              {TRADE_COPY.target.noConfigOptions}
+            </p>
+          )}
+
         {/* Storage */}
         {storageOptions.length > 0 && (
           <fieldset>
             <legend className="text-[10px] font-black uppercase tracking-[0.3em] text-[#CDA032] mb-3">
-              {TRADE_COPY.target.storage}
+              {TRADE_COPY.target.askStorage}
             </legend>
             <div className="flex flex-wrap gap-2">
               {storageOptions.map((tier) => (
@@ -328,6 +658,7 @@ export function TradeTargetScreen() {
                   onClick={() => {
                     setStorage(tier);
                     setSim(null);
+                    setRam(null);
                     setColor(null);
                   }}
                   className={chipClass(storage === tier)}
@@ -339,11 +670,11 @@ export function TradeTargetScreen() {
           </fieldset>
         )}
 
-        {/* SIM — only when sim_type differs across in-stock rows */}
+        {/* SIM — Physical vs eSIM when both exist */}
         {storageResolved && simOptions.length > 0 && (
           <fieldset>
             <legend className="text-[10px] font-black uppercase tracking-[0.3em] text-[#CDA032] mb-3">
-              {TRADE_COPY.target.simType}
+              {TRADE_COPY.target.askSim}
             </legend>
             <div className="flex flex-wrap gap-2">
               {simOptions.map((s) => (
@@ -352,6 +683,7 @@ export function TradeTargetScreen() {
                   type="button"
                   onClick={() => {
                     setSim(s);
+                    setRam(null);
                     setColor(null);
                   }}
                   className={chipClass(sim === s)}
@@ -363,26 +695,53 @@ export function TradeTargetScreen() {
           </fieldset>
         )}
 
-        {/* Colour — OOS hidden (D11); image swaps via selectedSku.display_image */}
-        {storageResolved && (simOptions.length === 0 || sim) && (
+        {/* RAM */}
+        {storageResolved && simResolved && showRamPicker && (
           <fieldset>
             <legend className="text-[10px] font-black uppercase tracking-[0.3em] text-[#CDA032] mb-3">
-              {TRADE_COPY.target.color}
+              {TRADE_COPY.target.askRam}
+            </legend>
+            <div className="flex flex-wrap gap-2">
+              {ramOptions.map((tier) => (
+                <button
+                  key={tier}
+                  type="button"
+                  onClick={() => {
+                    setRam(tier);
+                    setColor(null);
+                  }}
+                  className={chipClass(ram === tier)}
+                >
+                  {tier}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        )}
+
+        {/* Colour */}
+        {storageResolved && simResolved && ramResolved && (
+          <fieldset>
+            <legend className="text-[10px] font-black uppercase tracking-[0.3em] text-[#CDA032] mb-3">
+              {TRADE_COPY.target.askColor}
             </legend>
             {colorOptions.length === 0 ? (
               <p className={`text-sm ${isLight ? 'text-black/45' : 'text-white/40'}`}>
-                {TRADE_COPY.target.noStockInCategory}
+                {storage || sim
+                  ? TRADE_COPY.target.preferenceNote
+                  : TRADE_COPY.target.noStockInCategory}
               </p>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {colorOptions.map((row) => {
                   const name = row.color ?? 'Standard';
+                  const stocked = (row.variant_stock ?? 0) > 0;
                   const selected =
                     color === row.color ||
                     (colorOptions.length === 1 && selectedSku?.variant_id === row.variant_id);
                   return (
                     <button
-                      key={row.variant_id ?? name}
+                      key={row.variant_id ?? `${name}-${row.ram ?? ''}-${row.storage ?? ''}`}
                       type="button"
                       onClick={() => setColor(row.color)}
                       className={`inline-flex items-center gap-2 rounded-xl border-2 px-3.5 py-2.5 text-sm font-bold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032] ${
@@ -397,6 +756,11 @@ export function TradeTargetScreen() {
                       <span className="text-[10px] font-black text-[#CDA032] tabular-nums">
                         {formatGhs(Number(row.effective_price) || 0)}
                       </span>
+                      {!stocked && (
+                        <span className="text-[9px] font-black uppercase tracking-wider opacity-50">
+                          {TRADE_COPY.target.outOfStock}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -419,11 +783,11 @@ export function TradeTargetScreen() {
 
         <button
           type="button"
-          disabled={!selectedSku}
-          onClick={handleConfirmSku}
+          disabled={!canConfirm}
+          onClick={handleReview}
           className="w-full sm:w-auto min-w-[12rem] rounded-xl bg-[#CDA032] text-black font-black uppercase tracking-[0.2em] text-xs px-8 py-4 disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-105 transition-all"
         >
-          {TRADE_COPY.target.nextCondition}
+          {TRADE_COPY.target.reviewUpgrade}
         </button>
       </section>
     );
@@ -599,6 +963,10 @@ export function TradeTargetScreen() {
         >
           {TRADE_COPY.target.selectedLabel}: {state.targetLock.productName}
           {state.targetLock.storage ? ` · ${state.targetLock.storage}` : ''}
+          {state.targetLock.ram ? ` · ${state.targetLock.ram}` : ''}
+          {state.targetLock.simType && state.targetLock.simType !== 'single'
+            ? ` · ${simVariantLabel(state.targetLock.simType)}`
+            : ''}
           {state.targetLock.color ? ` · ${state.targetLock.color}` : ''}
           {' · '}
           {formatGhs(state.targetLock.effectivePrice ?? 0)}

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Product, ProductImage } from '../types';
 import { X, Plus, Minus, Heart, Share2, Star, Check, Truck, Shield, RefreshCw, ArrowLeft, Copy, Facebook, Twitter, ChevronRight } from 'lucide-react';
-import { formatCurrency } from '../lib/utils';
+import { formatGhs } from '../lib/money';
 import { ProductImageGallery } from '../components/product/ProductImageGallery';
 import { ProductAvailabilityBadge } from '../components/ProductAvailabilityBadge';
 import {
@@ -10,8 +10,12 @@ import {
   snapSelectionToInStock,
   toOptionString,
   getAvailableStock,
+  findVariantIdForOptions,
+  findVariantRowForOptions,
 } from '../lib/productOptions';
+import { variantEffectivePrice, getMaxTradeBaseForModel, saveTradeTargetSeed } from '../lib/catalogApi';
 import { PageBackButton } from '../components/PageBackButton';
+import type { ProductVariant } from '../types';
 
 interface ProductDetailProps {
   product: Product;
@@ -40,6 +44,67 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
     () => getAvailableStock(product, selectedOptions),
     [product, selectedOptions],
   );
+  const matchedVariant = useMemo(() => {
+    const row = findVariantRowForOptions(product, selectedOptions);
+    return row as ProductVariant | null;
+  }, [product, selectedOptions]);
+  const unitPrice = useMemo(() => {
+    const raw = variantEffectivePrice(product, matchedVariant);
+    if (product.discount && product.discount > 0) {
+      return raw * (1 - product.discount / 100);
+    }
+    return raw;
+  }, [product, matchedVariant]);
+  const listPrice = useMemo(
+    () => variantEffectivePrice(product, matchedVariant),
+    [product, matchedVariant],
+  );
+
+  const [tradeMax, setTradeMax] = useState<number | null>(null);
+  useEffect(() => {
+    const model = product.trade_model?.trim();
+    if (!model) {
+      setTradeMax(null);
+      return;
+    }
+    let cancelled = false;
+    getMaxTradeBaseForModel(model)
+      .then((v) => {
+        if (!cancelled) setTradeMax(v > 0 ? v : null);
+      })
+      .catch(() => {
+        if (!cancelled) setTradeMax(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [product.trade_model]);
+
+  /** Gallery: prefer variant-specific images when color/SKU selected */
+  const galleryImages = useMemo(() => {
+    const all = (product.images ?? []) as ProductImage[];
+    const vid = matchedVariant?.id;
+    if (vid) {
+      const forVariant = all.filter((img) => img.variant_id === vid);
+      if (forVariant.length) return forVariant;
+    }
+    // Color-level: any image whose variant matches selected color
+    const color = toOptionString(selectedOptions.Color || selectedOptions.color || '');
+    if (color && product.variants?.length) {
+      const colorVids = new Set(
+        product.variants
+          .filter((v) => toOptionString(v.color).toLowerCase() === color.toLowerCase())
+          .map((v) => v.id)
+          .filter(Boolean),
+      );
+      const matched = all.filter((img) => img.variant_id && colorVids.has(img.variant_id));
+      if (matched.length) return matched;
+    }
+    return all.filter((img) => !img.variant_id).length
+      ? all.filter((img) => !img.variant_id)
+      : all;
+  }, [product.images, product.variants, matchedVariant?.id, selectedOptions]);
+
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const overviewRef = useRef<HTMLDivElement | null>(null);
@@ -103,6 +168,24 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
     }
     const resolved = snapSelectionToInStock(product, normalizedVariants, selectedOptions);
     addToCart(product, resolved, quantity);
+  };
+
+  const startTradeIn = () => {
+    const vid = findVariantIdForOptions(product, selectedOptions);
+    saveTradeTargetSeed({
+      productId: product.id,
+      variantId: vid,
+      productName: product.name,
+      storage: toOptionString(selectedOptions.Storage || '') || null,
+      simType: toOptionString(selectedOptions.SIM || '') || null,
+      color: toOptionString(selectedOptions.Color || '') || null,
+      ram: toOptionString(selectedOptions.RAM || '') || null,
+      effectivePrice: listPrice,
+      displayImage: matchedVariant?.image_url || product.image_url || product.image || null,
+      cashOnly: false,
+      tradeModel: product.trade_model,
+    });
+    navigateTo('/trade/type');
   };
 
   const incrementQuantity = () => setQuantity((prev) => Math.min(prev + 1, Math.max(1, availableStock)));
@@ -200,8 +283,8 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
           {/* Image Section */}
           <div className="relative">
             <ProductImageGallery
-              images={(product.images ?? []) as ProductImage[]}
-              fallbackUrl={product.image ?? product.image_url ?? null}
+              images={galleryImages}
+              fallbackUrl={matchedVariant?.image_url ?? product.image ?? product.image_url ?? null}
               productName={product.name}
               theme={theme}
             />
@@ -218,24 +301,22 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
 
             <div className="space-y-1.5">
               <p className={`text-[10px] font-black uppercase tracking-[0.35em] ${isLight ? 'text-black/45' : 'text-white/45'}`}>
-                {product.category}
+                {product.brand || product.category}
               </p>
               <h1 className={`text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-[1.1] ${isLight ? 'text-black' : 'text-white'}`}>
                 {product.name}
               </h1>
             </div>
 
-            {/* Price + rating */}
+            {/* Price + rating — effective price for selected SKU (fn_variant_effective_price) */}
             <div className="flex items-center gap-4 flex-wrap">
-              <span className="text-2xl sm:text-3xl font-bold text-[#B38B21]">
-                ${product.discount
-                  ? (product.price * (1 - product.discount / 100)).toFixed(2)
-                  : product.price}
+              <span className="text-2xl sm:text-3xl font-bold text-[#B38B21] tabular-nums">
+                {formatGhs(unitPrice)}
               </span>
 
-              {product.discount && (
+              {product.discount != null && product.discount > 0 && (
                 <span className={`text-base line-through ${isLight ? 'text-black/35' : 'text-white/40'}`}>
-                  ${product.price}
+                  {formatGhs(listPrice)}
                 </span>
               )}
 
@@ -254,6 +335,33 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                 </div>
               )}
             </div>
+
+            {/* Trade-in banner — only when products.trade_model is set */}
+            {product.trade_model && tradeMax != null && tradeMax > 0 && (
+              <div
+                className={`rounded-2xl border p-4 flex flex-col sm:flex-row sm:items-center gap-3 ${
+                  isLight
+                    ? 'border-[#CDA032]/35 bg-[#CDA032]/10'
+                    : 'border-[#CDA032]/30 bg-[#CDA032]/10'
+                }`}
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold leading-snug">
+                    Trade in your old device — get up to {formatGhs(tradeMax)} toward this
+                  </p>
+                  <p className={`text-[11px] mt-1 ${isLight ? 'text-black/50' : 'text-white/45'}`}>
+                    Your current selection will be pre-filled as the upgrade target.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={startTradeIn}
+                  className="shrink-0 rounded-xl bg-[#CDA032] text-black font-black uppercase tracking-[0.15em] text-[10px] px-5 py-3 hover:brightness-105"
+                >
+                  Start trade-in
+                </button>
+              </div>
+            )}
 
             {normalizedVariants.length > 0 && (
               <div
@@ -284,10 +392,12 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                           const opt = toOptionString(option);
                           const ol = opt.toLowerCase();
                           const isSelected = selectedOptions[variant.name] === opt;
-                          const trialOpts = snapSelectionToInStock(product, normalizedVariants, {
+                          const trialOpts = {
                             ...selectedOptions,
                             [variant.name]: opt,
-                          });
+                          };
+                          // Discoverability: keep the chip visible; disable when this
+                          // exact combination has no stock (do not hide options).
                           const optDisabled = getAvailableStock(product, trialOpts) <= 0;
                           if (isColorGroup) {
                             return (
@@ -666,7 +776,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                     <p className={`text-[9px] font-black uppercase tracking-widest opacity-40 ${isLight ? 'text-black' : 'text-white'}`}>{item.category}</p>
                     <h3 className="font-bold text-sm tracking-tight truncate">{item.name}</h3>
                     <div className="flex items-center justify-between pt-2">
-                      <p className="text-[#B38B21] font-black italic text-lg">{formatCurrency(item.price)}</p>
+                      <p className="text-[#B38B21] font-black italic text-lg">{formatGhs(item.price)}</p>
                       <button className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all ${isLight ? 'border-black/5 text-black hover:bg-black hover:text-white' : 'border-white/10 text-white/40 hover:border-[#B38B21] hover:text-[#B38B21]'}`}>
                         <Plus size={14} />
                       </button>

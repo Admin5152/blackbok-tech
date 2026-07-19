@@ -30,6 +30,7 @@ import {
   getProductDiscountValue,
   productMatchesStoreCategories,
   productPassesStoreBaseFilters,
+  fetchStoreSearchProducts,
 } from '../lib/storeFilters';
 import type { Theme } from '../App';
 
@@ -95,6 +96,8 @@ export const Store: React.FC<StoreProps> = ({
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [desktopMinInput, setDesktopMinInput] = useState('0');
   const [desktopMaxInput, setDesktopMaxInput] = useState(String(STORE_PRICE_SLIDER_MAX));
+  /** GIN textSearch hits — null means use full catalog (no active search query) */
+  const [searchHitIds, setSearchHitIds] = useState<Set<string> | null>(null);
   const navigate = useNavigate();
   const isLight = theme === 'light';
 
@@ -185,19 +188,53 @@ export const Store: React.FC<StoreProps> = ({
     return () => window.clearTimeout(id);
   }, [buildStoreSearchParams, navigate, searchTerm, setSearchQuery]);
 
+  // Hit products GIN index via .textSearch when the user types a query
+  useEffect(() => {
+    const q = searchTerm.trim();
+    if (!q) {
+      setSearchHitIds(null);
+      return;
+    }
+    let cancelled = false;
+    const t = window.setTimeout(() => {
+      void fetchStoreSearchProducts(q)
+        .then((rows) => {
+          if (cancelled) return;
+          if (!rows) {
+            setSearchHitIds(null);
+            return;
+          }
+          setSearchHitIds(new Set(rows.map((r) => r.id)));
+        })
+        .catch(() => {
+          if (!cancelled) setSearchHitIds(null);
+        });
+    }, 320);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [searchTerm]);
+
+  const catalogForFilters = useMemo(() => {
+    if (!searchHitIds) return products;
+    return products.filter((p) => searchHitIds.has(p.id));
+  }, [products, searchHitIds]);
+
   const baseFilterOpts = useMemo(
     () => ({
-      searchTerm,
+      // Client haystack kept as secondary filter; primary gate is searchHitIds
+      searchTerm: searchHitIds ? '' : searchTerm,
       priceMin: priceRange.min,
       priceMax: priceRange.max,
       promotionsOnly: showPromotionsOnly,
     }),
-    [searchTerm, priceRange.min, priceRange.max, showPromotionsOnly],
+    [searchTerm, searchHitIds, priceRange.min, priceRange.max, showPromotionsOnly],
   );
 
   const baseFilteredProducts = useMemo(
-    () => products.filter((p) => productPassesStoreBaseFilters(p, baseFilterOpts)),
-    [products, baseFilterOpts],
+    () => catalogForFilters.filter((p) => productPassesStoreBaseFilters(p, baseFilterOpts)),
+    [catalogForFilters, baseFilterOpts],
   );
 
   const categoryOptions: StoreCategoryRow[] = useMemo(() => {

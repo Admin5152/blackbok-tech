@@ -19,9 +19,10 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { Loader2, ShieldAlert, ArrowLeft, ArrowRight } from 'lucide-react';
-import { useTradeFlow } from '../../components/trade/TradeFlowProvider';
+import { Loader2, ShieldAlert, ArrowRight } from 'lucide-react';
+import { useTradeFlow } from '../../lib/tradeFlowContext';
 import { TradePhasePills } from '../../components/trade/TradePhasePills';
+import { PageBackButton } from '../../components/PageBackButton';
 import { useAppContext } from '../../lib/appContext';
 import { createTradeRequest } from '../../lib/api';
 import {
@@ -31,10 +32,12 @@ import {
 } from '../../lib/tradeApi';
 import { formatGhs } from '../../lib/money';
 import { TRADE_COPY } from '../../lib/tradeCopy';
+import { computeTradeBalanceDisplay } from '../../lib/tradeBalanceDisplay';
 import { track, TRADE_ANALYTICS } from '../../lib/analytics';
 import type {
   TradeEstimateSnapshot,
   TradeQuizAnswer,
+  TradeTargetLock,
 } from '../../lib/tradeFlowState';
 import type {
   TradeAnswerRow,
@@ -526,7 +529,11 @@ export function TradeConditionScreen() {
           <p className="opacity-60 text-sm">{TRADE_COPY.questionnaire.subheading}</p>
         </div>
         <div className="rounded-3xl border border-[var(--bb-border)] bg-[var(--bb-surface-2)] p-5 sm:p-6 space-y-4">
-          <LiveTicker estimate={state.lastEstimate} loading={estimateLoading} />
+          <LiveTicker
+            estimate={state.lastEstimate}
+            loading={estimateLoading}
+            target={state.targetLock}
+          />
           {state.editLog.length > 0 && (
             <p className="text-xs opacity-50">
               {TRADE_COPY.questionnaire.answersChangedNote}
@@ -534,16 +541,14 @@ export function TradeConditionScreen() {
           )}
         </div>
         <div className="flex flex-wrap gap-3 pt-2">
-          <button
-            type="button"
+          <PageBackButton
+            isLight={isLight}
+            label={TRADE_COPY.questionnaire.backQuestion}
             onClick={() => {
               dispatch({ type: 'RESET_QUIZ' });
               setQIndex(0);
             }}
-            className="flex items-center gap-2 px-6 py-4 rounded-xl text-xs font-black uppercase tracking-wider border border-[var(--bb-border)] bg-[var(--bb-surface)] hover:border-[#CDA032]/40 transition-all"
-          >
-            <ArrowLeft size={16} aria-hidden /> {TRADE_COPY.questionnaire.backQuestion}
-          </button>
+          />
           <button
             type="button"
             onClick={() => void navigate({ to: '/trade/summary' })}
@@ -588,7 +593,11 @@ export function TradeConditionScreen() {
 
       {/* Condition shell — questions live here (tile answers, not free-text) */}
       <div className="space-y-5 p-5 sm:p-6 rounded-3xl border border-[var(--bb-border)] bg-[var(--bb-surface-2)]">
-        <LiveTicker estimate={state.lastEstimate} loading={estimateLoading} />
+        <LiveTicker
+          estimate={state.lastEstimate}
+          loading={estimateLoading}
+          target={state.targetLock}
+        />
 
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032]">
@@ -698,13 +707,11 @@ export function TradeConditionScreen() {
               className="w-full rounded-xl border border-[var(--bb-border)] bg-[var(--bb-surface)] px-4 py-3 text-sm outline-none focus:border-[#CDA032]"
             />
             <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
+              <PageBackButton
+                isLight={isLight}
+                label={TRADE_COPY.back}
                 onClick={() => setPendingDesc(null)}
-                className="flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider border border-[var(--bb-border)] bg-[var(--bb-surface)]"
-              >
-                <ArrowLeft size={14} aria-hidden /> {TRADE_COPY.back}
-              </button>
+              />
               <button
                 type="button"
                 onClick={confirmDescription}
@@ -722,13 +729,11 @@ export function TradeConditionScreen() {
       </div>
 
       <div className="flex flex-wrap gap-3">
-        <button
-          type="button"
+        <PageBackButton
+          isLight={isLight}
+          label={TRADE_COPY.questionnaire.backQuestion}
           onClick={goBackQuestion}
-          className="flex items-center gap-2 px-6 py-4 rounded-xl text-xs font-black uppercase tracking-wider border border-[var(--bb-border)] bg-[var(--bb-surface)] hover:border-[#CDA032]/40 transition-all"
-        >
-          <ArrowLeft size={16} aria-hidden /> {TRADE_COPY.questionnaire.backQuestion}
-        </button>
+        />
         {allAnswered && !estimateLoading && state.lastEstimate && !state.hardStopped && (
           <button
             type="button"
@@ -746,18 +751,34 @@ export function TradeConditionScreen() {
   );
 }
 
-/** Live estimate strip — money from RPC only */
+/** Live balance strip — upgrade price − trade credit (RPC money only) */
 function LiveTicker({
   estimate,
   loading,
+  target,
 }: {
   estimate: TradeEstimateSnapshot | null;
   loading: boolean;
+  target: TradeTargetLock | null;
 }) {
+  const balance =
+    estimate != null
+      ? computeTradeBalanceDisplay({ estimate: estimate.estimate, target })
+      : null;
+  const isTopUp = balance?.kind === 'top_up';
+  const label =
+    balance?.kind === 'top_up'
+      ? TRADE_COPY.questionnaire.liveTopUp
+      : balance?.kind === 'refund'
+        ? TRADE_COPY.questionnaire.liveRefund
+        : balance?.kind === 'cash'
+          ? TRADE_COPY.questionnaire.liveCash
+          : TRADE_COPY.questionnaire.liveEstimate;
+
   const announced =
-    loading || !estimate
+    loading || !balance
       ? 'Updating estimate'
-      : `Live estimate ${formatGhs(estimate.estimate)}`;
+      : `${label} ${formatGhs(balance.amount)}`;
 
   return (
     <div
@@ -765,19 +786,25 @@ function LiveTicker({
       aria-live="polite"
       aria-atomic="true"
     >
-      <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#CDA032]">
-        {TRADE_COPY.questionnaire.liveEstimate}
+      <span
+        className={`text-[10px] font-black uppercase tracking-[0.3em] ${
+          isTopUp ? 'text-red-500' : 'text-[#CDA032]'
+        }`}
+      >
+        {label}
       </span>
       <span className="sr-only">{announced}</span>
       <span
-        className="text-xl font-black tabular-nums text-[#CDA032] min-h-[1.75rem] flex items-center"
+        className={`text-xl font-black tabular-nums min-h-[1.75rem] flex items-center ${
+          isTopUp ? 'text-red-500' : 'text-emerald-600'
+        }`}
         aria-hidden={loading}
       >
-        {loading || !estimate ? (
+        {loading || !balance ? (
           <Loader2 size={22} className="animate-spin opacity-70" aria-hidden />
         ) : (
           <span className="animate-in fade-in duration-200">
-            {formatGhs(estimate.estimate)}
+            {formatGhs(balance.amount)}
           </span>
         )}
       </span>

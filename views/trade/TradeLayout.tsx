@@ -6,10 +6,11 @@ import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
 import { RefreshCcw } from 'lucide-react';
 import { PageBackButton } from '../../components/PageBackButton';
 import { TradeCollapsedSteps } from '../../components/trade/TradeCollapsedSteps';
-import { TradeFlowProvider } from '../../components/trade/TradeFlowProvider';
 import { TradeSummarySidebar } from '../../components/trade/TradeSummarySidebar';
+import { TradeFlowProvider } from '../../components/trade/TradeFlowProvider';
 import { TRADE_COPY } from '../../lib/tradeCopy';
 import { useAppContext } from '../../lib/appContext';
+import { isTradeV2Enabled } from '../../lib/tradeFeatureFlags';
 
 const STEP_PATHS = [
   { id: 1, path: '/trade/type' },
@@ -122,10 +123,26 @@ function TradeLayoutInner() {
 }
 
 export function TradeLayout() {
+  // Gate + provider in one place so child screens always mount under context
+  if (!isTradeV2Enabled()) {
+    return <TradeV2OffRedirect />;
+  }
   return (
     <TradeFlowProvider>
       <TradeLayoutInner />
     </TradeFlowProvider>
+  );
+}
+
+function TradeV2OffRedirect() {
+  const navigate = useNavigate();
+  React.useEffect(() => {
+    void navigate({ to: '/trades', replace: true });
+  }, [navigate]);
+  return (
+    <p className="text-sm text-[color:var(--bb-muted)] text-center py-12">
+      {TRADE_COPY.states.loading}
+    </p>
   );
 }
 

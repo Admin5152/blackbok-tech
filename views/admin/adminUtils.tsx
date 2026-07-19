@@ -14,6 +14,8 @@ export const statusColors: Record<string, string> = {
     inspecting: 'bg-blue-500/20 text-blue-400',
     'Offer sent': 'bg-purple-500/20 text-purple-400',
     'Offer Made': 'bg-purple-500/20 text-purple-400',
+    under_review: 'bg-blue-500/20 text-blue-400',
+    'Under Review': 'bg-blue-500/20 text-blue-400',
     offer_made: 'bg-purple-500/20 text-purple-400',
     'Awaiting User': 'bg-indigo-500/20 text-indigo-400',
     awaiting_user: 'bg-indigo-500/20 text-indigo-400',

@@ -1,36 +1,34 @@
 /**
- * TradeFlowProvider — context + reducer for the v2 trade-in wizard.
+ * TradeFlowProvider — wraps /trade/* with wizard state.
  *
- * Role in flow: wraps /trade/* routes so every screen reads/writes the same
- * TradeFlowState. Persists to sessionStorage (`trade_v2_state`) on each change
- * so refresh and browser-back restore progress.
+ * Context + useTradeFlow live in lib/tradeFlowContext.tsx (hook-only file)
+ * so Vite Fast Refresh does not invalidate the Provider and orphan screens.
  */
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useReducer,
-  type Dispatch,
-  type ReactNode,
-} from 'react';
+import React, { useEffect, useReducer, type ReactNode } from 'react';
+import {
+  TradeFlowContext,
+} from '../../lib/tradeFlowContext';
 import {
   initialTradeFlowState,
   loadTradeFlowState,
   persistTradeFlowState,
   tradeFlowReducer,
-  type TradeFlowAction,
   type TradeFlowState,
 } from '../../lib/tradeFlowState';
-import { consumeTradeTargetSeed } from '../../lib/catalogApi';
 
-interface TradeFlowContextValue {
-  state: TradeFlowState;
-  dispatch: Dispatch<TradeFlowAction>;
+const TRADE_PDP_SEED_KEY = 'trade_v2_pdp_target_seed';
+
+function consumePdpTargetSeed<T>(): T | null {
+  try {
+    const raw = sessionStorage.getItem(TRADE_PDP_SEED_KEY);
+    if (!raw) return null;
+    sessionStorage.removeItem(TRADE_PDP_SEED_KEY);
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
 }
 
-const TradeFlowContext = createContext<TradeFlowContextValue | null>(null);
-
-/** Lazy init from sessionStorage so refresh restores before first paint */
 function initTradeFlowState(): TradeFlowState {
   return loadTradeFlowState() ?? { ...initialTradeFlowState };
 }
@@ -45,20 +43,20 @@ export function TradeFlowProvider({ children }: { children: ReactNode }) {
     initTradeFlowState,
   );
 
-  // Persist after every change (init already hydrated — no empty overwrite race)
   useEffect(() => {
     persistTradeFlowState(state);
   }, [state]);
 
   // PDP trade banner deep-link: seed target SKU once, then clear
   useEffect(() => {
-    const seed = consumeTradeTargetSeed<{
+    const seed = consumePdpTargetSeed<{
       productId: string | null;
       variantId: string | null;
       productName: string | null;
       storage: string | null;
       simType: string | null;
       color: string | null;
+      ram: string | null;
       effectivePrice: number | null;
       displayImage: string | null;
       cashOnly: boolean;
@@ -73,6 +71,7 @@ export function TradeFlowProvider({ children }: { children: ReactNode }) {
         storage: seed.storage,
         simType: seed.simType,
         color: seed.color,
+        ram: seed.ram ?? null,
         effectivePrice: seed.effectivePrice,
         displayImage: seed.displayImage,
         cashOnly: Boolean(seed.cashOnly),
@@ -85,16 +84,4 @@ export function TradeFlowProvider({ children }: { children: ReactNode }) {
       {children}
     </TradeFlowContext.Provider>
   );
-}
-
-/**
- * Access trade wizard state + dispatch.
- * @throws if used outside TradeFlowProvider
- */
-export function useTradeFlow(): TradeFlowContextValue {
-  const ctx = useContext(TradeFlowContext);
-  if (!ctx) {
-    throw new Error('useTradeFlow must be used within TradeFlowProvider');
-  }
-  return ctx;
 }

@@ -270,7 +270,7 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
             </h1>
             <p className={`text-[9px] font-black uppercase tracking-widest truncate ${isLight ? 'text-black/50' : 'text-white/55'}`}>
               {section === 'trades'
-                ? 'Lifecycle · pricing · queue'
+                ? 'Devices · pricing · queue'
                 : (
                   <>
                     BlackBox Admin ·{' '}

@@ -67,6 +67,7 @@ import { Admin } from './views/Admin';
 import { TradeAdminQueue } from './views/admin/trade/TradeAdminQueue';
 import { TradeAdminRequestDetail } from './views/admin/trade/TradeAdminRequestDetail';
 import { TradeAdminPricing } from './views/admin/trade/TradeAdminPricing';
+import { TradeAdminDevices } from './views/admin/trade/TradeAdminDevices';
 import { TradeAdminThresholds } from './views/admin/trade/TradeAdminThresholds';
 import { TradeAdminConfig } from './views/admin/trade/TradeAdminConfig';
 import { TradeAdminQuestionnaire } from './views/admin/trade/TradeAdminQuestionnaire';
@@ -346,22 +347,8 @@ function LegacyTradesRedirect() {
 const tradeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/trade',
-  component: () => {
-    if (!isTradeV2Enabled()) {
-      return <TradeV2DisabledRedirect />;
-    }
-    return <TradeLayout />;
-  },
+  component: TradeLayout,
 });
-
-function TradeV2DisabledRedirect() {
-  const navigate = useNavigate();
-  const { theme } = useAppContext();
-  React.useEffect(() => {
-    void navigate({ to: '/trades', replace: true });
-  }, [navigate]);
-  return <RouteSessionSpinner theme={theme} label="Opening classic trade-in…" />;
-}
 
 const tradeIndexRoute = createRoute({
   getParentRoute: () => tradeRoute,
@@ -716,7 +703,20 @@ const adminTradeIndexRoute = createRoute({
 const adminTradePricingRoute = createRoute({
   getParentRoute: () => adminTradeRoute,
   path: '/pricing',
+  validateSearch: (search: Record<string, unknown>) => ({
+    model: typeof search.model === 'string' ? search.model : undefined,
+    tab:
+      search.tab === 'deductions' || search.tab === 'bases'
+        ? (search.tab as 'bases' | 'deductions')
+        : undefined,
+  }),
   component: TradeAdminPricing,
+});
+
+const adminTradeDevicesRoute = createRoute({
+  getParentRoute: () => adminTradeRoute,
+  path: '/devices',
+  component: TradeAdminDevices,
 });
 
 const adminTradeThresholdsRoute = createRoute({
@@ -962,6 +962,7 @@ const routeTree = rootRoute.addChildren([
   adminProductsRoute,
   adminTradeRoute.addChildren([
     adminTradeIndexRoute,
+    adminTradeDevicesRoute,
     adminTradePricingRoute,
     adminTradeThresholdsRoute,
     adminTradeConfigRoute,

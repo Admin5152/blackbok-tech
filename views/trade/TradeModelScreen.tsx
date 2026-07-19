@@ -3,12 +3,14 @@
  */
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { ArrowLeft, Check, Smartphone } from 'lucide-react';
-import { useTradeFlow } from '../../components/trade/TradeFlowProvider';
+import { Check, Smartphone } from 'lucide-react';
+import { useTradeFlow } from '../../lib/tradeFlowContext';
+import { PageBackButton } from '../../components/PageBackButton';
 import { getTradeModelsInCategory } from '../../lib/tradeApi';
 import { TRADE_COPY } from '../../lib/tradeCopy';
 import { TRADE_CARD_MODEL, tradeCardSelected } from '../../lib/tradeUi';
 import { track, TRADE_ANALYTICS } from '../../lib/analytics';
+import { useAppContext } from '../../lib/appContext';
 import type { TradeDeviceRow } from '../../types/supabase';
 
 function shortModelName(model: string, category: string | null): string {
@@ -22,8 +24,10 @@ function shortModelName(model: string, category: string | null): string {
 }
 
 export function TradeModelScreen() {
+  const { theme } = useAppContext();
   const { state, dispatch } = useTradeFlow();
   const navigate = useNavigate();
+  const isLight = theme === 'light';
   const [models, setModels] = useState<TradeDeviceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -120,13 +124,11 @@ export function TradeModelScreen() {
             {TRADE_COPY.model.heading}
           </h2>
         </div>
-        <button
-          type="button"
-          onClick={() => void navigate({ to: '/trade/category' })}
-          className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-[color:var(--bb-muted)] hover:text-[#CDA032] transition-colors shrink-0 pt-1"
-        >
-          <ArrowLeft size={14} aria-hidden /> {TRADE_COPY.back}
-        </button>
+        <PageBackButton
+          isLight={isLight}
+          to="/trade/category"
+          label={TRADE_COPY.back}
+        />
       </div>
 
       {/* Repair-style split: preview | grid */}

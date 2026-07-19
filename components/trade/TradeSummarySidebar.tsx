@@ -10,9 +10,10 @@ import {
   HardDrive,
   ShoppingBag,
 } from 'lucide-react';
-import { useTradeFlow } from './TradeFlowProvider';
+import { useTradeFlow } from '../../lib/tradeFlowContext';
 import { TRADE_COPY, simVariantLabel } from '../../lib/tradeCopy';
 import { formatGhs } from '../../lib/money';
+import { computeTradeBalanceDisplay } from '../../lib/tradeBalanceDisplay';
 
 function IconTile({ children }: { children: React.ReactNode }) {
   return (
@@ -98,7 +99,14 @@ export function TradeSummarySidebar() {
               <p className="text-sm font-bold leading-snug">
                 {target.cashOnly
                   ? TRADE_COPY.summary.cashOnlySelected
-                  : target.productName}
+                  : [
+                      target.productName,
+                      target.storage,
+                      target.ram,
+                      target.color,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
               </p>
             </div>
           </div>
@@ -122,15 +130,38 @@ export function TradeSummarySidebar() {
 
         {est ? (
           <div className="pt-6 border-t border-[var(--bb-border)]">
-            <p className="text-[10px] uppercase font-bold tracking-widest opacity-50 mb-2">
-              {TRADE_COPY.layout.summaryEstimate}
-            </p>
-            <p className="text-2xl font-black text-[#CDA032] tracking-tighter tabular-nums">
-              {formatGhs(est.estimate)}
-            </p>
-            <p className="text-[9px] uppercase tracking-wider opacity-40 mt-1">
-              {TRADE_COPY.layout.summaryEstimateNote}
-            </p>
+            {(() => {
+              const balance = computeTradeBalanceDisplay({
+                estimate: est.estimate,
+                target,
+              });
+              const isTopUp = balance.kind === 'top_up';
+              const label =
+                balance.kind === 'top_up'
+                  ? TRADE_COPY.layout.summaryYouAdd
+                  : balance.kind === 'refund' || balance.kind === 'cash'
+                    ? TRADE_COPY.layout.summaryYouReceive
+                    : balance.kind === 'even'
+                      ? TRADE_COPY.layout.summaryEven
+                      : TRADE_COPY.layout.summaryEstimate;
+              return (
+                <>
+                  <p className="text-[10px] uppercase font-bold tracking-widest opacity-50 mb-2">
+                    {label}
+                  </p>
+                  <p
+                    className={`text-2xl font-black tracking-tighter tabular-nums ${
+                      isTopUp ? 'text-red-500' : 'text-emerald-600'
+                    }`}
+                  >
+                    {formatGhs(balance.amount)}
+                  </p>
+                  <p className="text-[9px] uppercase tracking-wider opacity-40 mt-1">
+                    {TRADE_COPY.layout.summaryEstimateNote}
+                  </p>
+                </>
+              );
+            })()}
           </div>
         ) : (
           <div className="pt-2 flex items-center gap-2 text-[color:var(--bb-muted)]">

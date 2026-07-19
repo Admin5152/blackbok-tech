@@ -1,7 +1,12 @@
 /**
  * Trade Admin pricing — editable base values + fault deductions grids.
  *
- * Staff can add model × storage × SIM rows (Physical / eSIM) without SQL.
+ * Staff keep each phone’s trade-in offer market-current:
+ * - Base values: model × storage × SIM (Physical / eSIM)
+ * - Deductions: model × fault (screen, battery, …)
+ * - Market tools: % adjust all rows for a model; copy deductions between models
+ *
+ * Deep links: /admin/trade/pricing?model=iPhone%2015%20Pro&tab=deductions
  * Invalidates tradePricingStore on save so the live ticker reflects edits.
  *
  * TODO(D1a): iPhone 15 1TB seed (4650) stays inactive until client confirms —
@@ -9,13 +14,19 @@
  * TODO(iPad-prices): same pattern for iPad base rows.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, Copy } from 'lucide-react';
+import { Link, useNavigate, useSearch } from '@tanstack/react-router';
+import { Plus, Copy, Percent, ArrowRightLeft } from 'lucide-react';
 import {
   cloneBaseValueForSim,
+  copyDeductionsFromModel,
   createBaseValue,
   createDeduction,
   getAdminBaseValues,
   getAdminDeductions,
+  getAdminDevices,
+  scaleBaseValuesForModel,
+  scaleDeductionsForModel,
+  seedDefaultDeductionsForModel,
   tradeAdminErrorMessage,
   updateBaseValue,
   updateDeduction,
@@ -23,7 +34,7 @@ import {
 import { formatGhs } from '../../../lib/money';
 import { simVariantLabel } from '../../../lib/tradeCopy';
 import { TRADE_COMPONENT_KEYS } from '../../../lib/tradeComponentKeys';
-import type { TradeBaseValueRow, TradeFaultDeductionRow } from '../../../types/supabase';
+import type { TradeBaseValueRow, TradeDeviceRow, TradeFaultDeductionRow } from '../../../types/supabase';
 import { useAppContext } from '../../../lib/appContext';
 
 type Tab = 'bases' | 'deductions';
@@ -43,31 +54,64 @@ const FAULT_LABELS: Record<string, string> = {
 
 export const TradeAdminPricing: React.FC = () => {
   const { notify } = useAppContext();
-  const [tab, setTab] = useState<Tab>('bases');
+  const navigate = useNavigate();
+  const search = useSearch({ strict: false }) as {
+    model?: string;
+    tab?: Tab;
+  };
+  const [tab, setTab] = useState<Tab>(search.tab === 'deductions' ? 'deductions' : 'bases');
   const [bases, setBases] = useState<TradeBaseValueRow[]>([]);
   const [deducs, setDeducs] = useState<TradeFaultDeductionRow[]>([]);
+  const [devices, setDevices] = useState<TradeDeviceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [focusModel, setFocusModel] = useState(search.model ?? '');
   const [q, setQ] = useState('');
   const [savingId, setSavingId] = useState<string | null>(null);
 
-  const [newModel, setNewModel] = useState('');
+  const [newModel, setNewModel] = useState(search.model ?? '');
   const [newStorage, setNewStorage] = useState('128GB');
   const [newSim, setNewSim] = useState<string>('ps');
   const [newBase, setNewBase] = useState('');
   const [adding, setAdding] = useState(false);
 
-  const [dedModel, setDedModel] = useState('');
+  const [dedModel, setDedModel] = useState(search.model ?? '');
   const [dedCode, setDedCode] = useState<string>(TRADE_COMPONENT_KEYS[0] || 'screen');
   const [dedAmount, setDedAmount] = useState('');
   const [addingDed, setAddingDed] = useState(false);
 
+  const [scalePct, setScalePct] = useState('5');
+  const [scaling, setScaling] = useState(false);
+  const [copyFrom, setCopyFrom] = useState('');
+  const [copyOverwrite, setCopyOverwrite] = useState(true);
+  const [copyScale, setCopyScale] = useState('0');
+  const [copying, setCopying] = useState(false);
+
+  const syncSearch = useCallback(
+    (next: { model?: string; tab?: Tab }) => {
+      void navigate({
+        to: '/admin/trade/pricing',
+        search: {
+          model: next.model || undefined,
+          tab: next.tab && next.tab !== 'bases' ? next.tab : undefined,
+        },
+        replace: true,
+      });
+    },
+    [navigate],
+  );
+
   const reload = useCallback(async () => {
     setError(null);
     try {
-      const [b, d] = await Promise.all([getAdminBaseValues(true), getAdminDeductions(true)]);
+      const [b, d, dev] = await Promise.all([
+        getAdminBaseValues(true),
+        getAdminDeductions(true),
+        getAdminDevices(true),
+      ]);
       setBases(b);
       setDeducs(d);
+      setDevices(dev);
     } catch (e) {
       setError(tradeAdminErrorMessage(e));
     }
@@ -78,36 +122,79 @@ export const TradeAdminPricing: React.FC = () => {
     void reload().finally(() => setLoading(false));
   }, [reload]);
 
+  useEffect(() => {
+    if (search.model) {
+      setFocusModel(search.model);
+      setNewModel(search.model);
+      setDedModel(search.model);
+    }
+    if (search.tab === 'deductions' || search.tab === 'bases') {
+      setTab(search.tab);
+    }
+  }, [search.model, search.tab]);
+
   const modelOptions = useMemo(() => {
     const set = new Set<string>();
+    for (const d of devices) set.add(d.model);
     for (const r of bases) set.add(r.model);
     for (const r of deducs) set.add(r.model);
     return [...set].sort();
-  }, [bases, deducs]);
+  }, [devices, bases, deducs]);
+
+  const activeDeviceModels = useMemo(
+    () => devices.filter((d) => d.is_active).map((d) => d.model).sort(),
+    [devices],
+  );
+
+  const marketModel = focusModel || newModel || dedModel;
 
   const ql = q.trim().toLowerCase();
   const filteredBases = useMemo(
     () =>
-      bases.filter(
-        (r) =>
-          !ql ||
-          r.model.toLowerCase().includes(ql) ||
-          r.storage.toLowerCase().includes(ql) ||
-          r.sim_variant.toLowerCase().includes(ql),
-      ),
-    [bases, ql],
+      bases.filter((r) => {
+        if (focusModel && r.model !== focusModel) return false;
+        if (
+          ql &&
+          !r.model.toLowerCase().includes(ql) &&
+          !r.storage.toLowerCase().includes(ql) &&
+          !r.sim_variant.toLowerCase().includes(ql)
+        ) {
+          return false;
+        }
+        return true;
+      }),
+    [bases, focusModel, ql],
   );
   const filteredDeducs = useMemo(
     () =>
-      deducs.filter(
-        (r) =>
-          !ql ||
-          r.model.toLowerCase().includes(ql) ||
-          r.fault_code.toLowerCase().includes(ql) ||
-          r.fault_label.toLowerCase().includes(ql),
-      ),
-    [deducs, ql],
+      deducs.filter((r) => {
+        if (focusModel && r.model !== focusModel) return false;
+        if (
+          ql &&
+          !r.model.toLowerCase().includes(ql) &&
+          !r.fault_code.toLowerCase().includes(ql) &&
+          !r.fault_label.toLowerCase().includes(ql)
+        ) {
+          return false;
+        }
+        return true;
+      }),
+    [deducs, focusModel, ql],
   );
+
+  const selectTab = (id: Tab) => {
+    setTab(id);
+    syncSearch({ model: focusModel || undefined, tab: id });
+  };
+
+  const selectFocusModel = (model: string) => {
+    setFocusModel(model);
+    if (model) {
+      setNewModel(model);
+      setDedModel(model);
+    }
+    syncSearch({ model: model || undefined, tab });
+  };
 
   const saveBase = async (
     id: string,
@@ -117,7 +204,7 @@ export const TradeAdminPricing: React.FC = () => {
     try {
       const row = await updateBaseValue(id, patch);
       setBases((prev) => prev.map((r) => (r.id === id ? row : r)));
-      notify?.('Base value saved.', 'success');
+      notify?.('Base value saved — customer offer uses this price.', 'success');
     } catch (e) {
       notify?.(tradeAdminErrorMessage(e), 'error');
       await reload();
@@ -131,7 +218,7 @@ export const TradeAdminPricing: React.FC = () => {
     try {
       const row = await updateDeduction(id, patch);
       setDeducs((prev) => prev.map((r) => (r.id === id ? row : r)));
-      notify?.('Deduction saved.', 'success');
+      notify?.('Deduction saved — quiz estimates update immediately.', 'success');
     } catch (e) {
       notify?.(tradeAdminErrorMessage(e), 'error');
     } finally {
@@ -142,6 +229,13 @@ export const TradeAdminPricing: React.FC = () => {
   const addBaseRow = async () => {
     if (!newModel.trim() || !newStorage.trim()) {
       notify?.('Model and storage are required.', 'error');
+      return;
+    }
+    if (!devices.some((d) => d.model === newModel.trim())) {
+      notify?.(
+        'Add this model on the Devices tab first, then set pricing here.',
+        'error',
+      );
       return;
     }
     const n = Number(newBase);
@@ -157,9 +251,14 @@ export const TradeAdminPricing: React.FC = () => {
         sim_variant: newSim,
         base_value: n,
       });
-      setBases((prev) => [...prev, row].sort((a, b) => a.model.localeCompare(b.model)));
+      await seedDefaultDeductionsForModel(row.model);
+      await reload();
       setNewBase('');
-      notify?.(`Added ${row.model} ${row.storage} ${simVariantLabel(row.sim_variant)}.`, 'success');
+      selectFocusModel(row.model);
+      notify?.(
+        `Added ${row.model} ${row.storage} ${simVariantLabel(row.sim_variant)}. Customers see it when the device is Listed.`,
+        'success',
+      );
     } catch (e) {
       notify?.(tradeAdminErrorMessage(e), 'error');
     } finally {
@@ -219,6 +318,68 @@ export const TradeAdminPricing: React.FC = () => {
     }
   };
 
+  const runMarketScale = async () => {
+    if (!marketModel.trim()) {
+      notify?.('Select a model to adjust.', 'warning');
+      return;
+    }
+    const pct = Number(scalePct);
+    if (!Number.isFinite(pct) || pct === 0) {
+      notify?.('Enter a non-zero percent (e.g. 5 or -10).', 'warning');
+      return;
+    }
+    const label = tab === 'bases' ? 'base values' : 'deductions';
+    if (
+      !window.confirm(
+        `Apply ${pct > 0 ? '+' : ''}${pct}% to all ${label} for ${marketModel}?`,
+      )
+    ) {
+      return;
+    }
+    setScaling(true);
+    try {
+      const n =
+        tab === 'bases'
+          ? await scaleBaseValuesForModel(marketModel, pct)
+          : await scaleDeductionsForModel(marketModel, pct);
+      await reload();
+      notify?.(`Updated ${n} ${label} for ${marketModel}.`, 'success');
+    } catch (e) {
+      notify?.(tradeAdminErrorMessage(e), 'error');
+    } finally {
+      setScaling(false);
+    }
+  };
+
+  const runCopyDeductions = async () => {
+    if (!copyFrom.trim() || !marketModel.trim()) {
+      notify?.('Pick source and target models.', 'warning');
+      return;
+    }
+    setCopying(true);
+    try {
+      const result = await copyDeductionsFromModel({
+        sourceModel: copyFrom,
+        targetModel: marketModel,
+        overwrite: copyOverwrite,
+        scalePercent: Number(copyScale) || 0,
+      });
+      await reload();
+      setTab('deductions');
+      setFocusModel(marketModel);
+      setDedModel(marketModel);
+      syncSearch({ model: marketModel, tab: 'deductions' });
+      notify?.(
+        `Copied from ${copyFrom}: ${result.inserted} new, ${result.updated} updated.`,
+        'success',
+      );
+    } catch (e) {
+      notify?.(tradeAdminErrorMessage(e), 'error');
+    } finally {
+      setCopying(false);
+    }
+  };
+
   if (loading) {
     return <div className="text-center py-16 text-white/30 text-sm">Loading pricing…</div>;
   }
@@ -232,6 +393,22 @@ export const TradeAdminPricing: React.FC = () => {
 
   return (
     <div className="space-y-4">
+      <div className="rounded-xl border border-[#B38B21]/25 bg-[#B38B21]/5 p-3 text-[11px] text-white/70 leading-relaxed">
+        <p className="font-bold text-[#B38B21] text-xs mb-1">Market pricing hub</p>
+        Each phone has its own base trade-in values (by storage × SIM) and fault deductions.
+        Update amounts here anytime market prices move — customer estimates refresh immediately.
+        Manage which models appear on{' '}
+        <Link to="/admin/trade/devices" className="text-[#B38B21] font-bold underline">
+          Devices
+        </Link>
+        .
+        {activeDeviceModels.length === 0 && (
+          <span className="block mt-1 text-amber-300">
+            No devices are Listed yet — add or activate models on Devices first.
+          </span>
+        )}
+      </div>
+
       <div className="flex flex-wrap items-center gap-2 justify-between">
         <div className="flex gap-1">
           {(
@@ -243,7 +420,7 @@ export const TradeAdminPricing: React.FC = () => {
             <button
               key={id}
               type="button"
-              onClick={() => setTab(id)}
+              onClick={() => selectTab(id)}
               className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase ${
                 tab === id ? 'bg-[#B38B21] text-black' : 'bg-white/5 text-white/40'
               }`}
@@ -252,12 +429,63 @@ export const TradeAdminPricing: React.FC = () => {
             </button>
           ))}
         </div>
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Filter model…"
-          className="bg-black/50 border border-white/10 rounded-xl px-3 py-1.5 text-white text-xs w-full sm:w-48 focus:border-[#B38B21]/50 focus:outline-none"
-        />
+        <div className="flex flex-wrap gap-2 items-center">
+          <select
+            value={focusModel}
+            onChange={(e) => selectFocusModel(e.target.value)}
+            className="bg-black/50 border border-white/10 rounded-xl px-3 py-1.5 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none min-w-[10rem]"
+          >
+            <option value="">All models</option>
+            {modelOptions.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Filter storage / fault…"
+            className="bg-black/50 border border-white/10 rounded-xl px-3 py-1.5 text-white text-xs w-full sm:w-40 focus:border-[#B38B21]/50 focus:outline-none"
+          />
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3 flex flex-wrap items-end gap-2">
+        <div className="min-w-[8rem]">
+          <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">
+            Market % adjust
+          </p>
+          <p className="text-[10px] text-white/35 mb-1 truncate" title={marketModel || undefined}>
+            {marketModel || 'Select a model above'}
+          </p>
+          <div className="flex items-center gap-1">
+            <Percent size={12} className="text-[#B38B21] shrink-0" aria-hidden />
+            <input
+              type="number"
+              value={scalePct}
+              onChange={(e) => setScalePct(e.target.value)}
+              placeholder="5"
+              className="w-20 bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none"
+            />
+            <span className="text-[10px] text-white/40">%</span>
+          </div>
+        </div>
+        <button
+          type="button"
+          disabled={scaling || !marketModel}
+          onClick={() => void runMarketScale()}
+          className="px-3 py-1.5 rounded-xl bg-[#B38B21] text-black text-[10px] font-black uppercase disabled:opacity-40"
+        >
+          {scaling
+            ? 'Updating…'
+            : tab === 'bases'
+              ? 'Apply to bases'
+              : 'Apply to deductions'}
+        </button>
+        <p className="text-[10px] text-white/35 max-w-sm leading-relaxed">
+          e.g. +5 when market rises, −10 when it softens. Edits every row for that phone.
+        </p>
       </div>
 
       {tab === 'bases' ? (
@@ -267,23 +495,24 @@ export const TradeAdminPricing: React.FC = () => {
               Add base row (model × storage × SIM)
             </p>
             <p className="text-[11px] text-white/45">
-              Use Physical SIM (<code className="text-white/70">ps</code>) and eSIM (
-              <code className="text-white/70">es</code>) for iPhone 14+ — each needs its own base
-              value.
+              Pick a Listed device, then set Physical SIM (<code className="text-white/70">ps</code>)
+              and eSIM (<code className="text-white/70">es</code>) as separate rows when both
+              apply — each needs its own base value.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
-              <input
-                list="trade-base-models"
+              <select
                 value={newModel}
                 onChange={(e) => setNewModel(e.target.value)}
-                placeholder="Model (e.g. iPhone 14)"
                 className="bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none"
-              />
-              <datalist id="trade-base-models">
+              >
+                <option value="">Select model…</option>
                 {modelOptions.map((m) => (
-                  <option key={m} value={m} />
+                  <option key={m} value={m}>
+                    {m}
+                    {devices.find((d) => d.model === m)?.is_active === false ? ' (hidden)' : ''}
+                  </option>
                 ))}
-              </datalist>
+              </select>
               <input
                 value={newStorage}
                 onChange={(e) => setNewStorage(e.target.value)}
@@ -409,22 +638,97 @@ export const TradeAdminPricing: React.FC = () => {
       ) : (
         <>
           <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-3">
+            <p className="text-[10px] font-black uppercase tracking-widest text-white/50 flex items-center gap-1.5">
+              <ArrowRightLeft size={12} aria-hidden /> Copy deductions from another phone
+            </p>
+            <p className="text-[11px] text-white/40">
+              Start from a similar model’s fault amounts, then tweak for market (optional %).
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 items-end">
+              <div>
+                <label className="text-[9px] uppercase tracking-widest text-white/35 block mb-1">
+                  From
+                </label>
+                <select
+                  value={copyFrom}
+                  onChange={(e) => setCopyFrom(e.target.value)}
+                  className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none"
+                >
+                  <option value="">Source model…</option>
+                  {modelOptions
+                    .filter((m) => m !== marketModel)
+                    .map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-[9px] uppercase tracking-widest text-white/35 block mb-1">
+                  To
+                </label>
+                <select
+                  value={marketModel}
+                  onChange={(e) => selectFocusModel(e.target.value)}
+                  className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none"
+                >
+                  <option value="">Target model…</option>
+                  {modelOptions.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-[9px] uppercase tracking-widest text-white/35 block mb-1">
+                  Scale %
+                </label>
+                <input
+                  type="number"
+                  value={copyScale}
+                  onChange={(e) => setCopyScale(e.target.value)}
+                  placeholder="0"
+                  className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none"
+                />
+              </div>
+              <label className="flex items-center gap-2 text-[11px] text-white/50 px-1 py-2">
+                <input
+                  type="checkbox"
+                  checked={copyOverwrite}
+                  onChange={(e) => setCopyOverwrite(e.target.checked)}
+                />
+                Overwrite existing
+              </label>
+              <button
+                type="button"
+                disabled={copying || !copyFrom || !marketModel}
+                onClick={() => void runCopyDeductions()}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-[#B38B21] text-black text-[10px] font-black uppercase disabled:opacity-40"
+              >
+                {copying ? 'Copying…' : 'Copy deductions'}
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-3">
             <p className="text-[10px] font-black uppercase tracking-widest text-white/50">
               Add deduction row
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-              <input
-                list="trade-ded-models"
+              <select
                 value={dedModel}
                 onChange={(e) => setDedModel(e.target.value)}
-                placeholder="Model"
                 className="bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none"
-              />
-              <datalist id="trade-ded-models">
+              >
+                <option value="">Select model…</option>
                 {modelOptions.map((m) => (
-                  <option key={m} value={m} />
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
                 ))}
-              </datalist>
+              </select>
               <select
                 value={dedCode}
                 onChange={(e) => setDedCode(e.target.value)}
@@ -486,6 +790,9 @@ export const TradeAdminPricing: React.FC = () => {
                           }}
                           className="w-28 bg-black/50 border border-white/10 rounded-lg px-2 py-1 text-red-400 text-xs font-bold focus:border-[#B38B21]/50 focus:outline-none"
                         />
+                        <span className="ml-2 text-[9px] text-white/25 hidden sm:inline">
+                          {formatGhs(r.deduction)}
+                        </span>
                       </td>
                       <td className="px-3 py-2">
                         <input

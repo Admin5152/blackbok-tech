@@ -62,7 +62,8 @@ export function tradeAdminStatusLabel(status?: string): string {
 
 export const TRADE_ADMIN_NAV = [
   { to: '/admin/trade', label: 'Queue', end: true },
-  { to: '/admin/trade/pricing', label: 'Pricing', end: false },
+  { to: '/admin/trade/devices', label: 'Devices', end: false },
+  { to: '/admin/trade/pricing', label: 'Pricing & deductions', end: false },
   { to: '/admin/trade/thresholds', label: 'Thresholds', end: false },
   { to: '/admin/trade/config', label: 'Config', end: false },
   { to: '/admin/trade/questionnaire', label: 'Questionnaire', end: false },

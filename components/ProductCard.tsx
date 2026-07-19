@@ -1,17 +1,17 @@
-import React, { useState, useMemo, useEffect } from 'react';
+/**
+ * Storefront product card — layout preserved; data from v_product_page row.
+ *
+ * Displays: primary image, name, brand, price_from (+ "from" when range),
+ * discount badge, condition badge, color dots (max 5 +n), stock state,
+ * Trade-in eligible pill when trade_model is set. No client joins.
+ */
+import React, { useMemo } from 'react';
 import { Link } from '@tanstack/react-router';
 import { ShoppingCart, Heart, Eye, Star, Scale } from 'lucide-react';
 import { Product } from '../types';
 import { formatCurrency, TW_DARK_BTN_DEPTH, TW_DARK_GOLD_BTN_DEPTH } from '../lib/utils';
 import { useAppContext } from '../App';
 import { ProductAvailabilityBadge } from './ProductAvailabilityBadge';
-import {
-  getProductOptionGroups,
-  defaultSelectedOptionsForProduct,
-  snapSelectionToInStock,
-  toOptionString,
-  getAvailableStock,
-} from '../lib/productOptions';
 
 interface ProductCardProps {
   product: Product;
@@ -28,6 +28,36 @@ interface ProductCardProps {
   compactOnMobile?: boolean;
 }
 
+function colorSwatch(name: string): string {
+  const ol = name.toLowerCase();
+  if (ol === 'black' || ol.includes('midnight') || ol.includes('space black')) return '#1C1C1E';
+  if (ol === 'white' || ol.includes('starlight') || ol.includes('cloud')) return '#F5F5F7';
+  if (ol.includes('red')) return '#ef4444';
+  if (ol.includes('blue') || ol.includes('ultramarine')) return '#3b82f6';
+  if (ol.includes('green') || ol.includes('teal') || ol.includes('sage')) return '#10b981';
+  if (ol.includes('purple') || ol.includes('lavender')) return '#a855f7';
+  if (ol.includes('pink')) return '#ec4899';
+  if (ol.includes('gold')) return '#f59e0b';
+  if (ol.includes('silver') || ol.includes('natural')) return '#9ca3af';
+  if (ol.includes('space gray') || ol.includes('graphite')) return '#4B4B4D';
+  return '#6b7280';
+}
+
+function conditionLabel(condition?: string | null, isNew?: boolean): string | null {
+  if (isNew) return null;
+  const c = (condition || '').toLowerCase();
+  if (!c || c === 'new') return null;
+  if (c.includes('refurb')) return 'Refurbished';
+  if (c.includes('pre') || c.includes('used') || c.includes('owned')) return 'Pre-owned';
+  return condition;
+}
+
+function stockLabel(total: number): { kind: 'in' | 'low' | 'out'; text: string } {
+  if (total <= 0) return { kind: 'out', text: 'Out of stock' };
+  if (total <= 3) return { kind: 'low', text: 'Low stock ≤3' };
+  return { kind: 'in', text: 'In stock' };
+}
+
 export const ProductCard: React.FC<ProductCardProps> = ({
   product,
   onQuickView,
@@ -42,29 +72,27 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const { theme } = useAppContext();
   const isLight = theme === 'light';
   const isCompact = compact || compactOnMobile;
-  const optionGroups = useMemo(() => getProductOptionGroups(product), [product]);
-  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
 
-  const availableStock = useMemo(
-    () => getAvailableStock(product, selectedOptions),
-    [product, selectedOptions],
+  const priceFrom = Number(product.price_from ?? product.price ?? 0);
+  const priceTo = Number(product.price_to ?? priceFrom);
+  const showFrom = priceTo > priceFrom && Number.isFinite(priceTo);
+  const totalStock = Math.max(
+    0,
+    Math.floor(Number(product.total_stock ?? product.stock ?? 0)),
   );
+  const stock = stockLabel(totalStock);
+  const cond = conditionLabel(product.condition, product.new || product.is_new);
+  const colors = Array.isArray(product.colors) ? product.colors.filter(Boolean) : [];
+  const visibleColors = colors.slice(0, 5);
+  const extraColors = Math.max(0, colors.length - 5);
+  const tradeEligible = Boolean(product.trade_model);
 
-  useEffect(() => {
-    setSelectedOptions(defaultSelectedOptionsForProduct(product));
-  }, [product.id, optionGroups, product]);
-
-  const handleAddToCartWithOptions = () => {
-    const resolved = snapSelectionToInStock(product, optionGroups, selectedOptions);
-    if (availableStock <= 0) {
-      window.alert('This item is out of stock.');
-      return;
+  const displayPrice = useMemo(() => {
+    if (product.discount && product.discount > 0) {
+      return priceFrom * (1 - product.discount / 100);
     }
-    onAddToCart(product, resolved, 1);
-  };
-
-  const colorGroup = optionGroups.find((g) => g.name.toLowerCase() === 'color');
-  const cardOptionGroups = colorGroup ? [colorGroup] : optionGroups.slice(0, 1);
+    return priceFrom;
+  }, [priceFrom, product.discount]);
 
   return (
     <div
@@ -82,8 +110,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         {product.new && (
           <span className="bg-white text-black text-[7px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest shadow-lg">NEW</span>
         )}
-        {product.discount && (
+        {product.discount != null && product.discount > 0 && (
           <span className="bg-[#CDA032] text-black text-[7px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest shadow-lg italic">-{product.discount}%</span>
+        )}
+        {cond && (
+          <span className={`text-[7px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest shadow-lg ${
+            isLight ? 'bg-black/80 text-white' : 'bg-white/90 text-black'
+          }`}>
+            {cond}
+          </span>
+        )}
+        {tradeEligible && (
+          <span className="bg-emerald-600 text-white text-[7px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest shadow-lg">
+            Trade-in eligible
+          </span>
         )}
       </div>
 
@@ -156,7 +196,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 isCompact ? 'text-[7px]' : 'text-[8px]'
               } ${isLight ? 'text-[#B38B21]' : 'text-[#CDA032]'}`}
             >
-              {product.category}
+              {product.brand || product.category}
             </p>
             <h3
               className={`font-bold leading-snug line-clamp-2 group-hover:text-[#CDA032] transition-colors ${
@@ -187,98 +227,29 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </div>
           </div>
 
-          {cardOptionGroups.length > 0 && (
-            <div
-              className={`flex flex-wrap items-center gap-1 min-h-0 ${isCompact ? 'max-sm:hidden' : ''}`}
-            >
-              {cardOptionGroups.flatMap((variant) => {
-                const selectedValue = toOptionString(selectedOptions[variant.name] || '');
-                const isColor = variant.name.toLowerCase() === 'color';
-
-                return variant.options.slice(0, isColor ? 5 : 3).map((opt, optIdx) => {
-                  const o = toOptionString(opt);
-                  const ol = o.toLowerCase();
-                  const trialOpts = snapSelectionToInStock(product, optionGroups, {
-                    ...selectedOptions,
-                    [variant.name]: o,
-                  });
-                  const optStock = getAvailableStock(product, trialOpts);
-                  const optDisabled = optStock <= 0;
-                  return (
-                    <button
-                      key={`${variant.name}-${optIdx}-${o}`}
-                      type="button"
-                      title={`${variant.name}: ${o}`}
-                      disabled={optDisabled}
-                      aria-label={`${variant.name} ${o}${selectedValue === o ? ', selected' : ''}${optDisabled ? ', out of stock' : ''}`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (optDisabled) return;
-                        setSelectedOptions((prev) =>
-                          snapSelectionToInStock(product, optionGroups, { ...prev, [variant.name]: o }),
-                        );
-                      }}
-                      className={
-                        isColor
-                          ? `shrink-0 w-4 h-4 rounded-full border transition-all ${ol === 'white' ? (isLight ? 'ring-1 ring-black/20 ' : 'ring-1 ring-white/35 ') : ''}${
-                              optDisabled
-                                ? 'opacity-30 cursor-not-allowed border-black/10'
-                                : selectedValue === o
-                                  ? 'border-[#CDA032] ring-1 ring-[#CDA032]/50'
-                                  : isLight
-                                    ? 'border-black/25 hover:border-black/45'
-                                    : 'border-white/25 hover:border-white/45'
-                            }`
-                          : `shrink-0 px-1.5 py-0.5 rounded text-[8px] font-semibold transition-all border ${
-                              optDisabled
-                                ? 'opacity-30 cursor-not-allowed border-black/10'
-                                : selectedValue === o
-                                  ? 'border-[#CDA032] bg-[#CDA032]/15 text-[#CDA032]'
-                                  : isLight
-                                    ? 'border-black/15 bg-zinc-50 text-black/80 hover:border-black/30'
-                                    : 'border-white/15 text-white/60 hover:border-white/35'
-                            }`
-                      }
-                      style={
-                        isColor
-                          ? {
-                              backgroundColor:
-                                ol === 'black'
-                                  ? '#000'
-                                  : ol === 'white'
-                                    ? '#fff'
-                                    : ol === 'red'
-                                      ? '#ef4444'
-                                      : ol === 'blue'
-                                        ? '#3b82f6'
-                                        : ol === 'green'
-                                          ? '#10b981'
-                                          : ol === 'purple'
-                                            ? '#a855f7'
-                                            : ol === 'pink'
-                                              ? '#ec4899'
-                                              : ol === 'gold'
-                                                ? '#f59e0b'
-                                                : ol === 'silver'
-                                                  ? '#9ca3af'
-                                                  : ol.includes('space gray')
-                                                    ? '#4B4B4D'
-                                                    : ol.includes('midnight')
-                                                      ? '#1C2938'
-                                                      : '#6b7280',
-                            }
-                          : {}
-                      }
-                    >
-                      {!isColor && o}
-                    </button>
-                  );
-                });
-              })}
-              {optionGroups.length > cardOptionGroups.length && (
+          {/* Color dots from view.colors[] — display only, max 5 +n */}
+          {visibleColors.length > 0 && (
+            <div className={`flex flex-wrap items-center gap-1 min-h-0 ${isCompact ? 'max-sm:hidden' : ''}`}>
+              {visibleColors.map((c) => (
+                <span
+                  key={c}
+                  title={c}
+                  className={`shrink-0 w-4 h-4 rounded-full border ${
+                    c.toLowerCase() === 'white'
+                      ? isLight
+                        ? 'ring-1 ring-black/20 border-black/15'
+                        : 'ring-1 ring-white/35 border-white/20'
+                      : isLight
+                        ? 'border-black/20'
+                        : 'border-white/25'
+                  }`}
+                  style={{ backgroundColor: colorSwatch(c) }}
+                  aria-hidden
+                />
+              ))}
+              {extraColors > 0 && (
                 <span className={`text-[8px] font-medium ${isLight ? 'text-black/40' : 'text-white/40'}`}>
-                  +{optionGroups.length - cardOptionGroups.length} more
+                  +{extraColors}
                 </span>
               )}
             </div>
@@ -287,16 +258,41 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           <div className={`flex items-end justify-between gap-2 pt-0.5 ${isCompact ? 'gap-1' : ''}`}>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+                {showFrom && (
+                  <span className={`text-[9px] font-bold uppercase tracking-wider ${isLight ? 'text-black/45' : 'text-white/40'}`}>
+                    from
+                  </span>
+                )}
                 <span className={`font-black tracking-tight tabular-nums ${isCompact ? 'text-sm' : 'text-base'} ${isLight ? 'text-black' : 'text-white'}`}>
-                  {formatCurrency(product.price)}
+                  {formatCurrency(displayPrice)}
                 </span>
-                {product.discount && (
+                {product.discount != null && product.discount > 0 && (
                   <span className={`line-through text-[10px] ${isLight ? 'text-black/40' : 'text-white/35'}`}>
-                    {formatCurrency(product.price * (1 + product.discount / 100))}
+                    {formatCurrency(priceFrom)}
                   </span>
                 )}
               </div>
-              <ProductAvailabilityBadge available={availableStock} isLight={isLight} minimal />
+              <span
+                className={`text-[9px] font-bold uppercase tracking-wide ${
+                  stock.kind === 'out'
+                    ? isLight
+                      ? 'text-red-700'
+                      : 'text-red-400'
+                    : stock.kind === 'low'
+                      ? isLight
+                        ? 'text-amber-700'
+                        : 'text-amber-400'
+                      : isLight
+                        ? 'text-emerald-700'
+                        : 'text-emerald-400'
+                }`}
+              >
+                {stock.text}
+              </span>
+              {/* Keep badge for a11y parity with older cards */}
+              <span className="sr-only">
+                <ProductAvailabilityBadge available={totalStock} isLight={isLight} minimal />
+              </span>
             </div>
 
             <button
@@ -304,11 +300,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                handleAddToCartWithOptions();
+                // Card has no SKU resolution — open PDP for variant pick, or add base if no stock block
+                if (totalStock <= 0) {
+                  window.alert('This item is out of stock.');
+                  return;
+                }
+                onAddToCart(product, {}, 1);
               }}
-              disabled={availableStock <= 0}
-              title={availableStock <= 0 ? 'Out of stock' : 'Add to cart'}
-              aria-label={availableStock <= 0 ? 'Out of stock' : 'Add to cart'}
+              disabled={totalStock <= 0}
+              title={totalStock <= 0 ? 'Out of stock' : 'Add to cart'}
+              aria-label={totalStock <= 0 ? 'Out of stock' : 'Add to cart'}
               className={`shrink-0 bg-[#CDA032] hover:bg-[#c29a28] text-black rounded-full font-bold transition-all flex items-center justify-center shadow-md active:scale-[0.96] disabled:opacity-40 disabled:pointer-events-none ${
                 isCompact ? 'h-8 w-8' : 'h-9 w-9'
               } ${TW_DARK_GOLD_BTN_DEPTH}`}
