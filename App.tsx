@@ -999,6 +999,8 @@ const routeTree = rootRoute.addChildren([
 
 const hashHistory = createHashHistory();
 
+// Cast required: TanStack Router's typed createRouter needs strictNullChecks
+// (not enabled in this tsconfig). Search params are still validated per-route.
 const router = createRouter({
   routeTree,
   defaultPreload: 'intent',

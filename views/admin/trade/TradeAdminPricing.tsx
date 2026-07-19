@@ -97,7 +97,7 @@ export const TradeAdminPricing: React.FC = () => {
         search: {
           model: next.model || undefined,
           tab: next.tab && next.tab !== 'bases' ? next.tab : undefined,
-        },
+        } as any,
         replace: true,
       });
     },

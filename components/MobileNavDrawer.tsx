@@ -268,7 +268,7 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
           {!user ? (
             <Link
               to="/auth"
-              search={{ returnTo: pathname }}
+              search={{ returnTo: pathname } as any}
               onClick={() => {
                 saveReturnTo(pathname);
                 onClose();

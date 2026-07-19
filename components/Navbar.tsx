@@ -604,30 +604,43 @@ export const Navbar: React.FC<{
               )}
 
               {/* Account Button */}
-              <Link
-                to={user ? '/profile' : '/auth'}
-                search={
-                  !user && !location.pathname.startsWith('/auth')
-                    ? { returnTo: location.pathname }
-                    : undefined
-                }
-                onClick={() => {
-                  if (!user && !location.pathname.startsWith('/auth')) {
-                    saveReturnTo(location.pathname);
-                  }
-                }}
-                className={`
+              {user ? (
+                <Link
+                  to="/profile"
+                  className={`
                 hidden sm:flex items-center gap-2 px-6 py-3 rounded-xl transition-all duration-300 text-[11px] font-black uppercase tracking-widest
-                ${user
-                    ? isLight ? 'bg-black/5 text-black border border-black/10 hover:border-black/20' : `bg-white/5 text-white border border-white/10 hover:border-white/30 ${TW_DARK_BTN_DEPTH}`
-                    : isLight ? 'bg-black text-white shadow-lg hover:bg-black/90' : `bg-white text-black shadow-lg hover:brightness-90 ${TW_DARK_GOLD_BTN_DEPTH}`}
+                ${isLight ? 'bg-black/5 text-black border border-black/10 hover:border-black/20' : `bg-white/5 text-white border border-white/10 hover:border-white/30 ${TW_DARK_BTN_DEPTH}`}
               `}
-              >
-                <div className={`w-5 h-5 rounded-md flex items-center justify-center font-black italic text-[9px] ${isLight ? 'bg-black text-white' : 'bg-[#CDA032] text-black'}`}>
-                  {user ? (user.avatarLetter || user.name.charAt(0)) : <UserIcon size={12} />}
-                </div>
-                {user ? 'Account' : 'Sign In'}
-              </Link>
+                >
+                  <div className={`w-5 h-5 rounded-md flex items-center justify-center font-black italic text-[9px] ${isLight ? 'bg-black text-white' : 'bg-[#CDA032] text-black'}`}>
+                    {user.avatarLetter || user.name.charAt(0)}
+                  </div>
+                  Account
+                </Link>
+              ) : (
+                <Link
+                  to="/auth"
+                  search={
+                    (!location.pathname.startsWith('/auth')
+                      ? { returnTo: location.pathname }
+                      : {}) as any
+                  }
+                  onClick={() => {
+                    if (!location.pathname.startsWith('/auth')) {
+                      saveReturnTo(location.pathname);
+                    }
+                  }}
+                  className={`
+                hidden sm:flex items-center gap-2 px-6 py-3 rounded-xl transition-all duration-300 text-[11px] font-black uppercase tracking-widest
+                ${isLight ? 'bg-black text-white shadow-lg hover:bg-black/90' : `bg-white text-black shadow-lg hover:brightness-90 ${TW_DARK_GOLD_BTN_DEPTH}`}
+              `}
+                >
+                  <div className={`w-5 h-5 rounded-md flex items-center justify-center font-black italic text-[9px] ${isLight ? 'bg-black text-white' : 'bg-[#CDA032] text-black'}`}>
+                    <UserIcon size={12} />
+                  </div>
+                  Sign In
+                </Link>
+              )}
 
               {/* Theme toggle — props or context; always visible when setter exists */}
               <button
@@ -642,7 +655,7 @@ export const Navbar: React.FC<{
               {!user && (
                 <Link
                   to="/auth"
-                  search={{ returnTo: location.pathname }}
+                  search={{ returnTo: location.pathname } as any}
                   onClick={() => saveReturnTo(location.pathname)}
                   title="Sign in"
                   aria-label="Sign in"
