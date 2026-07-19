@@ -468,23 +468,20 @@ function roundGhs(n: number): number {
 }
 
 /**
- * Copy fault deduction amounts from one model to another.
+ * Copy fault deduction GHS amounts from one model to another (same figures).
  * - overwrite=false: insert only missing fault codes
- * - overwrite=true: update existing amounts to match source (optionally scaled)
- * - scalePercent: e.g. 10 = +10%, -5 = −5% applied to copied amounts
+ * - overwrite=true: update existing amounts to match source exactly
  */
 export async function copyDeductionsFromModel(opts: {
   sourceModel: string;
   targetModel: string;
   overwrite?: boolean;
-  scalePercent?: number;
 }): Promise<{ inserted: number; updated: number }> {
   const source = opts.sourceModel.trim();
   const target = opts.targetModel.trim();
   if (!source || !target) throw new Error('Source and target models are required.');
   if (source === target) throw new Error('Pick two different models.');
 
-  const scale = 1 + (Number(opts.scalePercent) || 0) / 100;
   const overwrite = Boolean(opts.overwrite);
 
   const [{ data: srcRows, error: sErr }, { data: tgtRows, error: tErr }] =
@@ -509,7 +506,7 @@ export async function copyDeductionsFromModel(opts: {
   let updated = 0;
 
   for (const src of srcRows) {
-    const amount = roundGhs(Number(src.deduction) * scale);
+    const amount = roundGhs(Number(src.deduction));
     const existing = byCode.get(src.fault_code);
     if (!existing) {
       const { error } = await supabase.from('trade_fault_deductions').insert({
@@ -539,81 +536,6 @@ export async function copyDeductionsFromModel(opts: {
 
   if (inserted + updated > 0) await invalidateTradePricing();
   return { inserted, updated };
-}
-
-/**
- * Market-adjust all base values for a model by percent (e.g. 5 = +5%, -10 = −10%).
- * Returns how many rows were updated.
- */
-export async function scaleBaseValuesForModel(
-  model: string,
-  scalePercent: number,
-): Promise<number> {
-  const name = model.trim();
-  if (!name) throw new Error('Model is required.');
-  const pct = Number(scalePercent);
-  if (!Number.isFinite(pct) || pct === 0) {
-    throw new Error('Enter a non-zero percent change.');
-  }
-  const scale = 1 + pct / 100;
-
-  const { data: rows, error } = await supabase
-    .from('trade_base_values')
-    .select('id,base_value')
-    .eq('model', name);
-  if (error) throw error;
-  if (!rows?.length) throw new Error(`No base value rows for ${name}.`);
-
-  let updated = 0;
-  for (const row of rows) {
-    const next = roundGhs(Number(row.base_value) * scale);
-    if (next === Number(row.base_value)) continue;
-    const { error: uErr } = await supabase
-      .from('trade_base_values')
-      .update({ base_value: next })
-      .eq('id', row.id);
-    if (uErr) throw uErr;
-    updated += 1;
-  }
-  if (updated > 0) await invalidateTradePricing();
-  return updated;
-}
-
-/**
- * Market-adjust all fault deductions for a model by percent.
- */
-export async function scaleDeductionsForModel(
-  model: string,
-  scalePercent: number,
-): Promise<number> {
-  const name = model.trim();
-  if (!name) throw new Error('Model is required.');
-  const pct = Number(scalePercent);
-  if (!Number.isFinite(pct) || pct === 0) {
-    throw new Error('Enter a non-zero percent change.');
-  }
-  const scale = 1 + pct / 100;
-
-  const { data: rows, error } = await supabase
-    .from('trade_fault_deductions')
-    .select('id,deduction')
-    .eq('model', name);
-  if (error) throw error;
-  if (!rows?.length) throw new Error(`No deduction rows for ${name}.`);
-
-  let updated = 0;
-  for (const row of rows) {
-    const next = roundGhs(Number(row.deduction) * scale);
-    if (next === Number(row.deduction)) continue;
-    const { error: uErr } = await supabase
-      .from('trade_fault_deductions')
-      .update({ deduction: next })
-      .eq('id', row.id);
-    if (uErr) throw uErr;
-    updated += 1;
-  }
-  if (updated > 0) await invalidateTradePricing();
-  return updated;
 }
 
 function inferIphoneSeries(model: string): string {

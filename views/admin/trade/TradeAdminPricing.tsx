@@ -1,10 +1,10 @@
 /**
  * Trade Admin pricing — editable base values + fault deductions grids.
  *
- * Staff keep each phone’s trade-in offer market-current:
- * - Base values: model × storage × SIM (Physical / eSIM)
- * - Deductions: model × fault (screen, battery, …)
- * - Market tools: % adjust all rows for a model; copy deductions between models
+ * Staff keep each phone’s offer market-current with **fixed GHS amounts**
+ * (not percentages):
+ * - Base values: model × storage × SIM — the trade-in base in GHS
+ * - Deductions: model × fault (screen, battery, …) — flat GHS off the base
  *
  * Deep links: /admin/trade/pricing?model=iPhone%2015%20Pro&tab=deductions
  * Invalidates tradePricingStore on save so the live ticker reflects edits.
@@ -15,7 +15,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
-import { Plus, Copy, Percent, ArrowRightLeft } from 'lucide-react';
+import { Plus, Copy, ArrowRightLeft } from 'lucide-react';
 import {
   cloneBaseValueForSim,
   copyDeductionsFromModel,
@@ -24,8 +24,6 @@ import {
   getAdminBaseValues,
   getAdminDeductions,
   getAdminDevices,
-  scaleBaseValuesForModel,
-  scaleDeductionsForModel,
   seedDefaultDeductionsForModel,
   tradeAdminErrorMessage,
   updateBaseValue,
@@ -80,11 +78,8 @@ export const TradeAdminPricing: React.FC = () => {
   const [dedAmount, setDedAmount] = useState('');
   const [addingDed, setAddingDed] = useState(false);
 
-  const [scalePct, setScalePct] = useState('5');
-  const [scaling, setScaling] = useState(false);
   const [copyFrom, setCopyFrom] = useState('');
   const [copyOverwrite, setCopyOverwrite] = useState(true);
-  const [copyScale, setCopyScale] = useState('0');
   const [copying, setCopying] = useState(false);
 
   const syncSearch = useCallback(
@@ -204,7 +199,7 @@ export const TradeAdminPricing: React.FC = () => {
     try {
       const row = await updateBaseValue(id, patch);
       setBases((prev) => prev.map((r) => (r.id === id ? row : r)));
-      notify?.('Base value saved — customer offer uses this price.', 'success');
+      notify?.('Base value saved (GHS). Customer offer uses this figure.', 'success');
     } catch (e) {
       notify?.(tradeAdminErrorMessage(e), 'error');
       await reload();
@@ -218,7 +213,7 @@ export const TradeAdminPricing: React.FC = () => {
     try {
       const row = await updateDeduction(id, patch);
       setDeducs((prev) => prev.map((r) => (r.id === id ? row : r)));
-      notify?.('Deduction saved — quiz estimates update immediately.', 'success');
+      notify?.('Deduction saved (fixed GHS). Quiz estimates update immediately.', 'success');
     } catch (e) {
       notify?.(tradeAdminErrorMessage(e), 'error');
     } finally {
@@ -318,39 +313,6 @@ export const TradeAdminPricing: React.FC = () => {
     }
   };
 
-  const runMarketScale = async () => {
-    if (!marketModel.trim()) {
-      notify?.('Select a model to adjust.', 'warning');
-      return;
-    }
-    const pct = Number(scalePct);
-    if (!Number.isFinite(pct) || pct === 0) {
-      notify?.('Enter a non-zero percent (e.g. 5 or -10).', 'warning');
-      return;
-    }
-    const label = tab === 'bases' ? 'base values' : 'deductions';
-    if (
-      !window.confirm(
-        `Apply ${pct > 0 ? '+' : ''}${pct}% to all ${label} for ${marketModel}?`,
-      )
-    ) {
-      return;
-    }
-    setScaling(true);
-    try {
-      const n =
-        tab === 'bases'
-          ? await scaleBaseValuesForModel(marketModel, pct)
-          : await scaleDeductionsForModel(marketModel, pct);
-      await reload();
-      notify?.(`Updated ${n} ${label} for ${marketModel}.`, 'success');
-    } catch (e) {
-      notify?.(tradeAdminErrorMessage(e), 'error');
-    } finally {
-      setScaling(false);
-    }
-  };
-
   const runCopyDeductions = async () => {
     if (!copyFrom.trim() || !marketModel.trim()) {
       notify?.('Pick source and target models.', 'warning');
@@ -362,7 +324,6 @@ export const TradeAdminPricing: React.FC = () => {
         sourceModel: copyFrom,
         targetModel: marketModel,
         overwrite: copyOverwrite,
-        scalePercent: Number(copyScale) || 0,
       });
       await reload();
       setTab('deductions');
@@ -370,7 +331,7 @@ export const TradeAdminPricing: React.FC = () => {
       setDedModel(marketModel);
       syncSearch({ model: marketModel, tab: 'deductions' });
       notify?.(
-        `Copied from ${copyFrom}: ${result.inserted} new, ${result.updated} updated.`,
+        `Copied GHS amounts from ${copyFrom}: ${result.inserted} new, ${result.updated} updated. Edit any figure as needed.`,
         'success',
       );
     } catch (e) {
@@ -394,10 +355,11 @@ export const TradeAdminPricing: React.FC = () => {
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-[#B38B21]/25 bg-[#B38B21]/5 p-3 text-[11px] text-white/70 leading-relaxed">
-        <p className="font-bold text-[#B38B21] text-xs mb-1">Market pricing hub</p>
-        Each phone has its own base trade-in values (by storage × SIM) and fault deductions.
-        Update amounts here anytime market prices move — customer estimates refresh immediately.
-        Manage which models appear on{' '}
+        <p className="font-bold text-[#B38B21] text-xs mb-1">Pricing & deductions (GHS figures)</p>
+        Edit <span className="text-white/90 font-semibold">actual cedis amounts</span> per phone —
+        not percentages. Base value is the trade-in start price; each fault (battery, screen, …)
+        is a fixed GHS deduction you set for that model. Customer estimates update as soon as you
+        save. Manage listed models on{' '}
         <Link to="/admin/trade/devices" className="text-[#B38B21] font-bold underline">
           Devices
         </Link>
@@ -413,8 +375,8 @@ export const TradeAdminPricing: React.FC = () => {
         <div className="flex gap-1">
           {(
             [
-              ['bases', 'Base values'],
-              ['deductions', 'Deductions'],
+              ['bases', 'Base values (GHS)'],
+              ['deductions', 'Deductions (GHS)'],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -449,43 +411,6 @@ export const TradeAdminPricing: React.FC = () => {
             className="bg-black/50 border border-white/10 rounded-xl px-3 py-1.5 text-white text-xs w-full sm:w-40 focus:border-[#B38B21]/50 focus:outline-none"
           />
         </div>
-      </div>
-
-      <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3 flex flex-wrap items-end gap-2">
-        <div className="min-w-[8rem]">
-          <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">
-            Market % adjust
-          </p>
-          <p className="text-[10px] text-white/35 mb-1 truncate" title={marketModel || undefined}>
-            {marketModel || 'Select a model above'}
-          </p>
-          <div className="flex items-center gap-1">
-            <Percent size={12} className="text-[#B38B21] shrink-0" aria-hidden />
-            <input
-              type="number"
-              value={scalePct}
-              onChange={(e) => setScalePct(e.target.value)}
-              placeholder="5"
-              className="w-20 bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none"
-            />
-            <span className="text-[10px] text-white/40">%</span>
-          </div>
-        </div>
-        <button
-          type="button"
-          disabled={scaling || !marketModel}
-          onClick={() => void runMarketScale()}
-          className="px-3 py-1.5 rounded-xl bg-[#B38B21] text-black text-[10px] font-black uppercase disabled:opacity-40"
-        >
-          {scaling
-            ? 'Updating…'
-            : tab === 'bases'
-              ? 'Apply to bases'
-              : 'Apply to deductions'}
-        </button>
-        <p className="text-[10px] text-white/35 max-w-sm leading-relaxed">
-          e.g. +5 when market rises, −10 when it softens. Edits every row for that phone.
-        </p>
       </div>
 
       {tab === 'bases' ? (
@@ -639,12 +564,12 @@ export const TradeAdminPricing: React.FC = () => {
         <>
           <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-3">
             <p className="text-[10px] font-black uppercase tracking-widest text-white/50 flex items-center gap-1.5">
-              <ArrowRightLeft size={12} aria-hidden /> Copy deductions from another phone
+              <ArrowRightLeft size={12} aria-hidden /> Copy deduction figures from another phone
             </p>
             <p className="text-[11px] text-white/40">
-              Start from a similar model’s fault amounts, then tweak for market (optional %).
+              Copies the same GHS amounts (battery, screen, …). Then edit any figure for this model.
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 items-end">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 items-end">
               <div>
                 <label className="text-[9px] uppercase tracking-widest text-white/35 block mb-1">
                   From
@@ -681,18 +606,6 @@ export const TradeAdminPricing: React.FC = () => {
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="text-[9px] uppercase tracking-widest text-white/35 block mb-1">
-                  Scale %
-                </label>
-                <input
-                  type="number"
-                  value={copyScale}
-                  onChange={(e) => setCopyScale(e.target.value)}
-                  placeholder="0"
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none"
-                />
-              </div>
               <label className="flex items-center gap-2 text-[11px] text-white/50 px-1 py-2">
                 <input
                   type="checkbox"
@@ -707,14 +620,17 @@ export const TradeAdminPricing: React.FC = () => {
                 onClick={() => void runCopyDeductions()}
                 className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-[#B38B21] text-black text-[10px] font-black uppercase disabled:opacity-40"
               >
-                {copying ? 'Copying…' : 'Copy deductions'}
+                {copying ? 'Copying…' : 'Copy GHS amounts'}
               </button>
             </div>
           </div>
 
           <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-3">
             <p className="text-[10px] font-black uppercase tracking-widest text-white/50">
-              Add deduction row
+              Add deduction (fixed GHS)
+            </p>
+            <p className="text-[11px] text-white/40">
+              Example: Battery −₵400 means ₵400 off that model’s base — not a % of the trade-in.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
               <select
@@ -745,7 +661,7 @@ export const TradeAdminPricing: React.FC = () => {
                 min={0}
                 value={dedAmount}
                 onChange={(e) => setDedAmount(e.target.value)}
-                placeholder="Deduction GHS"
+                placeholder="Amount GHS (e.g. 400)"
                 className="bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none"
               />
               <button
@@ -765,8 +681,8 @@ export const TradeAdminPricing: React.FC = () => {
                 <thead className="sticky top-0 bg-[#0a0a0a] text-[9px] uppercase tracking-widest text-white/40">
                   <tr>
                     <th className="px-3 py-2">Model</th>
-                    <th className="px-3 py-2">Fault</th>
-                    <th className="px-3 py-2">Deduction</th>
+                    <th className="px-3 py-2">Fault / component</th>
+                    <th className="px-3 py-2">Deduction (GHS)</th>
                     <th className="px-3 py-2">Active</th>
                   </tr>
                 </thead>
