@@ -4,8 +4,10 @@
  * WHY embedded: staff toggle Orders / Shop / Trade-Ins without leaving the
  * sidebar shell. Refresh-safe deep links stay on /admin/trade/*.
  */
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Link, Outlet, useLocation } from '@tanstack/react-router';
+import { Info } from 'lucide-react';
+import { TRADE_ADMIN_PAGE_INTRO } from '../../../lib/tradeAdminCopy';
 import { TRADE_ADMIN_NAV } from './tradeAdminShared';
 
 function isTradeNavActive(path: string, to: string, end: boolean): boolean {
@@ -21,9 +23,20 @@ function isTradeNavActive(path: string, to: string, end: boolean): boolean {
   return path === to || path.startsWith(`${to}/`);
 }
 
+function introForPath(path: string) {
+  for (const n of TRADE_ADMIN_NAV) {
+    if (n.end) continue;
+    if (path === n.to || path.startsWith(`${n.to}/`)) {
+      return TRADE_ADMIN_PAGE_INTRO[n.introKey];
+    }
+  }
+  return TRADE_ADMIN_PAGE_INTRO.queue;
+}
+
 export const TradeAdminShell: React.FC = () => {
   const location = useLocation();
   const path = location.pathname;
+  const intro = useMemo(() => introForPath(path), [path]);
 
   return (
     <div className="flex flex-col gap-4 min-h-0">
@@ -48,6 +61,15 @@ export const TradeAdminShell: React.FC = () => {
           );
         })}
       </nav>
+
+      <div className="rounded-xl border border-[#B38B21]/25 bg-[#B38B21]/5 px-3.5 py-3 flex gap-2.5">
+        <Info size={16} className="shrink-0 mt-0.5 text-[#B38B21]" aria-hidden />
+        <div>
+          <p className="text-xs font-black text-[#B38B21] tracking-tight">{intro.title}</p>
+          <p className="text-[11px] text-white/60 leading-relaxed mt-0.5">{intro.body}</p>
+        </div>
+      </div>
+
       <div className="min-w-0 flex-1">
         <Outlet />
       </div>

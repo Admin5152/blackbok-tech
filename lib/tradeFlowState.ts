@@ -19,7 +19,16 @@ export interface TradeDeviceLock {
   storage: string;
   sim: string;
   color: string;
-  /** IMEI (Luhn) or serial — collected on Screen 4 with storage/SIM/colour */
+  /** Primary IMEI (15-digit) when cellular */
+  imei1: string | null;
+  /** Secondary IMEI for dual-SIM — optional */
+  imei2: string | null;
+  /** Apple serial — required for Wi-Fi-only */
+  serialNumber: string | null;
+  /**
+   * Primary identity for duplicate checks / legacy column:
+   * imei1 || serialNumber || imei2
+   */
   imeiSerial: string;
   /**
    * Server base_value for this exact config.
@@ -100,7 +109,11 @@ export interface TradeFlowState {
   storage: string | null;
   sim: string | null;
   color: string | null;
-  /** Draft IMEI/serial on Screen 4 before lock */
+  /** Draft identity fields on Screen 4 before lock */
+  imei1: string | null;
+  imei2: string | null;
+  serialNumber: string | null;
+  /** @deprecated Prefer imei1/serialNumber — kept for older session snapshots */
   imeiSerial: string | null;
   /** Set only when Screen 4 is complete — null until then */
   deviceLock: TradeDeviceLock | null;
@@ -148,6 +161,9 @@ export const initialTradeFlowState: TradeFlowState = {
   storage: null,
   sim: null,
   color: null,
+  imei1: null,
+  imei2: null,
+  serialNumber: null,
   imeiSerial: null,
   deviceLock: null,
   targetLock: null,
@@ -174,10 +190,14 @@ export type TradeFlowAction =
   | { type: 'SET_SIM'; sim: string }
   /** Screen 4: identification colour — no price effect (D3) */
   | { type: 'SET_COLOR'; color: string }
-  /** Screen 4: IMEI (15-digit Luhn) or serial (≥8 alnum) */
+  /** Screen 4: IMEI 1 / IMEI 2 / serial drafts */
+  | { type: 'SET_IMEI_1'; imei1: string }
+  | { type: 'SET_IMEI_2'; imei2: string }
+  | { type: 'SET_SERIAL'; serialNumber: string }
+  /** @deprecated use SET_IMEI_1 / SET_SERIAL */
   | { type: 'SET_IMEI'; imeiSerial: string }
   /**
-   * Screen 4 complete: lock {model, storage, sim, color, imeiSerial, lockedBaseValue}.
+   * Screen 4 complete: lock device config + identity fields.
    * lockedBaseValue is stored for RPC use but never displayed on this screen.
    * Clears any prior target so Screen 5 must be re-confirmed.
    */
@@ -241,6 +261,9 @@ export function tradeFlowReducer(
         storage: null,
         sim: null,
         color: null,
+        imei1: null,
+        imei2: null,
+        serialNumber: null,
         imeiSerial: null,
         deviceLock: null,
         targetLock: null,
@@ -260,6 +283,9 @@ export function tradeFlowReducer(
         storage: null,
         sim: null,
         color: null,
+        imei1: null,
+        imei2: null,
+        serialNumber: null,
         imeiSerial: null,
         deviceLock: null,
         targetLock: null,
@@ -320,11 +346,34 @@ export function tradeFlowReducer(
         quizComplete: false,
       };
 
+    case 'SET_IMEI_1':
+      return {
+        ...state,
+        imei1: action.imei1,
+        imeiSerial: action.imei1 || state.serialNumber,
+        deviceLock: null,
+      };
+
+    case 'SET_IMEI_2':
+      return {
+        ...state,
+        imei2: action.imei2,
+        deviceLock: null,
+      };
+
+    case 'SET_SERIAL':
+      return {
+        ...state,
+        serialNumber: action.serialNumber,
+        imeiSerial: state.imei1 || action.serialNumber,
+        deviceLock: null,
+      };
+
     case 'SET_IMEI':
       return {
         ...state,
         imeiSerial: action.imeiSerial,
-        // Changing IMEI after lock requires re-lock
+        imei1: action.imeiSerial,
         deviceLock: null,
       };
 
@@ -335,6 +384,9 @@ export function tradeFlowReducer(
         storage: action.lock.storage,
         sim: action.lock.sim,
         color: action.lock.color,
+        imei1: action.lock.imei1,
+        imei2: action.lock.imei2,
+        serialNumber: action.lock.serialNumber,
         imeiSerial: action.lock.imeiSerial,
         deviceLock: action.lock,
         targetLock: null,
@@ -468,6 +520,26 @@ export function loadTradeFlowState(): TradeFlowState | null {
     // Backfill new lock fields for sessions started before RAM cascade shipped
     if (merged.targetLock && merged.targetLock.ram === undefined) {
       merged.targetLock = { ...merged.targetLock, ram: null };
+    }
+    // Backfill IMEI 1 / 2 / serial from older single imeiSerial sessions
+    if (merged.imei1 == null && merged.imeiSerial) {
+      const digits = merged.imeiSerial.replace(/\D/g, '');
+      if (digits.length === 15) merged.imei1 = merged.imeiSerial;
+      else merged.serialNumber = merged.imeiSerial;
+    }
+    if (merged.deviceLock) {
+      const lock = merged.deviceLock as TradeDeviceLock & { imei1?: string | null };
+      if (lock.imei1 === undefined) {
+        const primary = lock.imeiSerial || '';
+        const digits = primary.replace(/\D/g, '');
+        merged.deviceLock = {
+          ...lock,
+          imei1: digits.length === 15 ? primary : null,
+          imei2: null,
+          serialNumber: digits.length === 15 ? null : primary || null,
+          imeiSerial: primary,
+        };
+      }
     }
     return merged;
   } catch {

@@ -125,13 +125,13 @@ export const TradeAdminQueue: React.FC<Props> = ({ embedMode, onSelectRequest })
         {[
           { label: 'Total', val: rows.length, col: '#B38B21', filter: 'All' },
           {
-            label: 'Needs verify',
+            label: 'Needs in-store check',
             val: rows.filter((t) => t.needs_verification).length,
             col: '#f59e0b',
             filter: null as string | null,
           },
           {
-            label: 'Below threshold',
+            label: 'Value too low',
             val: rows.filter((t) => t.below_threshold).length,
             col: '#ef4444',
             filter: 'below_threshold',
@@ -254,7 +254,11 @@ export const TradeAdminQueue: React.FC<Props> = ({ embedMode, onSelectRequest })
                 </Td>
                 <Td>
                   <p className="text-xs font-black text-white">{t.resolved_name || '—'}</p>
-                  <p className="text-[10px] text-white/30">{t.resolved_phone || t.resolved_email || '—'}</p>
+                  <p className="text-[10px] text-white/30">
+                    {t.resolved_phone
+                      ? `••• ${String(t.resolved_phone).replace(/\D/g, '').slice(-4) || '—'}`
+                      : t.resolved_email || '—'}
+                  </p>
                 </Td>
                 <Td>
                   <p className="text-xs font-black text-[#B38B21]">
@@ -272,7 +276,7 @@ export const TradeAdminQueue: React.FC<Props> = ({ embedMode, onSelectRequest })
                       <span title="Answers edited" className="text-sky-400"><Flag size={14} /></span>
                     )}
                     {t.below_threshold && (
-                      <span title="Below threshold" className="text-red-400"><AlertTriangle size={14} /></span>
+                      <span title="Value too low for online trade-in" className="text-red-400"><AlertTriangle size={14} /></span>
                     )}
                     {!t.needs_verification && !t.answers_edited && !t.below_threshold && (
                       <span className="text-white/20 text-[10px]">—</span>

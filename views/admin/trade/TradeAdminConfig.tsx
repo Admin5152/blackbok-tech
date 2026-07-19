@@ -1,14 +1,24 @@
 /**
- * trade_config editor — typed inputs by key; invalidates pricing cache on save.
+ * trade_config editor — typed inputs by key; add/delete keys; invalidates pricing cache on save.
  */
 import React, { useCallback, useEffect, useState } from 'react';
+import { Plus, Trash2 } from 'lucide-react';
 import {
+  createTradeConfigKey,
+  deleteTradeConfigKey,
   getAdminTradeConfig,
   tradeAdminErrorMessage,
   updateTradeConfigValue,
 } from '../../../lib/tradeAdminApi';
 import type { TradeConfigRow } from '../../../types/supabase';
 import { useAppContext } from '../../../lib/appContext';
+import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
+import { FieldInfoTip } from '../../../components/trade/FieldInfoTip';
+import {
+  configKeyLabel,
+  configKeyTip,
+  configValueLabel,
+} from '../../../lib/tradeAdminCopy';
 
 const PERCENT_KEYS = new Set([
   'aesthetic_a1_value',
@@ -51,6 +61,12 @@ export const TradeAdminConfig: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
+  const [newKey, setNewKey] = useState('');
+  const [newValue, setNewValue] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [pendingDeleteKey, setPendingDeleteKey] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const reload = useCallback(async () => {
     setError(null);
@@ -78,10 +94,65 @@ export const TradeAdminConfig: React.FC = () => {
     try {
       await updateTradeConfigValue(key, value);
       await reload();
-      notify?.(`Saved ${key}.`, 'success');
+      notify?.(`Saved ${configKeyLabel(key)}.`, 'success');
     } catch (e) {
       notify?.(tradeAdminErrorMessage(e), 'error');
     } finally {
+      setSaving(null);
+    }
+  };
+
+  const addKey = async () => {
+    const key = newKey.trim();
+    if (!key) {
+      notify?.('Enter a config key.', 'warning');
+      return;
+    }
+    if (rows.some((r) => r.key === key)) {
+      notify?.(`Key “${key}” already exists.`, 'error');
+      return;
+    }
+    setAdding(true);
+    try {
+      await createTradeConfigKey({
+        key,
+        value: newValue,
+        description: newDescription.trim() || null,
+      });
+      setNewKey('');
+      setNewValue('');
+      setNewDescription('');
+      await reload();
+      notify?.(`Added ${key}.`, 'success');
+    } catch (e) {
+      notify?.(tradeAdminErrorMessage(e), 'error');
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const removeKey = (key: string) => {
+    setPendingDeleteKey(key);
+  };
+
+  const confirmRemoveKey = async () => {
+    if (!pendingDeleteKey) return;
+    setDeleting(true);
+    setSaving(pendingDeleteKey);
+    try {
+      await deleteTradeConfigKey(pendingDeleteKey);
+      setRows((prev) => prev.filter((r) => r.key !== pendingDeleteKey));
+      setDrafts((prev) => {
+        const next = { ...prev };
+        delete next[pendingDeleteKey];
+        return next;
+      });
+      notify?.(`Deleted ${pendingDeleteKey}.`, 'success');
+      setPendingDeleteKey(null);
+    } catch (e) {
+      notify?.(tradeAdminErrorMessage(e), 'error');
+    } finally {
+      setDeleting(false);
       setSaving(null);
     }
   };
@@ -100,11 +171,50 @@ export const TradeAdminConfig: React.FC = () => {
   return (
     <div className="space-y-3 max-w-3xl">
       <p className="text-[10px] text-white/40 leading-relaxed">
-        Business rules for the live estimate engine. Saves invalidate the pricing cache so the
-        customer ticker reflects changes within the normal TTL.
+        Change these only when you understand the effect. Tap the ⓘ next to each rule for a short
+        explanation. Saves update customer estimates within a few minutes.
       </p>
+
+      <div className="rounded-xl border border-[#B38B21]/25 bg-[#B38B21]/5 p-4 space-y-3">
+        <p className="text-[10px] font-black uppercase tracking-widest text-[#B38B21] inline-flex items-center gap-1.5">
+          Add a new rule
+          <FieldInfoTip
+            title="When to add a rule"
+            body="Most day-to-day settings already exist below. Only add a new key if a manager or developer asks you to."
+          />
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <input
+            value={newKey}
+            onChange={(e) => setNewKey(e.target.value)}
+            placeholder="Internal name (e.g. store_location)"
+            className="bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none"
+          />
+          <input
+            value={newValue}
+            onChange={(e) => setNewValue(e.target.value)}
+            placeholder="Value"
+            className="bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none"
+          />
+          <input
+            value={newDescription}
+            onChange={(e) => setNewDescription(e.target.value)}
+            placeholder="What this rule does (optional)"
+            className="sm:col-span-2 bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none"
+          />
+          <button
+            type="button"
+            disabled={adding}
+            onClick={() => void addKey()}
+            className="sm:col-span-2 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-[#B38B21] text-black text-[10px] font-black uppercase disabled:opacity-40"
+          >
+            <Plus size={12} /> {adding ? 'Adding…' : 'Add rule'}
+          </button>
+        </div>
+      </div>
+
       {rows.length === 0 ? (
-        <p className="text-sm text-white/30 py-8 text-center">No trade_config rows.</p>
+        <p className="text-sm text-white/30 py-8 text-center">No business rules found.</p>
       ) : (
         rows.map((r) => {
           const kind = inputKind(r.key);
@@ -115,17 +225,35 @@ export const TradeAdminConfig: React.FC = () => {
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
-                  <p className="text-xs font-black text-white">{r.key}</p>
-                  <p className="text-[10px] text-white/35 mt-0.5">{r.description}</p>
+                  <p className="text-xs font-black text-white inline-flex items-center gap-1.5">
+                    {configKeyLabel(r.key)}
+                    <FieldInfoTip title={configKeyLabel(r.key)} body={configKeyTip(r.key)} />
+                  </p>
+                  <p className="text-[10px] text-white/35 mt-0.5">
+                    {r.description || configKeyTip(r.key)}
+                  </p>
+                  <p className="text-[9px] text-white/20 mt-0.5 font-mono">{r.key}</p>
                 </div>
-                <button
-                  type="button"
-                  disabled={saving === r.key || drafts[r.key] === r.value}
-                  onClick={() => void save(r.key)}
-                  className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase bg-[#B38B21] text-black disabled:opacity-30"
-                >
-                  {saving === r.key ? 'Saving…' : 'Save'}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={saving === r.key || drafts[r.key] === r.value}
+                    onClick={() => void save(r.key)}
+                    className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase bg-[#B38B21] text-black disabled:opacity-30"
+                  >
+                    {saving === r.key ? 'Saving…' : 'Save'}
+                  </button>
+                  <button
+                    type="button"
+                    title="Delete config key"
+                    disabled={saving === r.key}
+                    onClick={() => void removeKey(r.key)}
+                    className="inline-flex items-center justify-center p-1.5 rounded-lg text-red-400/80 hover:bg-red-500/15 hover:text-red-300 disabled:opacity-40"
+                  >
+                    <Trash2 size={14} aria-hidden />
+                    <span className="sr-only">Delete</span>
+                  </button>
+                </div>
               </div>
               {kind === 'select' ? (
                 <select
@@ -137,11 +265,13 @@ export const TradeAdminConfig: React.FC = () => {
                 >
                   {(SELECT_OPTIONS[r.key] || []).map((opt) => (
                     <option key={opt} value={opt}>
-                      {opt}
+                      {configValueLabel(opt)}
                     </option>
                   ))}
                   {!SELECT_OPTIONS[r.key]?.includes(drafts[r.key] ?? '') && (
-                    <option value={drafts[r.key]}>{drafts[r.key]}</option>
+                    <option value={drafts[r.key]}>
+                      {configValueLabel(drafts[r.key] ?? '')}
+                    </option>
                   )}
                 </select>
               ) : kind === 'number' || kind === 'percent' ? (
@@ -174,6 +304,20 @@ export const TradeAdminConfig: React.FC = () => {
           );
         })
       )}
+
+      <ConfirmDeleteDialog
+        open={pendingDeleteKey != null}
+        title="Delete config key?"
+        message={
+          pendingDeleteKey
+            ? `Permanently delete config key “${pendingDeleteKey}”? Estimates that depend on it may break until you re-add it.`
+            : ''
+        }
+        requireTypedDelete
+        busy={deleting}
+        onCancel={() => !deleting && setPendingDeleteKey(null)}
+        onConfirm={() => void confirmRemoveKey()}
+      />
     </div>
   );
 };

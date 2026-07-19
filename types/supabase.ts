@@ -313,6 +313,9 @@ export interface Database {
           created_at: string | null;
           updated_at: string | null;
           imei_serial: string | null;
+          imei_1: string | null;
+          imei_2: string | null;
+          serial_number: string | null;
           your_color: string | null;
           target_color: string | null;
           answers_snapshot: Json | null;

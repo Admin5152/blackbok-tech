@@ -380,7 +380,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
             const msg = e instanceof Error ? e.message : String(e || '');
             if (/product_variants|column|permission|policy/i.test(msg)) {
                 setError(
-                    'Could not save SKU rows. Run migrations 2026_05_product_variants_sku_columns.sql and 2026_05_product_variants_admin_rls.sql in Supabase, then try again.',
+                    'Could not save stock versions. Ask IT to finish product setup in the database, then try again.',
                 );
             } else if (/Duplicate SKU/i.test(msg)) {
                 setError(msg);
@@ -593,7 +593,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                         ))}
                     </select>
                     <div className="flex-1 min-w-[140px]">
-                        <SearchInput value={q} onChange={setQ} placeholder="Search name or trade_model…" />
+                        <SearchInput value={q} onChange={setQ} placeholder="Search name or trade-in model…" />
                     </div>
                     {canEdit && (
                         <>
@@ -622,7 +622,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
             ) : (
                 <TableWrapper>
                     <thead><tr>
-                        <Th></Th><Th>Name</Th><Th>Category</Th><Th>Trade model</Th><Th>Price</Th><Th>Stock</Th><Th>Status</Th><Th>Feature</Th>
+                        <Th></Th><Th>Name</Th><Th>Category</Th><Th>Trade-in model</Th><Th>Price</Th><Th>Stock</Th><Th>Status</Th><Th>Feature</Th>
                         {canEdit && <Th>Actions</Th>}
                     </tr></thead>
                     <tbody>

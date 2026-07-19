@@ -3,6 +3,7 @@
  * Empty banner when cut-off cannot fire for models without a value.
  */
 import React, { useCallback, useEffect, useState } from 'react';
+import { Trash2 } from 'lucide-react';
 import {
   getThresholdWorksheet,
   tradeAdminErrorMessage,
@@ -11,6 +12,7 @@ import {
 import { formatGhs } from '../../../lib/money';
 import type { TradeThresholdWorksheetRow } from '../../../types/supabase';
 import { useAppContext } from '../../../lib/appContext';
+import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 
 export const TradeAdminThresholds: React.FC = () => {
   const { notify } = useAppContext();
@@ -18,6 +20,8 @@ export const TradeAdminThresholds: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
+  const [pendingClear, setPendingClear] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const reload = useCallback(async () => {
     setError(null);
@@ -54,6 +58,27 @@ export const TradeAdminThresholds: React.FC = () => {
     }
   };
 
+  const clearThreshold = (model: string) => {
+    setPendingClear(model);
+  };
+
+  const confirmClearThreshold = async () => {
+    if (!pendingClear) return;
+    setDeleting(true);
+    setSaving(pendingClear);
+    try {
+      await updateDeviceThreshold(pendingClear, null);
+      await reload();
+      notify?.(`Cleared threshold for ${pendingClear}.`, 'success');
+      setPendingClear(null);
+    } catch (e) {
+      notify?.(tradeAdminErrorMessage(e), 'error');
+    } finally {
+      setDeleting(false);
+      setSaving(null);
+    }
+  };
+
   if (loading) {
     return <div className="text-center py-16 text-white/30 text-sm">Loading thresholds…</div>;
   }
@@ -74,6 +99,10 @@ export const TradeAdminThresholds: React.FC = () => {
         </div>
       )}
 
+      <p className="text-[10px] text-white/40 leading-relaxed">
+        Set a per-model minimum in GHS, or clear it to use the global minimum from Business rules.
+      </p>
+
       <div className="border border-white/10 rounded-xl overflow-hidden bg-black/30">
         <div className="max-h-[70vh] overflow-auto">
           <table className="w-full text-left">
@@ -84,6 +113,7 @@ export const TradeAdminThresholds: React.FC = () => {
                 <th className="px-3 py-2">Base range</th>
                 <th className="px-3 py-2">Threshold</th>
                 <th className="px-3 py-2">Status</th>
+                <th className="px-3 py-2">Clear</th>
               </tr>
             </thead>
             <tbody>
@@ -100,6 +130,7 @@ export const TradeAdminThresholds: React.FC = () => {
                     <input
                       type="number"
                       defaultValue={r.current_threshold ?? ''}
+                      key={`${r.model}-${r.current_threshold ?? 'empty'}`}
                       disabled={saving === r.model}
                       placeholder="—"
                       onBlur={(e) => {
@@ -120,8 +151,22 @@ export const TradeAdminThresholds: React.FC = () => {
                           : 'text-emerald-400'
                       }`}
                     >
-                      {r.current_threshold == null ? 'NEEDS VALUE' : r.status}
+                      {r.current_threshold == null ? 'Needs a value' : 'Set'}
                     </span>
+                  </td>
+                  <td className="px-3 py-2">
+                    {r.current_threshold != null && (
+                      <button
+                        type="button"
+                        title="Clear threshold"
+                        disabled={saving === r.model}
+                        onClick={() => void clearThreshold(r.model)}
+                        className="inline-flex items-center justify-center p-1.5 rounded-lg text-red-400/80 hover:bg-red-500/15 hover:text-red-300 disabled:opacity-40"
+                      >
+                        <Trash2 size={14} aria-hidden />
+                        <span className="sr-only">Clear</span>
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -132,6 +177,19 @@ export const TradeAdminThresholds: React.FC = () => {
           )}
         </div>
       </div>
+
+      <ConfirmDeleteDialog
+        open={pendingClear != null}
+        title="Clear threshold?"
+        message={
+          pendingClear
+            ? `Clear threshold for ${pendingClear}? Cut-off for this model will fall back to global config.`
+            : ''
+        }
+        busy={deleting}
+        onCancel={() => !deleting && setPendingClear(null)}
+        onConfirm={() => void confirmClearThreshold()}
+      />
     </div>
   );
 };

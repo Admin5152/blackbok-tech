@@ -23,6 +23,14 @@ import {
   type TradeQuestionWithAnswers,
 } from '../../../types/supabase';
 import { useAppContext } from '../../../lib/appContext';
+import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
+import { FieldInfoTip } from '../../../components/trade/FieldInfoTip';
+import {
+  TRADE_GATE_TIP,
+  TRADE_OUTCOME_TIP,
+  componentLabel,
+  outcomeLabel,
+} from '../../../lib/tradeAdminCopy';
 
 const COMPONENTS = [
   '',
@@ -45,6 +53,11 @@ export const TradeAdminQuestionnaire: React.FC = () => {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<
+    | { kind: 'question'; id: string }
+    | { kind: 'answer'; id: string }
+    | null
+  >(null);
 
   const reload = useCallback(async () => {
     setError(null);
@@ -155,28 +168,35 @@ export const TradeAdminQuestionnaire: React.FC = () => {
     }
   };
 
-  const removeQuestion = async (id: string) => {
-    if (!window.confirm('Remove this question? Referenced answers will deactivate instead of hard-delete.')) {
-      return;
-    }
+  const removeQuestion = (id: string) => {
+    setPendingDelete({ kind: 'question', id });
+  };
+
+  const confirmPendingDelete = async () => {
+    if (!pendingDelete) return;
     setBusy(true);
     try {
-      const result = await deleteQuestionIfSafe(id);
-      notify?.(
-        result === 'deactivated'
-          ? 'Question deactivated (answers still referenced).'
-          : 'Question deleted.',
-        'success',
-      );
+      if (pendingDelete.kind === 'question') {
+        try {
+          const result = await deleteQuestionIfSafe(pendingDelete.id);
+          notify?.(
+            result === 'deactivated'
+              ? 'Question deactivated (answers still referenced).'
+              : 'Question deleted.',
+            'success',
+          );
+        } catch {
+          await deactivateQuestion(pendingDelete.id);
+          notify?.('Question deactivated.', 'success');
+        }
+      } else {
+        await deleteAnswer(pendingDelete.id);
+        notify?.('Answer deleted.', 'success');
+      }
+      setPendingDelete(null);
       await reload();
     } catch (e) {
-      try {
-        await deactivateQuestion(id);
-        notify?.('Question deactivated.', 'success');
-        await reload();
-      } catch (e2) {
-        notify?.(tradeAdminErrorMessage(e2), 'error');
-      }
+      notify?.(tradeAdminErrorMessage(e), 'error');
     } finally {
       setBusy(false);
     }
@@ -286,8 +306,8 @@ export const TradeAdminQuestionnaire: React.FC = () => {
       </div>
 
       <p className="text-[10px] text-white/40">
-        Customer quiz loads active rows from <code className="text-white/60">trade_questions</code>{' '}
-        via <code className="text-white/60">getTradeQuestions</code> — no code deploy needed.
+        Turn a question on (Active) and it appears in the customer condition quiz right away — no
+        redeploy needed. Tap ⓘ next to Gate / Outcome for what each setting means.
       </p>
 
       {error && (
@@ -341,10 +361,10 @@ export const TradeAdminQuestionnaire: React.FC = () => {
                   <div className="flex flex-wrap gap-2 items-center">
                     <span className="text-[9px] font-black uppercase text-[#B38B21]">{q.code}</span>
                     {!q.is_active && (
-                      <span className="text-[8px] uppercase text-white/40">inactive</span>
+                      <span className="text-[8px] uppercase text-white/40">hidden</span>
                     )}
                     {q.is_gate && (
-                      <span className="text-[8px] uppercase text-amber-300">gate</span>
+                      <span className="text-[8px] uppercase text-amber-300">must-pass</span>
                     )}
                   </div>
                   <input
@@ -374,7 +394,8 @@ export const TradeAdminQuestionnaire: React.FC = () => {
                         checked={q.is_gate}
                         onChange={(e) => void saveQuestionField(q.id, { is_gate: e.target.checked })}
                       />
-                      Gate
+                      Must-pass check
+                      <FieldInfoTip title="Must-pass check" body={TRADE_GATE_TIP} />
                     </label>
                     <label className="inline-flex items-center gap-1">
                       <input
@@ -384,23 +405,34 @@ export const TradeAdminQuestionnaire: React.FC = () => {
                           void saveQuestionField(q.id, { is_active: e.target.checked })
                         }
                       />
-                      Active
+                      Shown to customers
+                      <FieldInfoTip
+                        title="Shown to customers"
+                        body="When on, this question appears in the online trade-in quiz for this device type."
+                      />
                     </label>
-                    <select
-                      value={q.component ?? ''}
-                      onChange={(e) =>
-                        void saveQuestionField(q.id, {
-                          component: e.target.value || null,
-                        })
-                      }
-                      className="bg-black/50 border border-white/10 rounded-lg px-2 py-0.5 text-white text-[10px]"
-                    >
-                      {COMPONENTS.map((c) => (
-                        <option key={c || 'none'} value={c}>
-                          {c || 'no component'}
-                        </option>
-                      ))}
-                    </select>
+                    <label className="inline-flex items-center gap-1">
+                      Linked part
+                      <FieldInfoTip
+                        title="Linked part"
+                        body="Optional. Ties the question to a condition discount (screen, battery, etc.)."
+                      />
+                      <select
+                        value={q.component ?? ''}
+                        onChange={(e) =>
+                          void saveQuestionField(q.id, {
+                            component: e.target.value || null,
+                          })
+                        }
+                        className="bg-black/50 border border-white/10 rounded-lg px-2 py-0.5 text-white text-[10px]"
+                      >
+                        {COMPONENTS.map((c) => (
+                          <option key={c || 'none'} value={c}>
+                            {componentLabel(c)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                   </div>
                 </div>
                 <div className="flex gap-1 shrink-0">
@@ -458,16 +490,17 @@ export const TradeAdminQuestionnaire: React.FC = () => {
                       />
                       <select
                         value={a.outcome}
+                        title={TRADE_OUTCOME_TIP}
                         onChange={(e) =>
                           void saveAnswer(a.id, q.id, {
                             outcome: e.target.value as TradeAnswerOutcome,
                           })
                         }
-                        className="bg-black/50 border border-white/10 rounded-lg px-2 py-1 text-white text-[10px]"
+                        className="bg-black/50 border border-white/10 rounded-lg px-2 py-1 text-white text-[10px] max-w-[12rem]"
                       >
                         {TRADE_ANSWER_OUTCOMES.map((o) => (
                           <option key={o} value={o}>
-                            {o}
+                            {outcomeLabel(o)}
                           </option>
                         ))}
                       </select>
@@ -479,7 +512,7 @@ export const TradeAdminQuestionnaire: React.FC = () => {
                             void saveAnswer(a.id, q.id, { flag_verify: e.target.checked })
                           }
                         />
-                        Verify
+                        Check in store
                       </label>
                       <label className="inline-flex items-center gap-1 text-[9px] text-white/50">
                         <input
@@ -491,21 +524,11 @@ export const TradeAdminQuestionnaire: React.FC = () => {
                             })
                           }
                         />
-                        Desc
+                        Needs details
                       </label>
                       <button
                         type="button"
-                        onClick={() => {
-                          if (!window.confirm('Delete this answer?')) return;
-                          void (async () => {
-                            try {
-                              await deleteAnswer(a.id);
-                              await reload();
-                            } catch (e) {
-                              notify?.(tradeAdminErrorMessage(e), 'error');
-                            }
-                          })();
-                        }}
+                        onClick={() => setPendingDelete({ kind: 'answer', id: a.id })}
                         className="p-1 text-red-400"
                       >
                         <Trash2 size={11} />
@@ -525,6 +548,22 @@ export const TradeAdminQuestionnaire: React.FC = () => {
           ))}
         </div>
       )}
+
+      <ConfirmDeleteDialog
+        open={pendingDelete != null}
+        title={
+          pendingDelete?.kind === 'question' ? 'Delete question?' : 'Delete answer?'
+        }
+        message={
+          pendingDelete?.kind === 'question'
+            ? 'Remove this question? If answers are still referenced it will be deactivated instead of hard-deleted.'
+            : 'Are you sure you want to delete this answer?'
+        }
+        requireTypedDelete={pendingDelete?.kind === 'question'}
+        busy={busy}
+        onCancel={() => !busy && setPendingDelete(null)}
+        onConfirm={() => void confirmPendingDelete()}
+      />
     </div>
   );
 };

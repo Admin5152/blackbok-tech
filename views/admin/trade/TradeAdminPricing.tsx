@@ -15,12 +15,14 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
-import { Plus, Copy, ArrowRightLeft } from 'lucide-react';
+import { Plus, Copy, ArrowRightLeft, Trash2 } from 'lucide-react';
 import {
   cloneBaseValueForSim,
   copyDeductionsFromModel,
   createBaseValue,
   createDeduction,
+  deleteBaseValue,
+  deleteDeduction,
   getAdminBaseValues,
   getAdminDeductions,
   getAdminDevices,
@@ -34,8 +36,12 @@ import { simVariantLabel } from '../../../lib/tradeCopy';
 import { TRADE_COMPONENT_KEYS } from '../../../lib/tradeComponentKeys';
 import type { TradeBaseValueRow, TradeDeviceRow, TradeFaultDeductionRow } from '../../../types/supabase';
 import { useAppContext } from '../../../lib/appContext';
+import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 
 type Tab = 'bases' | 'deductions';
+type PendingDelete =
+  | { kind: 'base'; row: TradeBaseValueRow }
+  | { kind: 'deduction'; row: TradeFaultDeductionRow };
 
 /** Allowed sim_variant codes for trade_base_values (matches product_variants.sim_type). */
 const SIM_OPTIONS = ['ps', 'es', 'single', 'wifi', 'cell_ps', 'cell_es'] as const;
@@ -81,6 +87,8 @@ export const TradeAdminPricing: React.FC = () => {
   const [copyFrom, setCopyFrom] = useState('');
   const [copyOverwrite, setCopyOverwrite] = useState(true);
   const [copying, setCopying] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const syncSearch = useCallback(
     (next: { model?: string; tab?: Tab }) => {
@@ -285,6 +293,39 @@ export const TradeAdminPricing: React.FC = () => {
     }
   };
 
+  const removeBase = (row: TradeBaseValueRow) => {
+    setPendingDelete({ kind: 'base', row });
+  };
+
+  const removeDeduction = (row: TradeFaultDeductionRow) => {
+    setPendingDelete({ kind: 'deduction', row });
+  };
+
+  const confirmPendingDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      if (pendingDelete.kind === 'base') {
+        const row = pendingDelete.row;
+        const label = `${row.model} ${row.storage} ${simVariantLabel(row.sim_variant)}`;
+        await deleteBaseValue(row.id);
+        setBases((prev) => prev.filter((r) => r.id !== row.id));
+        notify?.(`Deleted ${label}.`, 'success');
+      } else {
+        const row = pendingDelete.row;
+        const label = `${row.model} · ${row.fault_label || row.fault_code}`;
+        await deleteDeduction(row.id);
+        setDeducs((prev) => prev.filter((r) => r.id !== row.id));
+        notify?.(`Deleted ${label}.`, 'success');
+      }
+      setPendingDelete(null);
+    } catch (e) {
+      notify?.(tradeAdminErrorMessage(e), 'error');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const addDeductionRow = async () => {
     if (!dedModel.trim()) {
       notify?.('Pick a model.', 'error');
@@ -375,8 +416,8 @@ export const TradeAdminPricing: React.FC = () => {
         <div className="flex gap-1">
           {(
             [
-              ['bases', 'Base values (GHS)'],
-              ['deductions', 'Deductions (GHS)'],
+              ['bases', 'Starting prices'],
+              ['deductions', 'Condition discounts'],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -451,7 +492,7 @@ export const TradeAdminPricing: React.FC = () => {
               >
                 {SIM_OPTIONS.map((s) => (
                   <option key={s} value={s}>
-                    {simVariantLabel(s)} ({s})
+                    {simVariantLabel(s)}
                   </option>
                 ))}
               </select>
@@ -482,9 +523,10 @@ export const TradeAdminPricing: React.FC = () => {
                     <th className="px-3 py-2">Model</th>
                     <th className="px-3 py-2">Storage</th>
                     <th className="px-3 py-2">SIM</th>
-                    <th className="px-3 py-2">Base (GHS)</th>
-                    <th className="px-3 py-2">Active</th>
-                    <th className="px-3 py-2">Clone SIM</th>
+                    <th className="px-3 py-2">Starting price (GHS)</th>
+                    <th className="px-3 py-2">Shown</th>
+                    <th className="px-3 py-2">Copy as other SIM</th>
+                    <th className="px-3 py-2">Delete</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -549,6 +591,18 @@ export const TradeAdminPricing: React.FC = () => {
                               </button>
                             ))}
                         </div>
+                      </td>
+                      <td className="px-3 py-2">
+                        <button
+                          type="button"
+                          title="Delete base row"
+                          disabled={savingId === r.id}
+                          onClick={() => void removeBase(r)}
+                          className="inline-flex items-center justify-center p-1.5 rounded-lg text-red-400/80 hover:bg-red-500/15 hover:text-red-300 disabled:opacity-40"
+                        >
+                          <Trash2 size={14} aria-hidden />
+                          <span className="sr-only">Delete</span>
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -681,9 +735,10 @@ export const TradeAdminPricing: React.FC = () => {
                 <thead className="sticky top-0 bg-[#0a0a0a] text-[9px] uppercase tracking-widest text-white/40">
                   <tr>
                     <th className="px-3 py-2">Model</th>
-                    <th className="px-3 py-2">Fault / component</th>
-                    <th className="px-3 py-2">Deduction (GHS)</th>
-                    <th className="px-3 py-2">Active</th>
+                    <th className="px-3 py-2">Condition issue</th>
+                    <th className="px-3 py-2">Discount (GHS)</th>
+                    <th className="px-3 py-2">Shown</th>
+                    <th className="px-3 py-2">Delete</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -718,6 +773,18 @@ export const TradeAdminPricing: React.FC = () => {
                           onChange={(e) => void saveDeduc(r.id, { is_active: e.target.checked })}
                         />
                       </td>
+                      <td className="px-3 py-2">
+                        <button
+                          type="button"
+                          title="Delete deduction"
+                          disabled={savingId === r.id}
+                          onClick={() => void removeDeduction(r)}
+                          className="inline-flex items-center justify-center p-1.5 rounded-lg text-red-400/80 hover:bg-red-500/15 hover:text-red-300 disabled:opacity-40"
+                        >
+                          <Trash2 size={14} aria-hidden />
+                          <span className="sr-only">Delete</span>
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -729,6 +796,26 @@ export const TradeAdminPricing: React.FC = () => {
           </div>
         </>
       )}
+
+      <ConfirmDeleteDialog
+        open={pendingDelete != null}
+        title={
+          pendingDelete?.kind === 'base'
+            ? 'Delete base pricing row?'
+            : 'Delete deduction row?'
+        }
+        message={
+          pendingDelete?.kind === 'base'
+            ? `Permanently delete base pricing for ${pendingDelete.row.model} ${pendingDelete.row.storage} ${simVariantLabel(pendingDelete.row.sim_variant)}. This cannot be undone.`
+            : pendingDelete
+              ? `Permanently delete deduction “${pendingDelete.row.model} · ${pendingDelete.row.fault_label || pendingDelete.row.fault_code}”. This cannot be undone.`
+              : ''
+        }
+        requireTypedDelete
+        busy={deleting}
+        onCancel={() => !deleting && setPendingDelete(null)}
+        onConfirm={() => void confirmPendingDelete()}
+      />
     </div>
   );
 };

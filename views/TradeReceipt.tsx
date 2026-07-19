@@ -7,6 +7,8 @@ import { supabase } from '../lib/supabase';
 import { mapTradeFromDb } from '../lib/api';
 import { BlackBoxReceiptLogo } from '../components/BlackBoxReceiptLogo';
 import { formatCustomerStatusShort } from '../lib/customerStatusLabels';
+import { maskPhone } from '../lib/phoneMask';
+import { maskImeiSerial } from '../lib/imeiValidation';
 
 export const TradeReceipt: React.FC = () => {
   const { tradeId } = useParams({ from: '/receipt/trade/$tradeId' });
@@ -116,7 +118,14 @@ export const TradeReceipt: React.FC = () => {
   if (trade.fulfillmentMethod) rows.push({ label: 'Fulfillment', value: trade.fulfillmentMethod });
   if (trade.contactName) rows.push({ label: 'Contact name', value: trade.contactName });
   if (trade.contactEmail) rows.push({ label: 'Email', value: trade.contactEmail });
-  if (trade.contactPhone) rows.push({ label: 'Phone', value: trade.contactPhone });
+  if (trade.contactPhone) rows.push({ label: 'Phone', value: maskPhone(trade.contactPhone) });
+  if (trade.imei_1) rows.push({ label: 'IMEI 1', value: maskImeiSerial(trade.imei_1) });
+  if (trade.imei_2) rows.push({ label: 'IMEI 2', value: maskImeiSerial(trade.imei_2) });
+  if (trade.serial_number) {
+    rows.push({ label: 'Serial', value: maskImeiSerial(trade.serial_number) });
+  } else if (trade.imei_serial) {
+    rows.push({ label: 'IMEI / serial', value: maskImeiSerial(trade.imei_serial) });
+  }
   if (trade.userDescription) rows.push({ label: 'Your notes', value: trade.userDescription });
   if (trade.adminNote) rows.push({ label: 'Internal note', value: trade.adminNote });
 

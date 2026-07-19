@@ -435,16 +435,46 @@ export async function findActiveTradeByImei(imeiSerial: string): Promise<{
   id: string;
   display_id: string | null;
 } | null> {
-  const normalized = imeiSerial.trim().toLowerCase();
-  const { data, error } = await supabase
-    .from('trade_in_requests')
-    .select('id, display_id')
-    .ilike('imei_serial', normalized)
-    .in('status', ['submitted', 'under_review', 'offer_made', 'accepted', 'scheduled'])
-    .maybeSingle();
+  return findActiveTradeByIdentity([imeiSerial]);
+}
 
-  if (error) throw error;
-  return data;
+/** Match any of IMEI 1 / IMEI 2 / serial / legacy imei_serial on active trades. */
+export async function findActiveTradeByIdentity(
+  values: Array<string | null | undefined>,
+): Promise<{ id: string; display_id: string | null } | null> {
+  const norms = [
+    ...new Set(
+      values
+        .map((v) => (v ?? '').trim())
+        .filter(Boolean)
+        .map((v) => v.toLowerCase()),
+    ),
+  ];
+  if (norms.length === 0) return null;
+
+  const activeStatuses = [
+    'submitted',
+    'under_review',
+    'offer_made',
+    'accepted',
+    'scheduled',
+  ];
+
+  for (const n of norms) {
+    const cols = ['imei_1', 'imei_2', 'serial_number', 'imei_serial'] as const;
+    for (const col of cols) {
+      const { data, error } = await supabase
+        .from('trade_in_requests')
+        .select('id, display_id')
+        .ilike(col, n)
+        .in('status', activeStatuses)
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      if (data) return data;
+    }
+  }
+  return null;
 }
 
 /** Alias used by Screen 6 — same as getTradeQuestions */
@@ -459,11 +489,17 @@ export interface SubmitTradeRequestInput {
   contactPhone: string;
   contactEmail?: string;
   imeiSerial: string;
+  imei1?: string | null;
+  imei2?: string | null;
+  serialNumber?: string | null;
   deviceLock: {
     model: string;
     storage: string;
     sim: string;
     color: string;
+    imei1?: string | null;
+    imei2?: string | null;
+    serialNumber?: string | null;
     imeiSerial?: string;
     lockedBaseValue: number;
   };
@@ -543,6 +579,10 @@ export async function submitTradeRequest(input: SubmitTradeRequestInput) {
       answers_edited: input.editLog.length > 0,
       needs_verification: input.estimate.needs_verification,
       needs_manual_review: false,
+      imei_1: (input.imei1 ?? input.deviceLock.imei1 ?? '').trim() || null,
+      imei_2: (input.imei2 ?? input.deviceLock.imei2 ?? '').trim() || null,
+      serial_number:
+        (input.serialNumber ?? input.deviceLock.serialNumber ?? '').trim() || null,
       imei_serial: input.imeiSerial.trim(),
       contact_name: input.contactName,
       contact_phone: input.contactPhone,
@@ -575,8 +615,16 @@ export async function submitTradeRequest(input: SubmitTradeRequestInput) {
       ? String((err as { message: string }).message)
       : String(err);
     // Unique active IMEI index → friendly copy
-    if (/imei|unique|duplicate|uq_trade_active/i.test(msg)) {
-      const existing = await findActiveTradeByImei(input.imeiSerial);
+    if (/imei|serial|unique|duplicate|uq_trade_active/i.test(msg)) {
+      const existing = await findActiveTradeByIdentity([
+        input.imei1,
+        input.imei2,
+        input.serialNumber,
+        input.imeiSerial,
+        input.deviceLock.imei1,
+        input.deviceLock.imei2,
+        input.deviceLock.serialNumber,
+      ]);
       const e = new Error(
         existing?.display_id
           ? `DUPLICATE_IMEI:${existing.display_id}`

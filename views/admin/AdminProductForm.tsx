@@ -228,7 +228,7 @@ export const AdminProductForm: React.FC<Props> = ({
 
   const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
     { id: 'details', label: 'Details', icon: <Package size={12} /> },
-    { id: 'options', label: 'Options & SKUs', icon: <Layers size={12} /> },
+                { id: 'options', label: 'Options & stock versions', icon: <Layers size={12} /> },
     { id: 'images', label: 'Images', icon: <ImageIcon size={12} /> },
     { id: 'listing', label: 'Listing', icon: <Tag size={12} /> },
   ];
@@ -512,7 +512,7 @@ export const AdminProductForm: React.FC<Props> = ({
                 </div>
                 {/* Trade bridge: products.trade_model must match trade_devices.model */}
                 <div className="sm:col-span-2 relative">
-                  <label className={s.label}>Trade model (trade-in bridge)</label>
+                  <label className={s.label}>Matching trade-in model</label>
                   <input
                     type="text"
                     value={tradeOpen ? tradeSearch : (draft.trade_model ?? '')}
@@ -529,7 +529,7 @@ export const AdminProductForm: React.FC<Props> = ({
                       window.setTimeout(() => setTradeOpen(false), 180);
                     }}
                     className={s.input}
-                    placeholder="Search trade_devices… e.g. iPhone 14"
+                    placeholder="Search trade-in models… e.g. iPhone 14"
                     autoComplete="off"
                   />
                   {tradeOpen && (
@@ -825,7 +825,7 @@ export const AdminProductForm: React.FC<Props> = ({
               />
 
               <div className={s.card}>
-                <label className={s.label}>Specifications (JSONB)</label>
+                <label className={s.label}>Extra specifications (advanced)</label>
                 <textarea
                   rows={6}
                   value={draft.specificationsJson ?? '{}'}

@@ -10,7 +10,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Info, MapPin } from 'lucide-react';
 import { useTradeFlow } from '../../lib/tradeFlowContext';
-import { ImeiInfoTip } from '../../components/trade/ImeiInfoTip';
 import { useAppContext } from '../../lib/appContext';
 import { submitTradeRequest, getTradeConfigValue } from '../../lib/tradeApi';
 import { saveReturnTo } from '../../lib/returnTo';
@@ -83,8 +82,17 @@ export function TradeDetailsScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [storeLocation, setStoreLocation] = useState<string>(TRADE_COPY.details.storeLocation);
 
+  const imei1 = state.deviceLock?.imei1?.trim() || state.imei1?.trim() || '';
+  const imei2 = state.deviceLock?.imei2?.trim() || state.imei2?.trim() || '';
+  const serialNumber =
+    state.deviceLock?.serialNumber?.trim() || state.serialNumber?.trim() || '';
   const imeiSerial =
-    state.deviceLock?.imeiSerial?.trim() || state.imeiSerial?.trim() || '';
+    state.deviceLock?.imeiSerial?.trim() ||
+    imei1 ||
+    serialNumber ||
+    imei2 ||
+    state.imeiSerial?.trim() ||
+    '';
 
   useEffect(() => {
     getTradeConfigValue('store_location', TRADE_COPY.details.storeLocation)
@@ -155,6 +163,9 @@ export function TradeDetailsScreen() {
         contactPhone: phone.trim(),
         contactEmail: email.trim() || undefined,
         imeiSerial,
+        imei1: imei1 || null,
+        imei2: imei2 || null,
+        serialNumber: serialNumber || null,
         deviceLock: state.deviceLock,
         targetLock: {
           productId: state.targetLock.productId,
@@ -287,21 +298,35 @@ export function TradeDetailsScreen() {
           />
         </label>
 
-        <div className="block text-xs space-y-1">
-          <span className="font-black uppercase tracking-widest text-[#CDA032] inline-flex items-center gap-1.5">
-            {TRADE_COPY.details.imei}
-            <ImeiInfoTip />
+        <div className="block text-xs space-y-3">
+          <span className="font-black uppercase tracking-widest text-[#CDA032]">
+            Device identity
           </span>
-          <p
-            className={`rounded-xl border px-3 py-2.5 text-sm font-mono ${
-              isLight ? 'border-black/10 bg-black/[0.02]' : 'border-white/10 bg-black/40'
-            }`}
-          >
-            {imeiSerial}
-          </p>
+          {(
+            [
+              ['IMEI 1', imei1],
+              ['IMEI 2', imei2],
+              ['Serial', serialNumber],
+            ] as const
+          )
+            .filter(([, v]) => Boolean(v))
+            .map(([label, value]) => (
+              <div key={label}>
+                <p className={`text-[10px] uppercase tracking-widest mb-1 ${isLight ? 'text-black/40' : 'text-white/40'}`}>
+                  {label}
+                </p>
+                <p
+                  className={`rounded-xl border px-3 py-2.5 text-sm font-mono ${
+                    isLight ? 'border-black/10 bg-black/[0.02]' : 'border-white/10 bg-black/40'
+                  }`}
+                >
+                  {value}
+                </p>
+              </div>
+            ))}
           <button
             type="button"
-            className={`underline ${isLight ? 'text-black/45' : 'text-white/40'}`}
+            className={`underline text-xs ${isLight ? 'text-black/45' : 'text-white/40'}`}
             onClick={() => void navigate({ to: '/trade/config' })}
           >
             Change IMEI / serial

@@ -1,12 +1,11 @@
 /**
- * Spec Screen 4 — Device configuration (storage → SIM → color → IMEI).
+ * Spec Screen 4 — Device configuration (storage → SIM → color → IMEI/serial).
  *
  * Progressive selects driven by trade_base_values for the chosen model:
  * only tiers/sims that exist as active pricing rows can be chosen.
  * SIM picker auto-skips when the model has only `single` (or one variant).
  * Colour is identification-only (D3) — no price effect.
- * IMEI/serial is collected here (with *#06# hint) so identity is locked
- * with the device config before target/quiz.
+ * IMEI 1 / IMEI 2 / serial collected here with per-field info tips.
  *
  * After Continue: LOCK_DEVICE_CONFIG stores lockedBaseValue internally.
  * WHY never displayed here: anti-anchoring — money appears on Screen 7
@@ -16,7 +15,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Info } from 'lucide-react';
 import { useTradeFlow } from '../../lib/tradeFlowContext';
-import { ImeiInfoTip } from '../../components/trade/ImeiInfoTip';
+import { FieldInfoTip } from '../../components/trade/FieldInfoTip';
 import { getAppleColorsForModel } from '../../lib/appleColors';
 import {
   distinctSimsFromRows,
@@ -25,10 +24,14 @@ import {
   lookupBaseValueFromRows,
   resolveAutoSim,
 } from '../../lib/tradeApi';
-import { validateImeiOrSerial } from '../../lib/imeiValidation';
+import { isValidImei, isValidSerial } from '../../lib/imeiValidation';
 import { TRADE_COPY, simVariantLabel } from '../../lib/tradeCopy';
 import { useAppContext } from '../../lib/appContext';
 import type { TradeBaseValueRow } from '../../types/supabase';
+
+function primaryIdentity(imei1: string | null, serial: string | null, imei2: string | null): string {
+  return (imei1 || serial || imei2 || '').trim();
+}
 
 export function TradeConfigScreen() {
   const { notify } = useAppContext();
@@ -39,7 +42,7 @@ export function TradeConfigScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [imeiError, setImeiError] = useState<string | null>(null);
+  const [identityError, setIdentityError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!state.model) {
@@ -97,12 +100,25 @@ export function TradeConfigScreen() {
       distinctSimsFromRows(rows, state.storage).length === 0 &&
       resolveAutoSim(rows, state.storage) != null);
 
-  const imeiOk = Boolean(
-    state.imeiSerial && validateImeiOrSerial(state.imeiSerial).valid,
-  );
+  const resolvedSim =
+    state.sim ??
+    (state.storage ? resolveAutoSim(rows, state.storage) : null);
+  const wifiOnly = resolvedSim === 'wifi';
+
+  const imei1Raw = (state.imei1 ?? '').trim();
+  const imei2Raw = (state.imei2 ?? '').trim();
+  const serialRaw = (state.serialNumber ?? '').trim();
+
+  const imei1Ok = !imei1Raw || isValidImei(imei1Raw);
+  const imei2Ok = !imei2Raw || isValidImei(imei2Raw);
+  const serialOk = !serialRaw || isValidSerial(serialRaw);
+
+  const identityOk = wifiOnly
+    ? Boolean(serialRaw && isValidSerial(serialRaw)) && imei1Ok && imei2Ok
+    : Boolean(imei1Raw && isValidImei(imei1Raw)) && imei2Ok && serialOk;
 
   const canContinue =
-    Boolean(state.model && state.storage && simResolved && state.color && imeiOk);
+    Boolean(state.model && state.storage && simResolved && state.color && identityOk);
 
   const chipClass = (selected: boolean) =>
     `min-h-11 rounded-2xl border px-4 py-3 text-sm font-bold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032] ${
@@ -122,22 +138,39 @@ export function TradeConfigScreen() {
       return;
     }
 
-    const imeiCheck = validateImeiOrSerial(state.imeiSerial ?? '');
-    if (!imeiCheck.valid) {
-      setImeiError(TRADE_COPY.config.imeiInvalid);
+    const isWifi = sim === 'wifi';
+    if (isWifi) {
+      if (!serialRaw || !isValidSerial(serialRaw)) {
+        setIdentityError(TRADE_COPY.config.serialInvalid);
+        return;
+      }
+    } else if (!imei1Raw || !isValidImei(imei1Raw)) {
+      setIdentityError(TRADE_COPY.config.imei1Invalid);
       return;
     }
-    setImeiError(null);
+    if (imei2Raw && !isValidImei(imei2Raw)) {
+      setIdentityError(TRADE_COPY.config.imei2Invalid);
+      return;
+    }
+    if (serialRaw && !isValidSerial(serialRaw)) {
+      setIdentityError(TRADE_COPY.config.serialInvalid);
+      return;
+    }
+
+    const primary = primaryIdentity(imei1Raw || null, serialRaw || null, imei2Raw || null);
+    if (!primary) {
+      setIdentityError(TRADE_COPY.config.identityRequired);
+      return;
+    }
+    setIdentityError(null);
 
     const base = lookupBaseValueFromRows(rows, state.storage, sim);
     if (base == null || base <= 0) {
-      // Unknown combo should be impossible if options derive from rows
       notify(TRADE_COPY.states.errorPricing, 'error');
       return;
     }
 
     setSubmitting(true);
-    // Lock internally — lockedBaseValue is NOT rendered on this screen
     dispatch({
       type: 'LOCK_DEVICE_CONFIG',
       lock: {
@@ -145,7 +178,10 @@ export function TradeConfigScreen() {
         storage: state.storage,
         sim,
         color: state.color,
-        imeiSerial: state.imeiSerial!.trim(),
+        imei1: imei1Raw || null,
+        imei2: imei2Raw || null,
+        serialNumber: serialRaw || null,
+        imeiSerial: primary,
         lockedBaseValue: base,
       },
     });
@@ -193,13 +229,11 @@ export function TradeConfigScreen() {
         </h2>
       </div>
 
-      {/* Help — Settings → General → About */}
       <div className="flex gap-2.5 rounded-2xl border border-[var(--bb-border)] bg-[var(--bb-surface)] px-3.5 py-3 text-xs leading-relaxed text-[color:var(--bb-muted)]">
         <Info size={16} className="shrink-0 mt-0.5 text-[#CDA032]" aria-hidden />
         <span>{TRADE_COPY.configHelpShort}</span>
       </div>
 
-      {/* ── Storage ── */}
       <fieldset>
         <legend className="text-[10px] font-black uppercase tracking-[0.3em] text-[#CDA032] mb-3">
           {TRADE_COPY.config.storage}
@@ -218,7 +252,6 @@ export function TradeConfigScreen() {
         </div>
       </fieldset>
 
-      {/* ── SIM (skip when only single) ── */}
       {showSimPicker && (
         <fieldset>
           <legend className="text-[10px] font-black uppercase tracking-[0.3em] text-[#CDA032] mb-3">
@@ -239,7 +272,6 @@ export function TradeConfigScreen() {
         </fieldset>
       )}
 
-      {/* ── Colour (identification only — D3, no price effect) ── */}
       {simResolved && (
         <fieldset>
           <legend className="text-[10px] font-black uppercase tracking-[0.3em] text-[#CDA032] mb-1">
@@ -275,33 +307,86 @@ export function TradeConfigScreen() {
         </fieldset>
       )}
 
-      {/* ── IMEI / serial (with storage · SIM · colour) ── */}
       {state.color && (
-        <label className="block text-xs space-y-1">
-          <span className="font-black uppercase tracking-widest text-[#CDA032] inline-flex items-center gap-1.5">
-            {TRADE_COPY.config.imei}
-            <ImeiInfoTip />
-          </span>
-          <input
-            className={fieldClass}
-            value={state.imeiSerial ?? ''}
-            onChange={(e) => {
-              dispatch({ type: 'SET_IMEI', imeiSerial: e.target.value });
-              setImeiError(null);
-            }}
-            placeholder="15-digit IMEI or serial"
-            autoComplete="off"
-            inputMode="text"
-          />
-          <span className="text-[color:var(--bb-muted)]">
-            {TRADE_COPY.config.imeiHelp}
-          </span>
-          {imeiError && (
-            <span className="block text-red-500 font-medium" role="alert">
-              {imeiError}
+        <div className="space-y-5">
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#CDA032]">
+            Device identity
+          </p>
+
+          <label className="block text-xs space-y-1">
+            <span className="font-black uppercase tracking-widest text-[#CDA032] inline-flex items-center gap-1.5">
+              {TRADE_COPY.config.imei1}
+              {!wifiOnly && <span className="text-red-400 normal-case tracking-normal">*</span>}
+              <FieldInfoTip
+                title={TRADE_COPY.config.imei1InfoTitle}
+                body={TRADE_COPY.config.imei1InfoBody}
+              />
             </span>
+            <input
+              className={fieldClass}
+              value={state.imei1 ?? ''}
+              onChange={(e) => {
+                dispatch({ type: 'SET_IMEI_1', imei1: e.target.value });
+                setIdentityError(null);
+              }}
+              placeholder="15-digit IMEI"
+              autoComplete="off"
+              inputMode="numeric"
+            />
+            <span className="text-[color:var(--bb-muted)]">{TRADE_COPY.config.imei1Help}</span>
+          </label>
+
+          <label className="block text-xs space-y-1">
+            <span className="font-black uppercase tracking-widest text-[#CDA032] inline-flex items-center gap-1.5">
+              {TRADE_COPY.config.imei2}
+              <FieldInfoTip
+                title={TRADE_COPY.config.imei2InfoTitle}
+                body={TRADE_COPY.config.imei2InfoBody}
+              />
+            </span>
+            <input
+              className={fieldClass}
+              value={state.imei2 ?? ''}
+              onChange={(e) => {
+                dispatch({ type: 'SET_IMEI_2', imei2: e.target.value });
+                setIdentityError(null);
+              }}
+              placeholder="Optional second IMEI"
+              autoComplete="off"
+              inputMode="numeric"
+            />
+            <span className="text-[color:var(--bb-muted)]">{TRADE_COPY.config.imei2Help}</span>
+          </label>
+
+          <label className="block text-xs space-y-1">
+            <span className="font-black uppercase tracking-widest text-[#CDA032] inline-flex items-center gap-1.5">
+              {TRADE_COPY.config.serialNumber}
+              {wifiOnly && <span className="text-red-400 normal-case tracking-normal">*</span>}
+              <FieldInfoTip
+                title={TRADE_COPY.config.serialInfoTitle}
+                body={TRADE_COPY.config.serialInfoBody}
+              />
+            </span>
+            <input
+              className={fieldClass}
+              value={state.serialNumber ?? ''}
+              onChange={(e) => {
+                dispatch({ type: 'SET_SERIAL', serialNumber: e.target.value });
+                setIdentityError(null);
+              }}
+              placeholder="Serial number"
+              autoComplete="off"
+              inputMode="text"
+            />
+            <span className="text-[color:var(--bb-muted)]">{TRADE_COPY.config.serialHelp}</span>
+          </label>
+
+          {identityError && (
+            <p className="text-sm text-red-500 font-medium" role="alert">
+              {identityError}
+            </p>
           )}
-        </label>
+        </div>
       )}
 
       <button
@@ -312,8 +397,6 @@ export function TradeConfigScreen() {
       >
         {TRADE_COPY.continue}
       </button>
-
-      {/* deviceLock.lockedBaseValue is intentionally never rendered here */}
     </section>
   );
 }

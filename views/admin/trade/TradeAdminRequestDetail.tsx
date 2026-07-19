@@ -412,7 +412,9 @@ export const TradeAdminRequestDetail: React.FC = () => {
       <div className="grid grid-cols-2 gap-2">
         {[
           ['Device', deviceLabel],
-          ['IMEI (full)', sel.imei_serial || '—'],
+          ['IMEI 1', (sel as { imei_1?: string }).imei_1 || sel.imei_serial || '—'],
+          ['IMEI 2', (sel as { imei_2?: string }).imei_2 || '—'],
+          ['Serial', (sel as { serial_number?: string }).serial_number || '—'],
           ['Storage', (sel as { storage_tier?: string }).storage_tier || '—'],
           ['SIM', simVariantLabel(String((sel as { sim_variant?: string }).sim_variant || '')) || '—'],
           ['Color', (sel as { your_color?: string }).your_color || '—'],

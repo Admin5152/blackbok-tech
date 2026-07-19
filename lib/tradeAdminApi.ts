@@ -278,6 +278,13 @@ export async function cloneBaseValueForSim(
   });
 }
 
+/** Permanently remove a base value row (Physical/eSIM pricing). */
+export async function deleteBaseValue(id: string): Promise<void> {
+  const { error } = await supabase.from('trade_base_values').delete().eq('id', id);
+  if (error) throw error;
+  await bumpTradeCaches();
+}
+
 // ─── Fault deductions ──────────────────────────────────────────────────────
 
 export async function getAdminDeductions(includeInactive = true): Promise<TradeFaultDeductionRow[]> {
@@ -326,6 +333,13 @@ export async function createDeduction(input: {
   if (error) throw error;
   await bumpTradeCaches();
   return data as TradeFaultDeductionRow;
+}
+
+/** Permanently remove a fault deduction row. */
+export async function deleteDeduction(id: string): Promise<void> {
+  const { error } = await supabase.from('trade_fault_deductions').delete().eq('id', id);
+  if (error) throw error;
+  await bumpTradeCaches();
 }
 
 // ─── Trade devices (accept catalog) ────────────────────────────────────────
@@ -426,6 +440,35 @@ export async function setDeviceActive(
   }
 
   return data as TradeDeviceRow;
+}
+
+/**
+ * Permanently delete a tradable device and its pricing rows.
+ * Bases/deductions use ON DELETE RESTRICT, so related rows are removed first.
+ * Aesthetic overrides cascade; trade requests keep history (model FK set null if present).
+ */
+export async function deleteTradeDevice(model: string): Promise<void> {
+  const name = model.trim();
+  if (!name) throw new Error('Model is required.');
+
+  const { error: baseErr } = await supabase
+    .from('trade_base_values')
+    .delete()
+    .eq('model', name);
+  if (baseErr) throw baseErr;
+
+  const { error: dedErr } = await supabase
+    .from('trade_fault_deductions')
+    .delete()
+    .eq('model', name);
+  if (dedErr) throw dedErr;
+
+  // Best-effort: aesthetics cascade, but clear explicitly if RLS allows.
+  await supabase.from('trade_aesthetic_overrides').delete().eq('model', name);
+
+  const { error } = await supabase.from('trade_devices').delete().eq('model', name);
+  if (error) throw error;
+  await bumpTradeCaches();
 }
 
 const DEFAULT_FAULT_DEDUCTIONS: Array<{
@@ -686,6 +729,38 @@ export async function updateTradeConfigValue(
   // dispatch pricing event so any UI listening refreshes.
   await bumpTradeCaches();
   return data as TradeConfigRow;
+}
+
+/** Insert a new trade_config key (staff-managed business rules). */
+export async function createTradeConfigKey(input: {
+  key: string;
+  value: string;
+  description?: string | null;
+}): Promise<TradeConfigRow> {
+  const key = input.key.trim();
+  if (!key) throw new Error('Config key is required.');
+  const payload = {
+    key,
+    value: input.value,
+    description: input.description?.trim() || null,
+  };
+  const { data, error } = await supabase
+    .from('trade_config')
+    .insert(payload)
+    .select()
+    .single();
+  if (error) throw error;
+  await bumpTradeCaches();
+  return data as TradeConfigRow;
+}
+
+/** Permanently remove a trade_config key. */
+export async function deleteTradeConfigKey(key: string): Promise<void> {
+  const k = key.trim();
+  if (!k) throw new Error('Config key is required.');
+  const { error } = await supabase.from('trade_config').delete().eq('key', k);
+  if (error) throw error;
+  await bumpTradeCaches();
 }
 
 // ─── Questionnaire ─────────────────────────────────────────────────────────

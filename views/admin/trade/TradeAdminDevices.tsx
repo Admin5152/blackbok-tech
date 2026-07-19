@@ -6,8 +6,9 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { Plus, RefreshCcw } from 'lucide-react';
+import { Plus, RefreshCcw, Trash2 } from 'lucide-react';
 import {
+  deleteTradeDevice,
   getAdminDevices,
   seedDefaultDeductionsForModel,
   setDeviceActive,
@@ -16,6 +17,7 @@ import {
 } from '../../../lib/tradeAdminApi';
 import { useAppContext } from '../../../lib/appContext';
 import type { TradeDeviceRow, TradeDeviceType } from '../../../types/supabase';
+import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 
 type Filter = 'all' | 'iphone' | 'ipad' | 'inactive';
 
@@ -34,6 +36,8 @@ export const TradeAdminDevices: React.FC = () => {
   const [productLine, setProductLine] = useState('pro');
   const [biometric, setBiometric] = useState<'face_id' | 'touch_id'>('face_id');
   const [adding, setAdding] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<TradeDeviceRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const reload = useCallback(async () => {
     setError(null);
@@ -87,6 +91,27 @@ export const TradeAdminDevices: React.FC = () => {
     } catch (e) {
       notify?.(tradeAdminErrorMessage(e), 'error');
     } finally {
+      setSaving(null);
+    }
+  };
+
+  const removeDevice = (row: TradeDeviceRow) => {
+    setPendingDelete(row);
+  };
+
+  const confirmDeleteDevice = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    setSaving(pendingDelete.model);
+    try {
+      await deleteTradeDevice(pendingDelete.model);
+      setRows((prev) => prev.filter((r) => r.model !== pendingDelete.model));
+      notify?.(`${pendingDelete.model} deleted.`, 'success');
+      setPendingDelete(null);
+    } catch (e) {
+      notify?.(tradeAdminErrorMessage(e), 'error');
+    } finally {
+      setDeleting(false);
       setSaving(null);
     }
   };
@@ -291,6 +316,7 @@ export const TradeAdminDevices: React.FC = () => {
               <th className="p-3">Sort</th>
               <th className="p-3">On list</th>
               <th className="p-3">Market pricing</th>
+              <th className="p-3">Delete</th>
             </tr>
           </thead>
           <tbody>
@@ -382,7 +408,7 @@ export const TradeAdminDevices: React.FC = () => {
                       search={{ model: row.model, tab: 'bases' } as any}
                       className="text-xs font-bold text-[#CDA032] underline"
                     >
-                      Bases
+                      Starting prices
                     </Link>
                     <span className="opacity-30">·</span>
                     <Link
@@ -390,15 +416,27 @@ export const TradeAdminDevices: React.FC = () => {
                       search={{ model: row.model, tab: 'deductions' } as any}
                       className="text-xs font-bold text-[#CDA032] underline"
                     >
-                      Deductions
+                      Condition discounts
                     </Link>
                   </div>
+                </td>
+                <td className="p-3">
+                  <button
+                    type="button"
+                    title="Delete device permanently"
+                    disabled={saving === row.model}
+                    onClick={() => void removeDevice(row)}
+                    className="inline-flex items-center justify-center p-1.5 rounded-lg text-red-500/80 hover:bg-red-500/15 hover:text-red-500 disabled:opacity-40"
+                  >
+                    <Trash2 size={14} aria-hidden />
+                    <span className="sr-only">Delete</span>
+                  </button>
                 </td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-8 text-center text-sm opacity-50">
+                <td colSpan={8} className="p-8 text-center text-sm opacity-50">
                   No devices match. Add one above or clear filters.
                 </td>
               </tr>
@@ -406,6 +444,20 @@ export const TradeAdminDevices: React.FC = () => {
           </tbody>
         </table>
       </div>
+
+      <ConfirmDeleteDialog
+        open={pendingDelete != null}
+        title="Delete tradable device?"
+        message={
+          pendingDelete
+            ? `Permanently delete ${pendingDelete.model}? This also deletes its base values, deductions, and aesthetic overrides. Trade request history is kept.`
+            : ''
+        }
+        requireTypedDelete
+        busy={deleting}
+        onCancel={() => !deleting && setPendingDelete(null)}
+        onConfirm={() => void confirmDeleteDevice()}
+      />
     </div>
   );
 };

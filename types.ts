@@ -331,6 +331,9 @@ export interface TradeInRequest {
   fulfillmentMethod?: string;
   /** v7 questionnaire flow fields */
   imei_serial?: string;
+  imei_1?: string | null;
+  imei_2?: string | null;
+  serial_number?: string | null;
   your_color?: string;
   target_color?: string;
   answers_snapshot?: Record<string, unknown>;

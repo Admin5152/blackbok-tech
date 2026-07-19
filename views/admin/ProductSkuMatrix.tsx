@@ -141,7 +141,7 @@ export const ProductSkuMatrix: React.FC<Props> = ({
             onChange={(e) => handleEnable(e.target.checked)}
             className="accent-[#B38B21] w-4 h-4"
           />
-          <span className={`text-xs font-bold ${title}`}>Per-SKU stock</span>
+          <span className={`text-xs font-bold ${title}`}>Stock per version</span>
         </label>
       </div>
 

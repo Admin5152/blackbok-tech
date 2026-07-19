@@ -2,6 +2,7 @@
  * Aesthetic overrides — per-model a1/a2 fixed amounts (when config mode = per_model).
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Trash2 } from 'lucide-react';
 import {
   deleteAestheticOverride,
   getAestheticOverrides,
@@ -12,8 +13,12 @@ import { getTradeDevices } from '../../../lib/tradeApi';
 import { formatGhs } from '../../../lib/money';
 import type { TradeAestheticOverrideRow, TradeDeviceRow } from '../../../types/supabase';
 import { useAppContext } from '../../../lib/appContext';
+import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 
 type Pair = { model: string; a1: number | null; a2: number | null };
+type PendingClear =
+  | { kind: 'grade'; model: string; grade: 'a1' | 'a2' }
+  | { kind: 'model'; model: string };
 
 export const TradeAdminAesthetics: React.FC = () => {
   const { notify } = useAppContext();
@@ -23,6 +28,8 @@ export const TradeAdminAesthetics: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState('');
   const [saving, setSaving] = useState<string | null>(null);
+  const [pendingClear, setPendingClear] = useState<PendingClear | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const reload = useCallback(async () => {
     setError(null);
@@ -85,6 +92,44 @@ export const TradeAdminAesthetics: React.FC = () => {
     }
   };
 
+  const clearGrade = (model: string, grade: 'a1' | 'a2') => {
+    setPendingClear({ kind: 'grade', model, grade });
+  };
+
+  const clearModel = (model: string) => {
+    setPendingClear({ kind: 'model', model });
+  };
+
+  const confirmClear = async () => {
+    if (!pendingClear) return;
+    setDeleting(true);
+    const key =
+      pendingClear.kind === 'grade'
+        ? `${pendingClear.model}:${pendingClear.grade}`
+        : pendingClear.model;
+    setSaving(key);
+    try {
+      if (pendingClear.kind === 'grade') {
+        await deleteAestheticOverride(pendingClear.model, pendingClear.grade);
+        notify?.(
+          `${pendingClear.grade.toUpperCase()} override deleted.`,
+          'success',
+        );
+      } else {
+        await deleteAestheticOverride(pendingClear.model, 'a1');
+        await deleteAestheticOverride(pendingClear.model, 'a2');
+        notify?.(`Cleared aesthetics for ${pendingClear.model}.`, 'success');
+      }
+      await reload();
+      setPendingClear(null);
+    } catch (e) {
+      notify?.(tradeAdminErrorMessage(e), 'error');
+    } finally {
+      setDeleting(false);
+      setSaving(null);
+    }
+  };
+
   if (loading) {
     return <div className="text-center py-16 text-white/30 text-sm">Loading aesthetics…</div>;
   }
@@ -98,8 +143,11 @@ export const TradeAdminAesthetics: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <p className="text-[10px] text-white/40 leading-relaxed">
-        Used when aesthetic_a*_mode = per_model. Otherwise global percent/fixed from Config applies.
+      <p className="text-[10px] text-white/40 leading-relaxed inline-flex items-start gap-1.5 flex-wrap">
+        <span>
+          Used when Business rules set appearance to “Set per phone model”. Light wear = small
+          scratches; Heavier wear = more visible marks. Clear a field or tap Delete to remove.
+        </span>
       </p>
       <input
         value={q}
@@ -113,8 +161,9 @@ export const TradeAdminAesthetics: React.FC = () => {
             <thead className="sticky top-0 bg-[#0a0a0a] text-[9px] uppercase tracking-widest text-white/40">
               <tr>
                 <th className="px-3 py-2">Model</th>
-                <th className="px-3 py-2">A1 amount</th>
-                <th className="px-3 py-2">A2 amount</th>
+                <th className="px-3 py-2">Light wear (GHS)</th>
+                <th className="px-3 py-2">Heavier wear (GHS)</th>
+                <th className="px-3 py-2">Clear</th>
               </tr>
             </thead>
             <tbody>
@@ -125,27 +174,54 @@ export const TradeAdminAesthetics: React.FC = () => {
                     const val = grade === 'a1' ? p.a1 : p.a2;
                     return (
                       <td key={grade} className="px-3 py-2">
-                        <input
-                          type="number"
-                          defaultValue={val ?? ''}
-                          placeholder="—"
-                          disabled={saving === `${p.model}:${grade}`}
-                          onBlur={(e) => {
-                            const next = e.target.value.trim();
-                            const prev = val == null ? '' : String(val);
-                            if (next === prev) return;
-                            void saveGrade(p.model, grade, next);
-                          }}
-                          className="w-28 bg-black/50 border border-white/10 rounded-lg px-2 py-1 text-[#B38B21] text-xs font-bold focus:border-[#B38B21]/50 focus:outline-none"
-                        />
-                        {val != null && (
-                          <span className="ml-2 text-[9px] text-white/25 hidden lg:inline">
-                            {formatGhs(val)}
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            defaultValue={val ?? ''}
+                            key={`${p.model}-${grade}-${val ?? 'empty'}`}
+                            placeholder="—"
+                            disabled={saving === `${p.model}:${grade}` || saving === p.model}
+                            onBlur={(e) => {
+                              const next = e.target.value.trim();
+                              const prev = val == null ? '' : String(val);
+                              if (next === prev) return;
+                              void saveGrade(p.model, grade, next);
+                            }}
+                            className="w-28 bg-black/50 border border-white/10 rounded-lg px-2 py-1 text-[#B38B21] text-xs font-bold focus:border-[#B38B21]/50 focus:outline-none"
+                          />
+                          {val != null && (
+                            <>
+                              <span className="text-[9px] text-white/25 hidden lg:inline">
+                                {formatGhs(val)}
+                              </span>
+                              <button
+                                type="button"
+                                title={`Delete ${grade.toUpperCase()}`}
+                                disabled={saving === `${p.model}:${grade}` || saving === p.model}
+                                onClick={() => void clearGrade(p.model, grade)}
+                                className="inline-flex p-1 rounded text-red-400/70 hover:bg-red-500/15 hover:text-red-300 disabled:opacity-40"
+                              >
+                                <Trash2 size={12} aria-hidden />
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     );
                   })}
+                  <td className="px-3 py-2">
+                    {(p.a1 != null || p.a2 != null) && (
+                      <button
+                        type="button"
+                        title="Clear all overrides for model"
+                        disabled={saving === p.model}
+                        onClick={() => void clearModel(p.model)}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-black uppercase text-red-400/80 border border-red-500/20 hover:bg-red-500/10 disabled:opacity-40"
+                      >
+                        <Trash2 size={11} aria-hidden /> All
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -155,6 +231,21 @@ export const TradeAdminAesthetics: React.FC = () => {
           )}
         </div>
       </div>
+
+      <ConfirmDeleteDialog
+        open={pendingClear != null}
+        title="Delete aesthetic override?"
+        message={
+          pendingClear?.kind === 'grade'
+            ? `Delete ${pendingClear.grade.toUpperCase()} override for ${pendingClear.model}?`
+            : pendingClear
+              ? `Delete all aesthetic overrides for ${pendingClear.model}?`
+              : ''
+        }
+        busy={deleting}
+        onCancel={() => !deleting && setPendingClear(null)}
+        onConfirm={() => void confirmClear()}
+      />
     </div>
   );
 };

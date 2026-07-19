@@ -2,21 +2,23 @@
  * Shared staff labels / status helpers for Trade Admin UI.
  * Plain staff copy — do not import customer-facing tradeCopy here.
  */
+import { TRADE_ADMIN_NAV_PLAIN, TRADE_ADMIN_STATUS_PLAIN } from '../../../lib/tradeAdminCopy';
+
 export const TRADE_ADMIN_STATUS_LABELS: Record<string, string> = {
-  submitted: 'Submitted',
-  inspecting: 'Inspecting',
-  under_review: 'Under review',
-  offer_made: 'Offer made',
-  awaiting_user: 'Awaiting user',
-  accepted: 'Accepted',
-  scheduled: 'Scheduled',
-  completed: 'Completed',
-  rejected: 'Rejected',
-  cancelled: 'Cancelled',
-  expired: 'Expired',
+  submitted: TRADE_ADMIN_STATUS_PLAIN.submitted,
+  inspecting: TRADE_ADMIN_STATUS_PLAIN.inspecting,
+  under_review: TRADE_ADMIN_STATUS_PLAIN.under_review,
+  offer_made: TRADE_ADMIN_STATUS_PLAIN.offer_made,
+  awaiting_user: TRADE_ADMIN_STATUS_PLAIN.awaiting_user,
+  accepted: TRADE_ADMIN_STATUS_PLAIN.accepted,
+  scheduled: TRADE_ADMIN_STATUS_PLAIN.scheduled,
+  completed: TRADE_ADMIN_STATUS_PLAIN.completed,
+  rejected: TRADE_ADMIN_STATUS_PLAIN.rejected,
+  cancelled: TRADE_ADMIN_STATUS_PLAIN.cancelled,
+  expired: TRADE_ADMIN_STATUS_PLAIN.expired,
 };
 
-/** Legacy UI labels → DB + v7 statuses for filter tabs */
+/** Legacy UI labels → DB statuses for filter tabs */
 export const TRADE_ADMIN_STATUS_TABS = [
   'All',
   'submitted',
@@ -37,7 +39,7 @@ export type TradeAdminStatusTab = (typeof TRADE_ADMIN_STATUS_TABS)[number];
 export function toDbTradeStatus(status?: string): string {
   const value = String(status || '').trim();
   const lower = value.toLowerCase();
-  if (TRADE_ADMIN_STATUS_LABELS[lower]) return lower;
+  if (TRADE_ADMIN_STATUS_LABELS[lower] || TRADE_ADMIN_STATUS_PLAIN[lower]) return lower;
   const legacy: Record<string, string> = {
     Pending: 'submitted',
     Inspecting: 'inspecting',
@@ -57,17 +59,57 @@ export function toDbTradeStatus(status?: string): string {
 
 export function tradeAdminStatusLabel(status?: string): string {
   const db = toDbTradeStatus(status);
-  return TRADE_ADMIN_STATUS_LABELS[db] || status || 'Submitted';
+  return TRADE_ADMIN_STATUS_LABELS[db] || status || 'New request';
 }
 
 export const TRADE_ADMIN_NAV = [
-  { to: '/admin/trade', label: 'Queue', end: true },
-  { to: '/admin/trade/devices', label: 'Tradable devices', end: false },
-  { to: '/admin/trade/upgrades', label: 'Upgrade targets', end: false },
-  { to: '/admin/trade/pricing', label: 'Pricing & deductions', end: false },
-  { to: '/admin/trade/thresholds', label: 'Thresholds', end: false },
-  { to: '/admin/trade/config', label: 'Config', end: false },
-  { to: '/admin/trade/questionnaire', label: 'Questionnaire', end: false },
-  { to: '/admin/trade/aesthetics', label: 'Aesthetics', end: false },
-  { to: '/admin/trade/audit', label: 'Audit', end: false },
+  { to: '/admin/trade', label: TRADE_ADMIN_NAV_PLAIN.Queue, end: true, introKey: 'queue' as const },
+  {
+    to: '/admin/trade/devices',
+    label: TRADE_ADMIN_NAV_PLAIN['Tradable devices'],
+    end: false,
+    introKey: 'devices' as const,
+  },
+  {
+    to: '/admin/trade/upgrades',
+    label: TRADE_ADMIN_NAV_PLAIN['Upgrade targets'],
+    end: false,
+    introKey: 'upgrades' as const,
+  },
+  {
+    to: '/admin/trade/pricing',
+    label: TRADE_ADMIN_NAV_PLAIN['Pricing & deductions'],
+    end: false,
+    introKey: 'pricing' as const,
+  },
+  {
+    to: '/admin/trade/thresholds',
+    label: TRADE_ADMIN_NAV_PLAIN.Thresholds,
+    end: false,
+    introKey: 'thresholds' as const,
+  },
+  {
+    to: '/admin/trade/config',
+    label: TRADE_ADMIN_NAV_PLAIN.Config,
+    end: false,
+    introKey: 'config' as const,
+  },
+  {
+    to: '/admin/trade/questionnaire',
+    label: TRADE_ADMIN_NAV_PLAIN.Questionnaire,
+    end: false,
+    introKey: 'questionnaire' as const,
+  },
+  {
+    to: '/admin/trade/aesthetics',
+    label: TRADE_ADMIN_NAV_PLAIN.Aesthetics,
+    end: false,
+    introKey: 'aesthetics' as const,
+  },
+  {
+    to: '/admin/trade/audit',
+    label: TRADE_ADMIN_NAV_PLAIN.Audit,
+    end: false,
+    introKey: 'audit' as const,
+  },
 ] as const;
