@@ -64,12 +64,16 @@ export function customerTradeStatusLabel(uiStatus: string): string {
   const map: Record<string, string> = {
     Pending: 'Submitted — we are reviewing',
     Inspecting: 'Inspecting your device',
+    'Under Review': 'Under review',
     'Offer sent': 'Cash offer ready — accept or decline',
     'Offer Made': 'Cash offer ready — accept or decline',
     'Awaiting User': 'Waiting for your answer on the offer',
-    Accepted: 'You accepted the offer — we will arrange drop-off/pickup',
+    Accepted: 'You accepted — bring your device to BlackBox',
+    Scheduled: 'Visit scheduled',
     Completed: 'Trade-in finished',
     Rejected: 'Offer declined or closed',
+    Cancelled: 'Cancelled',
+    Expired: 'Estimate expired — start a new one',
   };
   return map[uiStatus] ?? uiStatus;
 }
@@ -78,12 +82,16 @@ export function customerTradeStatusShort(uiStatus: string): string {
   const map: Record<string, string> = {
     Pending: 'Submitted',
     Inspecting: 'Inspecting',
+    'Under Review': 'Reviewing',
     'Offer sent': 'Offer ready',
     'Offer Made': 'Offer ready',
     'Awaiting User': 'Your response',
-    Accepted: 'Offer accepted',
+    Accepted: 'Accepted',
+    Scheduled: 'Scheduled',
     Completed: 'Complete',
     Rejected: 'Closed',
+    Cancelled: 'Cancelled',
+    Expired: 'Expired',
   };
   return map[uiStatus] ?? uiStatus;
 }

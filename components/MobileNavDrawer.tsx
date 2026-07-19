@@ -7,6 +7,7 @@ import {
 import { NavUnreadBadge } from './NavUnreadBadge';
 import { handleSignOut } from '../lib/signOut';
 import { TW_DARK_GOLD_BTN_DEPTH } from '../lib/utils';
+import { saveReturnTo } from '../lib/returnTo';
 
 const ViewfinderLogo = () => (
   <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-7 w-7">
@@ -170,7 +171,7 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
           {[
             { to: '/store' as const, label: 'Shop', icon: ShoppingBag },
             { to: '/repair' as const, label: 'Repair', icon: Wrench },
-            { to: '/trades' as const, label: 'Trade-in', icon: RefreshCcw },
+            { to: '/trade' as const, label: 'Trade-in', icon: RefreshCcw },
           ].map((link) => (
             <Link key={link.to} to={link.to} onClick={onAfterNavigate} className="bb-mobile-nav__quick-link">
               <link.icon size={16} aria-hidden />
@@ -265,7 +266,15 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
 
         <footer className="bb-mobile-nav__footer">
           {!user ? (
-            <Link to="/auth" onClick={onClose} className={`bb-mobile-nav__cta ${TW_DARK_GOLD_BTN_DEPTH}`}>
+            <Link
+              to="/auth"
+              search={{ returnTo: pathname }}
+              onClick={() => {
+                saveReturnTo(pathname);
+                onClose();
+              }}
+              className={`bb-mobile-nav__cta ${TW_DARK_GOLD_BTN_DEPTH}`}
+            >
               <UserIcon size={18} aria-hidden />
               Sign in
             </Link>

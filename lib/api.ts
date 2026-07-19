@@ -11,6 +11,7 @@ import {
   UserRole, 
   Product, 
   ProductVariant, 
+  ProductImage,
   CartItem, 
   Wishlist, 
   Order, 
@@ -52,7 +53,9 @@ export function normalizeProductCategory(category?: string | null): string {
 
   // Order matters: more specific matches first.
   if (value.includes('iphone')) return 'iPhone';
-  if (value.includes('tablet') || value.includes('ipad')) return 'Tablet';
+  // Prefer "iPad" label for storefront filters (Tablet kept as alias)
+  if (value.includes('ipad')) return 'iPad';
+  if (value.includes('tablet')) return 'iPad';
   if (value.includes('laptop') || value.includes('notebook') || value.includes('macbook') || value.includes('computer')) {
     return 'Laptop';
   }
@@ -214,24 +217,59 @@ const toStringArray = (value: unknown): string[] | undefined => {
   return [];
 };
 
+/** Normalize products.specifications JSONB for create/update. */
+const toSpecifications = (
+  value: unknown,
+): Record<string, unknown> | null | undefined => {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value === 'string') {
+    const t = value.trim();
+    if (!t) return {};
+    try {
+      const parsed: unknown = JSON.parse(t);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+      throw new Error('specifications must be a JSON object');
+    } catch (e) {
+      if (e instanceof Error && e.message.includes('must be')) throw e;
+      throw new Error('specifications must be valid JSON');
+    }
+  }
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return {};
+};
+
 export const createProduct = async (product: Partial<Product>) => {
   const priceNum = product.price != null ? Number(product.price) : NaN;
+  const specsJson = toSpecifications(
+    (product as Product & { specifications?: unknown }).specifications,
+  );
   const payload = stripUndefined({
     name: product.name,
     description: product.description,
     price: Number.isFinite(priceNum) ? priceNum : undefined,
     image_url: product.image || product.image_url,
     category: product.category,
+    brand: product.brand,
+    condition: product.condition,
+    status: product.status || 'active',
+    trade_model: product.trade_model === '' ? null : product.trade_model,
+    currency: product.currency || 'GHS',
     rating: product.rating != null ? Number(product.rating) : undefined,
     review_count: product.review_count ?? product.reviewCount,
     discount: product.discount != null ? Number(product.discount) : undefined,
     is_new: Boolean(product.new ?? product.is_new),
     stock: product.stock != null ? Number(product.stock) : 0,
     featured: Boolean(product.featured),
-    colors: toStringArray((product as any).colors),
-    storage: toStringArray((product as any).storage),
-    ram: toStringArray((product as any).ram),
-    specs: toStringArray((product as any).specs),
+    colors: toStringArray((product as Product).colors),
+    storage: toStringArray((product as Product).storage),
+    ram: toStringArray((product as Product).ram),
+    specs: toStringArray((product as Product).specs),
+    specifications: specsJson,
   });
 
   const { data, error } = await supabase
@@ -240,17 +278,27 @@ export const createProduct = async (product: Partial<Product>) => {
     .select('*, product_variants(*), product_images(*)')
     .single();
   if (error) throw error;
-  return mapProductFromDb(data);
+  const mapped = mapProductFromDb(data);
+  void appendAuditNote('products', mapped.id, `Created product "${mapped.name}"`);
+  return mapped;
 };
 
 export const updateProduct = async (id: string, updates: Partial<Product>) => {
   const priceNum = updates.price !== undefined && updates.price !== null ? Number(updates.price) : undefined;
+  const specsJson = toSpecifications(
+    (updates as Product & { specifications?: unknown }).specifications,
+  );
   const payload = stripUndefined({
     name: updates.name,
     description: updates.description,
     price: priceNum !== undefined && Number.isFinite(priceNum) ? priceNum : undefined,
     image_url: updates.image || updates.image_url,
     category: updates.category,
+    brand: updates.brand,
+    condition: updates.condition,
+    status: updates.status,
+    trade_model: updates.trade_model === '' ? null : updates.trade_model,
+    currency: updates.currency,
     rating: updates.rating != null ? Number(updates.rating) : undefined,
     review_count: updates.review_count ?? updates.reviewCount,
     discount: updates.discount !== undefined && updates.discount !== null ? Number(updates.discount) : undefined,
@@ -259,10 +307,11 @@ export const updateProduct = async (id: string, updates: Partial<Product>) => {
       : undefined,
     stock: updates.stock !== undefined && updates.stock !== null ? Number(updates.stock) : undefined,
     featured: updates.featured !== undefined ? Boolean(updates.featured) : undefined,
-    colors: toStringArray((updates as any).colors),
-    storage: toStringArray((updates as any).storage),
-    ram: toStringArray((updates as any).ram),
-    specs: toStringArray((updates as any).specs),
+    colors: toStringArray((updates as Product).colors),
+    storage: toStringArray((updates as Product).storage),
+    ram: toStringArray((updates as Product).ram),
+    specs: toStringArray((updates as Product).specs),
+    specifications: specsJson,
   });
 
   const { data, error } = await supabase
@@ -272,7 +321,9 @@ export const updateProduct = async (id: string, updates: Partial<Product>) => {
     .select('*, product_variants(*), product_images(*)')
     .single();
   if (error) throw error;
-  return mapProductFromDb(data);
+  const mapped = mapProductFromDb(data);
+  void appendAuditNote('products', id, `Updated product "${mapped.name || id}"`);
+  return mapped;
 };
 
 export const deleteProduct = async (id: string) => {
@@ -285,84 +336,244 @@ export type SkuVariantInput = {
   color?: string | null;
   storage?: string | null;
   ram?: string | null;
+  sim_type?: string | null;
   stock: number;
   price_modifier?: number;
+  /** Absolute price; null/undefined → DB null (effective = base + modifier). */
+  price?: number | null;
+  is_active?: boolean;
+  image_url?: string | null;
   sku?: string | null;
 };
 
 const normSkuDim = (v: string | null | undefined) => (v ?? '').trim().toLowerCase();
 
 const skuDimsMatch = (
-  a: { color?: string | null; storage?: string | null; ram?: string | null },
-  b: { color?: string | null; storage?: string | null; ram?: string | null },
+  a: { color?: string | null; storage?: string | null; ram?: string | null; sim_type?: string | null },
+  b: { color?: string | null; storage?: string | null; ram?: string | null; sim_type?: string | null },
 ) =>
   normSkuDim(a.color) === normSkuDim(b.color) &&
   normSkuDim(a.storage) === normSkuDim(b.storage) &&
-  normSkuDim(a.ram) === normSkuDim(b.ram);
+  normSkuDim(a.ram) === normSkuDim(b.ram) &&
+  normSkuDim(a.sim_type) === normSkuDim(b.sim_type);
+
+/** Map PostgREST unique-violation into a staff-readable message. */
+const rethrowVariantConstraint = (err: { message?: string; code?: string }): never => {
+  const msg = String(err?.message || err || '');
+  const code = String(err?.code || '');
+  if (code === '23505' || /uq_variant_combo|uq_variant_sku|duplicate key/i.test(msg)) {
+    throw new Error(
+      'Duplicate SKU combination (color/storage/RAM/SIM) or SKU code. Each combination must be unique.',
+    );
+  }
+  throw err instanceof Error ? err : new Error(msg || 'Variant sync failed');
+};
 
 /** Upsert SKU rows and remove combinations no longer in the matrix. */
 export const syncProductVariants = async (productId: string, rows: SkuVariantInput[]) => {
   const { data: existing, error: fetchErr } = await supabase
     .from('product_variants')
-    .select('id, color, storage, ram')
+    .select('id, color, storage, ram, sim_type')
     .eq('product_id', productId);
   if (fetchErr) throw fetchErr;
 
   const keptIds = new Set<string>();
   const existingRows = existing || [];
 
-  for (const row of rows) {
-    const payload = {
-      product_id: productId,
-      color: row.color?.trim() || null,
-      storage: row.storage?.trim() || null,
-      ram: row.ram?.trim() || null,
-      stock: Math.max(0, Math.floor(Number(row.stock) || 0)),
-      price_modifier: Number(row.price_modifier ?? 0) || 0,
-      sku: row.sku?.trim() || null,
-    };
+  try {
+    for (const row of rows) {
+      const absPrice =
+        row.price != null && Number.isFinite(Number(row.price)) ? Number(row.price) : null;
+      const payload = {
+        product_id: productId,
+        color: row.color?.trim() || null,
+        storage: row.storage?.trim() || null,
+        ram: row.ram?.trim() || null,
+        sim_type: row.sim_type?.trim() || null,
+        stock: Math.max(0, Math.floor(Number(row.stock) || 0)),
+        price_modifier: Number(row.price_modifier ?? 0) || 0,
+        price: absPrice,
+        sku: row.sku?.trim() || null,
+        is_active: row.is_active !== false,
+        image_url: row.image_url?.trim() || null,
+      };
 
-    if (row.id) {
-      const { error: uerr } = await supabase.from('product_variants').update(payload).eq('id', row.id);
-      if (uerr) throw uerr;
-      keptIds.add(row.id);
-      continue;
+      if (row.id) {
+        const { error: uerr } = await supabase.from('product_variants').update(payload).eq('id', row.id);
+        if (uerr) rethrowVariantConstraint(uerr);
+        keptIds.add(row.id);
+        continue;
+      }
+
+      const match = existingRows.find((e) => skuDimsMatch(e, row));
+      if (match?.id) {
+        const { error: uerr } = await supabase.from('product_variants').update(payload).eq('id', match.id);
+        if (uerr) rethrowVariantConstraint(uerr);
+        keptIds.add(match.id);
+      } else {
+        const { data: inserted, error: ierr } = await supabase
+          .from('product_variants')
+          .insert(payload)
+          .select('id')
+          .single();
+        if (ierr) rethrowVariantConstraint(ierr);
+        if (inserted?.id) keptIds.add(inserted.id);
+      }
     }
 
-    const match = existingRows.find((e) => skuDimsMatch(e, row));
-    if (match?.id) {
-      const { error: uerr } = await supabase.from('product_variants').update(payload).eq('id', match.id);
-      if (uerr) throw uerr;
-      keptIds.add(match.id);
-    } else {
-      const { data: inserted, error: ierr } = await supabase
-        .from('product_variants')
-        .insert(payload)
-        .select('id')
-        .single();
-      if (ierr) throw ierr;
-      if (inserted?.id) keptIds.add(inserted.id);
+    const toDelete = existingRows.filter((e) => e.id && !keptIds.has(e.id)).map((e) => e.id as string);
+    if (toDelete.length > 0) {
+      const { error: derr } = await supabase.from('product_variants').delete().in('id', toDelete);
+      if (derr) throw derr;
     }
+  } catch (e) {
+    if (e instanceof Error && /Duplicate SKU/.test(e.message)) throw e;
+    const err = e as { message?: string; code?: string };
+    if (err?.code === '23505' || /uq_variant|duplicate key/i.test(String(err?.message || ''))) {
+      rethrowVariantConstraint(err);
+    }
+    throw e;
   }
 
-  const toDelete = existingRows.filter((e) => e.id && !keptIds.has(e.id)).map((e) => e.id as string);
-  if (toDelete.length > 0) {
-    const { error: derr } = await supabase.from('product_variants').delete().in('id', toDelete);
-    if (derr) throw derr;
-  }
+  void appendAuditNote('product_variants', productId, `Synced ${rows.length} SKU row(s)`);
 };
 
 /** Remove all SKU rows when staff switches back to single product-level stock. */
 export const clearProductVariants = async (productId: string) => {
   const { error } = await supabase.from('product_variants').delete().eq('product_id', productId);
   if (error) throw error;
+  void appendAuditNote('product_variants', productId, 'Cleared all SKU rows');
+};
+
+export type ProductImageInput = {
+  url: string;
+  alt_text?: string | null;
+  sort_order?: number;
+  is_primary?: boolean;
+  variant_id?: string | null;
+};
+
+/** Insert a gallery row; optionally mark primary (clears siblings). */
+export const addProductImage = async (
+  productId: string,
+  input: ProductImageInput,
+): Promise<ProductImage> => {
+  const sortOrder = input.sort_order ?? 0;
+  const { data, error } = await supabase
+    .from('product_images')
+    .insert({
+      product_id: productId,
+      url: input.url,
+      alt_text: input.alt_text ?? null,
+      sort_order: sortOrder,
+      is_primary: Boolean(input.is_primary),
+      variant_id: input.variant_id ?? null,
+    })
+    .select('*')
+    .single();
+  if (error) throw error;
+  if (input.is_primary && data?.id) {
+    await setPrimaryProductImage(productId, data.id as string);
+  }
+  void appendAuditNote('product_images', productId, `Added image ${data?.id}`);
+  return {
+    id: String(data.id),
+    product_id: productId,
+    url: String(data.url),
+    alt_text: data.alt_text ?? null,
+    sort_order: Number(data.sort_order ?? 0),
+    is_primary: Boolean(data.is_primary),
+    variant_id: data.variant_id ?? null,
+    created_at: data.created_at ?? undefined,
+  };
+};
+
+/** Mark one image primary and demote others for the product. */
+export const setPrimaryProductImage = async (productId: string, imageId: string): Promise<void> => {
+  const { error: clearErr } = await supabase
+    .from('product_images')
+    .update({ is_primary: false })
+    .eq('product_id', productId);
+  if (clearErr) throw clearErr;
+  const { data, error } = await supabase
+    .from('product_images')
+    .update({ is_primary: true })
+    .eq('id', imageId)
+    .eq('product_id', productId)
+    .select('url')
+    .single();
+  if (error) throw error;
+  if (data?.url) {
+    await supabase.from('products').update({ image_url: data.url }).eq('id', productId);
+  }
+  void appendAuditNote('product_images', productId, `Set primary image ${imageId}`);
+};
+
+export const deleteProductImage = async (imageId: string, productId?: string): Promise<void> => {
+  const { error } = await supabase.from('product_images').delete().eq('id', imageId);
+  if (error) throw error;
+  if (productId) void appendAuditNote('product_images', productId, `Deleted image ${imageId}`);
+};
+
+/** Optional colour/SKU-specific gallery assignment. */
+export const setProductImageVariant = async (
+  imageId: string,
+  variantId: string | null,
+): Promise<void> => {
+  const { error } = await supabase
+    .from('product_images')
+    .update({ variant_id: variantId })
+    .eq('id', imageId);
+  if (error) throw error;
+};
+
+/** Assign sequential sort_order from ordered id list. */
+export const reorderProductImages = async (
+  productId: string,
+  orderedIds: string[],
+): Promise<void> => {
+  for (let i = 0; i < orderedIds.length; i++) {
+    const { error } = await supabase
+      .from('product_images')
+      .update({ sort_order: i })
+      .eq('id', orderedIds[i])
+      .eq('product_id', productId);
+    if (error) throw error;
+  }
+  void appendAuditNote('product_images', productId, `Reordered ${orderedIds.length} images`);
+};
+
+/**
+ * Best-effort staff note into audit_log.
+ * WHY: RLS often blocks client inserts (trigger-only); failures must not break saves.
+ */
+export const appendAuditNote = async (
+  entity: string,
+  entityId: string,
+  note: string,
+): Promise<void> => {
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const { error } = await supabase.from('audit_log').insert({
+      actor_id: user?.id ?? null,
+      action: 'note',
+      entity,
+      entity_id: String(entityId),
+      new_data: { note, at: new Date().toISOString() },
+    });
+    if (error) console.warn('appendAuditNote failed:', error.message);
+  } catch (e) {
+    console.warn('appendAuditNote failed:', e);
+  }
 };
 
 // Sort embedded product_images by `sort_order` ascending so consumers get a
 // stable order. Primary images are surfaced first by the gallery component
 // itself, not here, so list views with simple "first image" rendering still
 // work via the existing `image_url` fallback.
-const normalizeProductImages = (raw: any): any[] => {
+export const normalizeProductImages = (raw: any): any[] => {
   if (!Array.isArray(raw)) return [];
   return [...raw].sort(
     (a: any, b: any) => Number(a?.sort_order ?? 0) - Number(b?.sort_order ?? 0)
@@ -411,6 +622,18 @@ export function mapProductFromDb(p: any): Product {
   const isNew = p.is_new != null ? Boolean(p.is_new) : Boolean(p.new);
     const storageChips = coerceTextArray(p.storage);
     const ramChips = coerceTextArray(p.ram);
+    const priceFrom =
+      p.price_from != null && Number.isFinite(Number(p.price_from))
+        ? Number(p.price_from)
+        : Number(p.price ?? p.base_price ?? 0);
+    const priceTo =
+      p.price_to != null && Number.isFinite(Number(p.price_to))
+        ? Number(p.price_to)
+        : priceFrom;
+    const totalStock =
+      p.total_stock != null
+        ? Math.max(0, Math.floor(Number(p.total_stock)))
+        : Math.max(0, Math.floor(Number(p.stock ?? 0)));
     return {
     ...p,
     category: normalizeProductCategory(p.category),
@@ -419,39 +642,80 @@ export function mapProductFromDb(p: any): Product {
     is_new: isNew,
     featured: Boolean(p.featured),
     reviewCount: p.review_count,
-    variants: p.product_variants,
-    images: normalizeProductImages(p.product_images),
-    price: Number(p.price ?? 0),
-    stock: Number(p.stock ?? 0),
+    variants: p.product_variants ?? p.variants,
+    images: normalizeProductImages(p.product_images ?? p.images),
+    price: priceFrom,
+    price_from: priceFrom,
+    price_to: priceTo,
+    stock: totalStock,
+    total_stock: totalStock,
+    trade_model: p.trade_model ?? undefined,
+    currency: p.currency ?? 'GHS',
+    condition: p.condition ?? undefined,
+    status: p.status ?? undefined,
+    brand: p.brand ?? undefined,
     discount: p.discount != null && p.discount !== '' ? Number(p.discount) : undefined,
     rating: p.rating != null && p.rating !== '' ? Number(p.rating) : undefined,
     colors: coerceTextArray(p.colors),
     storage: storageChips.length ? storageChips : coerceCapacityFallback(p.storage_capacity),
     ram: ramChips.length ? ramChips : coerceCapacityFallback(p.ram_capacity),
     specs: coerceTextArray(p.specs),
+    specifications:
+      p.specifications && typeof p.specifications === 'object' && !Array.isArray(p.specifications)
+        ? (p.specifications as Record<string, unknown>)
+        : p.specifications ?? undefined,
   } as Product;
 }
 
+/**
+ * Storefront catalog — prefer v_product_page (single-row truth for cards).
+ * Falls back to products+joins if the view is unavailable.
+ */
 export const getProducts = async (): Promise<Product[]> => {
+  try {
+    const { getCatalogFromView } = await import('./catalogApi');
+    return await getCatalogFromView({ status: 'active' });
+  } catch (viewErr) {
+    console.warn('v_product_page unavailable — falling back to products join', viewErr);
+    const { data, error } = await supabase
+      .from('products')
+      .select('*, product_variants(*), product_images(*)')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    const rows = Array.isArray(data) ? data : [];
+    return rows.map((p: any) => mapProductFromDb(p));
+  }
+};
+
+/**
+ * Admin product list — full join so SKU matrix / chips are editable.
+ * Storefront uses getProducts() → v_product_page instead.
+ */
+export const getProductsAdmin = async (): Promise<Product[]> => {
   const { data, error } = await supabase
     .from('products')
     .select('*, product_variants(*), product_images(*)')
     .order('created_at', { ascending: false });
   if (error) throw error;
-
   const rows = Array.isArray(data) ? data : [];
   return rows.map((p: any) => mapProductFromDb(p));
 };
 
 export const getProduct = async (id: string): Promise<Product | null> => {
-  const { data, error } = await supabase
-    .from('products')
-    .select('*, product_variants(*), product_images(*)')
-    .eq('id', id)
-    .single();
-  if (error) throw error;
-  if (!data) return null;
-  return mapProductFromDb(data);
+  try {
+    const { getProductForPdp } = await import('./catalogApi');
+    return await getProductForPdp(id);
+  } catch (e) {
+    console.warn('getProductForPdp failed — legacy join', e);
+    const { data, error } = await supabase
+      .from('products')
+      .select('*, product_variants(*), product_images(*)')
+      .eq('id', id)
+      .single();
+    if (error) throw error;
+    if (!data) return null;
+    return mapProductFromDb(data);
+  }
 };
 
 // ==========================================
@@ -1197,22 +1461,30 @@ export const updateRepairRequest = async (id: string, updates: Partial<RepairReq
 const TRADE_STATUS_TO_DB: Record<string, string> = {
   Pending: 'submitted',
   Inspecting: 'inspecting',
+  'Under Review': 'under_review',
   'Offer sent': 'offer_made',
   'Offer Made': 'offer_made',
   'Awaiting User': 'awaiting_user',
   Accepted: 'accepted',
+  Scheduled: 'scheduled',
   Completed: 'completed',
   Rejected: 'rejected',
+  Cancelled: 'cancelled',
+  Expired: 'expired',
 };
 
 const TRADE_STATUS_FROM_DB: Record<string, string> = {
   submitted: 'Pending',
   inspecting: 'Inspecting',
+  under_review: 'Under Review',
   offer_made: 'Offer sent',
   awaiting_user: 'Awaiting User',
   accepted: 'Accepted',
+  scheduled: 'Scheduled',
   completed: 'Completed',
   rejected: 'Rejected',
+  cancelled: 'Cancelled',
+  expired: 'Expired',
 };
 
 const TRADE_DB_COLUMNS = new Set([
@@ -1253,6 +1525,19 @@ const TRADE_DB_COLUMNS = new Set([
   'status',
   'created_at',
   'updated_at',
+  'imei_serial',
+  'your_color',
+  'target_color',
+  'answers_snapshot',
+  'answers_edited',
+  'needs_verification',
+  'below_threshold',
+  'expires_at',
+  'terms_accepted_at',
+  'phone_verified_at',
+  'pickup_address',
+  'pickup_area',
+  'preferred_window',
 ]);
 
 export const mapTradeFromDb = (t: any): TradeInRequest => {
@@ -1283,6 +1568,19 @@ export const mapTradeFromDb = (t: any): TradeInRequest => {
     sim_variant: t.sim_variant ?? undefined,
     needs_manual_review: t.needs_manual_review ?? undefined,
     device_type: t.device_type ?? undefined,
+    imei_serial: t.imei_serial ?? undefined,
+    your_color: t.your_color ?? undefined,
+    target_color: t.target_color ?? undefined,
+    answers_snapshot: t.answers_snapshot ?? undefined,
+    answers_edited: t.answers_edited ?? undefined,
+    needs_verification: t.needs_verification ?? undefined,
+    below_threshold: t.below_threshold ?? undefined,
+    expires_at: t.expires_at ?? undefined,
+    terms_accepted_at: t.terms_accepted_at ?? undefined,
+    phone_verified_at: t.phone_verified_at ?? undefined,
+    pickup_address: t.pickup_address ?? undefined,
+    pickup_area: t.pickup_area ?? undefined,
+    preferred_window: t.preferred_window ?? undefined,
     adminNote: t.admin_notes,
     targetDevice: t.target_device,
     targetVariantId: t.target_variant_id,
@@ -1408,6 +1706,27 @@ export const getTradeRequests = async (userId?: string): Promise<TradeInRequest[
   const { data, error } = await query;
   if (error) throw error;
   return (data || []).map((t: any) => mapTradeFromDb(t));
+};
+
+/**
+ * Resolve a trade by UUID or customer-facing display_id (TRD…).
+ * WHY: History / Profile tracking links often open before context hydrates,
+ * and staff sometimes paste display_id into the URL.
+ */
+export const getTradeRequestByRef = async (ref: string): Promise<TradeInRequest | null> => {
+  const key = String(ref || '').trim();
+  if (!key) return null;
+
+  const byId = await supabase.from('trade_in_requests').select('*').eq('id', key).maybeSingle();
+  if (!byId.error && byId.data) return mapTradeFromDb(byId.data);
+
+  const byDisplay = await supabase
+    .from('trade_in_requests')
+    .select('*')
+    .eq('display_id', key)
+    .maybeSingle();
+  if (byDisplay.error) throw byDisplay.error;
+  return byDisplay.data ? mapTradeFromDb(byDisplay.data) : null;
 };
 
 export const updateTradeRequest = async (id: string, updates: Partial<TradeInRequest>) => {

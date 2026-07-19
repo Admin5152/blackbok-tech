@@ -19,6 +19,7 @@ import { scrollToDocumentTop } from '../lib/scrollToDocumentTop';
 import { NavUnreadBadge } from './NavUnreadBadge';
 import { MobileNavDrawer, type MobileNavItem } from './MobileNavDrawer';
 import { useAppContext } from '../App';
+import { saveReturnTo } from '../lib/returnTo';
 
 const ViewfinderLogo = () => (
   <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-8 h-8">
@@ -95,7 +96,7 @@ export const Navbar: React.FC<{
         if (tab === 'repairs') markStoreNavSectionSeen(user.id, 'repairs');
         else if (tab === 'trades') markStoreNavSectionSeen(user.id, 'trades');
         else markStoreNavSectionSeen(user.id, 'orders');
-      } else if (path === '/trades') {
+      } else if (path === '/trades' || path.startsWith('/trade')) {
         marked = true;
         markStoreNavSectionSeen(user.id, 'trades');
       } else if (path === '/repair') {
@@ -204,18 +205,17 @@ export const Navbar: React.FC<{
             ],
           },
           {
-            path: '/trades',
+            path: '/trade',
             label: 'Trades',
             icon: RefreshCcw,
             badge: storeUnread.trades,
             subItems: [
               { type: 'info', label: 'Your Trade-In Items', content: 'Track your device value in real-time.' },
-              { path: '/trades', label: 'Trade-In Program', icon: RefreshCcw },
+              { path: '/trade', label: 'Trade-In Program', icon: RefreshCcw },
               {
-                path: '/history',
+                path: '/account/trade-ins',
                 label: 'Trade-In History',
                 icon: History,
-                search: { tab: 'trades' },
                 badge: storeUnread.trades,
               },
             ],
@@ -246,11 +246,23 @@ export const Navbar: React.FC<{
     );
 
     const navItemClass = (path: string) => {
-      const active = location.pathname === path;
+      const active =
+        location.pathname === path ||
+        (path !== '/' && location.pathname.startsWith(path + '/'));
+      // WHY: light inactive was text-black/60 on #FAFAFA — nearly invisible next to
+      // the active pill. Match brand gold for active; keep ≥ readable inactive.
       if (isLight) {
-        return `flex items-center gap-2 px-6 py-3 rounded-xl transition-all duration-300 text-[11px] font-black uppercase tracking-widest ${active ? 'bg-black text-white shadow-md' : 'text-black/60 hover:text-black hover:bg-black/5'}`;
+        return `flex items-center gap-2 px-5 py-3 min-h-11 rounded-xl transition-all duration-300 text-[11px] font-black uppercase tracking-widest ${
+          active
+            ? 'bg-[#B38B21] text-black shadow-md'
+            : 'text-black/85 hover:text-black hover:bg-black/[0.06]'
+        }`;
       }
-      return `flex items-center gap-2 px-6 py-3 rounded-xl transition-all duration-300 text-[11px] font-black uppercase tracking-widest ${active ? 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.25)]' : 'text-white/40 hover:text-white hover:bg-white/5 hover:shadow-[0_0_16px_rgba(205,160,50,0.5)]'}`;
+      return `flex items-center gap-2 px-5 py-3 min-h-11 rounded-xl transition-all duration-300 text-[11px] font-black uppercase tracking-widest ${
+        active
+          ? 'bg-[#B38B21] text-black shadow-[0_0_20px_rgba(179,139,33,0.35)]'
+          : 'text-white/85 hover:text-white hover:bg-white/10'
+      }`;
     };
 
     const handleCatalogSearch = (e: React.FormEvent, opts?: { closeMobile?: boolean }) => {
@@ -291,14 +303,18 @@ export const Navbar: React.FC<{
 
               <form
                 onSubmit={(e) => handleCatalogSearch(e)}
-                className="relative hidden min-w-0 flex-1 md:block md:max-w-none lg:max-w-xl xl:max-w-2xl"
+                className={`hidden md:flex min-w-0 flex-1 items-center gap-2 rounded-2xl border pl-3 pr-1.5 py-1 md:max-w-none lg:max-w-xl xl:max-w-2xl ${
+                  isLight
+                    ? 'border-black/15 bg-white focus-within:border-[#B38B21]/50 focus-within:ring-2 focus-within:ring-[#B38B21]/30'
+                    : 'border-white/12 bg-white/[0.06] focus-within:border-[#CDA032]/40 focus-within:ring-2 focus-within:ring-[#CDA032]/25'
+                }`}
                 role="search"
               >
                 <label htmlFor="nav-catalog-search" className="sr-only">
                   Search the shop
                 </label>
                 <Search
-                  className={`pointer-events-none absolute left-3 top-1/2 z-[1] h-4 w-4 -translate-y-1/2 sm:left-3.5 sm:h-[18px] sm:w-[18px] ${isLight ? 'text-black/35' : 'text-white/35'}`}
+                  className={`pointer-events-none h-4 w-4 shrink-0 sm:h-[18px] sm:w-[18px] ${isLight ? 'text-black/40' : 'text-white/40'}`}
                   aria-hidden
                 />
                 <input
@@ -308,15 +324,13 @@ export const Navbar: React.FC<{
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search store…"
-                  className={`w-full rounded-xl border py-2 pl-10 pr-[3.25rem] text-sm outline-none transition placeholder:opacity-50 focus-visible:ring-2 sm:rounded-2xl sm:py-2.5 sm:pl-11 sm:pr-24 sm:text-[13px] ${
-                    isLight
-                      ? 'border-black/15 bg-white text-black ring-[#B38B21]/45 ring-offset-2 ring-offset-[#FAFAFA] focus-visible:border-[#B38B21]/40'
-                      : 'border-white/12 bg-white/[0.06] text-white ring-[#CDA032]/50 ring-offset-2 ring-offset-black/80 focus-visible:border-white/25'
+                  className={`min-w-0 flex-1 border-0 bg-transparent py-2 text-sm outline-none placeholder:opacity-50 sm:text-[13px] ${
+                    isLight ? 'text-black' : 'text-white'
                   }`}
                 />
                 <button
                   type="submit"
-                  className={`absolute right-1 top-1/2 z-[1] -translate-y-1/2 rounded-lg px-2.5 py-1.5 text-[9px] font-black uppercase tracking-widest transition sm:right-1.5 sm:px-4 sm:py-2 sm:text-[11px] ${TW_DARK_GOLD_BTN_DEPTH} bg-[#B38B21] text-black hover:bg-[#CDA032]`}
+                  className={`shrink-0 rounded-xl px-3.5 py-2 text-[10px] font-black uppercase tracking-widest transition sm:px-4 sm:text-[11px] ${TW_DARK_GOLD_BTN_DEPTH} bg-[#B38B21] text-black hover:bg-[#CDA032]`}
                 >
                   Go
                 </button>
@@ -384,21 +398,20 @@ export const Navbar: React.FC<{
 
               {/* Trades Dropdown */}
               <div className="relative group">
-                <Link to="/trades" className={navItemClass('/trades')}>
+                <Link to="/trade" className={navItemClass('/trade')}>
                   <RefreshCcw size={16} /> Trades
                   <NavUnreadBadge count={storeUnread.trades} className="ml-0.5" title="New trade-in activity" />
                   <ChevronDown size={14} className="opacity-40 group-hover:rotate-180 transition-transform duration-300" />
                 </Link>
                 <div className={`absolute top-full left-0 pt-2 opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-300 z-[100]`}>
                   <div className={`w-56 rounded-2xl border shadow-2xl p-2 backdrop-blur-3xl ${isLight ? 'bg-white/95 border-black/5' : 'bg-[#121212]/95 border-white/5'}`}>
-                    <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-xl mb-2">
-                      <p className="text-sm font-medium text-gray-700 dark:text-gray-200">Your Trade-In Items</p>
-                      {/* Placeholder for trade-in details */}
+                    <div className={`p-4 rounded-xl mb-2 ${isLight ? 'bg-black/[0.04]' : 'bg-white/[0.06]'}`}>
+                      <p className={`text-sm font-medium ${isLight ? 'text-black/70' : 'text-white/80'}`}>Your Trade-In Items</p>
                     </div>
-                    <Link to="/trades" className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
+                    <Link to="/trade" className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
                       <RefreshCcw size={14} className="opacity-40" /> Trade-In Program
                     </Link>
-                    <Link to="/history" search={{ tab: 'trades' } as any} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
+                    <Link to="/account/trade-ins" className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
                       <History size={14} className="opacity-40 shrink-0" /> Trade-In History
                       <NavUnreadBadge count={storeUnread.trades} className="ml-auto" title="New trade-ins" />
                     </Link>
@@ -473,8 +486,10 @@ export const Navbar: React.FC<{
                   title="Open staff dashboard"
                   aria-label="Open staff dashboard"
                   className={`
-                  flex shrink-0 items-center justify-center w-11 h-11 rounded-xl border transition-all
-                  ${isLight ? 'border-[#B38B21]/40 bg-[#B38B21]/10 text-black hover:bg-[#B38B21]/20' : 'border-[#B38B21]/30 bg-[#B38B21]/10 text-[#CDA032] hover:bg-[#B38B21]/20'}
+                  flex shrink-0 items-center justify-center w-11 h-11 min-w-11 min-h-11 rounded-xl border-2 transition-all
+                  ${isLight
+                    ? 'border-[#B38B21] bg-[#B38B21]/25 text-black hover:bg-[#B38B21]/40'
+                    : 'border-[#B38B21] bg-[#B38B21]/20 text-[#CDA032] hover:bg-[#B38B21]/35'}
                 `}
                 >
                   <LayoutDashboard size={18} strokeWidth={2.25} />
@@ -484,6 +499,16 @@ export const Navbar: React.FC<{
               {/* Account Button */}
               <Link
                 to={user ? '/profile' : '/auth'}
+                search={
+                  !user && !location.pathname.startsWith('/auth')
+                    ? { returnTo: location.pathname }
+                    : undefined
+                }
+                onClick={() => {
+                  if (!user && !location.pathname.startsWith('/auth')) {
+                    saveReturnTo(location.pathname);
+                  }
+                }}
                 className={`
                 hidden sm:flex items-center gap-2 px-6 py-3 rounded-xl transition-all duration-300 text-[11px] font-black uppercase tracking-widest
                 ${user
@@ -510,6 +535,8 @@ export const Navbar: React.FC<{
               {!user && (
                 <Link
                   to="/auth"
+                  search={{ returnTo: location.pathname }}
+                  onClick={() => saveReturnTo(location.pathname)}
                   title="Sign in"
                   aria-label="Sign in"
                   className={[

@@ -6,6 +6,7 @@ import type { User } from '../types';
 import AuthService from '../lib/auth';
 import { normalizeCanonicalRole } from '../lib/roles';
 import { getSupabaseClient, isSupabaseConfigured } from '../lib/supabase';
+import { peekReturnTo, resolveReturnTo } from '../lib/returnTo';
 
 interface ConfirmationProps {
   theme: 'light' | 'dark';
@@ -112,18 +113,30 @@ export const Confirmation: React.FC<ConfirmationProps> = ({ theme, navigateTo, n
 
     flashAuthMessage('Email confirmed! Please sign in to continue.');
     notify?.('Email confirmed! Please sign in to continue.', 'success');
-    navigateTo('/auth', { search: { message: 'Email confirmed! Please sign in to continue.' } });
+    const back = peekReturnTo();
+    navigateTo('/auth', {
+      search: {
+        message: 'Email confirmed! Please sign in to continue.',
+        ...(back ? { returnTo: back } : {}),
+      },
+    });
   }, [email, isEmailConfirmPage, navigate, navigateTo, notify, trySessionVerifiedLogin]);
 
   const goToAuthPage = async () => {
     const loggedIn = await trySessionVerifiedLogin();
     if (loggedIn) {
       notify?.('Signed in. Welcome!', 'success');
-      navigate({ to: '/' });
+      navigate({ to: (resolveReturnTo() ?? '/') as any });
       return;
     }
     flashAuthMessage('Account verified. Please sign in to continue.');
-    navigateTo('/auth', { search: { message: 'Account verified. Please sign in to continue.' } });
+    const back = peekReturnTo();
+    navigateTo('/auth', {
+      search: {
+        message: 'Account verified. Please sign in to continue.',
+        ...(back ? { returnTo: back } : {}),
+      },
+    });
   };
 
   // After Supabase processes the redirect URL, try to sign the user in if the
@@ -138,7 +151,7 @@ export const Confirmation: React.FC<ConfirmationProps> = ({ theme, navigateTo, n
       const loggedIn = await trySessionVerifiedLogin();
       if (cancelled || !loggedIn) return;
       notify?.('Email verified. Welcome!', 'success');
-      navigate({ to: '/' });
+      navigate({ to: (resolveReturnTo() ?? '/') as any });
     })();
     return () => {
       cancelled = true;

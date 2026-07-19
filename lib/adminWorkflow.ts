@@ -76,8 +76,11 @@ export function getTradeWorkflowStage(status?: string): TradeWorkflowStage {
 }
 
 export function tradePricingPathDescription(
-  mode?: 'actual_pricing' | 'matrix_estimate' | 'inspection_quote' | null,
+  mode?: 'actual_pricing' | 'matrix_estimate' | 'inspection_quote' | 'questionnaire_v2' | null,
 ): string {
+  if (mode === 'questionnaire_v2') {
+    return 'Customer completed the v7 condition questionnaire with live RPC estimates. Review answers snapshot, verification flags, and confirm final value after inspection.';
+  }
   if (mode === 'actual_pricing') {
     return 'Customer received an exact quote (base purchase minus exact component faults). Confirm or adjust after physical inspection.';
   }

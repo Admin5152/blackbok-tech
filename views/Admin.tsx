@@ -13,24 +13,27 @@ import { AdminOverview } from './admin/AdminOverview';
 import { AdminOrders } from './admin/AdminOrders';
 import { AdminCustomers } from './admin/AdminCustomers';
 import { AdminProducts } from './admin/AdminProducts';
-import { AdminTrades } from './admin/AdminTrades';
 import { AdminRepairs } from './admin/AdminRepairs';
 import { AdminReturns } from './admin/AdminReturns';
 import { AdminUsers } from './admin/AdminUsers';
+import { TradeAdminShell } from './admin/trade/TradeAdminShell';
 // import { AdminInbox } from './admin/AdminInbox';
+// AdminTrades retired — Trade Admin lives at /admin/trade (embedded via TradeAdminShell).
 import {
   Home, Users, Package, ShoppingCart, RefreshCcw,
   Wrench, LogOut, Menu, X, Shield, Store, RotateCcw,
 } from 'lucide-react';
+
+export type AdminSection = 'overview' | 'inbox' | 'orders' | 'customers' | 'products' | 'trades' | 'returns' | 'repairs' | 'users';
 
 interface AdminProps {
   user?: any;
   setUser?: (user: any) => void;
   navigateTo?: (view: string) => void;
   theme?: 'light' | 'dark';
+  /** Deep-link e.g. /admin/products → open Shop section */
+  initialSection?: AdminSection;
 }
-
-export type AdminSection = 'overview' | 'inbox' | 'orders' | 'customers' | 'products' | 'trades' | 'returns' | 'repairs' | 'users';
 
 const NAV_ITEMS: { id: AdminSection; label: string; icon: any }[] = [
   { id: 'overview', label: 'Overview', icon: Home },
@@ -77,13 +80,18 @@ const ZERO_BADGES: Record<AdminNavBadgeKey, number> = {
   users: 0,
 };
 
-export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme = 'dark' }) => {
+export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme = 'dark', initialSection }) => {
   const routerNavigate = useNavigate();
   const role: string = (user?.role || 'user').toString().toLowerCase();
-  const [section, setSection] = useState<AdminSection>('overview');
+  const [section, setSection] = useState<AdminSection>(initialSection || 'overview');
   const [sidebar, setSidebar] = useState(true);
   const [badgeCounts, setBadgeCounts] = useState<Record<AdminNavBadgeKey, number>>(ZERO_BADGES);
   const badgePollRef = useRef<number | null>(null);
+
+  // Deep-link /admin/products must open Shop even if Admin was already mounted.
+  useEffect(() => {
+    if (initialSection) setSection(initialSection);
+  }, [initialSection]);
 
   const refreshBadgeCounts = useCallback(async () => {
     const uid = user?.id;
@@ -125,7 +133,17 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
   const isSales = isAdmin || role === 'staff' || role === 'sales';
   const isRepair = isAdmin || role === 'repair' || role === 'technician';
 
-  const navigate = (s: AdminSection) => { setSection(s); };
+  const navigate = (s: AdminSection) => {
+    setSection(s);
+    // Overview CTAs + in-app navigate must hit the same deep links as the sidebar.
+    if (s === 'products') {
+      void routerNavigate({ to: '/admin/products' as any });
+    } else if (s === 'trades') {
+      void routerNavigate({ to: '/admin/trade' as any });
+    } else {
+      void routerNavigate({ to: '/admin' as any });
+    }
+  };
 
   const handleLogout = async () => {
     if (setUser && navigateTo) await handleSignOut(setUser, navigateTo);
@@ -174,6 +192,14 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
               key={item.id}
               onClick={() => {
                 setSection(item.id);
+                // Keep URL in sync so /admin/products and /admin/trade are bookmarkable.
+                if (item.id === 'products') {
+                  void routerNavigate({ to: '/admin/products' as any });
+                } else if (item.id === 'trades') {
+                  void routerNavigate({ to: '/admin/trade' as any });
+                } else {
+                  void routerNavigate({ to: '/admin' as any });
+                }
                 if (window.innerWidth < 1024) setSidebar(false);
               }}
               title={!sidebar ? item.label : undefined}
@@ -181,8 +207,8 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
                 ${section === item.id
                   ? 'bg-[#B38B21] text-black shadow-sm'
                   : isLight
-                    ? 'text-black/60 hover:text-black hover:bg-black/5'
-                    : 'text-white/30 hover:text-white hover:bg-white/5'}`}
+                    ? 'text-black/70 hover:text-black hover:bg-black/5'
+                    : 'text-white/75 hover:text-white hover:bg-white/5'}`}
             >
               <span className="relative shrink-0">
                 <item.icon size={17} className="shrink-0" />
@@ -240,13 +266,19 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
           </button>
           <div className="min-w-0 flex-1">
             <h1 className={`text-base font-black italic uppercase tracking-tight truncate ${isLight ? 'text-black' : 'text-white'}`}>
-              {SECTION_TITLES[section]}
+              {section === 'trades' ? 'Trade Admin' : SECTION_TITLES[section]}
             </h1>
-            <p className={`text-[9px] font-black uppercase tracking-widest truncate ${isLight ? 'text-black/40' : 'text-white/20'}`}>
-              BlackBox Admin ·{' '}
-              {new Date().toLocaleDateString('en', {
-                weekday: 'long', month: 'long', day: 'numeric',
-              })}
+            <p className={`text-[9px] font-black uppercase tracking-widest truncate ${isLight ? 'text-black/50' : 'text-white/55'}`}>
+              {section === 'trades'
+                ? 'Lifecycle · pricing · queue'
+                : (
+                  <>
+                    BlackBox Admin ·{' '}
+                    {new Date().toLocaleDateString('en', {
+                      weekday: 'long', month: 'long', day: 'numeric',
+                    })}
+                  </>
+                )}
             </p>
           </div>
 
@@ -291,7 +323,7 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
           {section === 'orders' && <AdminOrders />}
           {section === 'customers' && <AdminCustomers />}
           {section === 'products' && <AdminProducts canEdit={isSales} theme={theme} />}
-          {section === 'trades' && <AdminTrades canEdit={isSales} />}
+          {section === 'trades' && <TradeAdminShell />}
           {section === 'returns' && <AdminReturns canEdit={isSales} />}
           {section === 'repairs' && <AdminRepairs canEdit={isRepair} />}
           {section === 'users' && <AdminUsers />}

@@ -21,11 +21,15 @@ import { getUserOrdersFromItems } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { customerStatusBadgeClasses, formatCustomerStatusShort } from '../lib/customerStatusLabels';
 import { PageBackButton } from '../components/PageBackButton';
+import { tradeOfferAmount } from '../lib/tradeOffer';
+import { TRADE_COPY } from '../lib/tradeCopy';
+import { TradeOfferRespondButtons } from '../components/TradeOfferRespondButtons';
+import { tradeNeedsOfferResponse } from '../lib/tradeOfferRespond';
 
 type HistoryTab = 'orders' | 'trades' | 'repairs';
 
 export const History: React.FC = () => {
-    const { theme, orders = [], repairs = [], trades = [], user } = useAppContext();
+    const { theme, orders = [], repairs = [], trades = [], setTrades, user, notify } = useAppContext();
     const isLight = theme === 'light';
     const navigate = useNavigate();
     const { tab } = useSearch({ from: '/history' } as any);
@@ -255,21 +259,39 @@ export const History: React.FC = () => {
 
                     {activeTab === 'trades' && (
                         filteredTrades.length > 0 ? (
-                            filteredTrades.map(trade => (
-                                <Link
+                            filteredTrades.map(trade => {
+                                const offerAmt = tradeOfferAmount(trade);
+                                const estimateAmt = Number(trade.estimatedValue ?? trade.estimated_value) || 0;
+                                const ref = trade.display_id || trade.id;
+                                const showRespond = tradeNeedsOfferResponse(trade);
+                                return (
+                                <div
                                     key={trade.id}
-                                    to={`/tracking/trade/${trade.id}`}
-                                    className={`group p-6 md:p-8 rounded-[2.5rem] border transition-all duration-500 flex flex-col md:flex-row md:items-center justify-between gap-8 ${isLight ? 'bg-white border-black/5 hover:border-black' : 'bg-white/5 border-white/5 hover:border-[#CDA032]/30 hover:bg-white/[0.07] shadow-2xl shadow-black'}`}
+                                    className={`group p-6 md:p-8 rounded-[2.5rem] border transition-all duration-500 flex flex-col gap-6 ${isLight ? 'bg-white border-black/5 hover:border-black/20' : 'bg-white/5 border-white/5 hover:border-[#CDA032]/30 hover:bg-white/[0.07] shadow-2xl shadow-black'}`}
+                                >
+                                    <Link
+                                    to={`/tracking/trade/${trade.id}` as any}
+                                    className="flex flex-col md:flex-row md:items-center justify-between gap-8"
                                 >
                                     <div className="flex items-center gap-6">
                                         <div className={`w-16 h-16 rounded-3xl flex items-center justify-center transition-colors ${isLight ? 'bg-gray-100' : 'bg-white/5 group-hover:bg-[#CDA032]/10'}`}>
                                             <ArrowLeftRight size={28} className={isLight ? 'text-black' : 'text-white/60 group-hover:text-[#CDA032]'} />
                                         </div>
                                         <div className="space-y-1">
-                                            <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Trade Reference #{trade.id}</p>
+                                            <p className="text-[10px] font-black uppercase tracking-widest opacity-40">{TRADE_COPY.history.referencePrefix} {ref}</p>
                                             <h3 className={`text-xl font-black italic tracking-tight uppercase ${isLight ? 'text-black' : 'text-white'}`}>
-                                                {trade.device} • <span className="text-[#CDA032]">GHC {trade.finalValue || trade.estimatedValue}</span>
+                                                {trade.device}
                                             </h3>
+                                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-bold uppercase tracking-widest">
+                                                <span className="opacity-60">
+                                                    {TRADE_COPY.history.estimateLabel}:{' '}
+                                                    <span className={isLight ? 'text-black/70' : 'text-white/70'}>{formatCurrency(estimateAmt)}</span>
+                                                </span>
+                                                <span className="text-[#CDA032]">
+                                                    {TRADE_COPY.history.offerLabel}:{' '}
+                                                    {offerAmt != null ? formatCurrency(offerAmt) : TRADE_COPY.history.offerPending}
+                                                </span>
+                                            </div>
                                             <p className="text-[10px] font-bold opacity-60 uppercase tracking-widest">Initiated {new Date(trade.date).toLocaleDateString()}</p>
                                         </div>
                                     </div>
@@ -282,7 +304,18 @@ export const History: React.FC = () => {
                                         </div>
                                     </div>
                                 </Link>
-                            ))
+                                {showRespond && (
+                                  <TradeOfferRespondButtons
+                                    trade={trade}
+                                    trades={trades}
+                                    setTrades={setTrades}
+                                    notify={notify}
+                                    isLight={isLight}
+                                  />
+                                )}
+                                </div>
+                                );
+                            })
                         ) : (
                             <div className="py-20 text-center space-y-6">
                                 <div className="w-20 h-20 rounded-full bg-white/5 mx-auto flex items-center justify-center text-white/20">
@@ -292,7 +325,7 @@ export const History: React.FC = () => {
                                     <h3 className="text-2xl font-black italic tracking-tight uppercase text-white/40">No Trade-ins found</h3>
                                     <p className="text-[10px] font-black uppercase tracking-widest opacity-20">Your trade-in history will appear here once you initiate a trade.</p>
                                 </div>
-                                <Link to="/trades" className="inline-flex px-8 py-4 bg-[#CDA032] text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-transform">Initiate Trade</Link>
+                                <Link to="/account/trade-ins" className="inline-flex px-8 py-4 bg-[#CDA032] text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-transform">View my trade-ins</Link>
                             </div>
                         )
                     )}

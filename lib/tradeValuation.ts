@@ -4,7 +4,7 @@ import { type TradeComponentKey } from './tradeComponentKeys';
 
 export { TRADE_COMPONENT_KEYS, type TradeComponentKey } from './tradeComponentKeys';
 
-export type TradePricingMode = 'actual_pricing' | 'matrix_estimate' | 'inspection_quote';
+export type TradePricingMode = 'actual_pricing' | 'matrix_estimate' | 'inspection_quote' | 'questionnaire_v2';
 
 export interface TradeDeductionLine {
   key: TradeComponentKey;
@@ -105,6 +105,7 @@ export function computeTradeValuation(
 export function formatTradePricingModeLabel(mode: TradePricingMode | null | undefined): string {
   if (!mode) return 'Unknown';
   if (mode === 'actual_pricing') return 'Actual pricing';
+  if (mode === 'questionnaire_v2') return 'Questionnaire estimate';
   if (mode === 'matrix_estimate') return 'Matrix estimate (Legacy)';
   return 'Inspection quote';
 }

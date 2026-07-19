@@ -27,6 +27,11 @@ import { Link } from '@tanstack/react-router';
 import { PageBackButton } from '../components/PageBackButton';
 import { useReturns } from '../hooks/useReturns';
 import { RequestReturnModal } from './ReturnsPage';
+import { TradeOfferRespondButtons } from '../components/TradeOfferRespondButtons';
+import { tradeNeedsOfferResponse } from '../lib/tradeOfferRespond';
+import { TRADE_COPY } from '../lib/tradeCopy';
+import { tradeOfferAmount } from '../lib/tradeOffer';
+import { formatGhs } from '../lib/money';
 
 interface ProfileProps {
   user: User | null;
@@ -388,7 +393,7 @@ export const Profile: React.FC<ProfileProps> = ({
                 { label: 'Recent Orders', count: orders.length, icon: Package, onClick: () => navigateTo('/history?tab=orders') },
                 { label: 'Pending Repairs', count: activeRepairsCount, icon: Wrench, onClick: () => navigateTo('/history?tab=repairs') },
                 { label: 'Wishlist Items', count: wishlist.length, icon: Heart, onClick: () => setActiveTab('wishlist') },
-                { label: 'Trade-in status', count: trades.length, icon: RefreshCw, onClick: () => navigateTo('/history?tab=trades') },
+                { label: 'Trade-in status', count: trades.length, icon: RefreshCw, onClick: () => navigateTo('/account/trade-ins') },
               ].map((card, i) => (
                 <button
                   key={i}
@@ -747,7 +752,7 @@ export const Profile: React.FC<ProfileProps> = ({
                       <RefreshCw size={14} className="text-[#B38B21]" />
                       Trade-ins
                     </p>
-                    <Link to="/history" search={{ tab: 'trades' } as any} className="text-[9px] font-black uppercase tracking-widest text-[#B38B21] hover:underline">
+                    <Link to="/account/trade-ins" className="text-[9px] font-black uppercase tracking-widest text-[#B38B21] hover:underline">
                       All
                     </Link>
                   </div>
@@ -756,10 +761,13 @@ export const Profile: React.FC<ProfileProps> = ({
                       <p className={`text-[10px] font-bold uppercase tracking-widest py-4 text-center ${isLight ? 'text-black/30' : 'text-white/25'}`}>No trade-ins yet</p>
                     ) : (
                       profileHistoryPreview.trades.map((trade) => (
-                        <Link
+                        <div
                           key={trade.id}
-                          to={`/tracking/trade/${trade.id}`}
-                          className={`flex flex-col gap-2 rounded-2xl border p-4 transition-colors group ${isLight ? 'bg-white border-gray-100 hover:border-[#B38B21]/40' : 'bg-white/[0.03] border-white/10 hover:border-[#B38B21]/30'}`}
+                          className={`flex flex-col gap-3 rounded-2xl border p-4 transition-colors ${isLight ? 'bg-white border-gray-100' : 'bg-white/[0.03] border-white/10'}`}
+                        >
+                          <Link
+                          to={`/tracking/trade/${trade.id}` as any}
+                          className="flex flex-col gap-2 group"
                         >
                           <div className="flex items-start justify-between gap-2">
                             <p className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-black/40' : 'text-white/35'}`}>
@@ -770,11 +778,26 @@ export const Profile: React.FC<ProfileProps> = ({
                             </span>
                           </div>
                           <p className={`text-xs font-black uppercase tracking-tight truncate ${isLight ? 'text-black' : 'text-white'}`}>{trade.device}</p>
+                          {tradeOfferAmount(trade) != null && (
+                            <p className="text-[10px] font-black text-[#B38B21] tabular-nums">
+                              {TRADE_COPY.myTrades.finalOffer}: {formatGhs(tradeOfferAmount(trade)!)}
+                            </p>
+                          )}
                           <p className={`text-[9px] font-bold uppercase tracking-widest ${isLight ? 'text-gray-400' : 'text-white/35'}`}>{formatDate(trade.date)}</p>
                           <span className="text-[9px] font-black uppercase tracking-widest text-[#B38B21] inline-flex items-center gap-1">
                             Track <ChevronRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
                           </span>
                         </Link>
+                        {tradeNeedsOfferResponse(trade) && (
+                          <TradeOfferRespondButtons
+                            trade={trade}
+                            trades={trades}
+                            setTrades={setTrades}
+                            notify={notify || (() => {})}
+                            isLight={isLight}
+                          />
+                        )}
+                        </div>
                       ))
                     )}
                   </div>

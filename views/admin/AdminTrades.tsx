@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { RefreshCcw, Smartphone, Plus, Trash2, Check, X, Send, DollarSign, Package, ChevronUp, ChevronDown } from 'lucide-react';
+import { RefreshCcw, Smartphone, Plus, Trash2, Check, X, Send, DollarSign, Package, ChevronUp, ChevronDown, ExternalLink } from 'lucide-react';
 import { Badge, SearchInput, Modal, ModalClose, EmptyState, Td, Th, TableWrapper, TRADE_DEVICES_KEY } from './adminUtils';
 import { useAppContext } from '../../App';
+import { useNavigate } from '@tanstack/react-router';
 import { getTradeRequests, updateTradeRequest } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
 import {
@@ -27,6 +28,7 @@ import {
     getTradeWorkflowStage,
     tradePricingPathDescription,
 } from '../../lib/adminWorkflow';
+import { tradeAdminErrorMessage } from '../../lib/tradeAdminApi';
 
 const CONDITION_OPTIONS = ['Like New', 'Excellent', 'Good', 'Fair', 'Poor'];
 const TRADE_STATUS_LABELS: Record<string, string> = {
@@ -52,16 +54,16 @@ const QUICK_TRADE_STATUSES = [
 type QuickTradeStatus = (typeof QUICK_TRADE_STATUSES)[number];
 
 const tradeUpdateErrorMessage = (e: unknown): string => {
-    const err = e as { message?: string; details?: string; hint?: string };
-    const raw = [err?.message, err?.details, err?.hint].filter(Boolean).join(' — ');
+    const raw = tradeAdminErrorMessage(e);
+    // WHY: offer-requires-value and similar DB checks must reach staff verbatim
+    if (/offer requires|offer value/i.test(raw)) {
+        return raw;
+    }
     if (/out of stock|insufficient stock/i.test(raw)) {
         return 'Cannot mark completed: target product or variant is out of stock. Restock or pick another SKU.';
     }
     if (/target variant/i.test(raw)) {
         return 'Cannot mark completed: pick a valid target variant for this catalogue product.';
-    }
-    if (/offer requires|offer value/i.test(raw)) {
-        return 'Cannot set Offer sent without a positive offer value. Enter the amount in Send offer below.';
     }
     return raw || 'Could not save trade update. Check your connection and try again.';
 };
@@ -99,6 +101,7 @@ interface Props { canEdit?: boolean; }
 
 export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
     const { products, notify } = useAppContext();
+    const navigate = useNavigate();
     const [trades, setTrades] = useState<TradeRequest[]>([]);
     const [devices, setDevices] = useState<TradeInCatalogDevice[]>(DEFAULT_TRADE_DEVICES);
     const [loading, setLoading] = useState(true);
@@ -294,7 +297,10 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
             || (t.userName || '').toLowerCase().includes(ql)
             || (t.userEmail || '').toLowerCase().includes(ql)
             || ((t as any).targetDevice || '').toLowerCase().includes(ql)
-            || ((t as any).userDescription || '').toLowerCase().includes(ql);
+            || ((t as any).userDescription || '').toLowerCase().includes(ql)
+            || String((t as any).display_id || '').toLowerCase().includes(ql)
+            || String((t as any).imei_serial || '').toLowerCase().includes(ql)
+            || String((t as any).contactPhone || (t as any).contact_phone || '').toLowerCase().includes(ql);
         const matchS = statusF === 'All' || toDbTradeStatus(t.status) === statusF;
         return matchQ && matchS;
     });
@@ -462,6 +468,22 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
 
     return (
         <div className="space-y-5">
+            <div className="bg-[#B38B21]/10 border border-[#B38B21]/25 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+                <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[#B38B21]">Trade Admin</p>
+                    <p className="text-[11px] text-white/50 mt-0.5 leading-relaxed">
+                        Full lifecycle: queue flags, pricing editors, thresholds, config, questionnaire, aesthetics, audit.
+                    </p>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => void navigate({ to: '/admin/trade' })}
+                    className="inline-flex items-center gap-2 shrink-0 px-4 py-2 rounded-xl bg-[#B38B21] text-black text-[10px] font-black uppercase tracking-widest hover:bg-[#D4AF37]"
+                >
+                    <ExternalLink size={12} /> Open Trade Admin
+                </button>
+            </div>
+
             {/* Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
@@ -505,7 +527,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                 </div>
                 <div className="flex min-w-0 w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-2">
                     <div className="min-w-0 w-full sm:min-w-[12rem] sm:max-w-md sm:flex-1">
-                    <SearchInput value={q} onChange={setQ} placeholder="Search trades..." />
+                    <SearchInput value={q} onChange={setQ} placeholder="Search ID / IMEI / phone / name…" />
                     </div>
                     {canEdit && (
                         <>

@@ -8,10 +8,15 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
-    "promote-admin": "node scripts/promote-admin.mjs"
+    "promote-admin": "node scripts/promote-admin.mjs",
+    "test:engine": "node scripts/engine-matrix.mjs",
+    "test:rls": "node scripts/rls-trade-tests.mjs",
+    "test:trade": "node scripts/engine-matrix.mjs && node scripts/rls-trade-tests.mjs",
+    "test:engine:vitest": "vitest run tests/trade-engine-matrix.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.95.3",
+    "@tanstack/react-query": "^5.101.2",
     "@tanstack/react-router": "^1.157.16",
     "lenis": "^1.3.23",
     "lucide-react": "^0.562.0",
@@ -24,6 +29,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.0.0",
     "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "vite": "^6.2.0",
+    "vitest": "^4.1.10"
   }
 }

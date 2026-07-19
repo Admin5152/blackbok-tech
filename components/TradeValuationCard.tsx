@@ -25,7 +25,7 @@ export const TradeValuationCard: React.FC<Props> = ({
       ) : (
         <div className="flex justify-between gap-3 text-sm">
           <span className="opacity-70">Trade-in purchase price</span>
-          <span className="font-bold tabular-nums text-[#CDA032]/60">Select storage to see</span>
+          <span className="font-bold text-[#CDA032]/60">Quote upon inspection</span>
         </div>
       )}
 
@@ -58,7 +58,7 @@ export const TradeValuationCard: React.FC<Props> = ({
         <div className="flex justify-between gap-3 pt-2 border-t border-[var(--bb-border)]/20">
           <span className="text-sm font-black uppercase tracking-wide text-[#CDA032]/60">Final trade-in credit</span>
           <span className="text-lg font-black text-[#CDA032]/60 tabular-nums">
-            Select storage to calculate
+            Pending inspection
           </span>
         </div>
       )}
@@ -83,7 +83,7 @@ export const TradeValuationCard: React.FC<Props> = ({
       )}
 
       <p className="text-[9px] opacity-50 leading-relaxed">
-        {valuation.hasKnownBasePrice ? 'Estimate only — final credit confirmed after physical inspection.' : 'Select your device storage capacity above to see your complete trade-in estimate.'}
+        {valuation.hasKnownBasePrice ? 'Estimate only — final credit confirmed after physical inspection.' : 'We will evaluate your device in person to provide a final trade-in quote.'}
       </p>
     </div>
   );

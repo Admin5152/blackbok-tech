@@ -4,8 +4,8 @@ import AuthService, { type LoginCredentials, type AuthResponse } from '../lib/au
 import type { User } from '../interface/interface';
 import { useLocation } from '@tanstack/react-router';
 import { canAccessAdminDashboard, normalizeCanonicalRole } from '../lib/roles';
-import { activateResumeAfterLogin, clearResumeAfterAuth } from '../lib/resumeAfterAuth';
-import { sanitizeReturnTo } from '../lib/returnTo';
+import { activateResumeAfterLogin, clearResumeAfterAuth, peekResumeAfterAuth } from '../lib/resumeAfterAuth';
+import { resolveReturnTo } from '../lib/returnTo';
 
 interface LoginProps {
   setUser: (user: User | null) => void;
@@ -152,28 +152,56 @@ export const Login: React.FC<LoginProps> = ({
         setUser(user);
         notify(`Login successful! Welcome back, ${user.name}!`, 'success');
 
-        const safeReturnTo = sanitizeReturnTo(returnTo);
-        if (safeReturnTo && !canAccessAdminDashboard(resolvedRole)) {
+        const fromSearch =
+          typeof (location.search as { returnTo?: string })?.returnTo === 'string'
+            ? (location.search as { returnTo?: string }).returnTo
+            : null;
+        const isStaff = canAccessAdminDashboard(resolvedRole);
+
+        // Prefer an explicit return path (trade/repair/cart mid-flow) for EVERYONE —
+        // including staff. Amazon-style: sign in, then continue where you left off.
+        const safeReturnTo = resolveReturnTo(returnTo, fromSearch);
+
+        if (safeReturnTo && !safeReturnTo.startsWith('/admin')) {
           clearResumeAfterAuth();
+          notify('Continuing where you left off.', 'success');
           navigateTo(safeReturnTo);
           return;
         }
 
-        if (canAccessAdminDashboard(resolvedRole)) {
+        // Staff default home is admin — only when not mid-customer flow
+        if (isStaff) {
           clearResumeAfterAuth();
-          console.log('Navigating to admin panel');
-          navigateTo('/admin');
-        } else {
+          navigateTo(
+            safeReturnTo && safeReturnTo.startsWith('/admin') ? safeReturnTo : '/admin',
+          );
+          return;
+        }
+
+        // Stashed legacy trade/repair drafts (no returnTo URL)
+        if (peekResumeAfterAuth()) {
           const resumed = activateResumeAfterLogin();
-          if (resumed) {
+          if (resumed === 'trades') {
             notify('Continuing where you left off.', 'success');
-            if (resumed === 'trades') navigateTo('trades');
-            else if (resumed === 'repair') navigateTo('repair');
-            else navigateTo('home');
-          } else {
-            console.log('Navigating to home');
-            navigateTo('home');
+            navigateTo('/trades');
+            return;
           }
+          if (resumed === 'repair') {
+            notify('Continuing where you left off.', 'success');
+            navigateTo('/repair');
+            return;
+          }
+        }
+
+        const resumed = activateResumeAfterLogin();
+        if (resumed === 'trades') {
+          notify('Continuing where you left off.', 'success');
+          navigateTo('/trades');
+        } else if (resumed === 'repair') {
+          notify('Continuing where you left off.', 'success');
+          navigateTo('/repair');
+        } else {
+          navigateTo('home');
         }
       } else {
         console.error('Authentication failed:', response.error);

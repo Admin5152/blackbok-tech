@@ -36,6 +36,19 @@ export function clearResumeAfterAuth(): void {
   }
 }
 
+export function peekResumeAfterAuth(): ResumeFlowKind | null {
+  try {
+    const raw = sessionStorage.getItem(ENVELOPE_KEY);
+    if (!raw) return null;
+    const env = JSON.parse(raw) as Envelope;
+    if (env.v !== 1 || !env.flow || typeof env.savedAt !== 'number') return null;
+    if (Date.now() - env.savedAt > MAX_AGE_MS) return null;
+    return env.flow;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * After a successful customer login: move the draft to a per-route key
  * so the target page can `takeRestorePayload` on mount. Returns the flow

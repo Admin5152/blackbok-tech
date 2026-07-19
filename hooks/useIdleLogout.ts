@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useLocation } from '@tanstack/react-router';
 import { useAppContext } from '../App';
 import { getSupabaseClient, isSupabaseConfigured } from '../lib/supabase';
-import { sanitizeReturnTo } from '../lib/returnTo';
+import { sanitizeReturnTo, saveReturnTo } from '../lib/returnTo';
 import {
   IDLE_TIMEOUT_MS,
   ACTIVITY_THROTTLE_MS,
@@ -68,6 +68,7 @@ function clearForceLogoutFlag(): void {
 
 function buildAuthRedirect(returnTo: string): string {
   const safeReturn = sanitizeReturnTo(returnTo) ?? '/';
+  saveReturnTo(safeReturn);
   return `/auth?reason=${SESSION_EXPIRED_REASON}&returnTo=${encodeURIComponent(safeReturn)}`;
 }
 

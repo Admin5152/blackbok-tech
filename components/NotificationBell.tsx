@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Bell, Check, Package, Wrench, RefreshCcw, Megaphone, Info as InfoIcon, X } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import { useNotifications, type Notification, type NotificationType } from '../hooks/useNotifications';
+import { TRADE_COPY } from '../lib/tradeCopy';
 
 interface NotificationBellProps {
   theme: 'light' | 'dark';
@@ -10,17 +11,20 @@ interface NotificationBellProps {
 const MAX_DISPLAYED = 20;
 const BODY_CLAMP_CHARS = 140;
 
-/** Maps a notification.type → in-app route. Returns null for types
- *  (`info`, `promo`) that don't have an obvious target page. */
+/** Maps a notification.type → in-app route. Trade offers go to My trade-ins. */
 function getNotificationLink(notification: Notification): string | null {
+  if (notification.type === 'trade') {
+    if (!notification.reference_id) return '/account/trade-ins';
+    const blob = `${notification.title} ${notification.body}`.toLowerCase();
+    if (blob.includes('offer') || blob.includes('awaiting')) return '/account/trade-ins';
+    return `/tracking/trade/${notification.reference_id}`;
+  }
   if (!notification.reference_id) return null;
   switch (notification.type) {
     case 'order':
       return `/tracking/order/${notification.reference_id}`;
     case 'repair':
       return `/tracking/repair/${notification.reference_id}`;
-    case 'trade':
-      return `/tracking/trade/${notification.reference_id}`;
     case 'info':
     case 'promo':
     default:
@@ -386,22 +390,27 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ theme }) => 
             )}
           </div>
 
-          {/* Footer */}
-          {visible.length > 0 && (
-            <div
-              className={`shrink-0 px-4 py-2.5 text-center border-t ${
-                isLight ? 'border-black/5' : 'border-white/5'
+          {/* Footer — deep link to full notification center */}
+          <div
+            className={`shrink-0 px-4 py-2.5 text-center border-t ${
+              isLight ? 'border-black/5' : 'border-white/5'
+            }`}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                navigate({ to: '/account/notifications' });
+              }}
+              className={`text-[10px] uppercase tracking-widest font-black transition-colors ${
+                isLight
+                  ? 'text-black/40 hover:text-black'
+                  : 'text-white/40 hover:text-white'
               }`}
             >
-              <span
-                className={`text-[10px] uppercase tracking-widest font-black ${
-                  isLight ? 'text-black/30' : 'text-white/30'
-                }`}
-              >
-                Showing latest {visible.length}
-              </span>
-            </div>
-          )}
+              {TRADE_COPY.notifications.viewAll}
+            </button>
+          </div>
         </div>
       )}
     </div>

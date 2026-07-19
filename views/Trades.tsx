@@ -19,11 +19,18 @@ import { createTradeRequest, updateTradeRequest } from '../lib/api';
 import { customerStatusBadgeClasses, customerTradeStatusShort } from '../lib/customerStatusLabels';
 import { TRADE_BOOKING_TIME_SLOTS, getTradeBookingTimeSlot } from '../data/repairBooking';
 import { saveResumeAfterAuth, peekRestorePayload, clearRestorePayload } from '../lib/resumeAfterAuth';
+import { saveReturnTo } from '../lib/returnTo';
 import { formatCurrency } from '../lib/utils';
 import { FlowStepper } from '../components/FlowStepper';
 import { PageBackButton } from '../components/PageBackButton';
 import { BrandLogo } from '../components/BrandLogo';
 import { tradeHasValidOffer, tradeOfferAmount } from '../lib/tradeOffer';
+import {
+  respondToTradeOffer,
+  patchTradeStatusInList,
+  tradeNeedsOfferResponse,
+} from '../lib/tradeOfferRespond';
+import { TRADE_COPY } from '../lib/tradeCopy';
 import { TRADE_COMPONENT_DEFS } from '../lib/tradeValuation';
 import { isTradeComponentKey, type TradeComponentKey } from '../lib/tradeComponentKeys';
 import {
@@ -355,6 +362,9 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
   const availableStorageTiers = useMemo(() => getStorageTiersForModel(tradeModelKey), [tradeModelKey]);
   const availableSimVariants = useMemo(() => getSimVariantsForModel(tradeModelKey), [tradeModelKey]);
 
+  const displayStorageTiers = availableStorageTiers.length > 0 ? availableStorageTiers : ['64GB', '128GB', '256GB', '512GB', '1TB', '2TB'];
+  const displaySimVariants = availableSimVariants.length > 0 ? availableSimVariants : ['Physical', 'eSIM'];
+
   useEffect(() => {
     setStorageTier('');
     setSimVariant('');
@@ -400,11 +410,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     setTargetSelectedOptions(p ? defaultSelectedOptionsForProduct(p) : {});
   };
 
-  const pendingOffer = appTrades.find(
-    (t) =>
-      (t.status === 'Awaiting User' || t.status === 'Offer sent' || t.status === 'Offer Made') &&
-      tradeHasValidOffer(t),
-  );
+  const pendingOffer = appTrades.find((t) => tradeNeedsOfferResponse(t));
 
   const selectedTimeSlot = getTradeBookingTimeSlot(formData.timeSlot);
 
@@ -532,7 +538,8 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
         faultyComponents: Array.from(faultyComponents),
       });
       notify('Sign in to submit. Your progress will be restored after you log in.', 'info');
-      navigate({ to: '/auth' });
+      saveReturnTo('/trades');
+      navigate({ to: '/auth', search: { returnTo: '/trades' } as any });
       return;
     }
     if (usesFreeTextModel) {
@@ -638,15 +645,22 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
 
   const handleOfferResponse = async (tradeId: string, accept: boolean) => {
     const row = appTrades.find((t) => t.id === tradeId);
-    if (accept && row && !tradeHasValidOffer(row)) {
-      notify('This offer is not ready yet — staff must set an offer value first.', 'error');
+    if (!row) {
+      notify('Trade-in not found.', 'error');
       return;
     }
-    try {
-      await updateTradeRequest(tradeId, { status: accept ? 'Accepted' : 'Rejected' });
-      setTrades(appTrades.map(t => t.id === tradeId ? { ...t, status: accept ? 'Accepted' : 'Rejected' } : t));
-      notify(accept ? "Offer accepted! We'll contact you to arrange the trade-in." : 'Offer declined.', accept ? 'success' : 'info');
-    } catch { notify('Failed to update. Please try again.', 'error'); }
+    const result = await respondToTradeOffer(row, accept);
+    if (!result.ok || !result.status) {
+      notify(result.error || 'Failed to update. Please try again.', 'error');
+      return;
+    }
+    setTrades(patchTradeStatusInList(appTrades, tradeId, result.status));
+    notify(
+      accept
+        ? "Offer accepted! We'll contact you to arrange the trade-in."
+        : 'Offer declined.',
+      accept ? 'success' : 'info',
+    );
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -820,6 +834,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                             Enter the full model name (for example iPhone 15 Pro or iPad Air M2).
                           </p>
                         </div>
+
                         <button
                           type="button"
                           onClick={() => {
@@ -827,7 +842,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                               notify('Please enter your device model name.', 'error');
                               return;
                             }
-                            go(2);
+                            setSubStep(4);
                           }}
                           className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] w-full"
                         >
@@ -940,38 +955,6 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                           </div>
                         )}
 
-                        {selectedVariant && availableStorageTiers.length > 0 && (
-                          <div>
-                            <p className="text-xs font-black uppercase tracking-widest text-[#CDA032]/70 mb-3">Storage Capacity</p>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                              {availableStorageTiers.map(tier => (
-                                <button key={tier} onClick={() => setStorageTier(tier)}
-                                  className={`py-3 px-3 rounded-xl border text-xs font-bold text-center transition-all ${storageTier === tier
-                                    ? 'border-[#CDA032] bg-[#CDA032]/10 text-[#CDA032] ring-1 ring-[#CDA032]'
-                                    : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:border-[#CDA032]/40 opacity-70 hover:opacity-100'}`}>
-                                  {tier}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {selectedVariant && availableSimVariants.length > 0 && availableSimVariants.some(v => v && v !== 'Any' && v !== 'null') && (
-                          <div>
-                            <p className="text-xs font-black uppercase tracking-widest text-[#CDA032]/70 mb-3">SIM Type</p>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              {availableSimVariants.filter(v => v && v !== 'Any' && v !== 'null').map(sim => (
-                                <button key={sim} onClick={() => setSimVariant(sim)}
-                                  className={`py-3 px-3 rounded-xl border text-xs font-bold text-center transition-all ${simVariant === sim
-                                    ? 'border-[#CDA032] bg-[#CDA032]/10 text-[#CDA032] ring-1 ring-[#CDA032]'
-                                    : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:border-[#CDA032]/40 opacity-70 hover:opacity-100'}`}>
-                                  {sim === 'Physical' ? 'Physical SIM' : sim === 'eSIM' ? 'eSIM Only' : sim}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
                         {/* Continue button */}
                         <div className="pt-2 border-t border-[var(--bb-border)]/50">
                           <button
@@ -982,17 +965,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                                 notify('Please type your specific model name.', 'error');
                                 return;
                               }
-                              if (!usesFreeTextModel && !variantNeedsCustomName) {
-                                if (availableStorageTiers.length > 0 && !storageTier) {
-                                  notify('Please select a storage capacity.', 'error');
-                                  return;
-                                }
-                                if (availableSimVariants.length > 0 && availableSimVariants.some(v => v && v !== 'Any' && v !== 'null') && !simVariant) {
-                                  notify('Please select a SIM type.', 'error');
-                                  return;
-                                }
-                              }
-                              go(2);
+                              setSubStep(4);
                             }}
                             className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] active:scale-[0.98] transition-all w-full"
                           >
@@ -1002,6 +975,79 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                       </div>
                     </div>
                     )}
+                  </div>
+                )}
+
+                {/* ── subStep 1d: Storage & SIM ── */}
+                {subStep === 4 && (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300 pt-4 max-w-xl mx-auto">
+                    <div className="flex items-end justify-between gap-4 flex-wrap">
+                      <div className="space-y-1">
+                        <p className="text-xs font-black uppercase tracking-widest text-[#CDA032] opacity-70">
+                          {tradeInDeviceLabel}
+                        </p>
+                        <h2 className="text-2xl font-bold tracking-tight">
+                          Select Configuration
+                        </h2>
+                      </div>
+                      <button type="button" onClick={() => setSubStep(3)} className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-[color:var(--bb-muted)] hover:text-[#CDA032] transition-colors">
+                        <ArrowLeft size={14} /> Back
+                      </button>
+                    </div>
+
+                    <div className="space-y-6">
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-widest text-[#CDA032]/70 mb-3">Storage Capacity</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          {displayStorageTiers.map(tier => (
+                            <button key={tier} onClick={() => setStorageTier(tier)}
+                              className={`py-3 px-3 rounded-xl border text-xs font-bold text-center transition-all ${storageTier === tier
+                                ? 'border-[#CDA032] bg-[#CDA032]/10 text-[#CDA032] ring-1 ring-[#CDA032]'
+                                : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:border-[#CDA032]/40 opacity-70 hover:opacity-100'}`}>
+                              {tier}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {displaySimVariants.some(v => v && v !== 'Any' && v !== 'null') && (
+                        <div>
+                          <p className="text-xs font-black uppercase tracking-widest text-[#CDA032]/70 mb-3">SIM Type</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {displaySimVariants.filter(v => v && v !== 'Any' && v !== 'null').map(sim => (
+                              <button key={sim} onClick={() => setSimVariant(sim)}
+                                className={`py-3 px-3 rounded-xl border text-xs font-bold text-center transition-all ${simVariant === sim
+                                  ? 'border-[#CDA032] bg-[#CDA032]/10 text-[#CDA032] ring-1 ring-[#CDA032]'
+                                  : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:border-[#CDA032]/40 opacity-70 hover:opacity-100'}`}>
+                                {sim === 'Physical' ? 'Physical SIM' : sim === 'eSIM' ? 'eSIM Only' : sim}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="pt-2 animate-in fade-in">
+                        <TradeValuationCard valuation={tradeValuation} />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!storageTier) {
+                            notify('Please select a storage capacity.', 'error');
+                            return;
+                          }
+                          if (displaySimVariants.some(v => v && v !== 'Any' && v !== 'null') && !simVariant) {
+                            notify('Please select a SIM type.', 'error');
+                            return;
+                          }
+                          go(2);
+                        }}
+                        className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider text-black bg-[#CDA032] hover:bg-[#B38B21] w-full mt-4"
+                      >
+                        Continue <ArrowRight size={16} />
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1135,22 +1181,6 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                     Flag any faulty components — we deduct a percentage of our purchase price for each issue.
                   </p>
                 </div>
-
-                {!usesFreeTextModel && availableSimVariants.length > 0 && availableSimVariants.some(v => v && v !== 'Any' && v !== 'null') && (
-                  <div className="space-y-3 p-5 rounded-3xl border border-[var(--bb-border)] bg-[var(--bb-surface-2)]">
-                    <p className="text-xs font-black uppercase tracking-widest text-[#CDA032]">SIM Type</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {availableSimVariants.filter(v => v && v !== 'Any' && v !== 'null').map(sim => (
-                        <button key={sim} onClick={() => setSimVariant(sim)}
-                          className={`py-3 px-3 rounded-xl border text-xs font-bold text-center transition-all ${simVariant === sim
-                            ? 'border-[#CDA032] bg-[#CDA032]/10 text-[#CDA032] ring-1 ring-[#CDA032]'
-                            : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:border-[#CDA032]/40 opacity-70 hover:opacity-100'}`}>
-                          {sim === 'Physical' ? 'Physical SIM' : sim === 'eSIM' ? 'eSIM Only' : sim}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
                 <div className="space-y-4 p-5 rounded-3xl border border-[var(--bb-border)] bg-[var(--bb-surface-2)]">
                   <p className="text-xs font-black uppercase tracking-widest text-[#CDA032]">Component checklist</p>
@@ -1669,7 +1699,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                     </div>
                   )}
 
-                  {step >= 2 && tradeValuation.hasKnownBasePrice && (
+                  {step >= 1 && (
                     <div className="pt-6 border-t border-[var(--bb-border)] animate-in fade-in">
                       <TradeValuationCard
                         valuation={tradeValuation}
@@ -1718,13 +1748,23 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                             </span>
                             {(t as any).finalValue && <span className="text-[10px] font-black text-[#CDA032]">{formatCurrency(Number((t as any).finalValue))}</span>}
                           </div>
-                          {(t.status === 'Awaiting User' || t.status === 'Offer sent' || t.status === 'Offer Made') &&
-                            tradeHasValidOffer(t) && (
+                          {tradeNeedsOfferResponse(t) && (
                             <div className="flex gap-1.5 mt-2">
-                              <button onClick={() => handleOfferResponse(t.id, true)}
-                                className="flex-1 py-1.5 bg-green-500/20 text-green-400 text-[9px] font-black uppercase rounded-lg hover:bg-green-500/30 transition-all">Accept</button>
-                              <button onClick={() => handleOfferResponse(t.id, false)}
-                                className="flex-1 py-1.5 bg-red-500/10 text-red-400 text-[9px] font-black uppercase rounded-lg hover:bg-red-500/20 transition-all">Decline</button>
+                              <button
+                                type="button"
+                                disabled={!tradeHasValidOffer(t)}
+                                onClick={() => handleOfferResponse(t.id, true)}
+                                className="flex-1 py-1.5 bg-green-500/20 text-green-400 text-[9px] font-black uppercase rounded-lg hover:bg-green-500/30 transition-all disabled:opacity-40"
+                              >
+                                {TRADE_COPY.myTrades.accept}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleOfferResponse(t.id, false)}
+                                className="flex-1 py-1.5 bg-red-500/10 text-red-400 text-[9px] font-black uppercase rounded-lg hover:bg-red-500/20 transition-all"
+                              >
+                                {TRADE_COPY.myTrades.decline}
+                              </button>
                             </div>
                           )}
                           {(t as any).adminNote && (

@@ -37,7 +37,7 @@ export interface UserRole {
   role: AppRole;
 }
 
-export type Category = 'iPhone' | 'Laptop' | 'Accessories' | 'Gaming' | 'Audio' | string;
+export type Category = 'iPhone' | 'iPad' | 'Laptop' | 'Accessories' | 'Gaming' | 'Audio' | 'Tablet' | string;
 
 export interface Product {
   id: string;
@@ -45,18 +45,32 @@ export interface Product {
   brand?: string;
   model?: string;
   sku?: string;
+  slug?: string;
   category: Category;
   description: string;
+  /** Display / cart unit price — typically price_from or selected variant effective price */
   price: number;
+  /** From v_product_page — min effective variant price */
+  price_from?: number;
+  /** From v_product_page — max effective variant price */
+  price_to?: number;
   discount?: number;
   stock: number;
+  /** From v_product_page.total_stock */
+  total_stock?: number;
   image_url?: string;
   // Fallback alias for backward compatibility
   image?: string; 
   specs?: string[];
   colors?: string[];
+  /** Free-form JSONB specs blob (products.specifications) when present in DB. */
+  specifications?: Record<string, unknown> | null;
   condition?: string;
   status?: string;
+  /** ISO currency code — storefront money util; default GHS */
+  currency?: string;
+  /** Bridge to trade_devices.model — Trade-in eligible when set */
+  trade_model?: string | null;
   featured?: boolean;
   is_new?: boolean;
   // Alias for backward comp:
@@ -82,6 +96,8 @@ export interface Product {
 export interface ProductImage {
   id: string;
   product_id?: string;
+  /** When set, gallery swaps to this image on that SKU/color */
+  variant_id?: string | null;
   url: string;
   alt_text?: string | null;
   sort_order: number;
@@ -96,8 +112,14 @@ export interface ProductVariant {
   color?: string;
   ram?: string;
   storage?: string;
+  /** ps | es | single | wifi | cell_ps | cell_es — matches trade pricing */
+  sim_type?: string | null;
   price_modifier?: number;
+  /** Absolute SKU price when set — else base + modifier (fn_variant_effective_price) */
+  price?: number | null;
   stock?: number;
+  is_active?: boolean;
+  image_url?: string | null;
   created_at?: string;
   updated_at?: string;
   // Legacy seed / grouped selectors (not DB SKU rows)
@@ -259,7 +281,7 @@ export interface TradeInRequest {
   device_brand?: string;
   device_name?: string;
   device_type?: 'smartphone' | 'tablet';
-  pricing_mode?: 'actual_pricing' | 'matrix_estimate' | 'inspection_quote';
+  pricing_mode?: 'actual_pricing' | 'matrix_estimate' | 'inspection_quote' | 'questionnaire_v2';
   storage_tier?: string;
   sim_variant?: string;
   needs_manual_review?: boolean;
@@ -307,6 +329,20 @@ export interface TradeInRequest {
   contactEmail?: string;
   contactPhone?: string;
   fulfillmentMethod?: string;
+  /** v7 questionnaire flow fields */
+  imei_serial?: string;
+  your_color?: string;
+  target_color?: string;
+  answers_snapshot?: Record<string, unknown>;
+  answers_edited?: boolean;
+  needs_verification?: boolean;
+  below_threshold?: boolean;
+  expires_at?: string;
+  terms_accepted_at?: string;
+  phone_verified_at?: string;
+  pickup_address?: string;
+  pickup_area?: string;
+  preferred_window?: string;
 }
 
 // Export a TradeRequest alias to avoid breaking everything

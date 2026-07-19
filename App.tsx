@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useRef, createContext, useContext } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useContext } from 'react';
 import {
   createRootRoute,
   createRoute,
@@ -15,6 +15,7 @@ import { supabase, getSupabaseClient, isSupabaseConfigured } from './lib/supabas
 import { WhatsAppIcon } from './components/Icons';
 import { Product, User, CartItem, Category, RepairRequest, Order, TradeRequest } from './types';
 import { getProducts, getOrders, getTradeRequests, getRepairRequests } from './lib/api';
+import { fetchTradePricing } from './lib/tradePricingStore';
 import { handleSignOut } from './lib/signOut';
 import AuthService from './lib/auth';
 import { canAccessAdminDashboard, normalizeCanonicalRole } from './lib/roles';
@@ -27,10 +28,14 @@ import { formatCustomerStatusShort } from './lib/customerStatusLabels';
 import { INITIAL_PRODUCTS } from './constants';
 import {
   getAvailableStock,
-  getProductOptionGroups,
   defaultSelectedOptionsForProduct,
   toOptionString,
+  findVariantIdForOptions,
+  findVariantRowForOptions,
+  formatSelectedOptionsLabel,
 } from './lib/productOptions';
+import { variantEffectivePrice } from './lib/catalogApi';
+import type { ProductVariant } from './types';
 import { Navbar } from './components/Navbar';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { Footer } from './components/Footer';
@@ -45,8 +50,30 @@ import { Confirmation } from './views/Confirmation';
 import { Cart } from './views/Cart';
 import { Checkout } from './views/Checkout';
 import { Trades } from './views/Trades';
+import { TradeLayout, TradeIndexRedirect } from './views/trade/TradeLayout';
+import { TradeTypeScreen } from './views/trade/TradeTypeScreen';
+import { TradeCategoryScreen } from './views/trade/TradeCategoryScreen';
+import { TradeModelScreen } from './views/trade/TradeModelScreen';
+import { TradeConfigScreen } from './views/trade/TradeConfigScreen';
+import { TradeTargetScreen } from './views/trade/TradeTargetScreen';
+import { TradeConditionScreen } from './views/trade/TradeConditionScreen';
+import { TradeSummaryScreen } from './views/trade/TradeSummaryScreen';
+import { TradeDetailsScreen } from './views/trade/TradeDetailsScreen';
+import { TradeConfirmationScreen } from './views/trade/TradeConfirmationScreen';
+import { MyTradeInsPage } from './views/trade/MyTradeInsPage';
+import { NotificationsPage } from './views/account/NotificationsPage';
 import { Promotions } from './views/Promotions';
 import { Admin } from './views/Admin';
+import { TradeAdminQueue } from './views/admin/trade/TradeAdminQueue';
+import { TradeAdminRequestDetail } from './views/admin/trade/TradeAdminRequestDetail';
+import { TradeAdminPricing } from './views/admin/trade/TradeAdminPricing';
+import { TradeAdminThresholds } from './views/admin/trade/TradeAdminThresholds';
+import { TradeAdminConfig } from './views/admin/trade/TradeAdminConfig';
+import { TradeAdminQuestionnaire } from './views/admin/trade/TradeAdminQuestionnaire';
+import { TradeAdminAesthetics } from './views/admin/trade/TradeAdminAesthetics';
+import { TradeAdminAudit } from './views/admin/trade/TradeAdminAudit';
+import { saveReturnTo } from './lib/returnTo';
+import { isTradeV2Enabled } from './lib/tradeFeatureFlags';
 import { ForgotPassword } from './views/ForgotPassword';
 import { ResetPassword } from './views/ResetPassword';
 import { AboutUs } from './views/AboutUs';
@@ -83,54 +110,9 @@ const STORAGE_KEYS = {
   THEME: 'bb_v4_theme',
 };
 
-// --- APP CONTEXT ---
-export type Theme = 'light' | 'dark';
+import { AppContext, useAppContext, type AppContextType, type Theme } from './lib/appContext';
 
-export interface AppContextType {
-  products: Product[];
-  cart: CartItem[];
-  wishlist: string[];
-  compareIds: string[];
-  user: User | null;
-  orders: Order[];
-  repairs: RepairRequest[];
-  trades: TradeRequest[];
-  searchQuery: string;
-  setSearchQuery: (q: string) => void;
-  selectedCategories: Category[];
-  setSelectedCategories: (c: Category[]) => void;
-  setUser: React.Dispatch<React.SetStateAction<User | null>>;
-  setCart: React.Dispatch<React.SetStateAction<CartItem[]>>;
-  setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
-  setRepairs: (r: RepairRequest[]) => void;
-  setTrades: (t: TradeRequest[]) => void;
-  setWishlist: React.Dispatch<React.SetStateAction<string[]>>;
-  setCompareIds: React.Dispatch<React.SetStateAction<string[]>>;
-  addToCart: (p: Product, o?: any, q?: number) => void;
-  toggleWishlist: (id: string) => void;
-  toggleCompare: (id: string) => void;
-  onToggleCompare: (id: string) => void;
-  updateQuantity: (id: string, o: any, d: number) => void;
-  removeFromCart: (uid: string) => void;
-  handleCheckout: (t: number) => void;
-  notify: (m: string, t?: any) => void;
-  navigateTo: (v: string, second?: string | { search?: Record<string, unknown> }) => void;
-  onQuickView: (p: Product) => void;
-  onAddToCart: (p: Product, options?: Record<string, string>, qty?: number) => void;
-  theme: Theme;
-  setTheme: (t: Theme) => void;
-  refreshProducts: () => Promise<void>;
-  /** False until first auth/session restore from storage + Supabase finishes. */
-  authReady: boolean;
-}
-
-export const AppContext = createContext<AppContextType | null>(null);
-
-export const useAppContext = () => {
-  const context = useContext(AppContext);
-  if (!context) throw new Error("useAppContext must be used within an AppContextProvider");
-  return context;
-};
+export { AppContext, useAppContext, type AppContextType, type Theme };
 
 // HOME-01 / NAV-01: disable browser scroll restoration and force top-of-page
 // after route changes and after late layout (images). Hash-router pathname
@@ -334,13 +316,123 @@ const repairRoute = createRoute({
   },
 });
 
+/** Legacy trade wizard — redirect to v2 when TRADE_V2 is on (cutover). */
 const tradesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/trades',
   component: () => {
     const context = useAppContext();
+    if (isTradeV2Enabled()) {
+      return <LegacyTradesRedirect />;
+    }
     return <Trades products={context.products} notify={context.notify} />;
   },
+});
+
+/** Sends bookmark / old links from /trades → /trade (v2). */
+function LegacyTradesRedirect() {
+  const navigate = useNavigate();
+  const { theme } = useAppContext();
+  React.useEffect(() => {
+    void navigate({ to: '/trade', replace: true });
+  }, [navigate]);
+  return <RouteSessionSpinner theme={theme} label="Opening trade-in…" />;
+}
+
+/**
+ * Trade-in v2 root — Screens 1–9.
+ * When VITE_TRADE_V2_ENABLED=false (rollback), bounce to legacy /trades.
+ */
+const tradeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/trade',
+  component: () => {
+    if (!isTradeV2Enabled()) {
+      return <TradeV2DisabledRedirect />;
+    }
+    return <TradeLayout />;
+  },
+});
+
+function TradeV2DisabledRedirect() {
+  const navigate = useNavigate();
+  const { theme } = useAppContext();
+  React.useEffect(() => {
+    void navigate({ to: '/trades', replace: true });
+  }, [navigate]);
+  return <RouteSessionSpinner theme={theme} label="Opening classic trade-in…" />;
+}
+
+const tradeIndexRoute = createRoute({
+  getParentRoute: () => tradeRoute,
+  path: '/',
+  component: TradeIndexRedirect,
+});
+
+const tradeTypeRoute = createRoute({
+  getParentRoute: () => tradeRoute,
+  path: '/type',
+  component: TradeTypeScreen,
+});
+
+const tradeCategoryRoute = createRoute({
+  getParentRoute: () => tradeRoute,
+  path: '/category',
+  component: TradeCategoryScreen,
+});
+
+const tradeModelRoute = createRoute({
+  getParentRoute: () => tradeRoute,
+  path: '/model',
+  component: TradeModelScreen,
+});
+
+const tradeConfigRoute = createRoute({
+  getParentRoute: () => tradeRoute,
+  path: '/config',
+  component: TradeConfigScreen,
+});
+
+const tradeTargetRoute = createRoute({
+  getParentRoute: () => tradeRoute,
+  path: '/target',
+  component: TradeTargetScreen,
+});
+
+const tradeConditionRoute = createRoute({
+  getParentRoute: () => tradeRoute,
+  path: '/condition',
+  component: TradeConditionScreen,
+});
+
+const tradeSummaryRoute = createRoute({
+  getParentRoute: () => tradeRoute,
+  path: '/summary',
+  component: TradeSummaryScreen,
+});
+
+const tradeDetailsRoute = createRoute({
+  getParentRoute: () => tradeRoute,
+  path: '/details',
+  component: TradeDetailsScreen,
+});
+
+const tradeConfirmationRoute = createRoute({
+  getParentRoute: () => tradeRoute,
+  path: '/confirmation',
+  component: TradeConfirmationScreen,
+});
+
+const accountTradeInsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/account/trade-ins',
+  component: MyTradeInsPage,
+});
+
+const accountNotificationsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/account/notifications',
+  component: NotificationsPage,
 });
 
 const profileRoute = createRoute({
@@ -412,7 +504,9 @@ const RouteSessionSpinner: React.FC<{
 const SignInRequiredWall: React.FC<{
   theme: 'light' | 'dark';
   navigateTo: (path: string) => void;
-}> = ({ theme, navigateTo }) => {
+  /** Path to restore after sign-in (current page). */
+  returnPath?: string;
+}> = ({ theme, navigateTo, returnPath }) => {
   const isLight = theme === 'light';
   return (
     <div className={`min-h-screen flex items-center justify-center p-6 ${isLight ? 'bg-white' : 'bg-black'}`}>
@@ -425,7 +519,11 @@ const SignInRequiredWall: React.FC<{
         </p>
         <button
           type="button"
-          onClick={() => navigateTo('/auth')}
+          onClick={() => {
+            const path = returnPath && returnPath.startsWith('/') ? returnPath : '/history';
+            saveReturnTo(path);
+            navigateTo(`/auth?returnTo=${encodeURIComponent(path)}`);
+          }}
           className="px-10 py-4 bg-gradient-to-r from-[#B38B21] to-[#D4AF37] text-black font-black rounded-full text-[10px] uppercase tracking-[0.3em] hover:scale-105 transition-all shadow-[0_10px_40px_rgba(179,139,33,0.3)]"
         >
           Sign In
@@ -438,10 +536,21 @@ const SignInRequiredWall: React.FC<{
 /**
  * Admin dashboard: require Supabase-validated session + live admin/staff role.
  * Blocks forged localStorage roles and expired sessions.
+ * Also serves /admin/products (Shop) and /admin/trade/* (Trade Admin shell).
  */
 const AdminRouteShell: React.FC = () => {
   const { user, authReady, theme, navigateTo, setUser } = useAppContext();
+  const location = useLocation();
   const [verified, setVerified] = useState<boolean | null>(null);
+  const isTradeAdminPath =
+    location.pathname === '/admin/trade' || location.pathname.startsWith('/admin/trade/');
+  const initialSection =
+    isTradeAdminPath
+      ? ('trades' as const)
+      : location.pathname === '/admin/products' ||
+          location.pathname.startsWith('/admin/products/')
+        ? ('products' as const)
+        : undefined;
 
   useEffect(() => {
     if (!authReady) {
@@ -518,7 +627,16 @@ const AdminRouteShell: React.FC = () => {
     return <AdminAccessDenied reason="not-admin" navigateTo={navigateTo} theme={theme} />;
   }
 
-  return <Admin user={user} setUser={setUser} navigateTo={navigateTo} theme={theme} />;
+  // Trade Admin embeds under the universal Admin sidebar (Outlet inside Admin).
+  return (
+    <Admin
+      user={user}
+      setUser={setUser}
+      navigateTo={navigateTo}
+      theme={theme}
+      initialSection={initialSection}
+    />
+  );
 };
 
 /**
@@ -575,6 +693,69 @@ const adminRoute = createRoute({
   component: AdminRouteShell,
 });
 
+/** Dedicated Shop CRUD entry — same staff gate as /admin, opens products section. */
+const adminProductsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/admin/products',
+  component: AdminRouteShell,
+});
+
+/** Trade Admin — staff gate + Admin chrome with TradeAdminShell subnav. */
+const adminTradeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/admin/trade',
+  component: AdminRouteShell,
+});
+
+const adminTradeIndexRoute = createRoute({
+  getParentRoute: () => adminTradeRoute,
+  path: '/',
+  component: TradeAdminQueue,
+});
+
+const adminTradePricingRoute = createRoute({
+  getParentRoute: () => adminTradeRoute,
+  path: '/pricing',
+  component: TradeAdminPricing,
+});
+
+const adminTradeThresholdsRoute = createRoute({
+  getParentRoute: () => adminTradeRoute,
+  path: '/thresholds',
+  component: TradeAdminThresholds,
+});
+
+const adminTradeConfigRoute = createRoute({
+  getParentRoute: () => adminTradeRoute,
+  path: '/config',
+  component: TradeAdminConfig,
+});
+
+const adminTradeQuestionnaireRoute = createRoute({
+  getParentRoute: () => adminTradeRoute,
+  path: '/questionnaire',
+  component: TradeAdminQuestionnaire,
+});
+
+const adminTradeAestheticsRoute = createRoute({
+  getParentRoute: () => adminTradeRoute,
+  path: '/aesthetics',
+  component: TradeAdminAesthetics,
+});
+
+const adminTradeAuditRoute = createRoute({
+  getParentRoute: () => adminTradeRoute,
+  path: '/audit',
+  component: TradeAdminAudit,
+});
+
+/** Typed request detail — register after static segments so "pricing" is not captured. */
+const adminTradeDetailRoute = createRoute({
+  getParentRoute: () => adminTradeRoute,
+  path: '/$requestId',
+  component: TradeAdminRequestDetail,
+});
+
 const aboutRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/about',
@@ -615,7 +796,13 @@ const historyRoute = createRoute({
       return <RouteSessionSpinner theme={ctx.theme} label="Loading session…" />;
     }
     if (!ctx.user) {
-      return <SignInRequiredWall theme={ctx.theme} navigateTo={ctx.navigateTo} />;
+      return (
+        <SignInRequiredWall
+          theme={ctx.theme}
+          navigateTo={ctx.navigateTo}
+          returnPath="/history"
+        />
+      );
     }
     return <History />;
   },
@@ -753,11 +940,36 @@ const routeTree = rootRoute.addChildren([
   checkoutRoute,
   repairRoute,
   tradesRoute,
+  tradeRoute.addChildren([
+    tradeIndexRoute,
+    tradeTypeRoute,
+    tradeCategoryRoute,
+    tradeModelRoute,
+    tradeConfigRoute,
+    tradeTargetRoute,
+    tradeConditionRoute,
+    tradeSummaryRoute,
+    tradeDetailsRoute,
+    tradeConfirmationRoute,
+  ]),
+  accountTradeInsRoute,
+  accountNotificationsRoute,
   profileRoute,
   authRoute,
   forgotPasswordRoute,
   resetPasswordRoute,
   adminRoute,
+  adminProductsRoute,
+  adminTradeRoute.addChildren([
+    adminTradeIndexRoute,
+    adminTradePricingRoute,
+    adminTradeThresholdsRoute,
+    adminTradeConfigRoute,
+    adminTradeQuestionnaireRoute,
+    adminTradeAestheticsRoute,
+    adminTradeAuditRoute,
+    adminTradeDetailRoute,
+  ]),
   aboutRoute,
   faqRoute,
   contactRoute,
@@ -828,7 +1040,12 @@ function RootComponent() {
 
   const navigate = useNavigate();
   const location = useLocation();
-  const isAdminRoute = location.pathname === '/admin';
+  const isAdminRoute =
+    location.pathname === '/admin' ||
+    location.pathname === '/admin/products' ||
+    location.pathname.startsWith('/admin/products/') ||
+    location.pathname === '/admin/trade' ||
+    location.pathname.startsWith('/admin/trade/');
   const isForgotPasswordRoute = location.pathname === '/forgot-password';
   const isResetPasswordRoute = location.pathname === '/reset-password';
   const isConfirmationRoute = location.pathname === '/confirmation';
@@ -963,6 +1180,12 @@ function RootComponent() {
     }
 
     refreshProducts();
+    // Trade pricing cache — needed for config pickers and valuation card
+    if (isSupabaseConfigured()) {
+      fetchTradePricing().catch((err) =>
+        console.warn('Trade pricing cache failed to load:', err),
+      );
+    }
     return () => {
       cancelled = true;
     };
@@ -1091,9 +1314,11 @@ function RootComponent() {
           getRepairRequests(user.id).catch(() => []),
         ]);
         if (cancelled) return;
-        if (Array.isArray(ord) && ord.length) setOrders(ord as any);
-        if (Array.isArray(tr) && tr.length) setTrades(tr as any);
-        if (Array.isArray(rp) && rp.length) setRepairs(rp as any);
+        // Always replace with server truth (incl. empty) so stale localStorage
+        // rows cannot leave tracking links pointing at ghost IDs.
+        if (Array.isArray(ord)) setOrders(ord as any);
+        if (Array.isArray(tr)) setTrades(tr as any);
+        if (Array.isArray(rp)) setRepairs(rp as any);
       } catch (e) {
         console.warn('User data hydration failed:', e);
       }
@@ -1164,11 +1389,19 @@ function RootComponent() {
       return;
     }
 
+    // BUGFIX: cart previously stored products.price blindly and omitted variant_id.
+    // Checkout/orders need the selected SKU id + fn_variant_effective_price amount.
+    const variantId = findVariantIdForOptions(product, resolvedOptions);
+    const variantRow = findVariantRowForOptions(product, resolvedOptions) as ProductVariant | null;
+    const unitPrice = variantEffectivePrice(product, variantRow);
+    const configLine = formatSelectedOptionsLabel(resolvedOptions);
+
     const prev = cartRef.current;
-    const existingId = `${product.id}-${JSON.stringify(resolvedOptions)}`;
-    const existingIndex = prev.findIndex(
-      (p) => `${p.id}-${JSON.stringify(p.selectedOptions)}` === existingId,
-    );
+    const existingId = `${product.id}-${variantId || JSON.stringify(resolvedOptions)}`;
+    const existingIndex = prev.findIndex((p) => {
+      const key = `${p.id}-${p.variant_id || JSON.stringify(p.selectedOptions)}`;
+      return key === existingId;
+    });
     if (existingIndex > -1) {
       const cur = prev[existingIndex].quantity;
       if (cur + safeQty > available) {
@@ -1181,14 +1414,28 @@ function RootComponent() {
     }
 
     setCart((prevCart) => {
-      const exId = `${product.id}-${JSON.stringify(resolvedOptions)}`;
-      const exIdx = prevCart.findIndex((p) => `${p.id}-${JSON.stringify(p.selectedOptions)}` === exId);
+      const exId = `${product.id}-${variantId || JSON.stringify(resolvedOptions)}`;
+      const exIdx = prevCart.findIndex((p) => {
+        const key = `${p.id}-${p.variant_id || JSON.stringify(p.selectedOptions)}`;
+        return key === exId;
+      });
       if (exIdx > -1) {
         const updated = [...prevCart];
         updated[exIdx] = { ...updated[exIdx], quantity: updated[exIdx].quantity + safeQty };
         return updated;
       }
-      return [...prevCart, { ...product, quantity: safeQty, selectedOptions: resolvedOptions }];
+      return [
+        ...prevCart,
+        {
+          ...product,
+          quantity: safeQty,
+          selectedOptions: resolvedOptions,
+          variant_id: variantId ?? undefined,
+          price: unitPrice,
+          stock: available,
+          configurationLine: configLine || undefined,
+        },
+      ];
     });
     notify(`${product.name} logged to repository.`);
   };
@@ -1393,7 +1640,7 @@ function RootComponent() {
                 {[
                   { id: 'home', label: 'Home', icon: HomeIcon, path: '/' },
                   { id: 'store', label: 'Shop', icon: ShoppingBag, path: '/store', subItems: ['iPhone', 'Laptop', 'Accessories', 'Gaming', 'Audio', 'Track Orders'] },
-                  { id: 'trades', label: 'Trades', icon: RefreshCcw, path: '/trades', subItems: ['Initiate Trade', 'Track Trade-In'] },
+                  { id: 'trades', label: 'Trades', icon: RefreshCcw, path: '/trade', subItems: ['Initiate Trade', 'Track Trade-In'] },
                   { id: 'repair', label: 'Repairs', icon: Wrench, path: '/repair', subItems: ['Schedule Repair', 'Repair Status'] },
                   { id: 'cart', label: 'Cart', icon: ShoppingCart, path: '/cart', count: cart.length },
                   { id: 'profile', label: 'Account', icon: UserIcon, path: '/profile' },

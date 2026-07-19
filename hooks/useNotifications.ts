@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { tradeFriendlyError } from '../lib/tradeErrors';
 
 export type NotificationType = 'info' | 'order' | 'repair' | 'trade' | 'promo';
 
@@ -81,8 +82,7 @@ export function useNotifications(): UseNotificationsResult {
       if (fetchError) throw fetchError;
       setNotifications((data ?? []) as Notification[]);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to load notifications';
-      setError(message);
+      setError(tradeFriendlyError(err));
     } finally {
       setLoading(false);
     }

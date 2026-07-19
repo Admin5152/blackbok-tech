@@ -41,6 +41,7 @@ import {
 } from '../data/repairBooking';
 import { createRepairRequest, updateRepairRequest, REPAIR_REQUEST_CONSTRAINT_MESSAGE } from '../lib/api';
 import { saveResumeAfterAuth, peekRestorePayload, clearRestorePayload } from '../lib/resumeAfterAuth';
+import { saveReturnTo } from '../lib/returnTo';
 import { PageBackButton } from '../components/PageBackButton';
 import { BrandLogo } from '../components/BrandLogo';
 import { getBrandsForDeviceType } from '../data/deviceBrands';
@@ -228,7 +229,8 @@ export const Repair: React.FC = () => {
         selectedSeries,
       });
       notify('Sign in to submit. Your repair progress will be restored after you log in.', 'info');
-      navigate({ to: '/auth' });
+      saveReturnTo('/repair');
+      navigate({ to: '/auth', search: { returnTo: '/repair' } as any });
       return;
     }
     if (submitting) return;
