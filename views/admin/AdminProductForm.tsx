@@ -21,36 +21,13 @@ import {
   deleteProductImage,
   setProductImageVariant,
 } from '../../lib/api';
-
-export const PRODUCT_CATEGORIES = [
-  'iPhone',
-  'iPad',
-  'Laptop',
-  'Gaming',
-  'Accessories',
-  'Audio',
-  'Tablet',
-  'Trades',
-] as const;
-
-export const PRODUCT_CONDITIONS = ['new', 'pre-owned', 'refurbished'] as const;
-export const PRODUCT_STATUSES = ['active', 'draft', 'archived'] as const;
-/** Common SIM codes matching trade pricing / product_variants.sim_type */
-export const PRODUCT_SIM_OPTIONS = ['ps', 'es', 'single', 'wifi', 'cell_ps', 'cell_es'] as const;
-
-export type ProductDraft = Partial<Product> & {
-  colors?: string[];
-  storage?: string[];
-  ram?: string[];
-  specs?: string[];
-  sim_types?: string[];
-  featured?: boolean;
-  /** Local / joined gallery — persisted via product_images helpers. */
-  images?: ProductImage[];
-  specifications?: Record<string, unknown> | null;
-  /** Raw JSON text for the specifications editor (kept in sync when opening draft). */
-  specificationsJson?: string;
-};
+import {
+  PRODUCT_CATEGORIES,
+  PRODUCT_CONDITIONS,
+  PRODUCT_SIM_OPTIONS,
+  PRODUCT_STATUSES,
+  type ProductDraft,
+} from './adminProductConstants';
 
 type TabId = 'details' | 'options' | 'images' | 'listing';
 

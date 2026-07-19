@@ -10,7 +10,7 @@ import { SearchInput, Modal, ModalClose, Td, Th, TableWrapper, EmptyState, PROD_
 import {
     getProductsAdmin, createProduct, updateProduct, deleteProduct,
     syncProductVariants, clearProductVariants, addProductImage,
-    appendAuditNote, type SkuVariantInput,
+    appendAuditNote, friendlyProductActionError, type SkuVariantInput,
 } from '../../lib/api';
 import { ConfirmDeleteDialog } from '../../components/ConfirmDeleteDialog';
 import {
@@ -26,7 +26,13 @@ import {
     isIphone14PlusMissingSim,
 } from '../../lib/productSkuMatrix';
 import type { SkuMatrixRow } from '../../lib/productSkuMatrix';
-import { AdminProductForm, PRODUCT_CATEGORIES, PRODUCT_CONDITIONS, PRODUCT_STATUSES, type ProductDraft } from './AdminProductForm';
+import { AdminProductForm } from './AdminProductForm';
+import {
+  PRODUCT_CATEGORIES,
+  PRODUCT_CONDITIONS,
+  PRODUCT_STATUSES,
+  type ProductDraft,
+} from './adminProductConstants';
 import type { Product } from '../../types';
 import { formatCurrency } from '../../lib/utils';
 import { useAppContext } from '../../lib/appContext';
@@ -239,10 +245,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                 notify?.(`Deleted “${pendingDelete.name}”.`, 'success');
             }
         } catch (e) {
-            notify?.(
-                'Delete failed: ' + (e instanceof Error ? e.message : String(e)),
-                'error',
-            );
+            notify?.(friendlyProductActionError(e, 'delete'), 'error');
         } finally {
             setDeleting(false);
         }
@@ -257,7 +260,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
             window.dispatchEvent(new CustomEvent('products:refresh'));
         } catch (e) {
             setProducts((list) => list.map((x) => (x.id === p.id ? { ...x, status: prev } : x)));
-            alert('Status update failed: ' + (e instanceof Error ? e.message : String(e)));
+            notify?.(friendlyProductActionError(e, 'update'), 'error');
         }
     };
 
@@ -275,7 +278,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
             setProducts((list) =>
                 list.map((x) => (x.id === id ? { ...x, featured: !nextFeatured } : x)),
             );
-            alert('Failed to update featured flag: ' + (e instanceof Error ? e.message : 'Unknown error'));
+            notify?.(friendlyProductActionError(e, 'update'), 'error');
         }
     };
 
@@ -397,16 +400,15 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
             await load({ silent: true });
             window.dispatchEvent(new CustomEvent('products:refresh'));
         } catch (e) {
-            const msg = e instanceof Error ? e.message : String(e || '');
-            if (/product_variants|column|permission|policy/i.test(msg)) {
-                setError(
-                    'Could not save stock versions. Ask IT to finish product setup in the database, then try again.',
-                );
-            } else if (/Duplicate SKU/i.test(msg)) {
+            const msg = friendlyProductActionError(e, 'save');
+            if (/stock versions|product setup|Duplicate/i.test(msg)) {
                 setError(msg);
+            } else if (/Duplicate SKU|duplicate/i.test(String((e as Error)?.message || ''))) {
+                setError(String((e as Error).message));
             } else {
-                setError('Save failed: ' + (msg || 'Unknown error'));
+                setError(msg);
             }
+            notify?.(msg, 'error');
         } finally {
             setSaving(false);
         }

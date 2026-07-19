@@ -332,10 +332,60 @@ export const updateProduct = async (id: string, updates: Partial<Product>) => {
  * WHY: Past orders / inventory rows often block hard delete (FK). Staff still
  * need a working “Delete” — archive hides it from the shop in that case.
  * Also `.delete()` with RLS can succeed with 0 rows; we `.select()` to verify.
+ * Every failure path returns plain-English reasons — never silent.
  */
 export type DeleteProductResult =
   | { mode: 'deleted' }
   | { mode: 'archived'; reason: string };
+
+/** Count linked rows that commonly block product delete. */
+async function probeProductDeleteBlockers(pid: string): Promise<string[]> {
+  const reasons: string[] = [];
+
+  const countEq = async (table: string, column: string): Promise<number> => {
+    try {
+      const { count, error } = await supabase
+        .from(table)
+        .select('*', { count: 'exact', head: true })
+        .eq(column, pid);
+      if (error) return 0;
+      return count ?? 0;
+    } catch {
+      return 0;
+    }
+  };
+
+  const orderCount = await countEq('order_items', 'product_id');
+  if (orderCount > 0) {
+    reasons.push(
+      `${orderCount} past order line${orderCount === 1 ? '' : 's'} still reference this product`,
+    );
+  }
+
+  const invCount = await countEq('inventory_adjustments', 'product_id');
+  if (invCount > 0) {
+    reasons.push(
+      `${invCount} inventory adjustment record${invCount === 1 ? '' : 's'} still reference this product`,
+    );
+  }
+
+  const tradeCount = await countEq('trade_in_requests', 'target_product_id');
+  if (tradeCount > 0) {
+    reasons.push(
+      `${tradeCount} trade-in request${tradeCount === 1 ? '' : 's'} still point at this product as the upgrade`,
+    );
+  }
+
+  return reasons;
+}
+
+export function friendlyProductActionError(err: unknown, action: string): string {
+  const msg =
+    err && typeof err === 'object' && 'message' in err
+      ? String((err as { message: string }).message)
+      : String(err || '');
+  return englishProductError(msg, action);
+}
 
 export const deleteProduct = async (id: string): Promise<DeleteProductResult> => {
   const pid = String(id || '').trim();
@@ -395,6 +445,8 @@ export const deleteProduct = async (id: string): Promise<DeleteProductResult> =>
     /* non-fatal */
   }
 
+  const blockers = await probeProductDeleteBlockers(pid);
+
   const { data: removed, error } = await supabase
     .from('products')
     .delete()
@@ -406,11 +458,16 @@ export const deleteProduct = async (id: string): Promise<DeleteProductResult> =>
     return { mode: 'deleted' };
   }
 
-  if (error && !/foreign key|23503|still referenced|violates foreign key/i.test(error.message || '')) {
-    throw error;
+  const fkBlocked =
+    Boolean(error && /foreign key|23503|still referenced|violates foreign key/i.test(error.message || '')) ||
+    blockers.length > 0 ||
+    (!error && (!removed || removed.length === 0));
+
+  if (error && !fkBlocked) {
+    throw new Error(englishProductError(error.message, 'delete'));
   }
 
-  // FK from order history (or RLS silent no-op) → archive instead
+  // Linked history (or RLS silent no-op) → archive instead
   const { data: archived, error: archErr } = await supabase
     .from('products')
     .update({ status: 'archived', featured: false, stock: 0 })
@@ -419,13 +476,19 @@ export const deleteProduct = async (id: string): Promise<DeleteProductResult> =>
     .maybeSingle();
 
   if (archErr) {
-    throw new Error(
-      error?.message ||
-        archErr.message ||
-        'Could not delete this product. Check you are signed in as staff/admin.',
-    );
+    const why =
+      blockers.length > 0
+        ? `Cannot delete this product because ${blockers.join('; ')}. Also could not archive it: ${archErr.message}`
+        : englishProductError(error?.message || archErr.message, 'delete or archive');
+    throw new Error(why);
   }
   if (!archived) {
+    if (blockers.length > 0) {
+      throw new Error(
+        `Cannot permanently delete this product because ${blockers.join('; ')}. ` +
+          'Archive also failed — you may not have permission (staff/admin required), or the product was already removed.',
+      );
+    }
     throw new Error(
       'Could not delete this product. You may not have permission (staff/admin role required), or it was already removed.',
     );
@@ -436,11 +499,14 @@ export const deleteProduct = async (id: string): Promise<DeleteProductResult> =>
     pid,
     'Archived product (permanent delete blocked by linked records)',
   );
-  return {
-    mode: 'archived',
-    reason:
-      'This product is linked to past orders or other records, so it was archived (hidden from the shop) instead of permanently deleted.',
-  };
+
+  const reason =
+    blockers.length > 0
+      ? `Cannot permanently delete this product because ${blockers.join('; ')}. ` +
+        'It was archived instead (hidden from the shop, status set to archived).'
+      : 'This product could not be permanently deleted (likely linked to past orders or other records), so it was archived instead (hidden from the shop).';
+
+  return { mode: 'archived', reason };
 };
 
 export type SkuVariantInput = {
