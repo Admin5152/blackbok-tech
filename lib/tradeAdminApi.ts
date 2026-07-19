@@ -11,6 +11,7 @@
 import { supabase } from './supabase';
 import { mapTradeFromDb, updateTradeRequest } from './api';
 import { invalidateTradePricing } from './tradePricingStore';
+import { invalidateTradeCatalogCache } from './tradeCatalogCache';
 import { staffTradeError } from './tradeErrors';
 import type { TradeInRequest } from '../types';
 import type {
@@ -51,6 +52,12 @@ export interface AuditLogFilters {
 /** Surface PostgREST / constraint text; maps OOS / RLS via tradeErrors. */
 export function tradeAdminErrorMessage(e: unknown): string {
   return staffTradeError(e);
+}
+
+/** Pricing store + accept-catalog memory after staff edits. */
+async function bumpTradeCaches(): Promise<void> {
+  await invalidateTradePricing();
+  invalidateTradeCatalogCache();
 }
 
 function isMissingRelationError(message: string): boolean {
@@ -217,7 +224,7 @@ export async function updateBaseValue(
     .select()
     .single();
   if (error) throw error;
-  await invalidateTradePricing();
+  await bumpTradeCaches();
   return data as TradeBaseValueRow;
 }
 
@@ -245,7 +252,7 @@ export async function createBaseValue(input: {
     .select()
     .single();
   if (error) throw error;
-  await invalidateTradePricing();
+  await bumpTradeCaches();
   return data as TradeBaseValueRow;
 }
 
@@ -292,7 +299,7 @@ export async function updateDeduction(
     .select()
     .single();
   if (error) throw error;
-  await invalidateTradePricing();
+  await bumpTradeCaches();
   return data as TradeFaultDeductionRow;
 }
 
@@ -317,7 +324,7 @@ export async function createDeduction(input: {
     .select()
     .single();
   if (error) throw error;
-  await invalidateTradePricing();
+  await bumpTradeCaches();
   return data as TradeFaultDeductionRow;
 }
 
@@ -415,7 +422,7 @@ export async function setDeviceActive(
       .from('trade_base_values')
       .update({ is_active: false })
       .eq('model', model);
-    await invalidateTradePricing();
+    await bumpTradeCaches();
   }
 
   return data as TradeDeviceRow;
@@ -459,7 +466,7 @@ export async function seedDefaultDeductionsForModel(
     })),
   );
   if (error) throw error;
-  await invalidateTradePricing();
+  await bumpTradeCaches();
   return missing.length;
 }
 
@@ -534,7 +541,7 @@ export async function copyDeductionsFromModel(opts: {
     }
   }
 
-  if (inserted + updated > 0) await invalidateTradePricing();
+  if (inserted + updated > 0) await bumpTradeCaches();
   return { inserted, updated };
 }
 
@@ -677,7 +684,7 @@ export async function updateTradeConfigValue(
   if (error) throw error;
   // Config feeds compute_trade_estimate — pricing cache TTL still applies to bases;
   // dispatch pricing event so any UI listening refreshes.
-  await invalidateTradePricing();
+  await bumpTradeCaches();
   return data as TradeConfigRow;
 }
 
@@ -876,7 +883,7 @@ export async function upsertAestheticOverride(
     .select()
     .single();
   if (error) throw error;
-  await invalidateTradePricing();
+  await bumpTradeCaches();
   return data as TradeAestheticOverrideRow;
 }
 
@@ -890,7 +897,7 @@ export async function deleteAestheticOverride(
     .eq('model', model)
     .eq('grade', grade);
   if (error) throw error;
-  await invalidateTradePricing();
+  await bumpTradeCaches();
 }
 
 // ─── Audit ─────────────────────────────────────────────────────────────────

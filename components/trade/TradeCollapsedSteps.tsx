@@ -7,7 +7,7 @@ import { useNavigate, useRouterState } from '@tanstack/react-router';
 import { useTradeFlow } from '../../lib/tradeFlowContext';
 import { TRADE_COPY, simVariantLabel } from '../../lib/tradeCopy';
 import { formatGhs } from '../../lib/money';
-import { computeTradeBalanceDisplay } from '../../lib/tradeBalanceDisplay';
+import { computeTradeBalanceDisplay, tradeBalanceAccentClass } from '../../lib/tradeBalanceDisplay';
 
 type TradePath =
   | '/trade/type'
@@ -46,6 +46,7 @@ function seriesLabel(
 function CollapsedRow({
   label,
   value,
+  valueClassName,
   changeLabel = TRADE_COPY.collapsed.change,
   secondaryLabel,
   onChange,
@@ -53,6 +54,7 @@ function CollapsedRow({
 }: {
   label?: string;
   value: string;
+  valueClassName?: string;
   changeLabel?: string;
   secondaryLabel?: string;
   onChange: () => void;
@@ -66,7 +68,9 @@ function CollapsedRow({
             {label}
           </p>
         )}
-        <h3 className="text-lg sm:text-xl font-black truncate">{value}</h3>
+        <h3 className={`text-lg sm:text-xl font-black truncate ${valueClassName ?? ''}`}>
+          {value}
+        </h3>
       </div>
       <div className="flex flex-wrap items-center gap-2 sm:justify-end shrink-0">
         {onSecondary && secondaryLabel && (
@@ -243,9 +247,12 @@ export function TradeCollapsedSteps() {
               ? TRADE_COPY.layout.summaryYouAdd
               : balance.kind === 'refund' || balance.kind === 'cash'
                 ? TRADE_COPY.layout.summaryYouReceive
-                : TRADE_COPY.collapsed.estimate
+                : balance.kind === 'even'
+                  ? TRADE_COPY.layout.summaryEven
+                  : TRADE_COPY.collapsed.estimate
           }
           value={formatGhs(balance.amount)}
+          valueClassName={tradeBalanceAccentClass(balance.kind)}
           onChange={() => go('/trade/summary')}
         />
       )}

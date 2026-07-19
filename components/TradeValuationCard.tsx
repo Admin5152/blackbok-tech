@@ -1,6 +1,7 @@
 import React from 'react';
 import type { TradeValuationResult } from '../lib/tradeValuation';
 import { formatCurrency } from '../lib/utils';
+import { TRADE_COPY } from '../lib/tradeCopy';
 
 interface Props {
   valuation: TradeValuationResult;
@@ -15,6 +16,9 @@ export const TradeValuationCard: React.FC<Props> = ({
   topUp,
   compact = false,
 }) => {
+  const topUpAmt = Math.max(0, Number(topUp) || 0);
+  const isEven = targetPrice != null && targetPrice > 0 && topUpAmt === 0;
+
   return (
     <div className={`rounded-2xl border ${valuation.hasKnownBasePrice ? 'border-[#CDA032]/25 bg-[#CDA032]/5' : 'border-[var(--bb-border)] bg-[var(--bb-surface-2])'} space-y-3 ${compact ? 'p-3' : 'p-4'}`}>
       {valuation.hasKnownBasePrice ? (
@@ -72,12 +76,26 @@ export const TradeValuationCard: React.FC<Props> = ({
       {valuation.hasKnownBasePrice && targetPrice != null && targetPrice > 0 && (
         <>
           <div className="flex justify-between gap-3 text-sm border-t border-[var(--bb-border)]/50 pt-2">
-            <span className="opacity-70">New device price</span>
+            <span className="opacity-70">{TRADE_COPY.summary.price}</span>
             <span className="font-bold tabular-nums">{formatCurrency(targetPrice)}</span>
           </div>
           <div className="flex justify-between gap-3">
-            <span className="text-sm font-black">Amount to top up</span>
-            <span className="text-base font-black tabular-nums">{formatCurrency(topUp ?? 0)}</span>
+            <span
+              className={`text-sm font-black ${
+                topUpAmt > 0 ? 'text-red-500' : isEven ? 'text-[#CDA032]' : ''
+              }`}
+            >
+              {topUpAmt > 0
+                ? TRADE_COPY.summary.topUpAmountLabel
+                : TRADE_COPY.summary.headlineEven}
+            </span>
+            <span
+              className={`text-base font-black tabular-nums ${
+                topUpAmt > 0 ? 'text-red-500' : isEven ? 'text-[#CDA032]' : ''
+              }`}
+            >
+              {formatCurrency(topUpAmt)}
+            </span>
           </div>
         </>
       )}

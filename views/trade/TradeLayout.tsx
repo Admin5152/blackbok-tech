@@ -11,6 +11,7 @@ import { TradeFlowProvider } from '../../components/trade/TradeFlowProvider';
 import { TRADE_COPY } from '../../lib/tradeCopy';
 import { useAppContext } from '../../lib/appContext';
 import { isTradeV2Enabled } from '../../lib/tradeFeatureFlags';
+import { prefetchTradeCatalog } from '../../lib/tradeCatalogCache';
 
 const STEP_PATHS = [
   { id: 1, path: '/trade/type' },
@@ -36,6 +37,10 @@ function TradeLayoutInner() {
   const showFullHero = currentStep <= 1 && !isConfirmation;
   /** Sidebar like Repair — once past device type */
   const showSidebar = currentStep >= 2 && !isConfirmation;
+
+  React.useEffect(() => {
+    prefetchTradeCatalog();
+  }, []);
 
   const backFallback =
     currentStep <= 1

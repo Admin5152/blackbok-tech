@@ -24,6 +24,11 @@ import { getProductPageRow } from '../../lib/catalogApi';
 import { formatGhs } from '../../lib/money';
 import { TRADE_COPY, simVariantLabel } from '../../lib/tradeCopy';
 import {
+  filterTradeTargetRowsByUpgradePicks,
+  loadUpgradeProductIds,
+  TRADE_UPGRADE_PICKS_UPDATED_EVENT,
+} from '../../lib/tradeUpgradePicks';
+import {
   distinctTargetCategories,
   distinctTargetRam,
   distinctTargetSims,
@@ -50,6 +55,7 @@ export function TradeTargetScreen() {
 
   /** All active SKUs (incl. OOS) — so customers can pick the version they want */
   const [allRows, setAllRows] = useState<TradeTargetRow[]>([]);
+  const [allowIds, setAllowIds] = useState<string[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [productDetail, setProductDetail] = useState<{
@@ -79,22 +85,50 @@ export function TradeTargetScreen() {
       try {
         // Load all active variants so storage / eSIM choices stay visible;
         // browse cards still require at least one in-stock SKU (D11).
-        const data = await getTradeTargets({ inStockOnly: false });
-        if (!cancelled) setAllRows(data);
+        // Staff allowlist (upgrade targets) filters which products appear.
+        const [data, ids] = await Promise.all([
+          getTradeTargets({ inStockOnly: false }),
+          loadUpgradeProductIds(),
+        ]);
+        if (!cancelled) {
+          setAllRows(data);
+          setAllowIds(ids);
+        }
       } catch {
         if (!cancelled) setError(TRADE_COPY.states.errorPricing);
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
+
+    const onPicks = () => {
+      void loadUpgradeProductIds().then((ids) => {
+        if (!cancelled) setAllowIds(ids);
+      });
+    };
+    window.addEventListener(TRADE_UPGRADE_PICKS_UPDATED_EVENT, onPicks);
+
     return () => {
       cancelled = true;
+      window.removeEventListener(TRADE_UPGRADE_PICKS_UPDATED_EVENT, onPicks);
     };
   }, []);
 
-  const stockRows = useMemo(() => filterInStockTargets(allRows), [allRows]);
+  const scopedRows = useMemo(
+    () => filterTradeTargetRowsByUpgradePicks(allRows, allowIds),
+    [allRows, allowIds],
+  );
+
+  const stockRows = useMemo(() => filterInStockTargets(scopedRows), [scopedRows]);
 
   const categories = useMemo(() => distinctTargetCategories(stockRows), [stockRows]);
+
+  // Drop stale category chip if staff removed every product in that category
+  useEffect(() => {
+    if (categoryFilter && !categories.includes(categoryFilter)) {
+      setCategoryFilter(null);
+    }
+  }, [categories, categoryFilter]);
 
   const products = useMemo(() => {
     const filtered = categoryFilter
@@ -106,8 +140,8 @@ export function TradeTargetScreen() {
   /** Configure against all variants for this product (incl. OOS prefs) */
   const productRows = useMemo(() => {
     if (!selectedProduct) return [];
-    return allRows.filter((r) => r.product_id === selectedProduct.productId);
-  }, [allRows, selectedProduct]);
+    return scopedRows.filter((r) => r.product_id === selectedProduct.productId);
+  }, [scopedRows, selectedProduct]);
 
   const storageOptions = useMemo(() => {
     if (!selectedProduct) return [];

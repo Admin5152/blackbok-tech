@@ -1,12 +1,19 @@
 /**
  * Spec Screen 1 — Device type cards (Repair “What can we help you with?” pattern).
  * TODO(iPad-prices): iPad gated until active priced rows exist.
+ *
+ * iPhone shows immediately; iPad appears when the catalog check resolves
+ * (no full-page wait). Prefetch warms series/model cache for the next steps.
  */
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Smartphone, Tablet } from 'lucide-react';
 import { useTradeFlow } from '../../lib/tradeFlowContext';
 import { hasActiveIpadDevices } from '../../lib/tradeApi';
+import {
+  getPricedActiveModelsCached,
+  prefetchTradeCatalog,
+} from '../../lib/tradeCatalogCache';
 import { TRADE_COPY } from '../../lib/tradeCopy';
 import { TRADE_CARD_TYPE, tradeCardSelected } from '../../lib/tradeUi';
 import type { TradeDeviceType } from '../../types/supabase';
@@ -15,19 +22,16 @@ export function TradeTypeScreen() {
   const { state, dispatch } = useTradeFlow();
   const navigate = useNavigate();
   const [ipadAvailable, setIpadAvailable] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    prefetchTradeCatalog();
     let cancelled = false;
     (async () => {
       try {
         const hasIpad = await hasActiveIpadDevices();
         if (!cancelled) setIpadAvailable(hasIpad);
       } catch {
-        if (!cancelled) setError(TRADE_COPY.states.errorGeneric);
-      } finally {
-        if (!cancelled) setLoading(false);
+        /* keep iPhone-only if check fails */
       }
     })();
     return () => {
@@ -36,25 +40,11 @@ export function TradeTypeScreen() {
   }, []);
 
   const pick = (deviceType: TradeDeviceType) => {
+    // Warm this type before navigation so series screen is often instant
+    void getPricedActiveModelsCached(deviceType);
     dispatch({ type: 'SET_DEVICE_TYPE', deviceType });
     void navigate({ to: '/trade/category' });
   };
-
-  if (loading) {
-    return (
-      <p className="text-center py-12 text-sm text-[color:var(--bb-muted)]">
-        {TRADE_COPY.states.loadingDevices}
-      </p>
-    );
-  }
-
-  if (error) {
-    return (
-      <p className="text-center py-12 text-sm text-red-500" role="alert">
-        {error}
-      </p>
-    );
-  }
 
   return (
     <section className="space-y-4">

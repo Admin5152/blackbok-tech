@@ -7,6 +7,10 @@ import { X } from 'lucide-react';
 import { useTradeFlow } from '../../lib/tradeFlowContext';
 import { PageBackButton } from '../../components/PageBackButton';
 import { getTradeCategories } from '../../lib/tradeApi';
+import {
+  categoriesFromPriced,
+  peekPricedActiveModels,
+} from '../../lib/tradeCatalogCache';
 import { TRADE_COPY } from '../../lib/tradeCopy';
 import { TRADE_CARD_TILE, tradeCardSelected } from '../../lib/tradeUi';
 import { track, TRADE_ANALYTICS } from '../../lib/analytics';
@@ -26,8 +30,15 @@ export function TradeCategoryScreen() {
   const { state, dispatch } = useTradeFlow();
   const navigate = useNavigate();
   const isLight = theme === 'light';
-  const [categories, setCategories] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cachedCats =
+    state.deviceType != null
+      ? (() => {
+          const peek = peekPricedActiveModels(state.deviceType);
+          return peek ? categoriesFromPriced(state.deviceType, peek) : null;
+        })()
+      : null;
+  const [categories, setCategories] = useState<string[]>(cachedCats ?? []);
+  const [loading, setLoading] = useState(cachedCats == null);
   const [error, setError] = useState<string | null>(null);
   const [showNotListed, setShowNotListed] = useState(false);
 
@@ -43,6 +54,13 @@ export function TradeCategoryScreen() {
 
   useEffect(() => {
     if (!state.deviceType) return;
+    const peek = peekPricedActiveModels(state.deviceType);
+    if (peek) {
+      setCategories(categoriesFromPriced(state.deviceType, peek));
+      setLoading(false);
+      setError(null);
+      return;
+    }
     let cancelled = false;
     setLoading(true);
     setError(null);

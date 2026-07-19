@@ -7,6 +7,10 @@ import { Check, Smartphone } from 'lucide-react';
 import { useTradeFlow } from '../../lib/tradeFlowContext';
 import { PageBackButton } from '../../components/PageBackButton';
 import { getTradeModelsInCategory } from '../../lib/tradeApi';
+import {
+  modelsInCategoryFromPriced,
+  peekPricedActiveModels,
+} from '../../lib/tradeCatalogCache';
 import { TRADE_COPY } from '../../lib/tradeCopy';
 import { TRADE_CARD_MODEL, tradeCardSelected } from '../../lib/tradeUi';
 import { track, TRADE_ANALYTICS } from '../../lib/analytics';
@@ -28,8 +32,17 @@ export function TradeModelScreen() {
   const { state, dispatch } = useTradeFlow();
   const navigate = useNavigate();
   const isLight = theme === 'light';
-  const [models, setModels] = useState<TradeDeviceRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cachedModels =
+    state.deviceType && state.category
+      ? (() => {
+          const peek = peekPricedActiveModels(state.deviceType);
+          return peek
+            ? modelsInCategoryFromPriced(state.deviceType, state.category, peek)
+            : null;
+        })()
+      : null;
+  const [models, setModels] = useState<TradeDeviceRow[]>(cachedModels ?? []);
+  const [loading, setLoading] = useState(cachedModels == null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -47,6 +60,15 @@ export function TradeModelScreen() {
 
   useEffect(() => {
     if (!state.deviceType || !state.category) return;
+    const peek = peekPricedActiveModels(state.deviceType);
+    if (peek) {
+      setModels(
+        modelsInCategoryFromPriced(state.deviceType, state.category, peek),
+      );
+      setLoading(false);
+      setError(null);
+      return;
+    }
     let cancelled = false;
     setLoading(true);
     setError(null);

@@ -15,7 +15,7 @@ import { TradePhasePills } from '../../components/trade/TradePhasePills';
 import { getTradeConfigValue } from '../../lib/tradeApi';
 import { formatGhs } from '../../lib/money';
 import { TRADE_COPY, simVariantLabel } from '../../lib/tradeCopy';
-import { computeTradeBalanceDisplay } from '../../lib/tradeBalanceDisplay';
+import { computeTradeBalanceDisplay, tradeBalanceAccentClass } from '../../lib/tradeBalanceDisplay';
 import { track, TRADE_ANALYTICS } from '../../lib/analytics';
 
 export function TradeSummaryScreen() {
@@ -49,12 +49,9 @@ export function TradeSummaryScreen() {
     target,
   });
   const zeroEstimate = est.estimate <= 0;
+  const accent = tradeBalanceAccentClass(balance.kind);
   const isTopUp = balance.kind === 'top_up';
-  const isGreen =
-    balance.kind === 'refund' ||
-    balance.kind === 'cash' ||
-    balance.kind === 'even' ||
-    balance.kind === 'credit';
+  const isEven = balance.kind === 'even';
 
   const headlineLabel =
     balance.kind === 'top_up'
@@ -123,17 +120,11 @@ export function TradeSummaryScreen() {
           {/* Headline = difference (top-up / refund), not raw trade credit */}
           {!zeroEstimate && (
             <div className="mt-6 relative">
-              <p
-                className={`text-[10px] font-black uppercase tracking-widest mb-1 ${
-                  isTopUp ? 'text-red-500' : 'text-emerald-600'
-                }`}
-              >
+              <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${accent}`}>
                 {headlineLabel}
               </p>
               <p
-                className={`text-4xl sm:text-5xl font-black tabular-nums tracking-tighter ${
-                  isTopUp ? 'text-red-500' : isGreen ? 'text-emerald-600' : 'text-[#CDA032]'
-                }`}
+                className={`text-4xl sm:text-5xl font-black tabular-nums tracking-tighter ${accent}`}
               >
                 {formatGhs(balance.amount)}
               </p>
@@ -145,6 +136,11 @@ export function TradeSummaryScreen() {
               {balance.kind === 'refund' && (
                 <p className="text-xs text-emerald-600/80 mt-2">
                   {TRADE_COPY.summary.balanceRefunded}
+                </p>
+              )}
+              {isEven && (
+                <p className="text-xs text-[#CDA032]/90 mt-2">
+                  {TRADE_COPY.summary.headlineEvenHint}
                 </p>
               )}
             </div>
@@ -214,6 +210,13 @@ export function TradeSummaryScreen() {
                 <span className="tabular-nums text-emerald-600">
                   {formatGhs(balance.amount)}
                 </span>
+              </div>
+            )}
+
+            {!zeroEstimate && isEven && (
+              <div className="flex justify-between items-center text-sm font-black pt-2">
+                <span className="text-[#CDA032]">{TRADE_COPY.summary.headlineEven}</span>
+                <span className="tabular-nums text-[#CDA032]">{formatGhs(0)}</span>
               </div>
             )}
 

@@ -6,11 +6,12 @@
  * RPC is the single pricing authority after every questionnaire answer.
  */
 import { supabase } from './supabase';
+import { sortStorageTiers } from './tradeFlowState';
 import {
-  sortIpadProductLines,
-  sortIphoneSeries,
-  sortStorageTiers,
-} from './tradeFlowState';
+  categoriesFromPriced,
+  getPricedActiveModelsCached,
+  modelsInCategoryFromPriced,
+} from './tradeCatalogCache';
 import type {
   SimVariant,
   TradeAnswerInput,
@@ -71,31 +72,19 @@ export async function getTradeDevice(model: string): Promise<TradeDeviceRow | nu
  * Requires active device AND ≥1 active base_value (same gate as model grids).
  */
 export async function hasActiveIpadDevices(): Promise<boolean> {
-  const priced = await getPricedActiveModels('ipad');
+  const priced = await getPricedActiveModelsCached('ipad');
   return priced.length >= 1;
 }
 
 /**
  * Models that have ≥1 active base_value row — used to filter category/model grids
  * so customers never pick an unpriceable device.
+ * Cached + parallel fetch (see lib/tradeCatalogCache.ts).
  */
 export async function getPricedActiveModels(
   deviceType: TradeDeviceType,
 ): Promise<TradeDeviceRow[]> {
-  const devices = await getTradeDevices(deviceType);
-  if (devices.length === 0) return [];
-
-  const models = devices.map((d) => d.model);
-  const { data, error } = await supabase
-    .from('trade_base_values')
-    .select('model')
-    .eq('is_active', true)
-    .in('model', models);
-
-  if (error) throw error;
-
-  const priced = new Set((data ?? []).map((r: { model: string }) => r.model));
-  return devices.filter((d) => priced.has(d.model));
+  return getPricedActiveModelsCached(deviceType);
 }
 
 /**
@@ -105,19 +94,8 @@ export async function getPricedActiveModels(
 export async function getTradeCategories(
   deviceType: TradeDeviceType,
 ): Promise<string[]> {
-  const priced = await getPricedActiveModels(deviceType);
-  if (deviceType === 'iphone') {
-    const series = new Set<string>();
-    for (const d of priced) {
-      if (d.series) series.add(d.series);
-    }
-    return sortIphoneSeries(Array.from(series));
-  }
-  const lines = new Set<string>();
-  for (const d of priced) {
-    if (d.product_line) lines.add(d.product_line);
-  }
-  return sortIpadProductLines(Array.from(lines));
+  const priced = await getPricedActiveModelsCached(deviceType);
+  return categoriesFromPriced(deviceType, priced);
 }
 
 /** Models within a series/line that have active pricing (Screen 3). */
@@ -125,13 +103,8 @@ export async function getTradeModelsInCategory(
   deviceType: TradeDeviceType,
   category: string,
 ): Promise<TradeDeviceRow[]> {
-  const priced = await getPricedActiveModels(deviceType);
-  return priced
-    .filter((d) => {
-      if (deviceType === 'iphone') return d.series === category;
-      return d.product_line === category;
-    })
-    .sort((a, b) => a.sort_order - b.sort_order);
+  const priced = await getPricedActiveModelsCached(deviceType);
+  return modelsInCategoryFromPriced(deviceType, category, priced);
 }
 
 /** @deprecated Prefer getTradeCategories — kept for callers that only need series labels */

@@ -8,7 +8,7 @@ import { supabase } from '../../lib/supabase';
 import {
     isEligibleTradeUpgradeProduct,
     readStoredUpgradeProductIds,
-    persistUpgradeProductIds,
+    saveUpgradeProductIds,
 } from '../../lib/tradeUpgradePicks';
 import type { TradeRequest, ProductVariant } from '../../types';
 import { formatCurrency } from '../../lib/utils';
@@ -462,8 +462,12 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
             const p = productById.get(id);
             return p && isEligibleTradeUpgradeProduct(p);
         });
-        persistUpgradeProductIds(eligibleIds);
-        setShowUpgradeMgr(false);
+        void saveUpgradeProductIds(eligibleIds).then(() => {
+            setShowUpgradeMgr(false);
+            notify?.('Upgrade target list saved.', 'success');
+        }).catch((e: unknown) => {
+            notify?.(e instanceof Error ? e.message : 'Could not save upgrade picks', 'error');
+        });
     };
 
     return (
@@ -535,13 +539,19 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                 className="flex items-center gap-1.5 px-3 py-2 bg-white/5 text-white/60 hover:text-white border border-white/10 rounded-xl text-[10px] font-black uppercase transition-all">
                                 <DollarSign size={12} /> Pricing
                             </button>
-                            <button type="button" onClick={() => setShowUpgradeMgr(true)}
-                                className="flex items-center gap-1.5 px-3 py-2 bg-white/5 text-white/60 hover:text-white border border-white/10 rounded-xl text-[10px] font-black uppercase transition-all">
-                                <Package size={12} /> Upgrade picks
+                            <button
+                                type="button"
+                                onClick={() => void navigate({ to: '/admin/trade/upgrades' })}
+                                className="flex items-center gap-1.5 px-3 py-2 bg-white/5 text-white/60 hover:text-white border border-white/10 rounded-xl text-[10px] font-black uppercase transition-all"
+                            >
+                                <Package size={12} /> Upgrade targets
                             </button>
-                            <button onClick={() => setShowDevMgr(true)}
-                                className="flex items-center gap-1.5 px-3 py-2 bg-white/5 text-white/60 hover:text-white border border-white/10 rounded-xl text-[10px] font-black uppercase transition-all">
-                                <Smartphone size={12} /> Manage Devices
+                            <button
+                                type="button"
+                                onClick={() => void navigate({ to: '/admin/trade/devices' })}
+                                className="flex items-center gap-1.5 px-3 py-2 bg-white/5 text-white/60 hover:text-white border border-white/10 rounded-xl text-[10px] font-black uppercase transition-all"
+                            >
+                                <Smartphone size={12} /> Tradable devices
                             </button>
                         </>
                     )}

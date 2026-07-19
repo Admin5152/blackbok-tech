@@ -13,7 +13,7 @@ import {
 import { useTradeFlow } from '../../lib/tradeFlowContext';
 import { TRADE_COPY, simVariantLabel } from '../../lib/tradeCopy';
 import { formatGhs } from '../../lib/money';
-import { computeTradeBalanceDisplay } from '../../lib/tradeBalanceDisplay';
+import { computeTradeBalanceDisplay, tradeBalanceAccentClass } from '../../lib/tradeBalanceDisplay';
 
 function IconTile({ children }: { children: React.ReactNode }) {
   return (
@@ -135,7 +135,7 @@ export function TradeSummarySidebar() {
                 estimate: est.estimate,
                 target,
               });
-              const isTopUp = balance.kind === 'top_up';
+              const accent = tradeBalanceAccentClass(balance.kind);
               const label =
                 balance.kind === 'top_up'
                   ? TRADE_COPY.layout.summaryYouAdd
@@ -149,13 +149,34 @@ export function TradeSummarySidebar() {
                   <p className="text-[10px] uppercase font-bold tracking-widest opacity-50 mb-2">
                     {label}
                   </p>
-                  <p
-                    className={`text-2xl font-black tracking-tighter tabular-nums ${
-                      isTopUp ? 'text-red-500' : 'text-emerald-600'
-                    }`}
-                  >
+                  <p className={`text-2xl font-black tracking-tighter tabular-nums ${accent}`}>
                     {formatGhs(balance.amount)}
                   </p>
+                  {balance.upgradePrice != null &&
+                    (balance.kind === 'top_up' ||
+                      balance.kind === 'refund' ||
+                      balance.kind === 'even') && (
+                    <div className="mt-3 space-y-1 text-[10px] opacity-60">
+                      <div className="flex justify-between gap-2">
+                        <span>{TRADE_COPY.questionnaire.liveUpgradePrice}</span>
+                        <span className="tabular-nums font-bold">
+                          {formatGhs(balance.upgradePrice)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <span>{TRADE_COPY.questionnaire.liveTradeCredit}</span>
+                        <span className="tabular-nums font-bold">
+                          {formatGhs(balance.tradeCredit)}
+                        </span>
+                      </div>
+                      {est.deductions.length > 0 && (
+                        <p className="text-[9px] text-red-500/80 pt-0.5">
+                          {TRADE_COPY.questionnaire.liveDeductions}: −
+                          {formatGhs(est.total_deductions)}
+                        </p>
+                      )}
+                    </div>
+                  )}
                   <p className="text-[9px] uppercase tracking-wider opacity-40 mt-1">
                     {TRADE_COPY.layout.summaryEstimateNote}
                   </p>

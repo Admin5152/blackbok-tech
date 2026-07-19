@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   X, CheckCircle2, Activity, Scale, RefreshCcw, RotateCcw, Home as HomeIcon,
   ShoppingBag, Wrench, ShoppingCart, User as UserIcon,
@@ -68,6 +68,9 @@ export const Navbar: React.FC<{
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [activeMobileSubmenu, setActiveMobileSubmenu] = useState<string | null>(null);
     const [storeBadgeTick, setStoreBadgeTick] = useState(0);
+    const [searchExpanded, setSearchExpanded] = useState(false);
+    const searchFormRef = useRef<HTMLFormElement>(null);
+    const searchBlurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const cartCount = cart.reduce((a, c) => a + c.quantity, 0);
     const isLight = theme === 'light';
@@ -245,6 +248,72 @@ export const Navbar: React.FC<{
       [storeUnread.orders, storeUnread.trades, storeUnread.repairs, cartCount, showAdminLink],
     );
 
+    useEffect(() => {
+      if (!searchExpanded) return;
+      const onKey = (e: KeyboardEvent) => {
+        if (e.key !== 'Escape') return;
+        setSearchExpanded(false);
+        const input = searchFormRef.current?.querySelector('input');
+        if (input instanceof HTMLElement) input.blur();
+      };
+      const onPointerDown = (e: MouseEvent | TouchEvent) => {
+        const root = searchFormRef.current;
+        const target = e.target;
+        if (!(target instanceof Node) || !root) return;
+        if (root.contains(target)) return;
+        // Also ignore the expand trigger button
+        if (target instanceof Element && target.closest('[data-nav-search-trigger]')) return;
+        setSearchExpanded(false);
+      };
+      window.addEventListener('keydown', onKey);
+      document.addEventListener('mousedown', onPointerDown);
+      document.addEventListener('touchstart', onPointerDown);
+      return () => {
+        window.removeEventListener('keydown', onKey);
+        document.removeEventListener('mousedown', onPointerDown);
+        document.removeEventListener('touchstart', onPointerDown);
+      };
+    }, [searchExpanded]);
+
+    useEffect(() => {
+      return () => {
+        if (searchBlurTimer.current) clearTimeout(searchBlurTimer.current);
+      };
+    }, []);
+
+    useEffect(() => {
+      if (!searchExpanded) return;
+      const t = window.setTimeout(() => {
+        const input = searchFormRef.current?.querySelector('input');
+        if (input instanceof HTMLInputElement) input.focus();
+      }, 30);
+      return () => window.clearTimeout(t);
+    }, [searchExpanded]);
+
+    const openSearch = () => {
+      if (searchBlurTimer.current) {
+        clearTimeout(searchBlurTimer.current);
+        searchBlurTimer.current = null;
+      }
+      setSearchExpanded(true);
+    };
+
+    const closeSearch = () => {
+      if (searchBlurTimer.current) {
+        clearTimeout(searchBlurTimer.current);
+        searchBlurTimer.current = null;
+      }
+      setSearchExpanded(false);
+    };
+
+    const scheduleCloseSearch = () => {
+      if (searchBlurTimer.current) clearTimeout(searchBlurTimer.current);
+      searchBlurTimer.current = setTimeout(() => {
+        setSearchExpanded(false);
+        searchBlurTimer.current = null;
+      }, 160);
+    };
+
     const navItemClass = (path: string) => {
       const active =
         location.pathname === path ||
@@ -280,6 +349,7 @@ export const Navbar: React.FC<{
         if (cats) search.categories = cats;
       }
       navigate({ to: '/store', search: search as never });
+      closeSearch();
       if (opts?.closeMobile) closeMobileNavAfterNav();
     };
 
@@ -301,40 +371,77 @@ export const Navbar: React.FC<{
                 </div>
               </Link>
 
-              <form
-                onSubmit={(e) => handleCatalogSearch(e)}
-                className={`hidden md:flex min-w-0 flex-1 items-center gap-2 rounded-2xl border pl-3 pr-1.5 py-1 md:max-w-none lg:max-w-xl xl:max-w-2xl ${
-                  isLight
-                    ? 'border-black/15 bg-white focus-within:border-[#B38B21]/50 focus-within:ring-2 focus-within:ring-[#B38B21]/30'
-                    : 'border-white/12 bg-white/[0.06] focus-within:border-[#CDA032]/40 focus-within:ring-2 focus-within:ring-[#CDA032]/25'
-                }`}
-                role="search"
-              >
-                <label htmlFor="nav-catalog-search" className="sr-only">
-                  Search the shop
-                </label>
-                <Search
-                  className={`pointer-events-none h-4 w-4 shrink-0 sm:h-[18px] sm:w-[18px] ${isLight ? 'text-black/40' : 'text-white/40'}`}
-                  aria-hidden
-                />
-                <input
-                  id="nav-catalog-search"
-                  type="search"
-                  autoComplete="off"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search store…"
-                  className={`min-w-0 flex-1 border-0 bg-transparent py-2 text-sm outline-none placeholder:opacity-50 sm:text-[13px] ${
-                    isLight ? 'text-black' : 'text-white'
-                  }`}
-                />
-                <button
-                  type="submit"
-                  className={`shrink-0 rounded-xl px-3.5 py-2 text-[10px] font-black uppercase tracking-widest transition sm:px-4 sm:text-[11px] ${TW_DARK_GOLD_BTN_DEPTH} bg-[#B38B21] text-black hover:bg-[#CDA032]`}
-                >
-                  Go
-                </button>
-              </form>
+              {/* Catalog search — collapsed icon → expands; collapses on blur / Esc / outside */}
+              <div className="hidden md:flex min-w-0 flex-1 items-center justify-start">
+                {!searchExpanded ? (
+                  <button
+                    type="button"
+                    data-nav-search-trigger
+                    onClick={openSearch}
+                    title="Search the shop"
+                    aria-label="Open shop search"
+                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition-all ${
+                      isLight
+                        ? 'border-black/10 bg-white text-black/70 hover:border-[#B38B21]/40 hover:text-black'
+                        : 'border-white/12 bg-white/[0.06] text-white/70 hover:border-[#CDA032]/40 hover:text-white'
+                    }`}
+                  >
+                    <Search size={18} strokeWidth={2.25} aria-hidden />
+                  </button>
+                ) : (
+                  <form
+                    ref={searchFormRef}
+                    onSubmit={(e) => handleCatalogSearch(e)}
+                    onFocus={openSearch}
+                    onBlur={(e) => {
+                      const next = e.relatedTarget;
+                      if (next instanceof Node && searchFormRef.current?.contains(next)) return;
+                      scheduleCloseSearch();
+                    }}
+                    className={`flex min-w-0 w-full max-w-xl items-center gap-2 rounded-2xl border pl-3 pr-1.5 py-1 animate-in fade-in zoom-in-95 duration-200 ${
+                      isLight
+                        ? 'border-black/15 bg-white focus-within:border-[#B38B21]/50 focus-within:ring-2 focus-within:ring-[#B38B21]/30'
+                        : 'border-white/12 bg-white/[0.06] focus-within:border-[#CDA032]/40 focus-within:ring-2 focus-within:ring-[#CDA032]/25'
+                    }`}
+                    role="search"
+                  >
+                    <label htmlFor="nav-catalog-search" className="sr-only">
+                      Search the shop
+                    </label>
+                    <Search
+                      className={`pointer-events-none h-4 w-4 shrink-0 sm:h-[18px] sm:w-[18px] ${isLight ? 'text-black/40' : 'text-white/40'}`}
+                      aria-hidden
+                    />
+                    <input
+                      id="nav-catalog-search"
+                      type="search"
+                      autoComplete="off"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search store…"
+                      className={`min-w-0 flex-1 border-0 bg-transparent py-2 text-sm outline-none placeholder:opacity-50 sm:text-[13px] ${
+                        isLight ? 'text-black' : 'text-white'
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={closeSearch}
+                      className={`shrink-0 rounded-lg px-2 py-2 text-[10px] font-black uppercase tracking-widest opacity-50 hover:opacity-100 ${
+                        isLight ? 'text-black' : 'text-white'
+                      }`}
+                      aria-label="Close search"
+                    >
+                      Esc
+                    </button>
+                    <button
+                      type="submit"
+                      className={`shrink-0 rounded-xl px-3.5 py-2 text-[10px] font-black uppercase tracking-widest transition sm:px-4 sm:text-[11px] ${TW_DARK_GOLD_BTN_DEPTH} bg-[#B38B21] text-black hover:bg-[#CDA032]`}
+                    >
+                      Go
+                    </button>
+                  </form>
+                )}
+              </div>
             </div>
 
             {/* Navigation Links */}

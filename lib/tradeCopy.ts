@@ -177,6 +177,13 @@ export const TRADE_COPY = {
     liveTopUp: 'You add',
     liveRefund: 'Balance to you',
     liveCash: 'Cash to you',
+    liveEven: 'No top-up — even',
+    /** Mini math under the live ticker while answering */
+    liveUpgradePrice: 'Upgrade price',
+    liveTradeCredit: 'Your trade-in credit',
+    liveBaseValue: 'Base value',
+    liveDeductions: 'Condition deductions',
+    liveTopUpHint: 'Upgrade price minus your trade-in credit after deductions.',
     continueSummary: 'Next: Review',
     backQuestion: 'Back',
     completeHeading: 'Condition check complete',
@@ -191,12 +198,13 @@ export const TRADE_COPY = {
     review: 'Review',
   },
 
-  /** Screen 7 — summary: headline = top-up (red) or balance to you (green) */
+  /** Screen 7 — summary: headline = top-up (red), even (yellow), or balance to you (green) */
   summary: {
     heading: 'What you pay (or receive)',
     subheading:
-      'Upgrade price minus your trade-in credit (after condition deductions). Red = you top up. Green = we balance you.',
+      'Upgrade price minus your trade-in credit (after condition deductions). Red = you top up. Yellow = even. Green = we balance you.',
     bannerEyebrow: 'Your upgrade balance',
+    headlineEvenHint: 'Your trade-in credit covers the upgrade — nothing extra to add.',
     yourDevice: 'Your device',
     baseValue: 'Trade-in base value',
     deductions: 'Condition deductions',
@@ -317,7 +325,7 @@ export const TRADE_COPY = {
     loadingQuestions: 'Loading questionnaire…',
     loadingEstimate: 'Calculating estimate…',
     emptyDevices: 'No devices available for trade-in right now.',
-    emptyTargets: 'No matching devices in stock.',
+    emptyTargets: 'No upgrade devices available right now. Ask staff to add products on Upgrade targets, or try cash trade-in.',
     errorGeneric: 'Something went wrong. Please try again.',
     errorPricing: 'Unable to load pricing. Please refresh and try again.',
     errorEstimate: 'Could not calculate estimate. Check your selections and try again.',

@@ -32,7 +32,10 @@ import {
 } from '../../lib/tradeApi';
 import { formatGhs } from '../../lib/money';
 import { TRADE_COPY } from '../../lib/tradeCopy';
-import { computeTradeBalanceDisplay } from '../../lib/tradeBalanceDisplay';
+import {
+  computeTradeBalanceDisplay,
+  tradeBalanceAccentClass,
+} from '../../lib/tradeBalanceDisplay';
 import { track, TRADE_ANALYTICS } from '../../lib/analytics';
 import type {
   TradeEstimateSnapshot,
@@ -751,7 +754,11 @@ export function TradeConditionScreen() {
   );
 }
 
-/** Live balance strip — upgrade price − trade credit (RPC money only) */
+/**
+ * Live balance — upgrade price − trade credit (RPC money only).
+ * Shows deduction lines so top-up rises as defective answers land.
+ * Colors: red top-up · yellow even · green refund/cash.
+ */
 function LiveTicker({
   estimate,
   loading,
@@ -765,15 +772,22 @@ function LiveTicker({
     estimate != null
       ? computeTradeBalanceDisplay({ estimate: estimate.estimate, target })
       : null;
-  const isTopUp = balance?.kind === 'top_up';
+  const accent = balance ? tradeBalanceAccentClass(balance.kind) : 'text-[#CDA032]';
   const label =
     balance?.kind === 'top_up'
       ? TRADE_COPY.questionnaire.liveTopUp
       : balance?.kind === 'refund'
         ? TRADE_COPY.questionnaire.liveRefund
-        : balance?.kind === 'cash'
-          ? TRADE_COPY.questionnaire.liveCash
-          : TRADE_COPY.questionnaire.liveEstimate;
+        : balance?.kind === 'even'
+          ? TRADE_COPY.questionnaire.liveEven
+          : balance?.kind === 'cash'
+            ? TRADE_COPY.questionnaire.liveCash
+            : TRADE_COPY.questionnaire.liveEstimate;
+
+  const showUpgradeMath =
+    balance != null &&
+    balance.upgradePrice != null &&
+    (balance.kind === 'top_up' || balance.kind === 'refund' || balance.kind === 'even');
 
   const announced =
     loading || !balance
@@ -782,32 +796,72 @@ function LiveTicker({
 
   return (
     <div
-      className="rounded-2xl border border-[var(--bb-border)] bg-[var(--bb-surface)] px-4 py-3 flex items-center justify-between gap-3"
+      className="rounded-2xl border border-[var(--bb-border)] bg-[var(--bb-surface)] px-4 py-3 space-y-3"
       aria-live="polite"
       aria-atomic="true"
     >
-      <span
-        className={`text-[10px] font-black uppercase tracking-[0.3em] ${
-          isTopUp ? 'text-red-500' : 'text-[#CDA032]'
-        }`}
-      >
-        {label}
-      </span>
-      <span className="sr-only">{announced}</span>
-      <span
-        className={`text-xl font-black tabular-nums min-h-[1.75rem] flex items-center ${
-          isTopUp ? 'text-red-500' : 'text-emerald-600'
-        }`}
-        aria-hidden={loading}
-      >
-        {loading || !balance ? (
-          <Loader2 size={22} className="animate-spin opacity-70" aria-hidden />
-        ) : (
-          <span className="animate-in fade-in duration-200">
-            {formatGhs(balance.amount)}
-          </span>
-        )}
-      </span>
+      <div className="flex items-center justify-between gap-3">
+        <span className={`text-[10px] font-black uppercase tracking-[0.3em] ${accent}`}>
+          {label}
+        </span>
+        <span className="sr-only">{announced}</span>
+        <span
+          className={`text-xl font-black tabular-nums min-h-[1.75rem] flex items-center ${accent}`}
+          aria-hidden={loading}
+        >
+          {loading || !balance ? (
+            <Loader2 size={22} className="animate-spin opacity-70" aria-hidden />
+          ) : (
+            <span className="animate-in fade-in duration-200">
+              {formatGhs(balance.amount)}
+            </span>
+          )}
+        </span>
+      </div>
+
+      {estimate && !loading && (
+        <div className="space-y-1.5 border-t border-[var(--bb-border)] pt-2 text-xs">
+          {showUpgradeMath && balance.upgradePrice != null && (
+            <div className="flex justify-between gap-3 opacity-70">
+              <span>{TRADE_COPY.questionnaire.liveUpgradePrice}</span>
+              <span className="font-bold tabular-nums">{formatGhs(balance.upgradePrice)}</span>
+            </div>
+          )}
+          <div className="flex justify-between gap-3 opacity-70">
+            <span>{TRADE_COPY.questionnaire.liveBaseValue}</span>
+            <span className="font-bold tabular-nums">{formatGhs(estimate.base_value)}</span>
+          </div>
+          {estimate.deductions.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-[9px] font-black uppercase tracking-widest text-[#CDA032]/80">
+                {TRADE_COPY.questionnaire.liveDeductions}
+              </p>
+              {estimate.deductions.map((d) => (
+                <div
+                  key={d.component}
+                  className="flex justify-between gap-3 text-red-500/90"
+                >
+                  <span className="capitalize opacity-90">
+                    {d.component.replace(/_/g, ' ')}
+                  </span>
+                  <span className="font-semibold tabular-nums">−{formatGhs(d.amount)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex justify-between gap-3 font-medium">
+            <span className="opacity-80">{TRADE_COPY.questionnaire.liveTradeCredit}</span>
+            <span className="font-bold tabular-nums text-emerald-600/90">
+              {formatGhs(estimate.estimate)}
+            </span>
+          </div>
+          {showUpgradeMath && (
+            <p className="text-[9px] opacity-45 leading-snug pt-0.5">
+              {TRADE_COPY.questionnaire.liveTopUpHint}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

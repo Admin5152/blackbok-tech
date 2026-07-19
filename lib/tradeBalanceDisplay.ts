@@ -2,12 +2,15 @@
  * Upgrade balance display — what the customer pays or receives.
  *
  * Formula (upgrade path):
- *   difference = upgrade_device_price − trade_credit
  *   trade_credit = compute_trade_estimate (base − questionnaire deductions)
+ *   difference   = upgrade_device_price − trade_credit
  *
- *   difference > 0  → top-up (red) — customer adds cash to get the new phone
- *   difference < 0  → refund (green) — trade credit exceeds upgrade price
- *   difference = 0  → even
+ *   Example: 17 Pro Max ₵12,000 − trade-in credit ₵4,000 = ₵8,000 top-up.
+ *   As questionnaire deductions rise, trade_credit falls and top-up rises.
+ *
+ *   difference > 0  → top-up (red) — customer adds cash
+ *   difference < 0  → refund (green) — we balance them
+ *   difference = 0  → even (yellow / brand gold) — no cash either way
  *
  * Cash-only: show trade credit as green “you receive”.
  * Money amounts always come from server estimate + target snapshot price.
@@ -90,4 +93,19 @@ export function isBalancePositiveForCustomer(kind: TradeBalanceKind): boolean {
 
 export function isBalanceTopUp(kind: TradeBalanceKind): boolean {
   return kind === 'top_up';
+}
+
+export function isBalanceEven(kind: TradeBalanceKind): boolean {
+  return kind === 'even';
+}
+
+/**
+ * Accent text class for the headline amount.
+ * Red = you pay · Yellow = even · Green = we pay you / cash credit.
+ */
+export function tradeBalanceAccentClass(kind: TradeBalanceKind): string {
+  if (kind === 'top_up') return 'text-red-500';
+  if (kind === 'even') return 'text-[#CDA032]';
+  if (kind === 'refund' || kind === 'cash' || kind === 'credit') return 'text-emerald-600';
+  return 'text-[#CDA032]';
 }

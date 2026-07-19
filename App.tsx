@@ -68,6 +68,7 @@ import { TradeAdminQueue } from './views/admin/trade/TradeAdminQueue';
 import { TradeAdminRequestDetail } from './views/admin/trade/TradeAdminRequestDetail';
 import { TradeAdminPricing } from './views/admin/trade/TradeAdminPricing';
 import { TradeAdminDevices } from './views/admin/trade/TradeAdminDevices';
+import { TradeAdminUpgrades } from './views/admin/trade/TradeAdminUpgrades';
 import { TradeAdminThresholds } from './views/admin/trade/TradeAdminThresholds';
 import { TradeAdminConfig } from './views/admin/trade/TradeAdminConfig';
 import { TradeAdminQuestionnaire } from './views/admin/trade/TradeAdminQuestionnaire';
@@ -719,6 +720,12 @@ const adminTradeDevicesRoute = createRoute({
   component: TradeAdminDevices,
 });
 
+const adminTradeUpgradesRoute = createRoute({
+  getParentRoute: () => adminTradeRoute,
+  path: '/upgrades',
+  component: TradeAdminUpgrades,
+});
+
 const adminTradeThresholdsRoute = createRoute({
   getParentRoute: () => adminTradeRoute,
   path: '/thresholds',
@@ -963,6 +970,7 @@ const routeTree = rootRoute.addChildren([
   adminTradeRoute.addChildren([
     adminTradeIndexRoute,
     adminTradeDevicesRoute,
+    adminTradeUpgradesRoute,
     adminTradePricingRoute,
     adminTradeThresholdsRoute,
     adminTradeConfigRoute,
