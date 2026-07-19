@@ -295,19 +295,19 @@ export const Login: React.FC<LoginProps> = ({
       </div>
 
       <p className={`text-[11px] leading-relaxed ${cardMuted}`}>
-        You need an active BlackBox account to sign in. If you are new or your account was deleted, use{' '}
+        {/* You need an active BlackBox account to sign in. If you are new or your account was deleted, use{' '} */}
         {onSwitchToSignUp ? (
           <button
             type="button"
             onClick={() => onSwitchToSignUp(formData.email.trim())}
             className="text-[#CDA032] font-bold underline-offset-2 hover:underline"
           >
-            Sign up
+            {/* Sign up */}
           </button>
         ) : (
           <span className="text-[#CDA032] font-bold">Sign up</span>
         )}{' '}
-        to create one first.
+        {/* to create one first. */}
       </p>
 
       {/* Submit Button */}

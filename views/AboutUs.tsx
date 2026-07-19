@@ -130,10 +130,28 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
         <div data-about-page className={`min-h-screen bb-theme-transition ${isLight ? 'bg-[#ffffff] text-black' : 'bg-black text-white'}`}>
             {/* Hero Section */}
             <section className={`relative bb-theme-transition pt-40 md:pt-48 pb-20 overflow-hidden flex flex-col items-center ${isLight ? 'bg-[#ffffff]' : ''}`}>
+                {/* Background photo layer */}
+                <div className="absolute inset-0 z-0" aria-hidden>
+                    <img
+                        src="/about-hero.jpg"
+                        alt=""
+                        className="h-full w-full object-cover"
+                        style={{ filter: isLight ? 'blur(4px) brightness(0.9)' : 'blur(3px) brightness(0.55)' }}
+                    />
+                    {/* Overlay so text stays legible over the photo */}
+                    <div
+                        className={`absolute inset-0 bb-theme-transition ${
+                            isLight
+                                ? 'bg-gradient-to-b from-white/70 via-white/60 to-white'
+                                : 'bg-gradient-to-b from-black/70 via-black/75 to-black'
+                        }`}
+                    />
+                </div>
+
                 <div className="absolute top-28 left-4 sm:left-8 z-20">
                     <PageBackButton isLight={isLight} fallbackTo="/" />
                 </div>
-                <div className="absolute inset-0 z-0 pointer-events-none" aria-hidden>
+                <div className="absolute inset-0 z-[1] pointer-events-none" aria-hidden>
                     <div
                         className={`bb-theme-transition absolute inset-0 bg-gradient-to-br from-[#D4AF37]/10 via-transparent to-transparent ${isLight ? 'opacity-0' : 'opacity-50'
                             }`}
@@ -157,17 +175,17 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
                         </p>
                         <div className="flex items-center justify-center gap-4 pt-4">
                             <div className={`h-[1px] w-12 ${isLight ? 'bg-black/10' : 'bg-white/10'}`}></div>
-                            <span className={`text-[10px] font-black uppercase tracking-[0.5em] ${isLight ? 'text-black/30' : 'text-white/30'}`}>EST. 2021</span>
+                            <span className={`text-[10px] font-black uppercase tracking-[0.5em] ${isLight ? 'text-black/30' : 'text-white/30'}`}></span>
                             <div className={`h-[1px] w-12 ${isLight ? 'bg-black/10' : 'bg-white/10'}`}></div>
                         </div>
                     </div>
                 </div>
 
-                <div className="absolute bottom-12 left-1/2 -translate-x-1/2 animate-bounce opacity-20">
+                {/* <div className="absolute bottom-12 left-1/2 -translate-x-1/2 animate-bounce opacity-20 z-10">
                     <div className={`bb-theme-transition w-6 h-10 rounded-full border-2 ${isLight ? 'border-black' : 'border-white'} flex justify-center p-1`}>
                         <div className={`bb-theme-transition w-1 h-2 rounded-full ${isLight ? 'bg-black' : 'bg-white'}`}></div>
                     </div>
-                </div>
+                </div> */}
             </section>
 
             {/* Mission & Vision grid */}

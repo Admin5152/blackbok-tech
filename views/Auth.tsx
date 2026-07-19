@@ -74,19 +74,19 @@ export const Auth: React.FC<AuthProps> = ({
               </div>
               <h1 className={`text-4xl lg:text-5xl font-black italic tracking-tighter leading-[0.9] uppercase ${leftText}`}>
                 {mode === 'login' ? (
-                  <>Login <br /><span className="text-[#CDA032]">Page</span></>
+                  <>Log in to <br /><span className="text-[#CDA032]">your account</span></>
                 ) : (
                   <>Sign <br /><span className="text-[#CDA032]">Up</span></>
                 )}
               </h1>
               <p className={`text-sm font-light italic leading-snug max-w-xs ${leftMuted}`}>
                 {mode === 'login'
-                  ? 'You need a registered account to sign in. New users and removed accounts must use Sign up first.'
-                  : 'Create your account and join the elite hardware repository.'}
+                  ? 'Welcome back to Blackbox. Login to your account to continue.'
+                  : 'Create your account and start shopping with us.'}
               </p>
             </div>
             <p className={`text-[9px] font-black uppercase tracking-[0.35em] italic mt-4 ${leftMutedFoot}`}>
-              AUTHORIZED TERMINAL // EST. KUMASI
+              BLACKBOX
             </p>
           </div>
 
@@ -97,10 +97,10 @@ export const Auth: React.FC<AuthProps> = ({
           <div className={`lg:w-[55%] ${rightBg} flex flex-col p-6 ${cardText}`}>
             <div className="mb-4">
               <h2 className="text-lg font-black italic tracking-tighter uppercase">
-                {mode === 'login' ? 'Login to your account' : 'Create an account'}
+                {mode === 'login' ? 'Login to your account' : 'Create your account'}
               </h2>
               <p className={`text-[10px] font-black uppercase tracking-widest ${cardMuted} mt-0.5 italic`}>
-                {mode === 'login' ? 'Welcome back to Blackbox' : 'Establish your new tech identity'}
+                {mode === 'login' ? 'Welcome back to Blackbox' : 'Create your account and start shopping with us.'}
               </p>
             </div>
 

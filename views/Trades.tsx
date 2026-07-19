@@ -116,7 +116,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
   });
 
   const [deviceDetails, setDeviceDetails] = useState({
-    serialNumber: '', physicalDesc: '', issueDesc: '',
+    serialNumber: '', imei: '', physicalDesc: '', issueDesc: '',
     whenStarted: '', previousRepairs: '',
   });
 
@@ -625,7 +625,10 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
       notify('Please type your specific model name.', 'error');
       return;
     }
-    if (!deviceDetails.serialNumber?.trim()) { notify('Please enter the Serial / IMEI number', 'error'); return; }
+    if (!deviceDetails.imei?.trim() && !deviceDetails.serialNumber?.trim()) {
+      notify('Please enter the IMEI and/or Serial number', 'error');
+      return;
+    }
     if (!formData.name || !formData.email || !formData.phone) { notify('Please fill in all contact details', 'error'); return; }
     if (targetProduct) {
       if (!isEligibleTradeUpgradeProduct(targetProduct)) {
@@ -650,7 +653,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
       const valuationSummary = tradeValuation.hasKnownBasePrice
         ? `\n[Estimate]\nBase purchase: ${tradeValuation.basePurchasePrice}\nDeductions: ${tradeValuation.totalDeductionAmount}\nFinal credit: ${tradeValuation.finalTradeValue}${targetProduct ? `\nTop-up: ${topUpAmount}` : ''}`
         : '\n[Estimate] Quote after inspection';
-      const detailsText = `${notes ? notes + '\n\n' : ''}Serial/IMEI: ${deviceDetails.serialNumber || 'N/A'}\nPhysical: ${deviceDetails.physicalDesc || 'N/A'}${componentSummary}${valuationSummary}\nWhen Started: ${deviceDetails.whenStarted || 'N/A'}\nPrevious Repairs: ${deviceDetails.previousRepairs || 'N/A'}\nAccessories: ${accessoriesList.length ? accessoriesList.join(', ') : 'None'}`;
+      const detailsText = `${notes ? notes + '\n\n' : ''}IMEI: ${deviceDetails.imei || 'N/A'}\nSerial: ${deviceDetails.serialNumber || 'N/A'}\nPhysical: ${deviceDetails.physicalDesc || 'N/A'}${componentSummary}${valuationSummary}\nWhen Started: ${deviceDetails.whenStarted || 'N/A'}\nPrevious Repairs: ${deviceDetails.previousRepairs || 'N/A'}\nAccessories: ${accessoriesList.length ? accessoriesList.join(', ') : 'None'}`;
       const data = await createTradeRequest({
         user_id: user.id,
         user_name: formData.name,
@@ -1307,10 +1310,16 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                     topUp={topUpAmount}
                   />
 
-                  <input type="text" placeholder="Serial / IMEI *"
-                    value={deviceDetails.serialNumber}
-                    onChange={e => setDeviceDetails({ ...deviceDetails, serialNumber: e.target.value })}
-                    className="w-full border border-[var(--bb-border)] rounded-2xl px-5 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <input type="text" placeholder="IMEI *"
+                      value={deviceDetails.imei}
+                      onChange={e => setDeviceDetails({ ...deviceDetails, imei: e.target.value })}
+                      className="w-full border border-[var(--bb-border)] rounded-2xl px-5 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />
+                    <input type="text" placeholder="Serial number *"
+                      value={deviceDetails.serialNumber}
+                      onChange={e => setDeviceDetails({ ...deviceDetails, serialNumber: e.target.value })}
+                      className="w-full border border-[var(--bb-border)] rounded-2xl px-5 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />
+                  </div>
 
                   <textarea rows={2} placeholder="Anything else about cosmetic condition? "
                     value={deviceDetails.physicalDesc}
@@ -1725,6 +1734,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                       });
                       setDeviceDetails({
                         serialNumber: '',
+                        imei: '',
                         physicalDesc: '',
                         issueDesc: '',
                         whenStarted: '',
