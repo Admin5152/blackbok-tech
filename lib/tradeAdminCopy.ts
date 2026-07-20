@@ -4,42 +4,92 @@
  */
 import type { TradeAnswerOutcome } from '../types/supabase';
 
-export const TRADE_ADMIN_PAGE_INTRO: Record<string, { title: string; body: string }> = {
+/** Ordered setup chain — shown on every Trade Admin page. */
+export const TRADE_ADMIN_SETUP_STEPS: Array<{
+  step: number;
+  label: string;
+  to: string;
+  tip: string;
+}> = [
+  {
+    step: 1,
+    label: 'Devices',
+    to: '/admin/trade/devices',
+    tip: 'List models customers can trade in',
+  },
+  {
+    step: 2,
+    label: 'Prices',
+    to: '/admin/trade/pricing',
+    tip: 'Starting value + condition discounts for each storage/SIM',
+  },
+  {
+    step: 3,
+    label: 'Link products',
+    to: '/admin/products',
+    tip: 'On each shop phone, set Matching trade-in model',
+  },
+  {
+    step: 4,
+    label: 'Upgrade phones',
+    to: '/admin/trade/upgrades',
+    tip: 'Which linked products customers can trade into',
+  },
+  {
+    step: 5,
+    label: 'Questions',
+    to: '/admin/trade/questionnaire',
+    tip: 'Condition quiz answers that change the estimate',
+  },
+];
+
+export const TRADE_ADMIN_PAGE_INTRO: Record<
+  string,
+  { title: string; body: string; next?: string }
+> = {
   queue: {
     title: 'Trade-in requests',
-    body: 'Every customer trade-in lands here. Open a request to review answers, send an offer, or update status.',
+    body: 'Every customer submission lands here. Open one to read answers, send an offer, or mark it complete.',
+    next: 'Need setup first? Use the checklist above (Devices → Prices → Link products → Upgrade phones).',
   },
   devices: {
     title: 'Devices we accept',
-    body: 'Turn models on or off for the online trade-in list. After adding a model, set starting prices and condition discounts under Prices.',
+    body: 'Turn models on or off for the online trade-in list. The model name must match exactly what you set on Products → Matching trade-in model.',
+    next: 'Next: Prices & discounts — add starting prices for each storage and SIM type.',
   },
   upgrades: {
     title: 'Upgrade phones we sell into',
-    body: 'Choose which shop products customers can trade into. Remove a product here and it disappears from the customer upgrade picker.',
+    body: 'Only trade-linked shop products can be listed (Matching trade-in model must be set). Empty list = show all linked iPhone/iPad. Press Save list to publish for every staff browser.',
+    next: 'If Add is locked, open Products and set Matching trade-in model first.',
   },
   pricing: {
     title: 'Prices & condition discounts',
-    body: 'Starting trade-in price is set per model, storage, and SIM type. Condition discounts are fixed cedis amounts (not percentages) taken off that starting price.',
+    body: 'Starting trade-in price is per model + storage + SIM (Physical / eSIM). Customers can only pick storage/SIM combinations you price here. Condition discounts are fixed cedis off that starting price.',
+    next: 'Tip: if you sell both Physical SIM and eSIM, add a price row for each — missing eSIM means no eSIM option for customers.',
   },
   thresholds: {
     title: 'Minimum trade-in values',
-    body: 'If a customer’s running estimate falls below this amount for a model, the online quiz stops and shows your message. Leave blank to use the global rule under Business rules.',
+    body: 'If the running estimate falls below this amount, the online quiz stops. Leave a model blank to use the global minimum under Business rules (blank is not “off”).',
+    next: 'Set the global fallback on Business rules if most models share one cut-off.',
   },
   config: {
     title: 'Business rules',
-    body: 'These settings control battery bands, appearance discounts, Find My / iCloud behaviour, rounding, and other estimate rules. Change carefully — they affect live customer quotes.',
+    body: 'Battery bands, appearance discounts, Find My / iCloud behaviour, rounding, and store location. These affect live customer quotes — change carefully.',
+    next: 'Do not edit the upgrade product ID list here — use Upgrade phones instead.',
   },
   questionnaire: {
     title: 'Condition questions',
-    body: 'Questions customers answer during trade-in. Each answer can apply a discount, mark for in-store check, or block the online estimate.',
+    body: 'Each answer can leave the price alone, apply a condition discount, mark for in-store check, or block the online estimate. Link answers to a part (screen, battery…) so discounts match Pricing.',
+    next: 'Deduct answers need a matching Condition discount row on Prices for that part.',
   },
   aesthetics: {
     title: 'Appearance discounts',
-    body: 'Per-model amounts for light wear and heavier wear. Only used when Business rules set appearance mode to “Set per phone model”.',
+    body: 'Per-model amounts for light wear and heavier wear. These only apply when Business rules set appearance calculation to “Set per phone model”.',
+    next: 'If mode is percent/fixed globally, edit Business rules instead — this page is unused until mode is per model.',
   },
   audit: {
     title: 'Change history',
-    body: 'A log of important edits staff made. Use it to see who changed prices, rules, or requests.',
+    body: 'A log of important edits staff made — who changed prices, rules, or requests.',
   },
 };
 

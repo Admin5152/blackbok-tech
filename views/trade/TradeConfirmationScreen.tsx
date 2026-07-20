@@ -54,10 +54,20 @@ export function TradeConfirmationScreen() {
         <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
           {TRADE_COPY.confirmation.heading}
         </h1>
-        <p className={`mt-3 text-sm leading-relaxed max-w-md mx-auto ${isLight ? 'text-black/60' : 'text-white/55'}`}>
-          {TRADE_COPY.confirmation.estimateOnlyNote}
-        </p>
-        <p className={`mt-4 text-sm ${isLight ? 'text-black/50' : 'text-white/45'}`}>
+        <div
+          className={`mt-5 mx-auto max-w-md rounded-2xl border-2 border-amber-500/50 bg-amber-500/15 px-4 py-4 text-left ${
+            isLight ? '' : ''
+          }`}
+          role="status"
+        >
+          <p className="text-[11px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-200 mb-1.5">
+            {TRADE_COPY.confirmation.estimateOnlyTitle}
+          </p>
+          <p className="text-sm leading-snug font-semibold text-amber-950 dark:text-amber-50">
+            {TRADE_COPY.confirmation.estimateOnlyNote}
+          </p>
+        </div>
+        <p className={`mt-6 text-sm ${isLight ? 'text-black/50' : 'text-white/45'}`}>
           {TRADE_COPY.confirmation.referenceLabel}
         </p>
         <p className="mt-1 text-3xl font-black tracking-[0.15em] text-[#CDA032]">
@@ -70,8 +80,21 @@ export function TradeConfirmationScreen() {
           {TRADE_COPY.summary.youTopUp}:{' '}
           <span className="font-black tabular-nums">{formatGhs(result.topUpAmount)}</span>
           <span className={`block text-xs mt-1 ${isLight ? 'text-black/40' : 'text-white/35'}`}>
-            {/* TODO(D8) */}
             {TRADE_COPY.summary.topUpPayableAtBlackBox}
+          </span>
+        </p>
+      )}
+
+      {result.targetProductPrice != null &&
+        result.targetProductPrice > 0 &&
+        result.estimatedValue > result.targetProductPrice && (
+        <p className="text-sm text-emerald-600">
+          {TRADE_COPY.summary.refundAmountLabel}:{' '}
+          <span className="font-black tabular-nums">
+            {formatGhs(Math.round(result.estimatedValue - result.targetProductPrice))}
+          </span>
+          <span className={`block text-xs mt-1 ${isLight ? 'text-black/40' : 'text-white/35'}`}>
+            {TRADE_COPY.summary.balanceRefunded}
           </span>
         </p>
       )}

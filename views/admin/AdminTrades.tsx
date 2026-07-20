@@ -878,7 +878,8 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                     <div className="p-6">
                         <h3 className="text-base font-black text-white mb-1">Manage upgrade picks</h3>
                         <p className="text-[10px] text-white/30 mb-4 leading-relaxed">
-                            Choose which iPhone and iPad catalogue products appear as &quot;upgrade to&quot; options in the customer trade-in flow (step 2). Order is preserved. Saves to this browser only; clear the list to show all eligible iPhone / iPad products.
+                            Only products with a Matching trade-in model (trade-linked) can be added.
+                            Prefer Trade Admin → Upgrade targets for the shared saved list. Clear the list to show all trade-linked iPhone / iPad products.
                         </p>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-h-0">
                             <div className="flex flex-col min-h-0 border border-white/10 rounded-xl overflow-hidden bg-black/30">
@@ -887,7 +888,9 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                 </div>
                                 <div className="max-h-[48vh] overflow-y-auto p-2 space-y-1">
                                     {upgradeCatalogRows.length === 0 ? (
-                                        <p className="text-[10px] text-white/30 p-3">No products match.</p>
+                                        <p className="text-[10px] text-white/30 p-3 leading-relaxed">
+                                            No trade-linked products. Set Matching trade-in model on Products first.
+                                        </p>
                                     ) : (
                                         upgradeCatalogRows.map((p) => (
                                             <div key={p.id} className="flex items-center gap-2 rounded-lg bg-white/[0.03] px-2 py-1.5">
@@ -896,7 +899,10 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                                 )}
                                                 <div className="min-w-0 flex-1">
                                                     <p className="text-[11px] font-bold text-white truncate">{p.name}</p>
-                                                    <p className="text-[9px] text-white/35">{p.category} · ${p.price}</p>
+                                                    <p className="text-[9px] text-white/35">
+                                                        {p.category} · ${p.price}
+                                                        {p.trade_model ? ` · → ${p.trade_model}` : ''}
+                                                    </p>
                                                 </div>
                                                 <button
                                                     type="button"

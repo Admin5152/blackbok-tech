@@ -40,7 +40,6 @@ import {
 import { TRADE_COPY } from '../lib/tradeCopy';
 import { tradeFriendlyError } from '../lib/tradeErrors';
 import { friendlyError } from '../lib/friendlyErrors';
-import { imeiFieldHint, serialFieldHint } from '../lib/imeiValidation';
 import { TRADE_COMPONENT_DEFS } from '../lib/tradeValuation';
 import { isTradeComponentKey, type TradeComponentKey } from '../lib/tradeComponentKeys';
 import {
@@ -628,23 +627,6 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
       notify('Please type your specific model name.', 'error');
       return;
     }
-    // IMEI / serial optional on legacy flow — validate only when provided
-    const imeiRaw = deviceDetails.imei?.trim() || '';
-    const serialRaw = deviceDetails.serialNumber?.trim() || '';
-    if (imeiRaw) {
-      const hint = imeiFieldHint(imeiRaw, 'IMEI');
-      if (!hint.ok) {
-        notify(hint.message, 'error');
-        return;
-      }
-    }
-    if (serialRaw) {
-      const hint = serialFieldHint(serialRaw);
-      if (!hint.ok) {
-        notify(hint.message, 'error');
-        return;
-      }
-    }
     if (!formData.name || !formData.email || !formData.phone) { notify('Please fill in all contact details', 'error'); return; }
     if (targetProduct) {
       if (!isEligibleTradeUpgradeProduct(targetProduct)) {
@@ -669,7 +651,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
       const valuationSummary = tradeValuation.hasKnownBasePrice
         ? `\n[Estimate]\nBase purchase: ${tradeValuation.basePurchasePrice}\nDeductions: ${tradeValuation.totalDeductionAmount}\nFinal credit: ${tradeValuation.finalTradeValue}${targetProduct ? `\nTop-up: ${topUpAmount}` : ''}`
         : '\n[Estimate] Quote after inspection';
-      const detailsText = `${notes ? notes + '\n\n' : ''}IMEI: ${deviceDetails.imei || 'N/A'}\nSerial: ${deviceDetails.serialNumber || 'N/A'}\nPhysical: ${deviceDetails.physicalDesc || 'N/A'}${componentSummary}${valuationSummary}\nWhen Started: ${deviceDetails.whenStarted || 'N/A'}\nPrevious Repairs: ${deviceDetails.previousRepairs || 'N/A'}\nAccessories: ${accessoriesList.length ? accessoriesList.join(', ') : 'None'}`;
+      const detailsText = `${notes ? notes + '\n\n' : ''}IMEI / serial: confirmed at BlackBox\nPhysical: ${deviceDetails.physicalDesc || 'N/A'}${componentSummary}${valuationSummary}\nWhen Started: ${deviceDetails.whenStarted || 'N/A'}\nPrevious Repairs: ${deviceDetails.previousRepairs || 'N/A'}\nAccessories: ${accessoriesList.length ? accessoriesList.join(', ') : 'None'}`;
       const data = await createTradeRequest({
         user_id: user.id,
         user_name: formData.name,
@@ -1326,34 +1308,9 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                     topUp={topUpAmount}
                   />
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <input type="text" placeholder="IMEI (optional)"
-                        value={deviceDetails.imei}
-                        onChange={e => setDeviceDetails({ ...deviceDetails, imei: e.target.value.replace(/\D/g, '').slice(0, 15) })}
-                        className="w-full border border-[var(--bb-border)] rounded-2xl px-5 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />
-                      {deviceDetails.imei.trim() ? (
-                        <p className={`text-[11px] ${imeiFieldHint(deviceDetails.imei, 'IMEI').ok ? 'text-emerald-600' : 'text-red-500'}`}>
-                          {imeiFieldHint(deviceDetails.imei, 'IMEI').message}
-                        </p>
-                      ) : (
-                        <p className="text-[11px] opacity-50">Optional · 15 digits</p>
-                      )}
-                    </div>
-                    <div className="space-y-1">
-                      <input type="text" placeholder="Serial number (optional)"
-                        value={deviceDetails.serialNumber}
-                        onChange={e => setDeviceDetails({ ...deviceDetails, serialNumber: e.target.value.replace(/[^A-Za-z0-9]/g, '').slice(0, 20) })}
-                        className="w-full border border-[var(--bb-border)] rounded-2xl px-5 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />
-                      {deviceDetails.serialNumber.trim() ? (
-                        <p className={`text-[11px] ${serialFieldHint(deviceDetails.serialNumber).ok ? 'text-emerald-600' : 'text-red-500'}`}>
-                          {serialFieldHint(deviceDetails.serialNumber).message}
-                        </p>
-                      ) : (
-                        <p className="text-[11px] opacity-50">Optional · 8–20 letters/numbers</p>
-                      )}
-                    </div>
-                  </div>
+                  <p className="text-[11px] opacity-55 leading-snug">
+                    IMEI and serial are confirmed at BlackBox when you drop off — they don’t change your online estimate.
+                  </p>
 
                   <textarea rows={2} placeholder="Anything else about cosmetic condition? "
                     value={deviceDetails.physicalDesc}
@@ -1642,7 +1599,14 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
               <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 active-form-section">
                 <div className="space-y-2">
                   <h2 className="text-3xl font-black tracking-tight">Review your trade-in</h2>
-                  <p className="opacity-60 text-sm">Your estimate is below — final credit is confirmed after we inspect the device.</p>
+                  <div className="rounded-2xl border-2 border-amber-500/50 bg-amber-500/15 px-4 py-3.5" role="status">
+                    <p className="text-[11px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-200 mb-1">
+                      Estimate only
+                    </p>
+                    <p className="text-sm font-semibold leading-snug text-amber-950 dark:text-amber-50">
+                      This is an estimate only — not the final price. Our team will review your request and send you the final offer afterward.
+                    </p>
+                  </div>
                 </div>
 
                 <div className="rounded-3xl border border-[var(--bb-border)] bg-[var(--bb-surface)] overflow-hidden shadow-2xl">
@@ -1676,10 +1640,10 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                       topUp={topUpAmount}
                     />
 
-                    <div className="flex gap-3 items-start p-4 bg-[#CDA032]/10 rounded-xl">
-                      <Info size={16} className="text-[#CDA032] shrink-0 mt-0.5" />
-                      <p className="text-xs leading-relaxed text-[#CDA032] font-semibold">
-                        Final credit may change after physical inspection. You approve every offer before we proceed.
+                    <div className="flex gap-3 items-start p-4 rounded-xl border-2 border-amber-500/45 bg-amber-500/12">
+                      <Info size={16} className="text-amber-600 dark:text-amber-300 shrink-0 mt-0.5" />
+                      <p className="text-xs leading-relaxed font-semibold text-amber-950 dark:text-amber-50">
+                        This is an estimate only — not the final price. After our team reviews, we send the final offer. You approve every offer before we proceed.
                       </p>
                     </div>
 

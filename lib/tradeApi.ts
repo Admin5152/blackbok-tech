@@ -7,6 +7,7 @@
  */
 import { supabase } from './supabase';
 import { sortStorageTiers } from './tradeFlowState';
+import { resolveSkuEffectivePrice } from './skuPrice';
 import {
   categoriesFromPriced,
   getPricedActiveModelsCached,
@@ -285,7 +286,7 @@ export async function getTradeTargets(filters?: {
 /**
  * Synthesise v_trade_targets-shaped rows from products + product_variants.
  * Used until the production migration view is live on the connected project.
- * trade_model falls back to products.model (pre-migration bridge column).
+ * Only products with Matching trade-in model (`trade_model`) are included.
  */
 async function getTradeTargetsFromProducts(filters?: {
   tradeModel?: string;
@@ -296,13 +297,13 @@ async function getTradeTargetsFromProducts(filters?: {
 
   let productQuery = supabase
     .from('products')
-    .select('id,name,category,condition,image_url,price,stock,status,trade_model,model')
-    .eq('status', 'active');
+    .select('id,name,category,condition,image_url,price,stock,status,trade_model')
+    .eq('status', 'active')
+    .not('trade_model', 'is', null)
+    .neq('trade_model', '');
   if (filters?.category) productQuery = productQuery.eq('category', filters.category);
   if (filters?.tradeModel) {
-    productQuery = productQuery.or(
-      `trade_model.eq.${filters.tradeModel},model.eq.${filters.tradeModel}`,
-    );
+    productQuery = productQuery.eq('trade_model', filters.tradeModel);
   }
 
   const { data: products, error: pErr } = await productQuery;
@@ -329,9 +330,7 @@ async function getTradeTargetsFromProducts(filters?: {
   const rows: TradeTargetRow[] = [];
   for (const p of products) {
     const tradeModel =
-      (p as { trade_model?: string | null }).trade_model ??
-      (p as { model?: string | null }).model ??
-      null;
+      String((p as { trade_model?: string | null }).trade_model ?? '').trim() || null;
     const pVars = byProduct.get(p.id) ?? [];
     if (pVars.length === 0) {
       const stock = Number(p.stock) || 0;
@@ -359,10 +358,11 @@ async function getTradeTargetsFromProducts(filters?: {
     for (const v of pVars) {
       const stock = Number(v.stock) || 0;
       if (inStockOnly && stock <= 0) continue;
-      const absolute =
-        v.price != null && Number.isFinite(Number(v.price))
-          ? Number(v.price)
-          : Number(p.price) + (Number(v.price_modifier) || 0);
+      const absolute = resolveSkuEffectivePrice({
+        productPrice: p.price,
+        variantPrice: v.price,
+        priceModifier: v.price_modifier,
+      });
       rows.push({
         product_id: p.id,
         name: p.name,
@@ -410,7 +410,42 @@ export async function computeTradeEstimate(
   });
 
   if (error) throw error;
-  return data as TradeEstimateResult;
+  return normalizeTradeEstimateResult(data);
+}
+
+/** Coerce RPC JSON and keep estimate = max(0, base − deductions). */
+export function normalizeTradeEstimateResult(data: unknown): TradeEstimateResult {
+  const raw =
+    typeof data === 'string'
+      ? (JSON.parse(data) as TradeEstimateResult)
+      : (data as TradeEstimateResult);
+  const base_value = Number(raw?.base_value) || 0;
+  const deductions = (raw?.deductions ?? []).map((d) => ({
+    component: String(d.component || ''),
+    amount: Math.max(0, Number(d.amount) || 0),
+  }));
+  const linesTotal = deductions.reduce((sum, d) => sum + d.amount, 0);
+  const reportedTotal = Number(raw?.total_deductions);
+  const total_deductions = Number.isFinite(reportedTotal) ? Math.max(0, reportedTotal) : linesTotal;
+  const expected = Math.max(0, base_value - total_deductions);
+  const reportedEstimate = Number(raw?.estimate);
+  const estimate =
+    Number.isFinite(reportedEstimate) && Math.abs(reportedEstimate - expected) <= 1
+      ? Math.max(0, reportedEstimate)
+      : expected;
+
+  return {
+    base_value,
+    deductions,
+    total_deductions,
+    estimate,
+    needs_verification: Boolean(raw?.needs_verification),
+    hard_stop: Boolean(raw?.hard_stop),
+    threshold: Number(raw?.threshold) || 0,
+    threshold_source: raw?.threshold_source || 'global',
+    below_threshold: Boolean(raw?.below_threshold),
+    threshold_message: raw?.threshold_message ?? null,
+  };
 }
 
 /** Resolve trade config → sellable SKU with match quality label */

@@ -185,6 +185,31 @@ export const TradeAdminPricing: React.FC = () => {
     [deducs, focusModel, ql],
   );
 
+  /** Models that have Physical SIM priced but no eSIM (or vice versa) for the same storage. */
+  const simCoverageHints = useMemo(() => {
+    const byKey = new Map<string, Set<string>>();
+    for (const r of bases) {
+      if (!r.is_active) continue;
+      if (focusModel && r.model !== focusModel) continue;
+      const k = `${r.model}||${r.storage}`;
+      const set = byKey.get(k) ?? new Set<string>();
+      set.add(String(r.sim_variant || '').toLowerCase());
+      byKey.set(k, set);
+    }
+    const hints: string[] = [];
+    for (const [k, sims] of byKey) {
+      const [model, storage] = k.split('||');
+      const hasPs = sims.has('ps') || sims.has('single') || sims.has('cell_ps');
+      const hasEs = sims.has('es') || sims.has('cell_es');
+      if (hasPs && !hasEs) {
+        hints.push(`${model} ${storage}: Physical SIM priced, no eSIM row`);
+      } else if (hasEs && !hasPs) {
+        hints.push(`${model} ${storage}: eSIM priced, no Physical SIM row`);
+      }
+    }
+    return hints.slice(0, 8);
+  }, [bases, focusModel]);
+
   const selectTab = (id: Tab) => {
     setTab(id);
     syncSearch({ model: focusModel || undefined, tab: id });
@@ -456,6 +481,22 @@ export const TradeAdminPricing: React.FC = () => {
 
       {tab === 'bases' ? (
         <>
+          {simCoverageHints.length > 0 && (
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-[11px] text-amber-100 space-y-1">
+              <p className="font-bold uppercase tracking-wider text-[10px]">
+                Incomplete SIM coverage
+              </p>
+              <p className="text-amber-100/80">
+                Customers only see storage/SIM options you price. Use “Copy as other SIM” on a row
+                to add the missing variant.
+              </p>
+              <ul className="list-disc pl-4 space-y-0.5 text-amber-100/90">
+                {simCoverageHints.map((h) => (
+                  <li key={h}>{h}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div className="rounded-xl border border-[#B38B21]/25 bg-[#B38B21]/5 p-4 space-y-3">
             <p className="text-[10px] font-black uppercase tracking-widest text-[#B38B21]">
               Add base row (model × storage × SIM)

@@ -184,16 +184,19 @@ export async function getProductForPdp(id: string): Promise<Product | null> {
   };
 }
 
-/** Effective price for a SKU — mirrors fn_variant_effective_price. */
+import { resolveSkuEffectivePrice } from './skuPrice';
+
+/** Effective price for a SKU — mirrors fn_variant_effective_price / resolveSkuEffectivePrice. */
 export function variantEffectivePrice(
   product: Product,
   variant: ProductVariant | null | undefined,
 ): number {
   if (!variant) return Number(product.price_from ?? product.price ?? 0);
-  if (variant.price != null && Number.isFinite(Number(variant.price))) {
-    return Number(variant.price);
-  }
-  return Number(product.price ?? product.price_from ?? 0) + (Number(variant.price_modifier) || 0);
+  return resolveSkuEffectivePrice({
+    productPrice: product.price ?? product.price_from,
+    variantPrice: variant.price,
+    priceModifier: variant.price_modifier,
+  });
 }
 
 const tradeMaxCache = new Map<string, { value: number; at: number }>();

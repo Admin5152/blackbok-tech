@@ -19,13 +19,14 @@ import { Banknote, Info, Smartphone } from 'lucide-react';
 import { useTradeFlow } from '../../lib/tradeFlowContext';
 import { TradePhasePills } from '../../components/trade/TradePhasePills';
 import { PageBackButton } from '../../components/PageBackButton';
-import { getTradeTargets } from '../../lib/tradeApi';
+import { getTradeDevices, getTradeTargets } from '../../lib/tradeApi';
 import { getProductPageRow } from '../../lib/catalogApi';
 import { formatGhs } from '../../lib/money';
 import { TRADE_COPY, simVariantLabel } from '../../lib/tradeCopy';
 import {
   filterTradeTargetRowsByUpgradePicks,
   loadUpgradeProductIds,
+  orderTargetProductsByAllowlist,
   TRADE_UPGRADE_PICKS_UPDATED_EVENT,
 } from '../../lib/tradeUpgradePicks';
 import {
@@ -56,6 +57,7 @@ export function TradeTargetScreen() {
   /** All active SKUs (incl. OOS) — so customers can pick the version they want */
   const [allRows, setAllRows] = useState<TradeTargetRow[]>([]);
   const [allowIds, setAllowIds] = useState<string[] | null>(null);
+  const [activeTradeModels, setActiveTradeModels] = useState<Set<string> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [productDetail, setProductDetail] = useState<{
@@ -86,13 +88,22 @@ export function TradeTargetScreen() {
         // Load all active variants so storage / eSIM choices stay visible;
         // browse cards still require at least one in-stock SKU (D11).
         // Staff allowlist (upgrade targets) filters which products appear.
-        const [data, ids] = await Promise.all([
+        // Active tradable models gate Matching trade-in model (same as admin).
+        const [data, loaded, devices] = await Promise.all([
           getTradeTargets({ inStockOnly: false }),
           loadUpgradeProductIds(),
+          getTradeDevices().catch(() => [] as Awaited<ReturnType<typeof getTradeDevices>>),
         ]);
         if (!cancelled) {
           setAllRows(data);
-          setAllowIds(ids);
+          setAllowIds(loaded.ids);
+          setActiveTradeModels(
+            new Set(
+              (devices || [])
+                .map((d) => String(d.model || '').trim())
+                .filter(Boolean),
+            ),
+          );
         }
       } catch {
         if (!cancelled) setError(TRADE_COPY.states.errorPricing);
@@ -102,8 +113,8 @@ export function TradeTargetScreen() {
     })();
 
     const onPicks = () => {
-      void loadUpgradeProductIds().then((ids) => {
-        if (!cancelled) setAllowIds(ids);
+      void loadUpgradeProductIds().then((loaded) => {
+        if (!cancelled) setAllowIds(loaded.ids);
       });
     };
     window.addEventListener(TRADE_UPGRADE_PICKS_UPDATED_EVENT, onPicks);
@@ -115,13 +126,26 @@ export function TradeTargetScreen() {
   }, []);
 
   const scopedRows = useMemo(
-    () => filterTradeTargetRowsByUpgradePicks(allRows, allowIds),
-    [allRows, allowIds],
+    () => filterTradeTargetRowsByUpgradePicks(allRows, allowIds, activeTradeModels),
+    [allRows, allowIds, activeTradeModels],
   );
 
   const stockRows = useMemo(() => filterInStockTargets(scopedRows), [scopedRows]);
 
-  const categories = useMemo(() => distinctTargetCategories(stockRows), [stockRows]);
+  /**
+   * Browse cards: when staff set an allowlist, show those products even if
+   * currently OOS (customer can still state preference). Without an allowlist,
+   * keep D11 in-stock-only browse.
+   */
+  const browseSourceRows = useMemo(
+    () => (allowIds?.length ? scopedRows : stockRows),
+    [allowIds, scopedRows, stockRows],
+  );
+
+  const categories = useMemo(
+    () => distinctTargetCategories(browseSourceRows),
+    [browseSourceRows],
+  );
 
   // Drop stale category chip if staff removed every product in that category
   useEffect(() => {
@@ -132,10 +156,17 @@ export function TradeTargetScreen() {
 
   const products = useMemo(() => {
     const filtered = categoryFilter
-      ? stockRows.filter((r) => r.category === categoryFilter)
-      : stockRows;
-    return groupTargetsByProduct(filtered);
-  }, [stockRows, categoryFilter]);
+      ? browseSourceRows.filter((r) => r.category === categoryFilter)
+      : browseSourceRows;
+    const grouped = groupTargetsByProduct(filtered);
+    return orderTargetProductsByAllowlist(grouped, allowIds);
+  }, [browseSourceRows, categoryFilter, allowIds]);
+
+  const productHasStock = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of stockRows) set.add(r.product_id);
+    return set;
+  }, [stockRows]);
 
   /** Configure against all variants for this product (incl. OOS prefs) */
   const productRows = useMemo(() => {
@@ -924,9 +955,24 @@ export function TradeTargetScreen() {
       </div>
 
       {products.length === 0 ? (
-        <p className="text-center py-12 text-sm text-[color:var(--bb-muted)]">
-          {TRADE_COPY.states.emptyTargets}
-        </p>
+        <div className="text-center py-12 space-y-2 px-4">
+          <p className="text-sm text-[color:var(--bb-muted)]">
+            {TRADE_COPY.states.emptyTargets}
+          </p>
+          {allowIds?.length ? (
+            <p className="text-xs text-[color:var(--bb-muted)] max-w-md mx-auto leading-relaxed">
+              Staff selected {allowIds.length} upgrade product(s), but none are ready to show.
+              Each product needs Matching trade-in model set to an active Tradable device, and
+              the product must be active in Admin → Products.
+            </p>
+          ) : (
+            <p className="text-xs text-[color:var(--bb-muted)] max-w-md mx-auto leading-relaxed">
+              Nothing listed yet. In admin: list Tradable devices, set Matching trade-in model
+              on shop products, then add them under Upgrade phones (or leave that list empty to
+              show all linked iPhone / iPad).
+            </p>
+          )}
+        </div>
       ) : (
         <>
           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#CDA032]">
@@ -938,6 +984,7 @@ export function TradeTargetScreen() {
                 state.targetLock &&
                 !state.targetLock.cashOnly &&
                 state.targetLock.productId === p.productId;
+              const inStock = productHasStock.has(p.productId);
               return (
                 <button
                   key={p.productId}
@@ -973,15 +1020,20 @@ export function TradeTargetScreen() {
                   <span className="mt-1.5 text-[11px] font-black tabular-nums text-[#CDA032]">
                     from {formatGhs(p.priceFrom)}
                   </span>
-                  {p.hasTradeModel && (
-                    <span
-                      className={`mt-1 text-[8px] font-black uppercase tracking-wider ${
-                        isLight ? 'text-black/30' : 'text-white/25'
-                      }`}
-                    >
-                      trade-linked
+                  {!inStock && (
+                    <span className="mt-1 text-[8px] font-black uppercase tracking-wider text-amber-500/90">
+                      {TRADE_COPY.target.availabilityPreference}
                     </span>
                   )}
+                  {p.hasTradeModel && p.tradeModel ? (
+                    <span
+                      className={`mt-1 text-[8px] font-black uppercase tracking-wider ${
+                        isLight ? 'text-black/40' : 'text-white/35'
+                      }`}
+                    >
+                      → {p.tradeModel}
+                    </span>
+                  ) : null}
                 </button>
               );
             })}

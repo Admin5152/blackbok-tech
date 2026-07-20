@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import {
   deleteAestheticOverride,
+  getAdminTradeConfig,
   getAestheticOverrides,
   tradeAdminErrorMessage,
   upsertAestheticOverride,
@@ -14,6 +15,7 @@ import { formatGhs } from '../../../lib/money';
 import type { TradeAestheticOverrideRow, TradeDeviceRow } from '../../../types/supabase';
 import { useAppContext } from '../../../lib/appContext';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
+import { Link } from '@tanstack/react-router';
 
 type Pair = { model: string; a1: number | null; a2: number | null };
 type PendingClear =
@@ -30,17 +32,22 @@ export const TradeAdminAesthetics: React.FC = () => {
   const [saving, setSaving] = useState<string | null>(null);
   const [pendingClear, setPendingClear] = useState<PendingClear | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [a1Mode, setA1Mode] = useState<string | null>(null);
+  const [a2Mode, setA2Mode] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     setError(null);
     try {
-      const [o, dIphone, dIpad] = await Promise.all([
+      const [o, dIphone, dIpad, cfg] = await Promise.all([
         getAestheticOverrides(),
         getTradeDevices('iphone'),
         getTradeDevices('ipad'),
+        getAdminTradeConfig(),
       ]);
       setOverrides(o);
       setDevices([...dIphone, ...dIpad]);
+      setA1Mode(cfg.find((c) => c.key === 'aesthetic_a1_mode')?.value ?? null);
+      setA2Mode(cfg.find((c) => c.key === 'aesthetic_a2_mode')?.value ?? null);
     } catch (e) {
       setError(tradeAdminErrorMessage(e));
     }
@@ -143,6 +150,19 @@ export const TradeAdminAesthetics: React.FC = () => {
 
   return (
     <div className="space-y-4">
+      {a1Mode !== 'per_model' && a2Mode !== 'per_model' && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100 space-y-1">
+          <p className="font-bold">These amounts are not used right now</p>
+          <p className="text-[11px] text-amber-100/80">
+            Business rules set appearance to {a1Mode || '—'} / {a2Mode || '—'} (not “Set per phone
+            model”). Change{' '}
+            <Link to="/admin/trade/config" className="underline underline-offset-2">
+              Business rules
+            </Link>{' '}
+            to per-model if you want this page to drive customer quotes.
+          </p>
+        </div>
+      )}
       <p className="text-[10px] text-white/40 leading-relaxed inline-flex items-start gap-1.5 flex-wrap">
         <span>
           Used when Business rules set appearance to “Set per phone model”. Light wear = small

@@ -19,6 +19,10 @@ import {
   configKeyTip,
   configValueLabel,
 } from '../../../lib/tradeAdminCopy';
+import { UPGRADE_TARGET_CONFIG_KEY } from '../../../lib/tradeUpgradePicks';
+import { Link } from '@tanstack/react-router';
+
+const HIDDEN_CONFIG_KEYS = new Set([UPGRADE_TARGET_CONFIG_KEY]);
 
 const PERCENT_KEYS = new Set([
   'aesthetic_a1_value',
@@ -174,6 +178,13 @@ export const TradeAdminConfig: React.FC = () => {
         Change these only when you understand the effect. Tap the ⓘ next to each rule for a short
         explanation. Saves update customer estimates within a few minutes.
       </p>
+      <p className="text-[11px] text-white/50 rounded-xl border border-white/10 bg-black/25 px-3 py-2">
+        Upgrade phone list is edited under{' '}
+        <Link to="/admin/trade/upgrades" className="text-[#B38B21] hover:underline">
+          Upgrade phones
+        </Link>
+        , not here.
+      </p>
 
       <div className="rounded-xl border border-[#B38B21]/25 bg-[#B38B21]/5 p-4 space-y-3">
         <p className="text-[10px] font-black uppercase tracking-widest text-[#B38B21] inline-flex items-center gap-1.5">
@@ -216,7 +227,9 @@ export const TradeAdminConfig: React.FC = () => {
       {rows.length === 0 ? (
         <p className="text-sm text-white/30 py-8 text-center">No business rules found.</p>
       ) : (
-        rows.map((r) => {
+        rows
+          .filter((r) => !HIDDEN_CONFIG_KEYS.has(r.key))
+          .map((r) => {
           const kind = inputKind(r.key);
           return (
             <div

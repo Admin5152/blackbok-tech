@@ -5,8 +5,8 @@
  *   trade_credit = compute_trade_estimate (base − questionnaire deductions)
  *   difference   = upgrade_device_price − trade_credit
  *
- *   Example: 17 Pro Max ₵12,000 − trade-in credit ₵4,000 = ₵8,000 top-up.
- *   As questionnaire deductions rise, trade_credit falls and top-up rises.
+ *   Example: upgrade ₵12,000 − trade-in credit ₵4,000 = ₵8,000 top-up.
+ *   Trading a higher-credit phone into a cheaper upgrade → refund (we owe them).
  *
  *   difference > 0  → top-up (red) — customer adds cash
  *   difference < 0  → refund (green) — we balance them
@@ -16,6 +16,7 @@
  * Money amounts always come from server estimate + target snapshot price.
  */
 import type { TradeTargetLock } from './tradeFlowState';
+import { computeRefundFromCredit, computeTopUpFromCredit } from './skuPrice';
 
 export type TradeBalanceKind = 'top_up' | 'refund' | 'even' | 'cash' | 'credit';
 
@@ -27,6 +28,8 @@ export interface TradeBalanceDisplay {
   signedDifference: number | null;
   tradeCredit: number;
   upgradePrice: number | null;
+  /** Plain equation for UI: "Upgrade − credit = …" */
+  formulaHint: string | null;
 }
 
 export function computeTradeBalanceDisplay(opts: {
@@ -44,38 +47,46 @@ export function computeTradeBalanceDisplay(opts: {
       signedDifference: null,
       tradeCredit,
       upgradePrice: null,
+      formulaHint: null,
     };
   }
 
   const upgradePrice = Number(target.effectivePrice);
-  if (!Number.isFinite(upgradePrice) || upgradePrice < 0) {
-    // No usable upgrade price yet — show credit only
+  // Missing / unset upgrade price → show credit only (never invent a top-up)
+  if (!Number.isFinite(upgradePrice) || !(upgradePrice > 0)) {
     return {
       kind: 'credit',
       amount: tradeCredit,
       signedDifference: null,
       tradeCredit,
       upgradePrice: null,
+      formulaHint: null,
     };
   }
 
+  const topUp = computeTopUpFromCredit(upgradePrice, tradeCredit);
+  const refund = computeRefundFromCredit(upgradePrice, tradeCredit);
   const signed = upgradePrice - tradeCredit;
-  if (signed > 0) {
+  const formulaHint = `Phone you’re trading into GH₵${Math.round(upgradePrice).toLocaleString('en-GH')} − your phone’s value GH₵${Math.round(tradeCredit).toLocaleString('en-GH')}`;
+
+  if (topUp > 0) {
     return {
       kind: 'top_up',
-      amount: signed,
+      amount: topUp,
       signedDifference: signed,
       tradeCredit,
       upgradePrice,
+      formulaHint: `${formulaHint} = you add GH₵${topUp.toLocaleString('en-GH')}`,
     };
   }
-  if (signed < 0) {
+  if (refund > 0) {
     return {
       kind: 'refund',
-      amount: Math.abs(signed),
+      amount: refund,
       signedDifference: signed,
       tradeCredit,
       upgradePrice,
+      formulaHint: `${formulaHint} = you receive GH₵${refund.toLocaleString('en-GH')}`,
     };
   }
   return {
@@ -84,6 +95,7 @@ export function computeTradeBalanceDisplay(opts: {
     signedDifference: 0,
     tradeCredit,
     upgradePrice,
+    formulaHint: `${formulaHint} = even`,
   };
 }
 

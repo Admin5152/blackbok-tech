@@ -4,15 +4,24 @@
  * WHY: Staff remove models (e.g. iPhone 17) from the upgrade list without a
  * deploy. Empty categories (iPad / Accessories with no picks) stay hidden on
  * /trade/target. Saves to trade_config so all browsers share the list.
+ *
+ * RULE: Only trade-linked products (Matching trade-in model set, and that model
+ * exists on Tradable devices) can be added.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, Package, RefreshCcw, X } from 'lucide-react';
+import { Link } from '@tanstack/react-router';
 import { useAppContext } from '../../../lib/appContext';
 import { getProductsAdmin } from '../../../lib/api';
+import { getTradeDevices } from '../../../lib/tradeApi';
+import { friendlyError } from '../../../lib/friendlyErrors';
 import {
   isEligibleTradeUpgradeProduct,
+  isTradeLinkedProduct,
   loadUpgradeProductIds,
+  productTradeModel,
   saveUpgradeProductIds,
+  tradeUpgradeBlockReason,
 } from '../../../lib/tradeUpgradePicks';
 import { formatGhs } from '../../../lib/money';
 import type { Product } from '../../../types';
@@ -20,24 +29,47 @@ import type { Product } from '../../../types';
 export const TradeAdminUpgrades: React.FC = () => {
   const { notify } = useAppContext();
   const [products, setProducts] = useState<Product[]>([]);
+  const [tradeModels, setTradeModels] = useState<Set<string>>(new Set());
   const [pickIds, setPickIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [q, setQ] = useState('');
   const [dirty, setDirty] = useState(false);
+  const [showUnlinked, setShowUnlinked] = useState(false);
+  const [listSource, setListSource] = useState<'server' | 'local' | 'empty'>('empty');
 
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      const [catalog, ids] = await Promise.all([
+      const [catalog, loaded, devices] = await Promise.all([
         getProductsAdmin(),
         loadUpgradeProductIds(),
+        getTradeDevices().catch(() => []),
       ]);
+      const modelSet = new Set(
+        (devices || [])
+          .filter((d) => d.is_active !== false)
+          .map((d) => String(d.model || '').trim())
+          .filter(Boolean),
+      );
       setProducts(catalog.filter((p) => String(p.status || 'active') !== 'archived'));
-      setPickIds(ids ?? []);
+      setTradeModels(modelSet);
+      setListSource(loaded.source);
+      // Drop stale picks that are no longer trade-linked
+      const nextIds = (loaded.ids ?? []).filter((id) => {
+        const p = catalog.find((x) => x.id === id);
+        return p && isEligibleTradeUpgradeProduct(p, modelSet);
+      });
+      setPickIds(nextIds);
       setDirty(false);
+      if (loaded.source === 'local') {
+        notify?.(
+          'Showing a list saved only on this computer — press Save list so every staff browser matches.',
+          'warning',
+        );
+      }
     } catch (e) {
-      notify?.(e instanceof Error ? e.message : 'Could not load products', 'error');
+      notify?.(friendlyError(e, 'load upgrade targets'), 'error');
     } finally {
       setLoading(false);
     }
@@ -49,10 +81,10 @@ export const TradeAdminUpgrades: React.FC = () => {
 
   const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
 
-  const catalogRows = useMemo(() => {
+  const eligibleRows = useMemo(() => {
     const ql = q.trim().toLowerCase();
     return products
-      .filter(isEligibleTradeUpgradeProduct)
+      .filter((p) => isEligibleTradeUpgradeProduct(p, tradeModels))
       .filter((p) => {
         if (!ql) return true;
         return (
@@ -66,9 +98,42 @@ export const TradeAdminUpgrades: React.FC = () => {
         );
       })
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [products, q]);
+  }, [products, q, tradeModels]);
+
+  const blockedRows = useMemo(() => {
+    const ql = q.trim().toLowerCase();
+    return products
+      .filter((p) => {
+        const name = (p.name || '').toLowerCase();
+        const cat = String(p.category || '').toLowerCase();
+        const looksPhone =
+          name.includes('iphone') ||
+          name.includes('ipad') ||
+          cat.includes('iphone') ||
+          cat.includes('ipad');
+        if (!looksPhone) return false;
+        return !isEligibleTradeUpgradeProduct(p, tradeModels);
+      })
+      .filter((p) => {
+        if (!ql) return true;
+        return (
+          p.name.toLowerCase().includes(ql) ||
+          String(p.category || '')
+            .toLowerCase()
+            .includes(ql)
+        );
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [products, q, tradeModels]);
 
   const add = (id: string) => {
+    const p = byId.get(id);
+    if (!p) return;
+    const reason = tradeUpgradeBlockReason(p, tradeModels);
+    if (reason) {
+      notify?.(reason, 'error');
+      return;
+    }
     setPickIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
     setDirty(true);
   };
@@ -94,21 +159,21 @@ export const TradeAdminUpgrades: React.FC = () => {
   const save = async () => {
     setSaving(true);
     try {
-      const eligible = new Set(
-        products.filter(isEligibleTradeUpgradeProduct).map((p) => p.id),
-      );
-      const clean = pickIds.filter((id) => eligible.has(id));
+      const clean = pickIds.filter((id) => {
+        const p = byId.get(id);
+        return p && isEligibleTradeUpgradeProduct(p, tradeModels);
+      });
       await saveUpgradeProductIds(clean);
       setPickIds(clean);
       setDirty(false);
       notify?.(
         clean.length
-          ? `Saved ${clean.length} upgrade target(s). Customers only see these.`
-          : 'Cleared list — customers see all eligible iPhone / iPad products.',
+          ? `Saved ${clean.length} trade-linked upgrade target(s).`
+          : 'Cleared list — customers see all trade-linked iPhone / iPad products.',
         'success',
       );
     } catch (e) {
-      notify?.(e instanceof Error ? e.message : 'Save failed', 'error');
+      notify?.(friendlyError(e, 'save upgrade targets'), 'error');
     } finally {
       setSaving(false);
     }
@@ -127,16 +192,27 @@ export const TradeAdminUpgrades: React.FC = () => {
             Upgrade targets
           </h2>
           <p className="text-xs opacity-60 mt-1 max-w-2xl leading-relaxed">
-            Choose which shop products appear when a customer picks what to{' '}
-            <strong className="opacity-90">trade into</strong>. Remove a phone
-            (e.g. iPhone 17) so it no longer shows. Categories with no listed
-            products — including iPad or Accessories — stay hidden in the
-            trade-in flow.
+            Only products with a <strong className="opacity-90">Matching trade-in model</strong>{' '}
+            (e.g. shop “iPhone 17 Pro Max Blue” → model <strong className="opacity-90">iPhone 17 Pro Max</strong>)
+            can be listed. Link that on Admin → Products first, then add here and press{' '}
+            <strong className="opacity-90">Save list</strong>.
           </p>
+          {dirty && (
+            <p className="text-[11px] text-amber-500 font-medium mt-2">
+              Unsaved changes — press Save list to publish to the trade-in flow.
+            </p>
+          )}
+          {listSource === 'local' && (
+            <p className="text-[11px] text-amber-400 font-medium mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5">
+              This list came from this browser only (shared save failed or never ran). Save list to
+              sync for customers and other staff.
+            </p>
+          )}
           <p className="text-[10px] uppercase tracking-widest mt-2 opacity-50">
             {pickIds.length === 0
-              ? 'Showing all eligible iPhone / iPad (no custom list)'
+              ? 'Showing all trade-linked iPhone / iPad (no custom list)'
               : `${pickIds.length} product(s) on the customer list`}
+            {listSource === 'server' ? ' · shared' : listSource === 'local' ? ' · this browser' : ''}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -162,7 +238,7 @@ export const TradeAdminUpgrades: React.FC = () => {
         <div className="flex flex-col min-h-0 border border-[var(--bb-border)] rounded-2xl overflow-hidden bg-[var(--bb-surface)]">
           <div className="p-3 border-b border-[var(--bb-border)] shrink-0 space-y-2">
             <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032]">
-              Shop catalogue
+              Trade-linked catalogue
             </p>
             <input
               value={q}
@@ -172,10 +248,16 @@ export const TradeAdminUpgrades: React.FC = () => {
             />
           </div>
           <div className="max-h-[min(60vh,520px)] overflow-y-auto p-2 space-y-1">
-            {catalogRows.length === 0 ? (
-              <p className="text-xs opacity-40 p-4">No matching iPhone / iPad products.</p>
+            {eligibleRows.length === 0 ? (
+              <p className="text-xs opacity-40 p-4 leading-relaxed">
+                No trade-linked iPhone / iPad products yet. Open{' '}
+                <Link to="/admin/products" className="text-[#CDA032] underline">
+                  Products
+                </Link>
+                , set <em>Matching trade-in model</em>, then refresh here.
+              </p>
             ) : (
-              catalogRows.map((p) => (
+              eligibleRows.map((p) => (
                 <div
                   key={p.id}
                   className="flex items-center gap-2 rounded-xl bg-[var(--bb-surface-2)]/60 px-2 py-1.5"
@@ -192,6 +274,8 @@ export const TradeAdminUpgrades: React.FC = () => {
                     <p className="text-[9px] opacity-45">
                       {p.category}
                       {p.price != null ? ` · ${formatGhs(Number(p.price))}` : ''}
+                      {' · '}
+                      <span className="text-[#CDA032]">→ {productTradeModel(p)}</span>
                     </p>
                   </div>
                   <button
@@ -204,6 +288,46 @@ export const TradeAdminUpgrades: React.FC = () => {
                   </button>
                 </div>
               ))
+            )}
+
+            {blockedRows.length > 0 && (
+              <div className="pt-3 mt-2 border-t border-[var(--bb-border)]">
+                <button
+                  type="button"
+                  onClick={() => setShowUnlinked((v) => !v)}
+                  className="text-[10px] font-black uppercase tracking-widest opacity-50 hover:opacity-80 px-2"
+                >
+                  {showUnlinked ? 'Hide' : 'Show'} {blockedRows.length} not trade-linked
+                </button>
+                {showUnlinked &&
+                  blockedRows.map((p) => (
+                    <div
+                      key={p.id}
+                      className="flex items-start gap-2 rounded-xl px-2 py-1.5 opacity-60"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold truncate">{p.name}</p>
+                        <p className="text-[9px] text-amber-500/90 leading-snug">
+                          {tradeUpgradeBlockReason(p, tradeModels)}
+                          {!isTradeLinkedProduct(p) && (
+                            <>
+                              {' '}
+                              <Link
+                                to="/admin/products"
+                                className="underline text-[#CDA032]"
+                              >
+                                Open products
+                              </Link>
+                            </>
+                          )}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-[9px] font-black uppercase opacity-40 pt-1">
+                        Locked
+                      </span>
+                    </div>
+                  ))}
+              </div>
             )}
           </div>
         </div>
@@ -218,7 +342,7 @@ export const TradeAdminUpgrades: React.FC = () => {
               onClick={() => {
                 if (
                   !window.confirm(
-                    'Clear the custom list? Customers will see all eligible iPhone / iPad products again.',
+                    'Clear the custom list? Customers will see all trade-linked iPhone / iPad products again.',
                   )
                 ) {
                   return;
@@ -234,9 +358,8 @@ export const TradeAdminUpgrades: React.FC = () => {
           <div className="max-h-[min(60vh,520px)] overflow-y-auto p-2 space-y-1 flex-1">
             {pickIds.length === 0 ? (
               <p className="text-xs opacity-40 p-4 leading-relaxed">
-                Nothing selected — the trade-in upgrade step shows every eligible
-                iPhone / iPad in stock. Add products on the left to lock the list
-                (e.g. exclude iPhone 17).
+                Nothing selected — the trade-in upgrade step shows every trade-linked
+                iPhone / iPad. Add products on the left to lock the list.
               </p>
             ) : (
               pickIds.map((id, i) => {
@@ -259,6 +382,9 @@ export const TradeAdminUpgrades: React.FC = () => {
                         <p className="text-[9px] opacity-45">
                           {p.category}
                           {p.price != null ? ` · ${formatGhs(Number(p.price))}` : ''}
+                          {productTradeModel(p) ? (
+                            <span className="text-[#CDA032]"> · → {productTradeModel(p)}</span>
+                          ) : null}
                         </p>
                       )}
                     </div>

@@ -857,9 +857,12 @@ function LiveTicker({
           </div>
           {showUpgradeMath && (
             <p className="text-[9px] opacity-45 leading-snug pt-0.5">
-              {TRADE_COPY.questionnaire.liveTopUpHint}
+              {balance?.formulaHint || TRADE_COPY.questionnaire.liveTopUpHint}
             </p>
           )}
+          <p className="text-[10px] font-semibold leading-snug pt-1.5 text-amber-700 dark:text-amber-200/90">
+            {TRADE_COPY.layout.summaryEstimateNote}
+          </p>
         </div>
       )}
     </div>

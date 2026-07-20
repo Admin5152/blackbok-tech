@@ -1,10 +1,12 @@
 /**
  * Per-model threshold worksheet — editable threshold_value on trade_devices.
- * Empty banner when cut-off cannot fire for models without a value.
+ * Blank models use the global minimum from Business rules (not “off”).
  */
 import React, { useCallback, useEffect, useState } from 'react';
+import { Link } from '@tanstack/react-router';
 import { Trash2 } from 'lucide-react';
 import {
+  getAdminTradeConfig,
   getThresholdWorksheet,
   tradeAdminErrorMessage,
   updateDeviceThreshold,
@@ -22,11 +24,18 @@ export const TradeAdminThresholds: React.FC = () => {
   const [saving, setSaving] = useState<string | null>(null);
   const [pendingClear, setPendingClear] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [globalThreshold, setGlobalThreshold] = useState<string | null>(null);
+  const [globalMode, setGlobalMode] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     setError(null);
     try {
-      setRows(await getThresholdWorksheet());
+      const [ws, cfg] = await Promise.all([getThresholdWorksheet(), getAdminTradeConfig()]);
+      setRows(ws);
+      const tv = cfg.find((c) => c.key === 'threshold_value');
+      const tm = cfg.find((c) => c.key === 'threshold_mode');
+      setGlobalThreshold(tv?.value ?? null);
+      setGlobalMode(tm?.value ?? null);
     } catch (e) {
       setError(tradeAdminErrorMessage(e));
     }
@@ -37,7 +46,7 @@ export const TradeAdminThresholds: React.FC = () => {
     void reload().finally(() => setLoading(false));
   }, [reload]);
 
-  const missing = rows.filter((r) => r.current_threshold == null || r.status === 'NEEDS CLIENT VALUE');
+  const usingFallback = rows.filter((r) => r.current_threshold == null);
 
   const save = async (model: string, raw: string) => {
     setSaving(model);
@@ -79,6 +88,13 @@ export const TradeAdminThresholds: React.FC = () => {
     }
   };
 
+  const globalLabel =
+    globalThreshold != null && globalThreshold !== ''
+      ? globalMode === 'percent'
+        ? `${globalThreshold}% of base`
+        : formatGhs(Number(globalThreshold))
+      : 'not set';
+
   if (loading) {
     return <div className="text-center py-16 text-white/30 text-sm">Loading thresholds…</div>;
   }
@@ -92,12 +108,24 @@ export const TradeAdminThresholds: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      {missing.length > 0 && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
-          Cut-off messages are OFF for models without a value ({missing.length} model
-          {missing.length === 1 ? '' : 's'}).
-        </div>
-      )}
+      <div className="rounded-xl border border-white/10 bg-black/30 p-4 text-sm text-white/70 space-y-1.5">
+        <p>
+          Global fallback (Business rules):{' '}
+          <span className="font-bold text-[#B38B21]">{globalLabel}</span>
+        </p>
+        <p className="text-[11px] text-white/45">
+          Models with a blank cell use that global minimum — blank is not “cut-off off”.{' '}
+          <Link to="/admin/trade/config" className="text-[#B38B21] underline-offset-2 hover:underline">
+            Edit Business rules
+          </Link>
+        </p>
+        {usingFallback.length > 0 && (
+          <p className="text-[11px] text-amber-200/90">
+            {usingFallback.length} model{usingFallback.length === 1 ? '' : 's'} use the global
+            fallback.
+          </p>
+        )}
+      </div>
 
       <p className="text-[10px] text-white/40 leading-relaxed">
         Set a per-model minimum in GHS, or clear it to use the global minimum from Business rules.
@@ -132,7 +160,7 @@ export const TradeAdminThresholds: React.FC = () => {
                       defaultValue={r.current_threshold ?? ''}
                       key={`${r.model}-${r.current_threshold ?? 'empty'}`}
                       disabled={saving === r.model}
-                      placeholder="—"
+                      placeholder="Global"
                       onBlur={(e) => {
                         const next = e.target.value.trim();
                         const prev =
@@ -146,12 +174,10 @@ export const TradeAdminThresholds: React.FC = () => {
                   <td className="px-3 py-2">
                     <span
                       className={`text-[9px] font-black uppercase ${
-                        r.status === 'NEEDS CLIENT VALUE' || r.current_threshold == null
-                          ? 'text-amber-300'
-                          : 'text-emerald-400'
+                        r.current_threshold == null ? 'text-amber-300' : 'text-emerald-400'
                       }`}
                     >
-                      {r.current_threshold == null ? 'Needs a value' : 'Set'}
+                      {r.current_threshold == null ? 'Uses global' : 'Custom'}
                     </span>
                   </td>
                   <td className="px-3 py-2">

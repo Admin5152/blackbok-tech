@@ -177,7 +177,7 @@ export function TradeSummarySidebar() {
                       )}
                     </div>
                   )}
-                  <p className="text-[9px] uppercase tracking-wider opacity-40 mt-1">
+                  <p className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2 py-1.5 text-[10px] font-bold leading-snug text-amber-800 dark:text-amber-100">
                     {TRADE_COPY.layout.summaryEstimateNote}
                   </p>
                 </>

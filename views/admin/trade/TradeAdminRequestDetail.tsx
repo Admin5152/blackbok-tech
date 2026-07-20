@@ -459,14 +459,40 @@ export const TradeAdminRequestDetail: React.FC = () => {
               {tradeOfferAmount(sel) != null ? formatGhs(tradeOfferAmount(sel)!) : 'TBD'}
             </p>
           </div>
-          {(sel as { top_up_amount?: number }).top_up_amount != null && (
-            <div>
-              <span className="text-white/40">Top-up</span>
-              <p className="font-bold text-white">
-                {formatGhs(Number((sel as { top_up_amount?: number }).top_up_amount))}
-              </p>
-            </div>
-          )}
+          {(() => {
+            const credit = Number(sel.estimated_value ?? sel.estimatedValue ?? 0);
+            const targetPrice = Number(
+              (sel as { target_product_price?: number | null }).target_product_price ?? 0,
+            );
+            const topUp = Number((sel as { top_up_amount?: number | null }).top_up_amount ?? NaN);
+            if (!Number.isFinite(topUp) && !(targetPrice > 0)) return null;
+            const refund =
+              targetPrice > 0 && credit > targetPrice ? Math.round(credit - targetPrice) : 0;
+            if (refund > 0) {
+              return (
+                <div>
+                  <span className="text-white/40">Customer refund</span>
+                  <p className="font-bold text-emerald-400">{formatGhs(refund)}</p>
+                  <p className="text-[9px] text-white/35 mt-0.5">
+                    Credit higher than upgrade price (server still stores top-up as 0).
+                  </p>
+                </div>
+              );
+            }
+            if (Number.isFinite(topUp)) {
+              return (
+                <div>
+                  <span className="text-white/40">
+                    {topUp > 0 ? 'Customer top-up' : 'Balance'}
+                  </span>
+                  <p className="font-bold text-white">
+                    {topUp > 0 ? formatGhs(topUp) : 'Even / no cash'}
+                  </p>
+                </div>
+              );
+            }
+            return null;
+          })()}
         </div>
         {Array.isArray((sel as { deduction_breakdown?: Array<{ key: string; label: string; amount: number }> }).deduction_breakdown) &&
           ((sel as { deduction_breakdown: Array<{ key: string; label: string; amount: number }> }).deduction_breakdown).length > 0 && (
@@ -626,10 +652,37 @@ export const TradeAdminRequestDetail: React.FC = () => {
         )}
         {sel.top_up_amount != null && (
           <p className="text-[11px] text-white/50">
-            Top-up (server):{' '}
-            <span className="font-black text-[#B38B21] tabular-nums">
-              {formatGhs(Number(sel.top_up_amount))}
-            </span>
+            {Number(sel.top_up_amount) > 0 ? (
+              <>
+                Customer top-up (server):{' '}
+                <span className="font-black text-[#B38B21] tabular-nums">
+                  {formatGhs(Number(sel.top_up_amount))}
+                </span>
+              </>
+            ) : Number(sel.target_product_price) > 0 &&
+              Number(sel.estimated_value ?? sel.estimatedValue ?? 0) >
+                Number(sel.target_product_price) ? (
+              <>
+                No top-up — credit exceeds upgrade (
+                <span className="font-black text-emerald-400 tabular-nums">
+                  refund ~{formatGhs(
+                    Math.round(
+                      Number(sel.estimated_value ?? sel.estimatedValue ?? 0) -
+                        Number(sel.target_product_price),
+                    ),
+                  )}
+                </span>
+                )
+              </>
+            ) : (
+              <>
+                Balance even (server top-up:{' '}
+                <span className="font-black text-white/70 tabular-nums">
+                  {formatGhs(Number(sel.top_up_amount))}
+                </span>
+                )
+              </>
+            )}
           </p>
         )}
       </div>

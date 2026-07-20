@@ -129,9 +129,19 @@ export function TradeModelScreen() {
 
   if (models.length === 0) {
     return (
-      <p className="text-center py-12 text-sm text-[color:var(--bb-muted)]">
-        {TRADE_COPY.states.emptyDevices}
-      </p>
+      <div className="text-center py-12 px-4 space-y-2 max-w-md mx-auto">
+        <p className="text-sm text-[color:var(--bb-muted)]">
+          {TRADE_COPY.states.emptyDevices}
+        </p>
+        <p className="text-xs text-[color:var(--bb-muted)] leading-relaxed">
+          {TRADE_COPY.states.emptyDevicesHint}
+        </p>
+        <PageBackButton
+          isLight={isLight}
+          to="/trade/category"
+          label={TRADE_COPY.back}
+        />
+      </div>
     );
   }
 
@@ -256,7 +266,7 @@ export function TradeModelScreen() {
               {TRADE_COPY.config.heading}
             </p>
             <p className="text-xs text-[color:var(--bb-muted)]">
-              Storage, SIM, colour and IMEI unlock on the next step after you pick a
+              Storage, SIM and colour unlock on the next step after you pick a
               model.
             </p>
           </div>

@@ -72,7 +72,7 @@ async function estimate(
   const { data, error } = await sb.rpc('compute_trade_estimate', {
     p_model: model,
     p_storage: storage,
-    p_sim_variant: sim,
+    p_sim: sim,
     p_answers: payload,
   });
   if (error) throw error;

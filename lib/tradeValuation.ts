@@ -1,6 +1,7 @@
 import { normalizeTradeModelKey } from '../data/tradeInPrices';
 import { lookupBaseValue, lookupDeductions } from './tradePricingStore';
 import { type TradeComponentKey } from './tradeComponentKeys';
+import { computeTopUpFromCredit } from './skuPrice';
 
 export { TRADE_COMPONENT_KEYS, type TradeComponentKey } from './tradeComponentKeys';
 
@@ -111,9 +112,7 @@ export function formatTradePricingModeLabel(mode: TradePricingMode | null | unde
 }
 
 export function computeTopUpAmount(newDevicePrice: number, finalTradeValue: number): number {
-  const price = Number.isFinite(newDevicePrice) ? newDevicePrice : 0;
-  const credit = Number.isFinite(finalTradeValue) ? finalTradeValue : 0;
-  return Math.max(0, Math.round(price - credit));
+  return computeTopUpFromCredit(newDevicePrice, finalTradeValue);
 }
 
 /** Resolve catalog variant / free-text into a trade price lookup key. */

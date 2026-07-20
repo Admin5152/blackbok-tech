@@ -456,6 +456,19 @@ export const TradeAdminQuestionnaire: React.FC = () => {
 
               {expanded === q.id && (
                 <div className="border-t border-white/10 p-3 space-y-2 bg-black/40">
+                  {q.answers.some(
+                    (a) =>
+                      a.outcome === 'deduct_full' ||
+                      a.outcome === 'deduct_half' ||
+                      a.outcome === 'deduct_quarter',
+                  ) &&
+                    !q.component && (
+                      <p className="text-[11px] text-amber-200 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5">
+                        This question has a discount answer but no linked part — the estimate may
+                        not apply the discount. Set “Linked part” above (screen, battery, …) and
+                        match a row on Prices → Condition discounts.
+                      </p>
+                    )}
                   {q.answers.map((a, ai) => (
                     <div
                       key={a.id}
