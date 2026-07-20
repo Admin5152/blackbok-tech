@@ -84,8 +84,8 @@ export const TRADE_ADMIN_PAGE_INTRO: Record<
   },
   aesthetics: {
     title: 'Appearance discounts',
-    body: 'Per-model amounts for light wear and heavier wear. These only apply when Business rules set appearance calculation to “Set per phone model”.',
-    next: 'If mode is percent/fixed globally, edit Business rules instead — this page is unused until mode is per model.',
+    body: 'Real GHS amounts per phone model for light wear and heavier wear. These apply only when Business rules set that wear level to “Set per phone model”.',
+    next: 'For percent or one global GHS amount, use Business rules instead — this page is ignored for that wear level.',
   },
   audit: {
     title: 'Change history',
@@ -160,19 +160,19 @@ export const TRADE_CONFIG_KEY_LABELS: Record<string, { label: string; tip: strin
   },
   aesthetic_a1_mode: {
     label: 'Light wear — how to calculate',
-    tip: 'Percent of starting price, fixed cedis, or different amount per model.',
+    tip: 'Percent → set % below. Fixed cedis → set GHS below. Per phone model → set real amounts on Appearance discounts (this page value is ignored).',
   },
   aesthetic_a1_value: {
     label: 'Light wear — amount',
-    tip: 'Discount for light scratches / wear when mode is percent or fixed.',
+    tip: 'Used only for Percent (%) or Fixed (GHS). When mode is “Set per phone model”, edit Appearance discounts instead.',
   },
   aesthetic_a2_mode: {
     label: 'Heavier wear — how to calculate',
-    tip: 'Percent of starting price, fixed cedis, or different amount per model.',
+    tip: 'Percent → set % below. Fixed cedis → set GHS below. Per phone model → set real amounts on Appearance discounts (this page value is ignored).',
   },
   aesthetic_a2_value: {
     label: 'Heavier wear — amount',
-    tip: 'Discount for more visible wear when mode is percent or fixed.',
+    tip: 'Used only for Percent (%) or Fixed (GHS). When mode is “Set per phone model”, edit Appearance discounts instead.',
   },
   estimate_validity_days: {
     label: 'Estimate valid for (days)',

@@ -51,9 +51,27 @@ const SELECT_OPTIONS: Record<string, string[]> = {
   notification_channel: ['in_app', 'sms', 'whatsapp', 'email'],
 };
 
-function inputKind(key: string): 'select' | 'number' | 'percent' | 'text' {
+type InputKind = 'select' | 'number' | 'percent' | 'ghs' | 'per_model_hint' | 'text';
+
+/** Resolve input unit from sibling mode so % / GHS / Appearance stay consistent. */
+function inputKind(key: string, drafts: Record<string, string>): InputKind {
   if (SELECT_OPTIONS[key]) return 'select';
-  if (PERCENT_KEYS.has(key) && key.includes('aesthetic')) return 'percent';
+
+  if (key === 'aesthetic_a1_value' || key === 'aesthetic_a2_value') {
+    const modeKey = key === 'aesthetic_a1_value' ? 'aesthetic_a1_mode' : 'aesthetic_a2_mode';
+    const mode = String(drafts[modeKey] || '').trim();
+    if (mode === 'fixed') return 'ghs';
+    if (mode === 'per_model') return 'per_model_hint';
+    return 'percent';
+  }
+
+  if (key === 'threshold_value') {
+    const mode = String(drafts.threshold_mode || '').trim();
+    if (mode === 'percent') return 'percent';
+    return 'number';
+  }
+
+  if (PERCENT_KEYS.has(key)) return 'percent';
   if (NUMBER_KEYS.has(key)) return 'number';
   return 'text';
 }
@@ -179,6 +197,15 @@ export const TradeAdminConfig: React.FC = () => {
         explanation. Saves update customer estimates within a few minutes.
       </p>
       <p className="text-[11px] text-white/50 rounded-xl border border-white/10 bg-black/25 px-3 py-2">
+        Appearance / wear: choose <span className="text-white/70">Percent</span> or{' '}
+        <span className="text-white/70">Fixed cedis</span> here — or{' '}
+        <span className="text-white/70">Set per phone model</span> and enter real GHS amounts under{' '}
+        <Link to="/admin/trade/aesthetics" className="text-[#B38B21] hover:underline">
+          Appearance discounts
+        </Link>
+        . Only one mode applies at a time.
+      </p>
+      <p className="text-[11px] text-white/50 rounded-xl border border-white/10 bg-black/25 px-3 py-2">
         Upgrade phone list is edited under{' '}
         <Link to="/admin/trade/upgrades" className="text-[#B38B21] hover:underline">
           Upgrade phones
@@ -230,7 +257,7 @@ export const TradeAdminConfig: React.FC = () => {
         rows
           .filter((r) => !HIDDEN_CONFIG_KEYS.has(r.key))
           .map((r) => {
-          const kind = inputKind(r.key);
+          const kind = inputKind(r.key, drafts);
           return (
             <div
               key={r.key}
@@ -248,14 +275,16 @@ export const TradeAdminConfig: React.FC = () => {
                   <p className="text-[9px] text-white/20 mt-0.5 font-mono">{r.key}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    disabled={saving === r.key || drafts[r.key] === r.value}
-                    onClick={() => void save(r.key)}
-                    className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase bg-[#B38B21] text-black disabled:opacity-30"
-                  >
-                    {saving === r.key ? 'Saving…' : 'Save'}
-                  </button>
+                  {kind !== 'per_model_hint' && (
+                    <button
+                      type="button"
+                      disabled={saving === r.key || drafts[r.key] === r.value}
+                      onClick={() => void save(r.key)}
+                      className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase bg-[#B38B21] text-black disabled:opacity-30"
+                    >
+                      {saving === r.key ? 'Saving…' : 'Save'}
+                    </button>
+                  )}
                   <button
                     type="button"
                     title="Delete config key"
@@ -287,7 +316,19 @@ export const TradeAdminConfig: React.FC = () => {
                     </option>
                   )}
                 </select>
-              ) : kind === 'number' || kind === 'percent' ? (
+              ) : kind === 'per_model_hint' ? (
+                <div className="rounded-xl border border-[#B38B21]/25 bg-[#B38B21]/10 px-3 py-3 text-[11px] text-white/70 leading-relaxed">
+                  Amounts for this wear level come from{' '}
+                  <Link
+                    to="/admin/trade/aesthetics"
+                    className="text-[#B38B21] font-bold hover:underline"
+                  >
+                    Appearance discounts
+                  </Link>{' '}
+                  (real GHS per phone model). The percentage / fixed value below is not used while
+                  mode is “Set per phone model”.
+                </div>
+              ) : kind === 'number' || kind === 'percent' || kind === 'ghs' ? (
                 <div className="relative">
                   <input
                     type="number"
@@ -300,6 +341,11 @@ export const TradeAdminConfig: React.FC = () => {
                   {kind === 'percent' && (
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 text-xs">
                       %
+                    </span>
+                  )}
+                  {kind === 'ghs' && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 text-xs">
+                      GHS
                     </span>
                   )}
                 </div>

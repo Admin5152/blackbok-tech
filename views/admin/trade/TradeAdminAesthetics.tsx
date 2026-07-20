@@ -150,24 +150,49 @@ export const TradeAdminAesthetics: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      {a1Mode !== 'per_model' && a2Mode !== 'per_model' && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100 space-y-1">
-          <p className="font-bold">These amounts are not used right now</p>
+      {(a1Mode !== 'per_model' || a2Mode !== 'per_model') && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100 space-y-2">
+          <p className="font-bold">Some columns are not driving quotes right now</p>
+          <ul className="text-[11px] text-amber-100/85 space-y-1 list-disc pl-4">
+            {a1Mode !== 'per_model' && (
+              <li>
+                <span className="font-bold">Light wear</span> uses Business rules (
+                {a1Mode === 'fixed' ? 'fixed GHS' : a1Mode === 'percent' ? 'percent' : a1Mode || '—'}
+                ), not this table.
+              </li>
+            )}
+            {a2Mode !== 'per_model' && (
+              <li>
+                <span className="font-bold">Heavier wear</span> uses Business rules (
+                {a2Mode === 'fixed' ? 'fixed GHS' : a2Mode === 'percent' ? 'percent' : a2Mode || '—'}
+                ), not this table.
+              </li>
+            )}
+          </ul>
           <p className="text-[11px] text-amber-100/80">
-            Business rules set appearance to {a1Mode || '—'} / {a2Mode || '—'} (not “Set per phone
-            model”). Change{' '}
+            To use the real GHS figures on this page, set that wear level to “Set per phone model” in{' '}
             <Link to="/admin/trade/config" className="underline underline-offset-2">
               Business rules
-            </Link>{' '}
-            to per-model if you want this page to drive customer quotes.
+            </Link>
+            .
           </p>
         </div>
       )}
-      <p className="text-[10px] text-white/40 leading-relaxed inline-flex items-start gap-1.5 flex-wrap">
-        <span>
-          Used when Business rules set appearance to “Set per phone model”. Light wear = small
-          scratches; Heavier wear = more visible marks. Clear a field or tap Delete to remove.
-        </span>
+      {(a1Mode === 'per_model' || a2Mode === 'per_model') && (
+        <p className="text-[10px] text-white/40 leading-relaxed">
+          Active here:{' '}
+          {[
+            a1Mode === 'per_model' ? 'Light wear' : null,
+            a2Mode === 'per_model' ? 'Heavier wear' : null,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+          . Blank cells deduct ₵0 for that model until you enter an amount.
+        </p>
+      )}
+      <p className="text-[10px] text-white/40 leading-relaxed">
+        Light wear = small scratches; Heavier wear = more visible marks. Clear a field or tap Delete
+        to remove.
       </p>
       <input
         value={q}
@@ -181,8 +206,22 @@ export const TradeAdminAesthetics: React.FC = () => {
             <thead className="sticky top-0 bg-[#0a0a0a] text-[9px] uppercase tracking-widest text-white/40">
               <tr>
                 <th className="px-3 py-2">Model</th>
-                <th className="px-3 py-2">Light wear (GHS)</th>
-                <th className="px-3 py-2">Heavier wear (GHS)</th>
+                <th className="px-3 py-2">
+                  Light wear (GHS)
+                  {a1Mode !== 'per_model' && (
+                    <span className="block normal-case tracking-normal text-amber-400/80 font-bold mt-0.5">
+                      Not active
+                    </span>
+                  )}
+                </th>
+                <th className="px-3 py-2">
+                  Heavier wear (GHS)
+                  {a2Mode !== 'per_model' && (
+                    <span className="block normal-case tracking-normal text-amber-400/80 font-bold mt-0.5">
+                      Not active
+                    </span>
+                  )}
+                </th>
                 <th className="px-3 py-2">Clear</th>
               </tr>
             </thead>
@@ -192,6 +231,8 @@ export const TradeAdminAesthetics: React.FC = () => {
                   <td className="px-3 py-2 text-xs font-bold text-white">{p.model}</td>
                   {(['a1', 'a2'] as const).map((grade) => {
                     const val = grade === 'a1' ? p.a1 : p.a2;
+                    const gradeActive =
+                      grade === 'a1' ? a1Mode === 'per_model' : a2Mode === 'per_model';
                     return (
                       <td key={grade} className="px-3 py-2">
                         <div className="flex items-center gap-1.5">
@@ -200,14 +241,28 @@ export const TradeAdminAesthetics: React.FC = () => {
                             defaultValue={val ?? ''}
                             key={`${p.model}-${grade}-${val ?? 'empty'}`}
                             placeholder="—"
-                            disabled={saving === `${p.model}:${grade}` || saving === p.model}
+                            disabled={
+                              !gradeActive ||
+                              saving === `${p.model}:${grade}` ||
+                              saving === p.model
+                            }
+                            title={
+                              gradeActive
+                                ? undefined
+                                : 'Switch Business rules to “Set per phone model” to use this amount'
+                            }
                             onBlur={(e) => {
+                              if (!gradeActive) return;
                               const next = e.target.value.trim();
                               const prev = val == null ? '' : String(val);
                               if (next === prev) return;
                               void saveGrade(p.model, grade, next);
                             }}
-                            className="w-28 bg-black/50 border border-white/10 rounded-lg px-2 py-1 text-[#B38B21] text-xs font-bold focus:border-[#B38B21]/50 focus:outline-none"
+                            className={`w-28 border rounded-lg px-2 py-1 text-xs font-bold focus:border-[#B38B21]/50 focus:outline-none ${
+                              gradeActive
+                                ? 'bg-black/50 border-white/10 text-[#B38B21]'
+                                : 'bg-white/5 border-white/5 text-white/25 cursor-not-allowed'
+                            }`}
                           />
                           {val != null && (
                             <>
@@ -217,7 +272,11 @@ export const TradeAdminAesthetics: React.FC = () => {
                               <button
                                 type="button"
                                 title={`Delete ${grade.toUpperCase()}`}
-                                disabled={saving === `${p.model}:${grade}` || saving === p.model}
+                                disabled={
+                                  !gradeActive ||
+                                  saving === `${p.model}:${grade}` ||
+                                  saving === p.model
+                                }
                                 onClick={() => void clearGrade(p.model, grade)}
                                 className="inline-flex p-1 rounded text-red-400/70 hover:bg-red-500/15 hover:text-red-300 disabled:opacity-40"
                               >
@@ -234,7 +293,10 @@ export const TradeAdminAesthetics: React.FC = () => {
                       <button
                         type="button"
                         title="Clear all overrides for model"
-                        disabled={saving === p.model}
+                        disabled={
+                          saving === p.model ||
+                          (a1Mode !== 'per_model' && a2Mode !== 'per_model')
+                        }
                         onClick={() => void clearModel(p.model)}
                         className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-black uppercase text-red-400/80 border border-red-500/20 hover:bg-red-500/10 disabled:opacity-40"
                       >
