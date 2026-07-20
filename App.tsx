@@ -1048,7 +1048,7 @@ function RootComponent() {
     setShowWelcomeScreen(false);
     scrollToDocumentTop();
   }, []);
-  const [theme, setTheme] = useState<Theme>('light');
+  const [theme, setTheme] = useState<Theme>('dark');
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -1880,7 +1880,7 @@ export default function App() {
   // context during normal operation (nested provider overrides this one).
   const [theme, setTheme] = useState<Theme>(() => {
     const t = localStorage.getItem(STORAGE_KEYS.THEME);
-    return t === 'light' || t === 'dark' ? t : 'light';
+    return t === 'light' || t === 'dark' ? t : 'dark';
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<Category[]>([]);

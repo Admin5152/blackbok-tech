@@ -279,7 +279,7 @@ export const Home: React.FC<HomeProps> = ({
                   } ${TW_DARK_BTN_DEPTH}`}
               >
                 About Us
-                <ArrowRight className="shrink-0 transition-transform group-hover:translate-x-1" size={18} />
+                {/* <ArrowRight className="shrink-0 transition-transform group-hover:translate-x-1" size={18} /> */}
               </Link>
             </div>
 

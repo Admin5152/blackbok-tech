@@ -1,19 +1,23 @@
 import React from 'react';
 
-export const WelcomeLoadingAnimation: React.FC<{ size?: 'small' | 'medium' | 'large' }> = ({ 
-  size = 'medium' 
+/**
+ * Splash loader — always dark-overlay colors (white strokes on black).
+ * Avoid Tailwind text-white / stroke-white classes: light-mode CSS remaps them.
+ */
+export const WelcomeLoadingAnimation: React.FC<{ size?: 'small' | 'medium' | 'large' }> = ({
+  size = 'medium',
 }) => {
   const sizeClasses = {
     small: 'w-20 h-20',
     medium: 'w-32 h-32',
-    large: 'w-40 h-40'
+    large: 'w-40 h-40',
   };
 
   return (
     <div className="flex flex-col items-center gap-4">
-      <svg 
-        className={`${sizeClasses[size]}`} 
-        viewBox="0 0 200 200" 
+      <svg
+        className={sizeClasses[size]}
+        viewBox="0 0 200 200"
         xmlns="http://www.w3.org/2000/svg"
       >
         <style>{`
@@ -32,22 +36,24 @@ export const WelcomeLoadingAnimation: React.FC<{ size?: 'small' | 'medium' | 'la
             50% { opacity: 0.7; }
           }
 
-          .animate-pill {
+          .bb-welcome-pill {
             animation: pillPulse 2s ease-in-out infinite;
           }
 
-          .animate-race {
+          .bb-welcome-race {
             animation: race 2s linear infinite;
           }
 
-          .animate-label {
+          .bb-welcome-label {
             animation: labelFade 2s ease-in-out infinite;
           }
         `}</style>
 
         {/* Ghost Track */}
         <path
-          className="fill-none stroke-white/10 stroke-[14] rounded-full"
+          fill="none"
+          stroke="rgba(255, 255, 255, 0.10)"
+          strokeWidth={14}
           strokeLinecap="round"
           strokeLinejoin="round"
           d="
@@ -65,13 +71,17 @@ export const WelcomeLoadingAnimation: React.FC<{ size?: 'small' | 'medium' | 'la
 
         {/* Racing Arc */}
         <path
-          className="fill-none stroke-white stroke-[14] animate-race"
+          className="bb-welcome-race"
+          fill="none"
+          stroke="#FFFFFF"
+          strokeWidth={14}
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeDasharray="90 394"
-          strokeDashoffset="0"
-          style={{ 
-            filter: 'drop-shadow(0 0 6px rgba(255,255,255,0.9)) drop-shadow(0 0 18px rgba(255,255,255,0.4))' 
+          strokeDashoffset={0}
+          style={{
+            filter:
+              'drop-shadow(0 0 6px rgba(255,255,255,0.9)) drop-shadow(0 0 18px rgba(255,255,255,0.4))',
           }}
           d="
             M 50,38 L 150,38
@@ -88,18 +98,23 @@ export const WelcomeLoadingAnimation: React.FC<{ size?: 'small' | 'medium' | 'la
 
         {/* Center Pill */}
         <rect
+          className="bb-welcome-pill"
           x="62"
           y="84"
           width="76"
           height="32"
           rx="16"
           ry="16"
-          className="fill-white opacity-90 animate-pill origin-center"
+          fill="#FFFFFF"
+          opacity={0.9}
           style={{ transformOrigin: '100px 100px' }}
         />
       </svg>
 
-      <span className="text-white/40 text-[8px] tracking-[0.35em] uppercase animate-label">
+      <span
+        className="bb-welcome-label text-[8px] tracking-[0.35em] uppercase"
+        style={{ color: 'rgba(255, 255, 255, 0.40)' }}
+      >
         Loading
       </span>
     </div>

@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import { CartItem, Product, User } from "../types";
 import { formatCurrency } from "../lib/utils";
-import { formatProductOptionLabel } from "../lib/productLabels";
 import { ProductCard } from "../components/ProductCard";
 import { PageBackButton } from "../components/PageBackButton";
 import { useAppContext } from "../App";
@@ -252,7 +251,7 @@ export const Cart: React.FC<CartProps> = ({
                                       key={key}
                                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#CDA032]/40 bg-[#CDA032]/10 text-[10px] font-black uppercase tracking-[0.18em] text-[#CDA032]"
                                     >
-                                      <span className="opacity-60">{formatProductOptionLabel(key)}:</span>
+                                      <span className="opacity-60">{key}:</span>
                                       <span>{val}</span>
                                     </span>
                                   ))}
@@ -339,7 +338,7 @@ export const Cart: React.FC<CartProps> = ({
                     <Building2 size={20} className="text-[#CDA032]" />
                   </div>
                   <div>
-                    <p className="text-sm font-black uppercase tracking-tight mb-1 text-[#CDA032]">BlackBox HQ</p>
+                    <p className="text-sm font-black uppercase tracking-tight mb-1 text-[#CDA032]">BlackBox </p>
                     <p className="text-[10px] opacity-60 uppercase tracking-widest leading-relaxed">KNUST Campus<br />Pickup within 24h</p>
                   </div>
                 </div>
@@ -413,14 +412,14 @@ export const Cart: React.FC<CartProps> = ({
                   <ShieldCheck size={20} className="text-[#CDA032]" />
                   <span className="text-[8px] font-black uppercase tracking-widest text-center">Secure Checkout</span>
                 </div>
-                <div className="flex flex-col items-center gap-2 max-w-[60px]">
+                {/* <div className="flex flex-col items-center gap-2 max-w-[60px]">
                   <Truck size={20} className="text-[#CDA032]" />
                   <span className="text-[8px] font-black uppercase tracking-widest text-center">Fast Delivery</span>
                 </div>
                 <div className="flex flex-col items-center gap-2 max-w-[60px]">
                   <Gift size={20} className="text-[#CDA032]" />
                   <span className="text-[8px] font-black uppercase tracking-widest text-center">Premium Wrapping</span>
-                </div>
+                </div> */}
                 <div className="flex flex-col items-center gap-2 max-w-[60px]">
                   <Package size={20} className="text-[#CDA032]" />
                   <span className="text-[8px] font-black uppercase tracking-widest text-center">Quality Assured</span>
