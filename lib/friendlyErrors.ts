@@ -101,12 +101,35 @@ export function friendlyError(e: unknown, action: FriendlyAction = 'complete tha
     return `Could not ${act} because that record already exists.`;
   }
 
-  // Missing relation / migrations
-  if (/relation|does not exist|could not find the table|schema cache|column .* does not exist|product_variants/i.test(lower)) {
-    if (/product_variants|column/i.test(lower)) {
+  // Missing relation / migrations — be specific (do NOT treat every "column" as product_variants)
+  if (
+    /could not find the ['"]?imei_1|could not find the ['"]?imei_2|could not find the ['"]?serial_number|column ['"]?imei_1|column ['"]?imei_2|column ['"]?serial_number/i.test(
+      lower,
+    )
+  ) {
+    return `Could not ${act} because IMEI/serial columns are not set up yet. Ask IT to run the trade IMEI/serial migration, then try again.`;
+  }
+
+  if (
+    /could not find the table|relation .* does not exist|schema cache/i.test(lower) ||
+    /column .* does not exist|could not find the ['"].*['"] column/i.test(lower)
+  ) {
+    if (/product_variants/i.test(lower)) {
       return `Could not ${act} stock versions. Ask IT to finish product setup in the database, then try again.`;
     }
+    const col =
+      raw.match(/Could not find the ['"]([^'"]+)['"] column/i)?.[1] ||
+      raw.match(/column ["']?([a-z0-9_]+)["']? of/i)?.[1] ||
+      raw.match(/column ["']?([a-z0-9_]+)["']? does not exist/i)?.[1];
+    if (col) {
+      return `Could not ${act} because the database is missing “${col}”. Ask IT to run the latest trade-in migrations, then try again.`;
+    }
     return `Could not ${act} because the database is missing a required table or column. Ask IT to run the latest setup migrations.`;
+  }
+
+  // product_variants mentioned in other contexts (FK, etc.) — not “missing setup”
+  if (/product_variants/i.test(lower) && /foreign key|23503|not present|violates/i.test(lower)) {
+    return `Could not ${act} — the upgrade product version is missing or invalid. Pick another upgrade option, or choose cash trade-in.`;
   }
 
   // Network

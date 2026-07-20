@@ -579,11 +579,16 @@ export async function submitTradeRequest(input: SubmitTradeRequestInput) {
       answers_edited: input.editLog.length > 0,
       needs_verification: input.estimate.needs_verification,
       needs_manual_review: false,
-      imei_1: (input.imei1 ?? input.deviceLock.imei1 ?? '').trim() || null,
-      imei_2: (input.imei2 ?? input.deviceLock.imei2 ?? '').trim() || null,
+      imei_1: (input.imei1 ?? input.deviceLock.imei1 ?? '').trim() || undefined,
+      imei_2: (input.imei2 ?? input.deviceLock.imei2 ?? '').trim() || undefined,
       serial_number:
-        (input.serialNumber ?? input.deviceLock.serialNumber ?? '').trim() || null,
-      imei_serial: input.imeiSerial.trim() || undefined,
+        (input.serialNumber ?? input.deviceLock.serialNumber ?? '').trim() || undefined,
+      imei_serial:
+        input.imeiSerial.trim() ||
+        (input.imei1 ?? input.deviceLock.imei1 ?? '').trim() ||
+        (input.serialNumber ?? input.deviceLock.serialNumber ?? '').trim() ||
+        (input.imei2 ?? input.deviceLock.imei2 ?? '').trim() ||
+        undefined,
       contact_name: input.contactName,
       contact_phone: input.contactPhone,
       contact_email: input.contactEmail || undefined,

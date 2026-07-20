@@ -1876,14 +1876,71 @@ export const createTradeRequest = async (trade: Partial<TradeInRequest>) => {
     'insert'
   );
 
-  const { data, error } = await supabase
-    .from('trade_in_requests')
-    .insert(payload)
-    .select()
-    .single();
+  // Keep legacy imei_serial populated from split identity fields
+  if (!payload.imei_serial) {
+    const primary =
+      (payload.imei_1 && String(payload.imei_1).trim()) ||
+      (payload.serial_number && String(payload.serial_number).trim()) ||
+      (payload.imei_2 && String(payload.imei_2).trim()) ||
+      '';
+    if (primary) payload.imei_serial = primary;
+  }
+  if (!payload.imei_serial) delete payload.imei_serial;
+
+  const insertOnce = async (body: Record<string, unknown>) =>
+    supabase.from('trade_in_requests').insert(body).select().single();
+
+  let { data, error } = await insertOnce(payload);
+
+  // DB without 2026_07_trade_imei_serial_fields.sql yet — retry on legacy imei_serial only
+  if (error && isMissingTradeIdentityColumnError(error)) {
+    const fallback = { ...payload };
+    delete fallback.imei_1;
+    delete fallback.imei_2;
+    delete fallback.serial_number;
+    ({ data, error } = await insertOnce(fallback));
+  }
+
+  // One more pass: strip whichever column PostgREST says is missing
+  if (error) {
+    const missing = extractMissingColumnName(error);
+    if (missing && missing in payload) {
+      const fallback = { ...payload };
+      delete fallback[missing];
+      if (/^imei_[12]$|^serial_number$/.test(missing)) {
+        delete fallback.imei_1;
+        delete fallback.imei_2;
+        delete fallback.serial_number;
+      }
+      ({ data, error } = await insertOnce(fallback));
+    }
+  }
+
   if (error) throw error;
   return mapTradeFromDb(data);
 };
+
+function extractMissingColumnName(error: unknown): string | null {
+  const raw =
+    error && typeof error === 'object' && 'message' in error
+      ? String((error as { message: string }).message)
+      : String(error || '');
+  return (
+    raw.match(/Could not find the ['"]([^'"]+)['"] column/i)?.[1] ||
+    raw.match(/column ["']?([a-z0-9_]+)["']? of relation/i)?.[1] ||
+    raw.match(/column ["']?([a-z0-9_]+)["']? does not exist/i)?.[1] ||
+    null
+  );
+}
+
+function isMissingTradeIdentityColumnError(error: unknown): boolean {
+  const raw =
+    error && typeof error === 'object' && 'message' in error
+      ? String((error as { message: string }).message)
+      : String(error || '');
+  return /imei_1|imei_2|serial_number/i.test(raw) &&
+    /could not find|does not exist|schema cache/i.test(raw);
+}
 
 export const getTradeRequests = async (userId?: string): Promise<TradeInRequest[]> => {
   let query = supabase.from('trade_in_requests').select('*').order('created_at', { ascending: false });
@@ -1916,12 +1973,38 @@ export const getTradeRequestByRef = async (ref: string): Promise<TradeInRequest 
 
 export const updateTradeRequest = async (id: string, updates: Partial<TradeInRequest>) => {
   const payload = normalizeTradeUpdatePayload(updates);
-  const { data, error } = await supabase
-    .from('trade_in_requests')
-    .update(payload)
-    .eq('id', id)
-    .select()
-    .single();
+
+  if (!payload.imei_serial) {
+    const primary =
+      (payload.imei_1 && String(payload.imei_1).trim()) ||
+      (payload.serial_number && String(payload.serial_number).trim()) ||
+      (payload.imei_2 && String(payload.imei_2).trim()) ||
+      '';
+    if (primary) payload.imei_serial = primary;
+  }
+
+  const updateOnce = async (body: Record<string, unknown>) =>
+    supabase.from('trade_in_requests').update(body).eq('id', id).select().single();
+
+  let { data, error } = await updateOnce(payload);
+
+  if (error && isMissingTradeIdentityColumnError(error)) {
+    const fallback = { ...payload };
+    delete fallback.imei_1;
+    delete fallback.imei_2;
+    delete fallback.serial_number;
+    ({ data, error } = await updateOnce(fallback));
+  }
+
+  if (error) {
+    const missing = extractMissingColumnName(error);
+    if (missing && missing in payload) {
+      const fallback = { ...payload };
+      delete fallback[missing];
+      ({ data, error } = await updateOnce(fallback));
+    }
+  }
+
   if (error) throw error;
   return mapTradeFromDb(data);
 };
