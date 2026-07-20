@@ -54,7 +54,7 @@ function conditionLabel(condition?: string | null, isNew?: boolean): string | nu
 
 function stockLabel(total: number): { kind: 'in' | 'low' | 'out'; text: string } {
   if (total <= 0) return { kind: 'out', text: 'Out of stock' };
-  if (total <= 3) return { kind: 'low', text: 'Low stock ≤3' };
+  if (total <= 3) return { kind: 'low', text: 'Low stock' };
   return { kind: 'in', text: 'In stock' };
 }
 

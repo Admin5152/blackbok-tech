@@ -215,7 +215,7 @@ export const Home: React.FC<HomeProps> = ({
 
         <div
           className={`bb-theme-transition pointer-events-none absolute inset-0 z-[8] ${isDark
-            ? 'bg-gradient-to-b from-black/92 via-zinc-950/55 to-black sm:from-black/88 sm:via-zinc-950/45 sm:to-black'
+            ? 'bg-gradient-to-b from-black/75 via-black/55 to-black/[0.98] sm:from-black/70 sm:via-black/50 sm:to-black'
             : 'bg-gradient-to-b from-black/75 via-black/55 to-black/[0.98] sm:from-black/70 sm:via-black/50 sm:to-black'
             }`}
           aria-hidden
