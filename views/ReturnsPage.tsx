@@ -14,6 +14,9 @@ import { useAppContext } from '../App';
 import { useReturns, type ReturnStatus, type ReturnCondition, type RefundMethod, type Return } from '../hooks/useReturns';
 import { formatCurrency } from '../lib/utils';
 import { PageBackButton } from '../components/PageBackButton';
+import { lockPageScroll } from '../lib/pageScrollLock';
+import { PAGE_SIZES, usePagination } from '../lib/pagination';
+import { Pagination } from '../components/Pagination';
 
 interface StatusMeta {
   label: string;
@@ -96,6 +99,8 @@ export const ReturnsPage: React.FC = () => {
       return true;
     });
   }, [orders, returns]);
+
+  const returnsPaging = usePagination(returns, PAGE_SIZES.list, returns.length);
 
   // Sign-in gate matches Profile.tsx pattern.
   if (!user) {
@@ -246,11 +251,21 @@ export const ReturnsPage: React.FC = () => {
             </p>
           </div>
         ) : (
+          <>
           <ul className="space-y-3">
-            {returns.map((r) => (
+            {returnsPaging.pageItems.map((r) => (
               <ReturnRow key={r.id} item={r} isLight={isLight} />
             ))}
           </ul>
+          <Pagination
+            page={returnsPaging.page}
+            pageCount={returnsPaging.pageCount}
+            onPageChange={returnsPaging.setPage}
+            total={returnsPaging.total}
+            pageSize={PAGE_SIZES.list}
+            isLight={isLight}
+          />
+          </>
         )}
       </div>
 
@@ -404,11 +419,7 @@ export const RequestReturnModal: React.FC<RequestReturnModalProps> = ({
 
   // Lock body scroll while modal is open.
   useEffect(() => {
-    const original = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = original;
-    };
+    return lockPageScroll();
   }, []);
 
   // Close on Escape.

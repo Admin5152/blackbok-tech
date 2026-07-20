@@ -24,6 +24,9 @@ import { StoreProductListRow } from '../components/StoreProductListRow';
 import { normalizeProductCategory } from '../lib/api';
 import { scanScrollReveal } from '../hooks/useScrollReveal';
 import { sortProductsStockFirst } from '../lib/productOptions';
+import { lockPageScroll } from '../lib/pageScrollLock';
+import { PAGE_SIZES, usePagination } from '../lib/pagination';
+import { Pagination } from '../components/Pagination';
 import {
   buildOrderedStoreCategoryKeys,
   countActiveStoreFilters,
@@ -160,11 +163,7 @@ export const Store: React.FC<StoreProps> = ({
 
   useEffect(() => {
     if (!showFilters || window.matchMedia('(min-width: 1024px)').matches) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prev;
-    };
+    return lockPageScroll();
   }, [showFilters]);
 
   const buildStoreSearchParams = useCallback(() => {
@@ -267,6 +266,22 @@ export const Store: React.FC<StoreProps> = ({
     return sortProductsStockFirst(results);
   }, [baseFilteredProducts, selectedCategories]);
 
+  const storePageResetKey = [
+    searchTerm,
+    selectedCategories.join(','),
+    priceRange.min,
+    priceRange.max,
+    showPromotionsOnly ? '1' : '0',
+  ].join('|');
+
+  const {
+    page: storePage,
+    setPage: setStorePage,
+    pageCount: storePageCount,
+    pageItems: pageProducts,
+    total: storeTotal,
+  } = usePagination(filteredProducts, PAGE_SIZES.store, storePageResetKey);
+
   useEffect(() => {
     scanScrollReveal();
     const t = window.setTimeout(() => {
@@ -275,7 +290,7 @@ export const Store: React.FC<StoreProps> = ({
       });
     }, 120);
     return () => window.clearTimeout(t);
-  }, [filteredProducts.length, viewMode, searchTerm, selectedCategories]);
+  }, [pageProducts.length, storePage, viewMode, searchTerm, selectedCategories]);
 
   const activeFiltersCount = countActiveStoreFilters({
     selectedCategories,
@@ -462,10 +477,11 @@ export const Store: React.FC<StoreProps> = ({
             aria-hidden={!showFilters}
           />
           <div
-            className={`lg:hidden fixed top-0 left-0 z-[70] h-full w-[min(100vw,24rem)] max-w-[400px] transform transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)] ${showFilters ? 'translate-x-0' : '-translate-x-full'}`}
+            className={`lg:hidden fixed top-0 left-0 z-[70] flex h-[100dvh] max-h-[100dvh] w-[min(100vw,24rem)] max-w-[400px] min-h-0 flex-col transform transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)] ${showFilters ? 'translate-x-0' : '-translate-x-full'}`}
             role="dialog"
             aria-modal={showFilters}
             aria-label="Shop filters"
+            data-lenis-prevent
           >
             <StoreFilterPanel
               {...filterPanelProps}
@@ -490,7 +506,7 @@ export const Store: React.FC<StoreProps> = ({
 
             {filteredProducts.length > 0 && viewMode === 'grid' && (
               <div className={`bb-store-product-grid grid gap-2 sm:gap-3 ${gridCols}`}>
-                {filteredProducts.map((product, index) => (
+                {pageProducts.map((product, index) => (
                   <div
                     key={product.id}
                     className={`reveal-on-scroll ${['reveal-delay-1', 'reveal-delay-2', 'reveal-delay-3'][index % 3]}`}
@@ -512,7 +528,7 @@ export const Store: React.FC<StoreProps> = ({
 
             {filteredProducts.length > 0 && viewMode === 'list' && (
               <div className="space-y-3 sm:space-y-4">
-                {filteredProducts.map((product) => (
+                {pageProducts.map((product) => (
                   <StoreProductListRow
                     key={product.id}
                     product={product}
@@ -523,6 +539,17 @@ export const Store: React.FC<StoreProps> = ({
                   />
                 ))}
               </div>
+            )}
+
+            {filteredProducts.length > 0 && (
+              <Pagination
+                page={storePage}
+                pageCount={storePageCount}
+                onPageChange={setStorePage}
+                total={storeTotal}
+                pageSize={PAGE_SIZES.store}
+                isLight={isLight}
+              />
             )}
 
             {filteredProducts.length === 0 && (

@@ -9,31 +9,15 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { Bell, CheckCheck, RefreshCcw, Package, Wrench, Info } from 'lucide-react';
 import { useAppContext } from '../../lib/appContext';
 import { useNotifications, type Notification } from '../../hooks/useNotifications';
+import {
+  notificationNavigateTarget,
+  toNavigateOptions,
+} from '../../lib/notificationLinks';
 import { TRADE_COPY } from '../../lib/tradeCopy';
 import { saveReturnTo } from '../../lib/returnTo';
 import { PageBackButton } from '../../components/PageBackButton';
-
-function tradeDeepLink(n: Notification): string {
-  if (n.type !== 'trade' || !n.reference_id) return '/account/trade-ins';
-  const title = (n.title || '').toLowerCase();
-  // Offer-ready → My trade-ins (accept/decline). Otherwise tracking timeline.
-  if (
-    title.includes('offer') ||
-    title.includes('awaiting') ||
-    /offer ready|awaiting your response/i.test(n.body || '')
-  ) {
-    return '/account/trade-ins';
-  }
-  return `/tracking/trade/${n.reference_id}`;
-}
-
-function linkFor(n: Notification): string | null {
-  if (n.type === 'trade') return tradeDeepLink(n);
-  if (!n.reference_id) return null;
-  if (n.type === 'order') return `/tracking/order/${n.reference_id}`;
-  if (n.type === 'repair') return `/tracking/repair/${n.reference_id}`;
-  return null;
-}
+import { PAGE_SIZES, usePagination } from '../../lib/pagination';
+import { Pagination } from '../../components/Pagination';
 
 function iconFor(type: Notification['type']) {
   switch (type) {
@@ -94,6 +78,8 @@ export function NotificationsPage() {
     [notifications],
   );
 
+  const notifPaging = usePagination(sorted, PAGE_SIZES.notifications, sorted.length);
+
   return (
     <div
       className={`min-h-[70vh] px-4 py-6 sm:px-6 sm:py-10 max-w-2xl mx-auto ${
@@ -153,10 +139,11 @@ export function NotificationsPage() {
           <p className="text-sm">{TRADE_COPY.notifications.empty}</p>
         </div>
       ) : (
+        <>
         <ul className="space-y-2">
-          {sorted.map((n) => {
+          {notifPaging.pageItems.map((n) => {
             const Icon = iconFor(n.type);
-            const href = linkFor(n);
+            const target = notificationNavigateTarget(n);
             const lifecycle = isLifecycleTradeEvent(n);
             return (
               <li key={n.id}>
@@ -164,7 +151,12 @@ export function NotificationsPage() {
                   type="button"
                   onClick={() => {
                     if (!n.is_read) void markAsRead(n.id);
-                    if (href) void navigate({ to: href as any });
+                    if (!target) return;
+                    try {
+                      void navigate(toNavigateOptions(target) as any);
+                    } catch (err) {
+                      console.error('Notification navigation failed:', err);
+                    }
                   }}
                   className={`w-full text-left rounded-2xl border p-4 transition-colors ${
                     n.is_read
@@ -194,7 +186,7 @@ export function NotificationsPage() {
                       <p className={`text-xs mt-1 leading-relaxed ${isLight ? 'text-black/55' : 'text-white/50'}`}>
                         {n.body}
                       </p>
-                      {n.type === 'trade' && href && (
+                      {n.type === 'trade' && target && (
                         <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032] mt-2">
                           {TRADE_COPY.notifications.viewTrade}
                         </p>
@@ -206,6 +198,15 @@ export function NotificationsPage() {
             );
           })}
         </ul>
+        <Pagination
+          page={notifPaging.page}
+          pageCount={notifPaging.pageCount}
+          onPageChange={notifPaging.setPage}
+          total={notifPaging.total}
+          pageSize={PAGE_SIZES.notifications}
+          isLight={isLight}
+        />
+        </>
       )}
 
       {user && (

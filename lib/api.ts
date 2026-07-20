@@ -542,10 +542,10 @@ const rethrowVariantConstraint = (err: { message?: string; code?: string }): nev
   const code = String(err?.code || '');
   if (code === '23505' || /uq_variant_combo|uq_variant_sku|duplicate key/i.test(msg)) {
     throw new Error(
-      'Duplicate SKU combination (color/storage/RAM/SIM) or SKU code. Each combination must be unique.',
+      'Duplicate combination (color / storage / RAM / SIM) or item code. Each combination must be unique.',
     );
   }
-  throw err instanceof Error ? err : new Error(msg || 'Variant sync failed');
+  throw err instanceof Error ? err : new Error(msg || 'Could not save stock versions');
 };
 
 /** Upsert SKU rows and remove combinations no longer in the matrix. */
@@ -606,7 +606,7 @@ export const syncProductVariants = async (productId: string, rows: SkuVariantInp
       if (derr) throw derr;
     }
   } catch (e) {
-    if (e instanceof Error && /Duplicate SKU/.test(e.message)) throw e;
+    if (e instanceof Error && /Duplicate combination|Duplicate SKU/.test(e.message)) throw e;
     const err = e as { message?: string; code?: string };
     if (err?.code === '23505' || /uq_variant|duplicate key/i.test(String(err?.message || ''))) {
       rethrowVariantConstraint(err);
@@ -614,14 +614,14 @@ export const syncProductVariants = async (productId: string, rows: SkuVariantInp
     throw e;
   }
 
-  void appendAuditNote('product_variants', productId, `Synced ${rows.length} SKU row(s)`);
+  void appendAuditNote('product_variants', productId, `Synced ${rows.length} stock version(s)`);
 };
 
-/** Remove all SKU rows when staff switches back to single product-level stock. */
+/** Remove all stock versions when staff switches back to single product-level stock. */
 export const clearProductVariants = async (productId: string) => {
   const { error } = await supabase.from('product_variants').delete().eq('product_id', productId);
   if (error) throw error;
-  void appendAuditNote('product_variants', productId, 'Cleared all SKU rows');
+  void appendAuditNote('product_variants', productId, 'Cleared all stock versions');
 };
 
 export type ProductImageInput = {
@@ -912,7 +912,9 @@ export const getCartItems = async (userId: string): Promise<CartItem[]> => {
     name: item.products?.name,
     price: item.product_variants ? (Number(item.products?.price) + Number(item.product_variants.price_modifier)) : Number(item.products?.price),
     image: item.products?.image_url,
-    selectedOptions: item.product_variants ? { variant: item.product_variants.sku } : {}
+    selectedOptions: item.product_variants?.sku
+      ? { 'Item code': item.product_variants.sku }
+      : {},
   }));
 };
 
@@ -951,31 +953,110 @@ export const clearCartItems = async (userId: string) => {
 };
 
 // ==========================================
-// WISHLIST
+// WISHLIST  (public.wishlist_items — RLS: own rows)
 // ==========================================
 
-export const getWishlist = async (userId: string): Promise<Wishlist[]> => {
+/** Product ids saved by this user (newest first). */
+export const getWishlistProductIds = async (userId: string): Promise<string[]> => {
+  const uid = String(userId || '').trim();
+  if (!uid) return [];
   const { data, error } = await supabase
     .from('wishlist_items')
-    .select('*, products(*)')
-    .eq('user_id', userId);
+    .select('product_id')
+    .eq('user_id', uid)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? [])
+    .map((row) => String((row as { product_id?: string }).product_id || '').trim())
+    .filter(Boolean);
+};
+
+export const getWishlist = async (userId: string): Promise<Wishlist[]> => {
+  const uid = String(userId || '').trim();
+  if (!uid) return [];
+  const { data, error } = await supabase
+    .from('wishlist_items')
+    .select('id, user_id, product_id, created_at')
+    .eq('user_id', uid)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as Wishlist[];
+};
+
+export const addToWishlist = async (userId: string, productId: string) => {
+  const uid = String(userId || '').trim();
+  const pid = String(productId || '').trim();
+  if (!uid || !pid) throw new Error('User and product are required.');
+  const { data, error } = await supabase
+    .from('wishlist_items')
+    .upsert(
+      { user_id: uid, product_id: pid },
+      { onConflict: 'user_id,product_id', ignoreDuplicates: true },
+    )
+    .select('id, user_id, product_id, created_at')
+    .maybeSingle();
   if (error) throw error;
   return data;
 };
 
-export const addToWishlist = async (userId: string, productId: string) => {
-  const { data, error } = await supabase
+/** Prefer this over row-id delete — UI only knows product ids. */
+export const removeFromWishlistByProduct = async (
+  userId: string,
+  productId: string,
+): Promise<void> => {
+  const uid = String(userId || '').trim();
+  const pid = String(productId || '').trim();
+  if (!uid || !pid) return;
+  const { error } = await supabase
     .from('wishlist_items')
-    .insert({ user_id: userId, product_id: productId })
-    .select()
-    .single();
+    .delete()
+    .eq('user_id', uid)
+    .eq('product_id', pid);
   if (error) throw error;
-  return data;
 };
 
 export const removeFromWishlist = async (id: string) => {
   const { error } = await supabase.from('wishlist_items').delete().eq('id', id);
   if (error) throw error;
+};
+
+export const clearWishlistItems = async (userId: string): Promise<void> => {
+  const uid = String(userId || '').trim();
+  if (!uid) return;
+  const { error } = await supabase.from('wishlist_items').delete().eq('user_id', uid);
+  if (error) throw error;
+};
+
+/**
+ * Merge guest/local ids into the server wishlist, then return the full server list.
+ * Used once on sign-in so items saved before login are not lost.
+ */
+export const syncWishlistWithServer = async (
+  userId: string,
+  localProductIds: string[],
+): Promise<string[]> => {
+  const uid = String(userId || '').trim();
+  if (!uid) return [];
+
+  const serverIds = await getWishlistProductIds(uid);
+  const serverSet = new Set(serverIds);
+  const toUpload = [
+    ...new Set(
+      localProductIds
+        .map((id) => String(id || '').trim())
+        .filter((id) => id && !serverSet.has(id)),
+    ),
+  ];
+
+  if (toUpload.length > 0) {
+    const { error } = await supabase.from('wishlist_items').upsert(
+      toUpload.map((product_id) => ({ user_id: uid, product_id })),
+      { onConflict: 'user_id,product_id', ignoreDuplicates: true },
+    );
+    if (error) throw error;
+  }
+
+  return getWishlistProductIds(uid);
 };
 
 // ==========================================

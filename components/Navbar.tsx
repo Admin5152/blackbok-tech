@@ -16,6 +16,7 @@ import {
   markStoreNavSectionSeen,
 } from '../lib/navBadgeWatermarks';
 import { scrollToDocumentTop } from '../lib/scrollToDocumentTop';
+import { lockPageScroll } from '../lib/pageScrollLock';
 import { NavUnreadBadge } from './NavUnreadBadge';
 import { MobileNavDrawer, type MobileNavItem } from './MobileNavDrawer';
 import { useAppContext } from '../App';
@@ -167,11 +168,7 @@ export const Navbar: React.FC<{
 
     useEffect(() => {
       if (!isMobileMenuOpen) return;
-      const prev = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = prev;
-      };
+      return lockPageScroll();
     }, [isMobileMenuOpen]);
 
     const mobileNavItems = useMemo(
@@ -320,19 +317,26 @@ export const Navbar: React.FC<{
         (path !== '/' && location.pathname.startsWith(path + '/'));
       // WHY: light inactive was text-black/60 on #FAFAFA — nearly invisible next to
       // the active pill. Match brand gold for active; keep ≥ readable inactive.
+      // w-auto + whitespace-nowrap: keep Home/Shop/etc. at natural label width.
       if (isLight) {
-        return `flex items-center gap-2 px-5 py-3 min-h-11 rounded-xl transition-all duration-300 text-[11px] font-black uppercase tracking-widest ${
+        return `flex w-auto shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-2.5 min-h-11 rounded-xl transition-all duration-300 text-[11px] font-black uppercase tracking-widest xl:gap-2 xl:px-5 ${
           active
             ? 'bg-[#B38B21] text-black shadow-md'
             : 'text-black/85 hover:text-black hover:bg-black/[0.06]'
         }`;
       }
-      return `flex items-center gap-2 px-5 py-3 min-h-11 rounded-xl transition-all duration-300 text-[11px] font-black uppercase tracking-widest ${
+      return `flex w-auto shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-2.5 min-h-11 rounded-xl transition-all duration-300 text-[11px] font-black uppercase tracking-widest xl:gap-2 xl:px-5 ${
         active
           ? 'bg-[#B38B21] text-black shadow-[0_0_20px_rgba(179,139,33,0.35)]'
           : 'text-white/85 hover:text-white hover:bg-white/10'
       }`;
     };
+
+    const searchFieldClass = `flex h-11 w-full items-center gap-2 rounded-2xl border pl-3 pr-1.5 ${
+      isLight
+        ? 'border-black/15 bg-white focus-within:border-[#B38B21]/50 focus-within:ring-2 focus-within:ring-[#B38B21]/30'
+        : 'border-white/12 bg-white/[0.06] focus-within:border-[#CDA032]/40 focus-within:ring-2 focus-within:ring-[#CDA032]/25'
+    }`;
 
     const handleCatalogSearch = (e: React.FormEvent, opts?: { closeMobile?: boolean }) => {
       e.preventDefault();
@@ -358,10 +362,10 @@ export const Navbar: React.FC<{
         <nav
           className={`sticky top-0 z-[60] h-16 sm:h-20 lg:h-24 flex items-center border-b backdrop-blur-3xl no-print transition-all duration-500 ${isLight ? 'border-black/10 bg-[#FAFAFA]/95' : 'border-white/5 bg-black/80'}`}
         >
-          <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 w-full flex items-center justify-between gap-3">
+          <div className="relative max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 w-full flex items-center justify-between gap-2 sm:gap-3">
 
-            {/* Logo + catalog search (md+) */}
-            <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+            {/* Logo + collapsed search trigger — shrink-0 so nav keeps natural widths */}
+            <div className="flex shrink-0 items-center gap-2 sm:gap-3 z-[1]">
               <Link to="/" className="flex shrink-0 items-center gap-3 group transition-opacity">
                 <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-lg flex items-center justify-center ${isLight ? 'bg-black text-white' : 'bg-white text-black'}`}>
                   <ViewfinderLogo />
@@ -371,81 +375,87 @@ export const Navbar: React.FC<{
                 </div>
               </Link>
 
-              {/* Catalog search — collapsed icon → expands; collapses on blur / Esc / outside */}
-              <div className="hidden md:flex min-w-0 flex-1 items-center justify-start">
-                {!searchExpanded ? (
-                  <button
-                    type="button"
-                    data-nav-search-trigger
-                    onClick={openSearch}
-                    title="Search the shop"
-                    aria-label="Open shop search"
-                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition-all ${
-                      isLight
-                        ? 'border-black/10 bg-white text-black/70 hover:border-[#B38B21]/40 hover:text-black'
-                        : 'border-white/12 bg-white/[0.06] text-white/70 hover:border-[#CDA032]/40 hover:text-white'
-                    }`}
-                  >
-                    <Search size={18} strokeWidth={2.25} aria-hidden />
-                  </button>
-                ) : (
-                  <form
-                    ref={searchFormRef}
-                    onSubmit={(e) => handleCatalogSearch(e)}
-                    onFocus={openSearch}
-                    onBlur={(e) => {
-                      const next = e.relatedTarget;
-                      if (next instanceof Node && searchFormRef.current?.contains(next)) return;
-                      scheduleCloseSearch();
-                    }}
-                    className={`flex min-w-0 w-full max-w-xl items-center gap-2 rounded-2xl border pl-3 pr-1.5 py-1 animate-in fade-in zoom-in-95 duration-200 ${
-                      isLight
-                        ? 'border-black/15 bg-white focus-within:border-[#B38B21]/50 focus-within:ring-2 focus-within:ring-[#B38B21]/30'
-                        : 'border-white/12 bg-white/[0.06] focus-within:border-[#CDA032]/40 focus-within:ring-2 focus-within:ring-[#CDA032]/25'
-                    }`}
-                    role="search"
-                  >
-                    <label htmlFor="nav-catalog-search" className="sr-only">
-                      Search the shop
-                    </label>
-                    <Search
-                      className={`pointer-events-none h-4 w-4 shrink-0 sm:h-[18px] sm:w-[18px] ${isLight ? 'text-black/40' : 'text-white/40'}`}
-                      aria-hidden
-                    />
-                    <input
-                      id="nav-catalog-search"
-                      type="search"
-                      autoComplete="off"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search store…"
-                      className={`min-w-0 flex-1 border-0 bg-transparent py-2 text-sm outline-none placeholder:opacity-50 sm:text-[13px] ${
-                        isLight ? 'text-black' : 'text-white'
-                      }`}
-                    />
-                    <button
-                      type="button"
-                      onClick={closeSearch}
-                      className={`shrink-0 rounded-lg px-2 py-2 text-[10px] font-black uppercase tracking-widest opacity-50 hover:opacity-100 ${
-                        isLight ? 'text-black' : 'text-white'
-                      }`}
-                      aria-label="Close search"
-                    >
-                      Esc
-                    </button>
-                    <button
-                      type="submit"
-                      className={`shrink-0 rounded-xl px-3.5 py-2 text-[10px] font-black uppercase tracking-widest transition sm:px-4 sm:text-[11px] ${TW_DARK_GOLD_BTN_DEPTH} bg-[#B38B21] text-black hover:bg-[#CDA032]`}
-                    >
-                      Go
-                    </button>
-                  </form>
-                )}
-              </div>
+              {!searchExpanded && (
+                <button
+                  type="button"
+                  data-nav-search-trigger
+                  onClick={openSearch}
+                  title="Search the shop"
+                  aria-label="Open shop search"
+                  aria-expanded={false}
+                  className={`hidden sm:flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition-all ${
+                    isLight
+                      ? 'border-black/10 bg-white text-black/70 hover:border-[#B38B21]/40 hover:text-black'
+                      : 'border-white/12 bg-white/[0.06] text-white/70 hover:border-[#CDA032]/40 hover:text-white'
+                  }`}
+                >
+                  <Search size={18} strokeWidth={2.25} aria-hidden />
+                </button>
+              )}
             </div>
 
-            {/* Navigation Links */}
-            <div className="hidden lg:flex items-center gap-1 shrink-0">
+            {/* Expanded search overlays the middle — does not crush Home/Shop sizes */}
+            {searchExpanded && (
+              <form
+                ref={searchFormRef}
+                onSubmit={(e) => handleCatalogSearch(e)}
+                onFocus={openSearch}
+                onBlur={(e) => {
+                  const next = e.relatedTarget;
+                  if (next instanceof Node && searchFormRef.current?.contains(next)) return;
+                  scheduleCloseSearch();
+                }}
+                className={`absolute inset-y-0 z-20 flex items-center animate-in fade-in slide-in-from-top-1 duration-200 left-14 right-3 sm:left-[9.5rem] sm:right-3 lg:left-44 lg:right-52 ${
+                  isLight ? 'bg-[#FAFAFA]/95 backdrop-blur-3xl' : 'bg-black/80 backdrop-blur-3xl'
+                }`}
+                role="search"
+              >
+                <div className={searchFieldClass}>
+                  <label htmlFor="nav-catalog-search" className="sr-only">
+                    Search the shop
+                  </label>
+                  <Search
+                    className={`pointer-events-none h-4 w-4 shrink-0 sm:h-[18px] sm:w-[18px] ${isLight ? 'text-black/40' : 'text-white/40'}`}
+                    aria-hidden
+                  />
+                  <input
+                    id="nav-catalog-search"
+                    type="search"
+                    autoComplete="off"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search store…"
+                    className={`min-w-0 flex-1 border-0 bg-transparent py-2 text-sm outline-none placeholder:opacity-50 sm:text-[13px] ${
+                      isLight ? 'text-black' : 'text-white'
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={closeSearch}
+                    className={`shrink-0 rounded-lg px-2 py-2 text-[10px] font-black uppercase tracking-widest opacity-50 hover:opacity-100 ${
+                      isLight ? 'text-black' : 'text-white'
+                    }`}
+                    aria-label="Close search"
+                  >
+                    Esc
+                  </button>
+                  <button
+                    type="submit"
+                    className={`shrink-0 rounded-xl px-3.5 py-2 text-[10px] font-black uppercase tracking-widest transition sm:px-4 sm:text-[11px] ${TW_DARK_GOLD_BTN_DEPTH} bg-[#B38B21] text-black hover:bg-[#CDA032]`}
+                  >
+                    Go
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Navigation Links — natural widths; visually tucked while search is open */}
+            <div
+              className={`hidden lg:flex items-center gap-0.5 xl:gap-1 shrink-0 transition-opacity duration-200 ${
+                searchExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'
+              }`}
+              aria-hidden={searchExpanded}
+            >
               <div className="relative group">
                 <Link to="/" className={navItemClass('/')}>
                   <HomeIcon size={16} /> Home <ChevronDown size={14} className="opacity-40 group-hover:rotate-180 transition-transform duration-300" />
@@ -582,7 +592,29 @@ export const Navbar: React.FC<{
             </div>
 
             {/* Right Section: Account, Search, Theme, Mobile Menu */}
-            <div className="flex items-center gap-2 sm:gap-4">
+            <div
+              className={`relative z-[1] flex items-center gap-2 sm:gap-3 shrink-0 transition-[opacity,visibility] duration-150 ${
+                searchExpanded ? 'max-lg:pointer-events-none max-lg:invisible max-lg:w-0 max-lg:overflow-hidden max-lg:gap-0' : ''
+              }`}
+            >
+
+              {!searchExpanded && (
+                <button
+                  type="button"
+                  data-nav-search-trigger
+                  onClick={openSearch}
+                  title="Search the shop"
+                  aria-label="Open shop search"
+                  aria-expanded={false}
+                  className={`sm:hidden flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition-all ${
+                    isLight
+                      ? 'border-black/10 bg-white text-black/70 hover:border-[#B38B21]/40 hover:text-black'
+                      : 'border-white/12 bg-white/[0.06] text-white/70 hover:border-[#CDA032]/40 hover:text-white'
+                  }`}
+                >
+                  <Search size={18} strokeWidth={2.25} aria-hidden />
+                </button>
+              )}
 
               {/* Notification System */}
               {user && <NotificationBell theme={theme} />}

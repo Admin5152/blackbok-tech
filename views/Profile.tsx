@@ -33,6 +33,10 @@ import { tradeNeedsOfferResponse } from '../lib/tradeOfferRespond';
 import { TRADE_COPY } from '../lib/tradeCopy';
 import { tradeOfferAmount } from '../lib/tradeOffer';
 import { formatGhs } from '../lib/money';
+import { CancelRequestButton } from '../components/CancelRequestButton';
+import { canCancelOrder, canCancelTrade } from '../lib/customerCancel';
+import { PAGE_SIZES, usePagination } from '../lib/pagination';
+import { Pagination } from '../components/Pagination';
 
 interface ProfileProps {
   user: User | null;
@@ -59,6 +63,7 @@ export const Profile: React.FC<ProfileProps> = ({
     setTrades,
     setWishlist,
     setCompareIds,
+    clearWishlist,
     compareIds,
     onQuickView,
     onToggleCompare,
@@ -136,6 +141,22 @@ export const Profile: React.FC<ProfileProps> = ({
     [orders, repairs, trades],
   );
 
+  const wishlistedProducts = useMemo(
+    () => products.filter((p) => wishlist.includes(p.id)),
+    [products, wishlist],
+  );
+
+  const wishlistPaging = usePagination(
+    wishlistedProducts,
+    PAGE_SIZES.wishlist,
+    wishlistedProducts.length,
+  );
+  const ledgerPaging = usePagination(
+    purchaseHistoryLedger,
+    PAGE_SIZES.list,
+    purchaseHistoryLedger.length,
+  );
+
   const openPurchaseReturnModal = useCallback((presetOrderId: string | null) => {
     setPurchaseReturnPresetOrderId(presetOrderId);
     setPurchaseReturnOpen(true);
@@ -166,7 +187,6 @@ export const Profile: React.FC<ProfileProps> = ({
   }
 
   const activeRepairsCount = repairs.filter(r => r.status !== 'Completed').length;
-  const wishlistedProducts = products.filter(p => wishlist.includes(p.id));
   const activityCount = orders.length + repairs.length + trades.length;
 
   const saveDisplayName = async () => {
@@ -355,7 +375,7 @@ export const Profile: React.FC<ProfileProps> = ({
                         to="/faq"
                         className={`flex-1 sm:flex-initial px-4 sm:px-8 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border text-center ${isLight ? 'bg-white text-black border-gray-200 hover:bg-gray-50' : 'bg-white/5 text-white border-white/10 hover:bg-white/10'}`}
                       >
-                        Support Terminal
+                        Help Terminal
                       </Link>
                     </div>
                   </div>
@@ -433,7 +453,7 @@ export const Profile: React.FC<ProfileProps> = ({
               {wishlist.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => setWishlist([])}
+                  onClick={() => clearWishlist()}
                   className="text-[9px] font-black uppercase tracking-wider text-white/40 hover:text-red-400 transition-colors flex items-center gap-2"
                 >
                   <Trash2 size={12} />
@@ -442,8 +462,9 @@ export const Profile: React.FC<ProfileProps> = ({
               )}
             </div>
             {wishlistedProducts.length > 0 ? (
+              <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {wishlistedProducts.map((p, i) => (
+                {wishlistPaging.pageItems.map((p, i) => (
                   <div
                     key={p.id}
                     className="animate-in fade-in slide-in-from-bottom-4"
@@ -461,6 +482,15 @@ export const Profile: React.FC<ProfileProps> = ({
                   </div>
                 ))}
               </div>
+              <Pagination
+                page={wishlistPaging.page}
+                pageCount={wishlistPaging.pageCount}
+                onPageChange={wishlistPaging.setPage}
+                total={wishlistPaging.total}
+                pageSize={PAGE_SIZES.wishlist}
+                isLight={isLight}
+              />
+              </>
             ) : (
               <div className={`py-20 text-center border rounded-3xl shadow-xl ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-gradient-to-br from-[#0a0a0a] to-[#050505] border-white/5'}`}>
                 <div className={`w-16 h-16 mx-auto rounded-2xl flex items-center justify-center mb-4 border ${isLight ? 'bg-black/5 border-black/10' : 'bg-white/5 border-white/10'}`}>
@@ -511,7 +541,7 @@ export const Profile: React.FC<ProfileProps> = ({
               </div>
 
               <div className="grid gap-6">
-                {purchaseHistoryLedger.map((row) => {
+                {ledgerPaging.pageItems.map((row) => {
                   const receiptTo =
                     row.kind === 'purchase'
                       ? `/receipt/${row.id}?print=1`
@@ -655,6 +685,17 @@ export const Profile: React.FC<ProfileProps> = ({
                   );
                 })}
 
+                {purchaseHistoryLedger.length > 0 && (
+                  <Pagination
+                    page={ledgerPaging.page}
+                    pageCount={ledgerPaging.pageCount}
+                    onPageChange={ledgerPaging.setPage}
+                    total={ledgerPaging.total}
+                    pageSize={PAGE_SIZES.list}
+                    isLight={isLight}
+                  />
+                )}
+
                 {purchaseHistoryLedger.length === 0 && (
                   <div className={`p-20 text-center rounded-[3rem] border border-dashed ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-white/[0.02] border-white/10'}`}>
                     <div className="w-20 h-20 mx-auto bg-[#B38B21]/10 rounded-3xl flex items-center justify-center mb-6 text-[#B38B21]">
@@ -740,6 +781,21 @@ export const Profile: React.FC<ProfileProps> = ({
                                 Refund
                               </button>
                             ) : null}
+                            {canCancelOrder(order) && (
+                              <CancelRequestButton
+                                kind="order"
+                                order={order}
+                                isLight={isLight}
+                                notify={notify || (() => {})}
+                                onCancelled={(id) => {
+                                  setOrders((prev) =>
+                                    prev.map((o) =>
+                                      o.id === id ? { ...o, status: 'Cancelled' } : o,
+                                    ),
+                                  );
+                                }}
+                              />
+                            )}
                           </div>
                         </div>
                       ))
@@ -796,6 +852,21 @@ export const Profile: React.FC<ProfileProps> = ({
                             setTrades={setTrades}
                             notify={notify || (() => {})}
                             isLight={isLight}
+                          />
+                        )}
+                        {canCancelTrade(trade) && (
+                          <CancelRequestButton
+                            kind="trade"
+                            trade={trade}
+                            isLight={isLight}
+                            notify={notify || (() => {})}
+                            onCancelled={(id) => {
+                              setTrades(
+                                trades.map((t) =>
+                                  t.id === id ? { ...t, status: 'Cancelled' } : t,
+                                ),
+                              );
+                            }}
                           />
                         )}
                         </div>

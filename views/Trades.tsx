@@ -1011,7 +1011,8 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                         {selectedDevice && (
                           <div>
                             <p className="text-xs font-black uppercase tracking-widest text-[#CDA032]/70 mb-3">Select Model</p>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[400px] overflow-y-auto pr-1"
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[400px] overflow-y-auto pr-1 [-webkit-overflow-scrolling:touch]"
+                              data-lenis-prevent
                               style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(205,160,50,0.3) transparent' }}>
                               {((isIphoneCatalogFlow ? modelsForSelectedSeries : selectedDevice.variants) ?? []).map(v => (
                                 <button key={v} onClick={() => { setSelectedVariant(v); if (!/^other(\s|$)/i.test(v.trim())) setCustomModelName(''); }}
@@ -1202,7 +1203,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
 
                 <div>
                   <p className="text-xs text-[color:var(--bb-muted)] mb-4">Pick a product you have in mind, or skip if you are not sure yet.</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[min(52vh,28rem)] overflow-y-auto pr-0.5">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[min(52vh,28rem)] overflow-y-auto pr-0.5 [-webkit-overflow-scrolling:touch]" data-lenis-prevent>
                     <button type="button" onClick={() => selectTargetProduct('')}
                       className={`py-3 px-4 rounded-xl border text-xs font-bold text-center transition-all ${!targetProductId
                         ? 'border-[#CDA032] bg-[#CDA032]/10 text-[#CDA032]'

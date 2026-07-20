@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useId } from 'react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { tradeFriendlyError } from '../lib/tradeErrors';
 
 export type NotificationType = 'info' | 'order' | 'repair' | 'trade' | 'promo';
@@ -28,6 +28,56 @@ export interface UseNotificationsResult {
   refetch: () => Promise<void>;
 }
 
+const ALLOWED_TYPES = new Set<NotificationType>([
+  'info',
+  'order',
+  'repair',
+  'trade',
+  'promo',
+]);
+
+/** Coerce legacy rows (`message`, order_ready, …) into the shape the UI expects. */
+function normalizeNotification(raw: Record<string, unknown>): Notification | null {
+  const id = raw.id != null ? String(raw.id) : '';
+  if (!id) return null;
+
+  const title = String(raw.title ?? '').trim() || 'Notification';
+  const body = String(raw.body ?? raw.message ?? '').trim();
+
+  let type = String(raw.type ?? 'info').toLowerCase() as NotificationType;
+  if (type.startsWith('order_')) type = 'order';
+  if (!ALLOWED_TYPES.has(type)) type = 'info';
+
+  const reference_id =
+    raw.reference_id != null
+      ? String(raw.reference_id)
+      : raw.order_id != null
+        ? String(raw.order_id)
+        : null;
+
+  return {
+    id,
+    user_id: String(raw.user_id ?? ''),
+    title,
+    body,
+    type,
+    reference_id,
+    is_read: Boolean(raw.is_read),
+    created_at: String(raw.created_at ?? new Date().toISOString()),
+  };
+}
+
+function normalizeList(rows: unknown): Notification[] {
+  if (!Array.isArray(rows)) return [];
+  const out: Notification[] = [];
+  for (const row of rows) {
+    if (!row || typeof row !== 'object') continue;
+    const n = normalizeNotification(row as Record<string, unknown>);
+    if (n) out.push(n);
+  }
+  return out;
+}
+
 /**
  * Reads the current user's notifications and subscribes to realtime changes.
  *
@@ -41,13 +91,21 @@ export function useNotifications(): UseNotificationsResult {
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  // Unique suffix so Navbar bell + /account/notifications can both subscribe
+  // without clobbering the same Realtime channel name.
+  const instanceId = useId().replace(/:/g, '');
 
-  // Track the current authenticated user. Re-runs on sign-in/sign-out so the
-  // subscription and query stay in sync without forcing a page reload.
   useEffect(() => {
     let cancelled = false;
 
-    supabase.auth.getUser()
+    if (!isSupabaseConfigured()) {
+      setUserId(null);
+      setLoading(false);
+      return;
+    }
+
+    supabase.auth
+      .getUser()
       .then(({ data }) => {
         if (!cancelled) setUserId(data.user?.id ?? null);
       })
@@ -66,7 +124,7 @@ export function useNotifications(): UseNotificationsResult {
   }, []);
 
   const fetchNotifications = useCallback(async (): Promise<void> => {
-    if (!userId) {
+    if (!userId || !isSupabaseConfigured()) {
       setNotifications([]);
       setLoading(false);
       return;
@@ -80,110 +138,155 @@ export function useNotifications(): UseNotificationsResult {
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
       if (fetchError) throw fetchError;
-      setNotifications((data ?? []) as Notification[]);
+      setNotifications(normalizeList(data));
     } catch (err: unknown) {
       setError(tradeFriendlyError(err));
+      setNotifications([]);
     } finally {
       setLoading(false);
     }
   }, [userId]);
 
-  // Fetch + subscribe whenever the user changes. The cleanup runs on every
-  // user change AND on unmount, so the channel never leaks.
   useEffect(() => {
-    fetchNotifications();
-    if (!userId) return;
+    void fetchNotifications();
+    if (!userId || !isSupabaseConfigured()) return;
 
-    const channel = supabase
-      .channel(`notifications-${userId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload: any) => {
-          setNotifications((prev) => {
-            if (payload.eventType === 'INSERT') {
-              const incoming = payload.new as Notification;
-              if (prev.some((n) => n.id === incoming.id)) return prev;
-              return [incoming, ...prev];
-            }
-            if (payload.eventType === 'UPDATE') {
-              const incoming = payload.new as Notification;
-              return prev.map((n) => (n.id === incoming.id ? incoming : n));
-            }
-            if (payload.eventType === 'DELETE') {
-              const removed = payload.old as Pick<Notification, 'id'>;
-              return prev.filter((n) => n.id !== removed.id);
-            }
-            return prev;
-          });
-        },
-      )
-      .subscribe();
+    let channel: RealtimeChannel;
+    try {
+      channel = supabase
+        .channel(`notifications-${userId}-${instanceId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${userId}`,
+          },
+          (payload: { eventType?: string; new?: unknown; old?: unknown }) => {
+            setNotifications((prev) => {
+              if (payload.eventType === 'INSERT') {
+                const incoming = normalizeNotification(
+                  (payload.new || {}) as Record<string, unknown>,
+                );
+                if (!incoming) return prev;
+                if (prev.some((n) => n.id === incoming.id)) return prev;
+                return [incoming, ...prev];
+              }
+              if (payload.eventType === 'UPDATE') {
+                const incoming = normalizeNotification(
+                  (payload.new || {}) as Record<string, unknown>,
+                );
+                if (!incoming) return prev;
+                return prev.map((n) => (n.id === incoming.id ? incoming : n));
+              }
+              if (payload.eventType === 'DELETE') {
+                const removed = payload.old as { id?: string } | undefined;
+                if (!removed?.id) return prev;
+                return prev.filter((n) => n.id !== String(removed.id));
+              }
+              return prev;
+            });
+          },
+        )
+        .subscribe();
+    } catch (err: unknown) {
+      setError(tradeFriendlyError(err));
+      return;
+    }
 
     channelRef.current = channel;
 
     return () => {
       try {
-        supabase.removeChannel(channel);
+        if (isSupabaseConfigured()) supabase.removeChannel(channel);
       } catch {
-        // The client is a Proxy when env vars are missing; ignore.
+        // Ignore Proxy / already-removed channel.
       }
       channelRef.current = null;
     };
-  }, [userId, fetchNotifications]);
+  }, [userId, fetchNotifications, instanceId]);
 
-  const markAsRead = useCallback(async (id: string): Promise<void> => {
-    if (!userId) return;
-    // Optimistic update so the badge reacts instantly.
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
-    const { error: updateError } = await supabase
-      .from('notifications')
-      .update({ is_read: true })
-      .eq('id', id)
-      .eq('user_id', userId);
-    if (updateError) {
-      setError(updateError.message);
-      // Fall back to truth on failure.
-      fetchNotifications();
-    }
-  }, [userId, fetchNotifications]);
+  const markAsRead = useCallback(
+    async (id: string): Promise<void> => {
+      if (!userId || !isSupabaseConfigured()) return;
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)),
+      );
+      try {
+        const { error: updateError } = await supabase
+          .from('notifications')
+          .update({ is_read: true })
+          .eq('id', id)
+          .eq('user_id', userId);
+        if (updateError) {
+          setError(tradeFriendlyError(updateError));
+          void fetchNotifications();
+        }
+      } catch (err: unknown) {
+        setError(tradeFriendlyError(err));
+        void fetchNotifications();
+      }
+    },
+    [userId, fetchNotifications],
+  );
 
   const markAllAsRead = useCallback(async (): Promise<void> => {
-    if (!userId) return;
+    if (!userId || !isSupabaseConfigured()) return;
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
-    const { error: updateError } = await supabase
-      .from('notifications')
-      .update({ is_read: true })
-      .eq('user_id', userId)
-      .eq('is_read', false);
-    if (updateError) {
-      setError(updateError.message);
-      fetchNotifications();
+    try {
+      const { error: updateError } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('user_id', userId)
+        .eq('is_read', false);
+      if (updateError) {
+        setError(tradeFriendlyError(updateError));
+        void fetchNotifications();
+      }
+    } catch (err: unknown) {
+      setError(tradeFriendlyError(err));
+      void fetchNotifications();
     }
   }, [userId, fetchNotifications]);
 
-  const removeNotification = useCallback(async (id: string): Promise<void> => {
-    if (!userId) return;
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-    const { error: deleteError } = await supabase.from('notifications').delete().eq('id', id).eq('user_id', userId);
-    if (deleteError) {
-      setError(deleteError.message);
-      fetchNotifications();
-    }
-  }, [userId, fetchNotifications]);
+  const removeNotification = useCallback(
+    async (id: string): Promise<void> => {
+      if (!userId || !isSupabaseConfigured()) return;
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      try {
+        const { error: deleteError } = await supabase
+          .from('notifications')
+          .delete()
+          .eq('id', id)
+          .eq('user_id', userId);
+        if (deleteError) {
+          setError(tradeFriendlyError(deleteError));
+          void fetchNotifications();
+        }
+      } catch (err: unknown) {
+        setError(tradeFriendlyError(err));
+        void fetchNotifications();
+      }
+    },
+    [userId, fetchNotifications],
+  );
 
   const clearAllNotifications = useCallback(async (): Promise<void> => {
-    if (!userId) return;
+    if (!userId || !isSupabaseConfigured()) return;
     setNotifications([]);
-    const { error: deleteError } = await supabase.from('notifications').delete().eq('user_id', userId);
-    if (deleteError) {
-      setError(deleteError.message);
-      fetchNotifications();
+    try {
+      const { error: deleteError } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('user_id', userId);
+      if (deleteError) {
+        setError(tradeFriendlyError(deleteError));
+        void fetchNotifications();
+      }
+    } catch (err: unknown) {
+      setError(tradeFriendlyError(err));
+      void fetchNotifications();
     }
   }, [userId, fetchNotifications]);
 

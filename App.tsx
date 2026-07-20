@@ -14,7 +14,7 @@ import { X, Activity, Scale, RefreshCcw, Home as HomeIcon, ShoppingBag, Wrench, 
 import { supabase, getSupabaseClient, isSupabaseConfigured } from './lib/supabase';
 import { WhatsAppIcon } from './components/Icons';
 import { Product, User, CartItem, Category, RepairRequest, Order, TradeRequest } from './types';
-import { getProducts, getOrders, getTradeRequests, getRepairRequests } from './lib/api';
+import { getProducts, getOrders, getTradeRequests, getRepairRequests, syncWishlistWithServer, addToWishlist, removeFromWishlistByProduct, clearWishlistItems } from './lib/api';
 import { friendlyError } from './lib/friendlyErrors';
 import { fetchTradePricing } from './lib/tradePricingStore';
 import { handleSignOut } from './lib/signOut';
@@ -96,7 +96,6 @@ import { ReturnsPage } from './views/ReturnsPage';
 // import { orders } from './data/orders'; 
 import { QuickViewModal } from './components/QuickViewModal';
 import { WelcomeScreen } from './components/WelcomeScreen';
-import { NotificationSystem } from './components/NotificationSystem';
 import { generateId } from './lib/utils';
 import { COMPARE_MAX_ITEMS } from './lib/compareProducts';
 import { getProduct } from './lib/api';
@@ -1014,6 +1013,7 @@ function RootComponent() {
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [cart, setCart] = useState<CartItem[]>([]);
   const cartRef = useRef<CartItem[]>([]);
+  const wishlistRef = useRef<string[]>([]);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [user, setUser] = useState<User | null>(null);
@@ -1273,6 +1273,28 @@ function RootComponent() {
     cartRef.current = cart;
   }, [cart]);
 
+  useEffect(() => {
+    wishlistRef.current = wishlist;
+  }, [wishlist]);
+
+  // On sign-out, drop the account wishlist from UI + localStorage so the next
+  // visitor does not see the previous user's saved items.
+  const prevUserIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const prev = prevUserIdRef.current;
+    const next = user?.id ?? null;
+    if (prev && !next) {
+      setWishlist([]);
+      wishlistRef.current = [];
+      try {
+        localStorage.removeItem(STORAGE_KEYS.WISHLIST);
+      } catch {
+        /* ignore */
+      }
+    }
+    prevUserIdRef.current = next;
+  }, [user?.id]);
+
   // Supabase Realtime: customer subscribes to status changes pushed by admin
   // for their orders, trade-ins and repairs. Refetches on every change so
   // the user sees admin updates instantly without a refresh.
@@ -1340,7 +1362,7 @@ function RootComponent() {
         ]);
       };
       try {
-        const [ord, tr, rp] = await Promise.all([
+        const [ord, tr, rp, wishIds] = await Promise.all([
           getOrders(user.id).catch((e) => {
             pushErr(e, 'load your orders');
             return [];
@@ -1353,6 +1375,12 @@ function RootComponent() {
             pushErr(e, 'load your repairs');
             return [];
           }),
+          isSupabaseConfigured()
+            ? syncWishlistWithServer(user.id, wishlistRef.current).catch((e) => {
+                pushErr(e, 'load your wishlist');
+                return null;
+              })
+            : Promise.resolve(null),
         ]);
         if (cancelled) return;
         // Always replace with server truth (incl. empty) so stale localStorage
@@ -1360,6 +1388,7 @@ function RootComponent() {
         if (Array.isArray(ord)) setOrders(ord as any);
         if (Array.isArray(tr)) setTrades(tr as any);
         if (Array.isArray(rp)) setRepairs(rp as any);
+        if (Array.isArray(wishIds)) setWishlist(wishIds);
       } catch (e) {
         console.warn('User data hydration failed:', e);
         pushErr(e, 'load your account data');
@@ -1372,6 +1401,8 @@ function RootComponent() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     document.documentElement.classList.toggle('dark', theme === 'dark');
+    // Native <select> popup chrome (Windows/Chromium) follows color-scheme.
+    document.documentElement.style.colorScheme = theme === 'light' ? 'light' : 'dark';
   }, [theme]);
 
   const notify = (msg: string, type: 'success' | 'error' | 'info' | 'warning' = 'success') => {
@@ -1483,10 +1514,44 @@ function RootComponent() {
   };
 
   const toggleWishlist = (productId: string) => {
-    setWishlist(prev => {
-      const exists = prev.includes(productId);
-      notify(exists ? 'Unit removed from wishlist' : 'Unit logged to wishlist');
-      return exists ? prev.filter(id => id !== productId) : [...prev, productId];
+    const pid = String(productId || '').trim();
+    if (!pid) return;
+
+    const prev = wishlistRef.current;
+    const exists = prev.includes(pid);
+    const next = exists ? prev.filter((id) => id !== pid) : [...prev, pid];
+
+    setWishlist(next);
+    wishlistRef.current = next;
+    notify(exists ? 'Removed from wishlist' : 'Saved to wishlist');
+
+    // Guests stay on localStorage only; signed-in users persist to wishlist_items.
+    if (!user?.id || !isSupabaseConfigured()) return;
+
+    void (async () => {
+      try {
+        if (exists) {
+          await removeFromWishlistByProduct(user.id, pid);
+        } else {
+          await addToWishlist(user.id, pid);
+        }
+      } catch (e) {
+        setWishlist(prev);
+        wishlistRef.current = prev;
+        notify(friendlyError(e, exists ? 'remove from wishlist' : 'add to wishlist'), 'error');
+      }
+    })();
+  };
+
+  const clearWishlist = () => {
+    const prev = wishlistRef.current;
+    setWishlist([]);
+    wishlistRef.current = [];
+    if (!user?.id || !isSupabaseConfigured()) return;
+    void clearWishlistItems(user.id).catch((e) => {
+      setWishlist(prev);
+      wishlistRef.current = prev;
+      notify(friendlyError(e, 'clear wishlist'), 'error');
     });
   };
 
@@ -1540,6 +1605,7 @@ function RootComponent() {
     setTheme,
     refreshProducts,
     authReady,
+    clearWishlist,
   };
 
   const isLight = theme === 'light';
@@ -1678,7 +1744,7 @@ function RootComponent() {
               </div>
 
               {/* Navigation */}
-              <div className="flex-1 overflow-auto py-4 px-3 space-y-1">
+              <div className="flex-1 min-h-0 overflow-auto py-4 px-3 space-y-1 [-webkit-overflow-scrolling:touch]" data-lenis-prevent>
                 {[
                   { id: 'home', label: 'Home', icon: HomeIcon, path: '/' },
                   { id: 'store', label: 'Shop', icon: ShoppingBag, path: '/store', subItems: ['iPhone', 'Laptop', 'Accessories', 'Gaming', 'Audio', 'Track Orders'] },
@@ -1844,6 +1910,7 @@ export default function App() {
     setCompareIds: noop as any,
     addToCart: noop as any,
     toggleWishlist: noop as any,
+    clearWishlist: noop as any,
     toggleCompare: noop as any,
     onToggleCompare: noop as any,
     updateQuantity: noop as any,

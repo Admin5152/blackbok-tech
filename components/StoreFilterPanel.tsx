@@ -286,7 +286,10 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
 
   if (isDrawer) {
     return (
-      <div className="bb-store-filter-panel bb-store-filter-panel--drawer flex h-full min-h-0 flex-col">
+      <div
+        className="bb-store-filter-panel bb-store-filter-panel--drawer flex h-full min-h-0 flex-col"
+        data-lenis-prevent
+      >
         <header className="bb-store-filter-panel__header shrink-0">
           <div className="flex items-start gap-3">
             <span className="bb-store-filter-panel__badge">
@@ -309,7 +312,10 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
           </div>
         </header>
 
-        <div className="bb-store-filter-panel__body bb-scrollbar flex-1 overflow-y-auto overscroll-y-contain px-5 py-5 space-y-6 [-webkit-overflow-scrolling:touch]">
+        <div
+          className="bb-store-filter-panel__body bb-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 py-5 space-y-6 [-webkit-overflow-scrolling:touch]"
+          data-lenis-prevent
+        >
           {body}
         </div>
 
@@ -331,7 +337,10 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
   }
 
   return (
-    <div className={`bb-store-filter-panel bb-store-filter-panel--sidebar ${isLight ? 'bb-store-filter-panel--sidebar-light' : ''}`}>
+    <div
+      className={`bb-store-filter-panel bb-store-filter-panel--sidebar ${isLight ? 'bb-store-filter-panel--sidebar-light' : ''}`}
+      data-lenis-prevent
+    >
       <header className="mb-5 pb-4 border-b border-black/5 dark:border-white/10">
         <div className="flex items-center gap-2.5">
           <span className="bb-store-filter-panel__badge">
@@ -350,7 +359,10 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
           </button>
         )}
       </header>
-      <div className="bb-scrollbar max-h-[min(calc(100dvh-9rem),42rem)] overflow-y-auto overscroll-y-contain pr-1 space-y-6">
+      <div
+        className="bb-scrollbar min-h-0 max-h-[min(calc(100dvh-9rem),42rem)] overflow-y-auto overscroll-y-contain pr-1 space-y-6 [-webkit-overflow-scrolling:touch]"
+        data-lenis-prevent
+      >
         {body}
       </div>
     </div>

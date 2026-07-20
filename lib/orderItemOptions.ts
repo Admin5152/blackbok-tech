@@ -4,6 +4,8 @@
  * so we also store a single human-readable `configuration` string in order.
  */
 
+import { formatProductOptionLabel } from './productLabels';
+
 /** Preferred display order for storefront option groups. */
 const CANONICAL_KEYS = ['Color', 'Storage', 'RAM'] as const;
 
@@ -15,9 +17,9 @@ export function buildConfigurationSummary(opts: Record<string, string>): string 
     if (v) parts.push(`${key}: ${v}`);
   }
   for (const [k, v] of Object.entries(opts)) {
-    if ((CANONICAL_KEYS as readonly string[]).includes(k)) continue;
+    if ((CANONICAL_KEYS as readonly string[]).includes(k as (typeof CANONICAL_KEYS)[number])) continue;
     const t = String(v ?? '').trim();
-    if (t) parts.push(`${k}: ${t}`);
+    if (t) parts.push(`${formatProductOptionLabel(k)}: ${t}`);
   }
   return parts.join(' · ');
 }
@@ -71,6 +73,6 @@ export function mergeVariantSkuFallback(
   variant: { sku?: string | null } | null | undefined,
 ): Record<string, string> {
   if (Object.keys(opts).length > 0) return opts;
-  if (variant?.sku) return { variant: String(variant.sku) };
+  if (variant?.sku) return { 'Item code': String(variant.sku) };
   return {};
 }

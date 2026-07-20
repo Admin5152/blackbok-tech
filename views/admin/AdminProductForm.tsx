@@ -30,6 +30,7 @@ import {
   PRODUCT_STATUSES,
   type ProductDraft,
 } from './adminProductConstants';
+import { formatSimTypeLabel } from '../../lib/productLabels';
 
 type TabId = 'details' | 'options' | 'images' | 'listing';
 
@@ -44,6 +45,8 @@ type ChipFieldProps = {
   styles: AdminProductFormStyles;
   readOnly?: boolean;
   readOnlyNote?: string;
+  /** Optional display formatter (e.g. SIM codes → Physical SIM). */
+  formatChip?: (value: string) => string;
 };
 
 const ChipField: React.FC<ChipFieldProps> = ({
@@ -57,6 +60,7 @@ const ChipField: React.FC<ChipFieldProps> = ({
   styles: s,
   readOnly,
   readOnlyNote,
+  formatChip,
 }) => (
   <div className={s.card}>
     <label className={s.label}>{label}</label>
@@ -70,7 +74,7 @@ const ChipField: React.FC<ChipFieldProps> = ({
           key={c}
           className={`flex items-center gap-1 border rounded-lg px-2 py-1 text-[10px] font-bold ${s.chip}`}
         >
-          {c}
+          {formatChip ? formatChip(c) : c}
           {!readOnly && (
             <button type="button" onClick={() => onRemove(c)} className="opacity-50 hover:text-red-500 transition-colors">
               <X size={10} />
@@ -552,7 +556,7 @@ export const AdminProductForm: React.FC<Props> = ({
                     </div>
                   )}
                   <p className={`text-[10px] mt-1 ${s.muted}`}>
-                    Links this catalog product to trade_devices — required for trade-in banners / targets.
+                    Links this product to a trade-in device model so trade-in banners and upgrade targets work.
                   </p>
                 </div>
                 {!skuMatrixEnabled && (
@@ -572,7 +576,7 @@ export const AdminProductForm: React.FC<Props> = ({
                     <label className={s.label}>Total stock</label>
                     <p className={s.input + ' text-white/50 cursor-default'}>
                       {totalSkuStock(skuRows)}{' '}
-                      <span className="text-[10px] text-white/30">(from SKU rows)</span>
+                      <span className="text-[10px] text-white/30">(from versions below)</span>
                     </p>
                   </div>
                 )}
@@ -631,8 +635,8 @@ export const AdminProductForm: React.FC<Props> = ({
             <div className="space-y-4">
               <p className={`text-[11px] px-1 ${s.muted}`}>
                 {chipsLocked
-                  ? 'Color / Storage / RAM are derived from SKU rows below. Edit combinations in the matrix.'
-                  : 'Define Color, Storage, and RAM choices. Each combination becomes its own SKU with separate stock.'}
+                  ? 'Color / Storage / RAM come from the stock versions below. Edit combinations in the list.'
+                  : 'Define Color, Storage, and RAM choices. Each combination becomes its own version with its own stock.'}
               </p>
               <ChipField
                 label="Colors"
@@ -644,7 +648,7 @@ export const AdminProductForm: React.FC<Props> = ({
                 onRemove={(v) => onRemoveChip('colors', v)}
                 styles={s}
                 readOnly={chipsLocked}
-                readOnlyNote="Managed by variants"
+                readOnlyNote="Managed by stock versions"
               />
               <ChipField
                 label="Storage"
@@ -656,7 +660,7 @@ export const AdminProductForm: React.FC<Props> = ({
                 onRemove={(v) => onRemoveChip('storage', v)}
                 styles={s}
                 readOnly={chipsLocked}
-                readOnlyNote="Managed by variants"
+                readOnlyNote="Managed by stock versions"
               />
               <ChipField
                 label="RAM"
@@ -668,19 +672,20 @@ export const AdminProductForm: React.FC<Props> = ({
                 onRemove={(v) => onRemoveChip('ram', v)}
                 styles={s}
                 readOnly={chipsLocked}
-                readOnlyNote="Managed by variants"
+                readOnlyNote="Managed by stock versions"
               />
               <ChipField
-                label="SIM type (ps / es / wifi / …)"
+                label="SIM type (Physical / eSIM / Wi‑Fi / …)"
                 chips={displaySimTypes}
                 inputVal={simIn}
                 setInputVal={setSimIn}
-                placeholder="e.g. ps or es — or pick below"
+                placeholder="e.g. Physical SIM or eSIM — or pick below"
                 onAdd={() => onAddChip('sim_types', simIn, () => setSimIn(''))}
                 onRemove={(v) => onRemoveChip('sim_types', v)}
                 styles={s}
                 readOnly={chipsLocked}
-                readOnlyNote="Per-row SIM is edited in the matrix when enabled"
+                readOnlyNote="SIM is set per version when stock-per-version is on"
+                formatChip={formatSimTypeLabel}
               />
               {!chipsLocked && (
                 <div className="flex flex-wrap gap-1.5 px-1">
@@ -697,7 +702,7 @@ export const AdminProductForm: React.FC<Props> = ({
                             : 'border-white/10 text-white/45'
                       }`}
                     >
-                      {code}
+                      {formatSimTypeLabel(code)}
                     </button>
                   ))}
                 </div>
@@ -769,10 +774,12 @@ export const AdminProductForm: React.FC<Props> = ({
                           onChange={(e) => handleAssignVariant(img.id, e.target.value)}
                           className={`${s.input} text-[10px] py-1.5`}
                         >
-                          <option value="">All variants</option>
+                          <option value="">All versions</option>
                           {variantOptions.map((r) => (
                             <option key={r.id} value={r.id}>
-                              {[r.color, r.storage, r.sim_type].filter(Boolean).join(' · ') || r.sku || r.id}
+                              {[r.color, r.storage, r.sim_type ? formatSimTypeLabel(r.sim_type) : '']
+                                .filter(Boolean)
+                                .join(' · ') || r.sku || 'Version'}
                             </option>
                           ))}
                         </select>
@@ -876,7 +883,7 @@ export const AdminProductForm: React.FC<Props> = ({
                 </span>
               ))}
               {hasOptions && !skuMatrixEnabled && (
-                <span className="text-[8px] text-amber-400/80">SKU stock off</span>
+                <span className="text-[8px] text-amber-400/80">Per-version stock off</span>
               )}
             </div>
             <div className={`pt-2 border-t grid grid-cols-2 gap-2 text-center ${s.asideBorder}`}>
@@ -885,7 +892,7 @@ export const AdminProductForm: React.FC<Props> = ({
                 <p className={`text-sm font-black ${s.title}`}>{displayStock}</p>
               </div>
               <div>
-                <p className={`text-[8px] uppercase font-black ${s.muted}`}>SKUs</p>
+                <p className={`text-[8px] uppercase font-black ${s.muted}`}>Versions</p>
                 <p className={`text-sm font-black ${s.title}`}>{comboCount || (hasOptions ? '—' : '1')}</p>
               </div>
             </div>

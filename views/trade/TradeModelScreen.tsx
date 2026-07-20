@@ -6,6 +6,8 @@ import { useNavigate } from '@tanstack/react-router';
 import { Check, Smartphone } from 'lucide-react';
 import { useTradeFlow } from '../../lib/tradeFlowContext';
 import { PageBackButton } from '../../components/PageBackButton';
+import { Pagination } from '../../components/Pagination';
+import { PAGE_SIZES, usePagination } from '../../lib/pagination';
 import { getTradeModelsInCategory } from '../../lib/tradeApi';
 import {
   modelsInCategoryFromPriced,
@@ -95,6 +97,12 @@ export function TradeModelScreen() {
     dispatch({ type: 'SET_MODEL', model });
     void navigate({ to: '/trade/config' });
   };
+
+  const modelPaging = usePagination(
+    models,
+    PAGE_SIZES.catalog,
+    `${state.deviceType}|${state.category}|${models.length}`,
+  );
 
   if (!state.deviceType || !state.category) return null;
 
@@ -206,13 +214,15 @@ export function TradeModelScreen() {
 
         <div className="flex-1 min-w-0">
           <div
-            className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 content-start max-h-[520px] overflow-y-auto pr-1"
+            className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 content-start max-h-[520px] overflow-y-auto pr-1 [-webkit-overflow-scrolling:touch]"
+            data-lenis-prevent
+
             style={{
               scrollbarWidth: 'thin',
               scrollbarColor: 'rgba(205,160,50,0.3) transparent',
             }}
           >
-            {models.map((m) => {
+            {modelPaging.pageItems.map((m) => {
               const selected = state.model === m.model;
               return (
                 <button
@@ -260,6 +270,15 @@ export function TradeModelScreen() {
               );
             })}
           </div>
+
+          <Pagination
+            page={modelPaging.page}
+            pageCount={modelPaging.pageCount}
+            onPageChange={modelPaging.setPage}
+            total={modelPaging.total}
+            pageSize={PAGE_SIZES.catalog}
+            isLight={isLight}
+          />
 
           <div className="mt-5 pt-4 border-t border-[var(--bb-border)]/50">
             <p className="text-xs font-bold uppercase tracking-widest text-[#CDA032] mb-2">

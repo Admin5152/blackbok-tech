@@ -60,10 +60,10 @@ const tradeUpdateErrorMessage = (e: unknown): string => {
         return raw;
     }
     if (/out of stock|insufficient stock/i.test(raw)) {
-        return 'Cannot mark completed: target product or variant is out of stock. Restock or pick another SKU.';
+        return 'Cannot mark completed: that upgrade option is out of stock. Restock or pick another configuration.';
     }
     if (/target variant/i.test(raw)) {
-        return 'Cannot mark completed: pick a valid target variant for this catalogue product.';
+        return 'Cannot mark completed: pick a valid upgrade configuration for this product.';
     }
     return raw || 'Could not save trade update. Check your connection and try again.';
 };
@@ -91,7 +91,7 @@ const toTradeStatusLabel = (status?: string) => {
 
 const formatCatalogVariantLabel = (v: ProductVariant): string => {
     const parts = [v.color, v.storage, v.ram].filter(Boolean) as string[];
-    const head = parts.length > 0 ? parts.join(' · ') : (v.name || v.sku || 'Variant');
+    const head = parts.length > 0 ? parts.join(' · ') : (v.name || v.sku || 'Configuration');
     const sku = v.sku && !head.includes(v.sku) ? ` · ${v.sku}` : '';
     const st = v.stock != null ? ` — stock ${v.stock}` : '';
     return `${head}${sku}${st}`;
@@ -374,7 +374,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
         if (!sel) return;
         if (catalogTargetVariants.length > 0) {
             if (!draftTargetVariantId.trim()) {
-                window.alert('This catalogue product has variants — pick a target variant before saving.');
+                window.alert('This product has multiple configurations — pick one before saving.');
                 return;
             }
             await persistTradeTargetVariantId(draftTargetVariantId.trim());
@@ -388,7 +388,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
         const saved = savedTargetVariantOnSel(sel);
         const pick = (saved || draftTargetVariantId || catalogTargetVariants[0]?.id || '').trim();
         if (!pick) {
-            notify?.('Pick a target variant before marking this trade completed.', 'error');
+            notify?.('Pick an upgrade configuration before marking this trade completed.', 'error');
             return false;
         }
         if (!saved || saved !== pick) {
@@ -581,7 +581,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                 <Td>
                                     <p className="text-xs text-white/50">{(t as any).targetDevice || '—'}</p>
                                     {(t.targetVariantId || (t as any).target_variant_id) && (
-                                        <p className="text-[9px] text-emerald-400/90 font-bold uppercase tracking-wider mt-0.5">SKU linked</p>
+                                        <p className="text-[9px] text-emerald-400/90 font-bold uppercase tracking-wider mt-0.5">Configuration linked</p>
                                     )}
                                 </Td>
                                 <Td>
@@ -721,17 +721,17 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                         <Package size={12} className="text-[#B38B21]" /> Target stock (completed trade)
                                     </p>
                                     <p className="text-[9px] text-white/40 leading-relaxed">
-                                        When you mark this trade <span className="text-white/60">Completed</span>, inventory decrements on the catalogue SKU below. If the linked product has no variant rows, stock uses product-level totals instead.
+                                        When you mark this trade <span className="text-white/60">Completed</span>, stock is taken from the product version below. If there are no versions, overall product stock is used instead.
                                     </p>
                                     {targetProductForReview ? (
                                         <>
                                             {catalogTargetVariants.length > 0 ? (
                                                 <>
                                                     <p className="text-[9px] text-white/40 leading-relaxed">
-                                                        This product has multiple SKUs — a specific variant is required. The first SKU is selected by default; change it if stock should come from another row. Updates save immediately when you change the dropdown.
+                                                        This product has multiple configurations — pick one. The first is selected by default; change it if stock should come from another version. Updates save when you change the dropdown.
                                                     </p>
                                                     <div>
-                                                        <label className="text-[9px] text-white/30 uppercase tracking-widest block mb-1">Variant / SKU</label>
+                                                        <label className="text-[9px] text-white/30 uppercase tracking-widest block mb-1">Upgrade configuration</label>
                                                         <select
                                                             value={draftTargetVariantId || catalogTargetVariants[0]?.id || ''}
                                                             onChange={(e) => {
@@ -753,11 +753,11 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                             ) : (
                                                 <>
                                                     <p className="text-[9px] text-white/40 leading-relaxed">
-                                                        This catalogue product has no variant rows — completed trades use <span className="text-white/60">product-level</span> stock only.
+                                                        This product has no stock versions — completed trades use <span className="text-white/60">overall product</span> stock only.
                                                     </p>
                                                     {savedTargetVariantOnSel(sel) ? (
                                                         <p className="text-[9px] text-amber-400/90">
-                                                            A variant ID is still stored on this trade. Save to clear it and align with product-level inventory.
+                                                            A configuration link is still saved on this trade. Save to clear it and use overall product stock.
                                                         </p>
                                                     ) : null}
                                                     <button
@@ -773,7 +773,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                         </>
                                     ) : (
                                         <p className="text-[10px] text-white/35">
-                                            No catalogue product linked yet — the customer has not chosen an upgrade target on the trade-in flow.
+                                            No product linked yet — the customer has not chosen an upgrade target on the trade-in flow.
                                         </p>
                                     )}
                                 </div>
@@ -1043,7 +1043,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                             <span className="text-[9px] text-white/35 uppercase tracking-wider">{dev.deviceType} · {dev.brand}</span>
                                         </div>
                                         <div className="flex items-center gap-2 shrink-0">
-                                            <button type="button" onClick={() => setEditDevId(editDevId === dev.id ? null : dev.id)} className="text-[10px] text-[#B38B21] font-black uppercase whitespace-nowrap">+ Variant</button>
+                                            <button type="button" onClick={() => setEditDevId(editDevId === dev.id ? null : dev.id)} className="text-[10px] text-[#B38B21] font-black uppercase whitespace-nowrap">+ Model</button>
                                             <button type="button" onClick={() => rmDevice(dev.id)} className="p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20" aria-label={`Remove ${dev.name}`}><Trash2 size={12} /></button>
                                         </div>
                                     </div>
@@ -1056,7 +1056,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                                 placeholder="e.g. iPhone 17 Pro"
                                                 className="flex-1 bg-black/50 border border-white/10 rounded-lg px-2.5 py-1.5 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none"
                                             />
-                                            <button type="button" onClick={() => addVariant(dev.id)} className="px-2.5 py-1.5 bg-[#B38B21] text-black font-black text-[10px] rounded-lg shrink-0" aria-label="Add variant"><Check size={12} /></button>
+                                            <button type="button" onClick={() => addVariant(dev.id)} className="px-2.5 py-1.5 bg-[#B38B21] text-black font-black text-[10px] rounded-lg shrink-0" aria-label="Add model"><Check size={12} /></button>
                                             <button type="button" onClick={() => { setEditDevId(null); setNewVariant(''); }} className="px-2.5 py-1.5 bg-white/5 text-white/40 text-[10px] rounded-lg shrink-0" aria-label="Cancel"><X size={12} /></button>
                                         </div>
                                     )}
@@ -1068,7 +1068,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                                     type="button"
                                                     onClick={() => rmVariant(dev.id, v)}
                                                     className="text-red-400/90 hover:text-red-300 p-0.5 shrink-0"
-                                                    aria-label={`Remove variant ${v}`}
+                                                    aria-label={`Remove model ${v}`}
                                                 >
                                                     <X size={10} />
                                                 </button>

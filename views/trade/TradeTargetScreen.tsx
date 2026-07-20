@@ -15,10 +15,12 @@
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { Banknote, Info, Smartphone } from 'lucide-react';
+import { Banknote, Smartphone } from 'lucide-react';
 import { useTradeFlow } from '../../lib/tradeFlowContext';
 import { TradePhasePills } from '../../components/trade/TradePhasePills';
 import { PageBackButton } from '../../components/PageBackButton';
+import { Pagination } from '../../components/Pagination';
+import { PAGE_SIZES, usePagination } from '../../lib/pagination';
 import { getTradeDevices, getTradeTargets } from '../../lib/tradeApi';
 import { getProductPageRow } from '../../lib/catalogApi';
 import { formatGhs } from '../../lib/money';
@@ -161,6 +163,12 @@ export function TradeTargetScreen() {
     const grouped = groupTargetsByProduct(filtered);
     return orderTargetProductsByAllowlist(grouped, allowIds);
   }, [browseSourceRows, categoryFilter, allowIds]);
+
+  const targetPaging = usePagination(
+    products,
+    PAGE_SIZES.catalog,
+    `${categoryFilter ?? 'all'}|${products.length}`,
+  );
 
   const productHasStock = useMemo(() => {
     const set = new Set<string>();
@@ -834,18 +842,6 @@ export function TradeTargetScreen() {
           </fieldset>
         )}
 
-        {/* D11 availability note */}
-        <div
-          className={`flex gap-2.5 rounded-xl border px-3.5 py-3 text-xs leading-relaxed ${
-            isLight
-              ? 'border-black/8 bg-black/[0.03] text-black/55'
-              : 'border-white/8 bg-white/[0.04] text-white/50'
-          }`}
-        >
-          <Info size={16} className="shrink-0 mt-0.5 text-[#CDA032]" aria-hidden />
-          <span>{TRADE_COPY.target.availabilityNote}</span>
-        </div>
-
         <button
           type="button"
           disabled={!canConfirm}
@@ -942,18 +938,6 @@ export function TradeTargetScreen() {
         </div>
       )}
 
-      {/* D11 note */}
-      <div
-        className={`flex gap-2.5 rounded-xl border px-3.5 py-3 text-xs leading-relaxed ${
-          isLight
-            ? 'border-black/8 bg-black/[0.03] text-black/55'
-            : 'border-white/8 bg-white/[0.04] text-white/50'
-        }`}
-      >
-        <Info size={16} className="shrink-0 mt-0.5 text-[#CDA032]" aria-hidden />
-        <span>{TRADE_COPY.target.availabilityNote}</span>
-      </div>
-
       {products.length === 0 ? (
         <div className="text-center py-12 space-y-2 px-4">
           <p className="text-sm text-[color:var(--bb-muted)]">
@@ -979,7 +963,7 @@ export function TradeTargetScreen() {
             {TRADE_COPY.target.pickModel}
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
-            {products.map((p) => {
+            {targetPaging.pageItems.map((p) => {
               const selected =
                 state.targetLock &&
                 !state.targetLock.cashOnly &&
@@ -1038,6 +1022,14 @@ export function TradeTargetScreen() {
               );
             })}
           </div>
+          <Pagination
+            page={targetPaging.page}
+            pageCount={targetPaging.pageCount}
+            onPageChange={targetPaging.setPage}
+            total={targetPaging.total}
+            pageSize={PAGE_SIZES.catalog}
+            isLight={isLight}
+          />
         </>
       )}
 

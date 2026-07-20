@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Mail, Phone, MapPin, Send } from 'lucide-react';
 import { useAppContext } from '../App';
-import { sendContactFormEmail } from '../lib/contactEmail';
 import { INSTAGRAM_URL, mailtoSupport, SUPPORT_EMAIL, SUPPORT_PHONE_TEL, WHATSAPP_DISPLAY, whatsAppUrl } from '../lib/contact';
 import { PageBackButton } from '../components/PageBackButton';
 
@@ -12,6 +11,25 @@ const inputBase = (isLight: boolean) =>
       : 'bg-black/30 border-white/5 text-white placeholder-white/30 focus:border-[#CDA032]'
   }`;
 
+function buildContactWhatsAppMessage(fields: {
+  name: string;
+  email: string;
+  phone: string;
+  subject: string;
+  message: string;
+}): string {
+  const lines = [
+    'Hi BlackBox — contact form',
+    `Name: ${fields.name}`,
+    `Email: ${fields.email}`,
+    fields.phone ? `Phone: ${fields.phone}` : null,
+    `Subject: ${fields.subject}`,
+    '',
+    fields.message,
+  ];
+  return lines.filter((line): line is string => line != null).join('\n');
+}
+
 export const Contact: React.FC = () => {
   const { theme, notify } = useAppContext();
   const isLight = theme === 'light';
@@ -21,38 +39,25 @@ export const Contact: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
-  const [sending, setSending] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (sending) return;
 
-    setSending(true);
-    try {
-      const result = await sendContactFormEmail({
-        name: name.trim(),
-        email: email.trim(),
-        phone: phone.trim(),
-        subject: subject.trim(),
-        message: message.trim(),
-      });
+    const text = buildContactWhatsAppMessage({
+      name: name.trim(),
+      email: email.trim(),
+      phone: phone.trim(),
+      subject: subject.trim(),
+      message: message.trim(),
+    });
 
-      if (result.ok === false) {
-        notify(result.error, 'error');
-        return;
-      }
-
-      notify('Message sent. We will get back to you within 24 hours.', 'success');
-      setName('');
-      setEmail('');
-      setPhone('');
-      setSubject('');
-      setMessage('');
-    } catch (err) {
-      notify(err instanceof Error ? err.message : 'Something went wrong. Please try again.', 'error');
-    } finally {
-      setSending(false);
-    }
+    window.open(whatsAppUrl(text), '_blank', 'noopener,noreferrer');
+    notify('Opening WhatsApp with your message…', 'success');
+    setName('');
+    setEmail('');
+    setPhone('');
+    setSubject('');
+    setMessage('');
   };
 
   return (
@@ -95,7 +100,7 @@ export const Contact: React.FC = () => {
                 Send a Message
               </h2>
               <p className={`text-[13px] mb-8 ${isLight ? 'text-black/60' : 'text-white/60'}`}>
-                Submit the form and we will email our team directly. We typically respond within 24 hours.
+                Fill in your details and we will open WhatsApp with your message ready to send.
               </p>
 
               <form className="space-y-5" onSubmit={handleSubmit}>
@@ -175,13 +180,12 @@ export const Contact: React.FC = () => {
 
                 <button
                   type="submit"
-                  disabled={sending}
-                  className="w-full mt-6 flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm shadow-md transition-colors bg-[#CDA032] text-black hover:bg-[#B38B21] disabled:opacity-50 disabled:pointer-events-none"
+                  className="w-full mt-6 flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm shadow-md transition-colors bg-[#CDA032] text-black hover:bg-[#B38B21]"
                 >
-                  <Send size={16} /> {sending ? 'Sending…' : 'Send Message'}
+                  <Send size={16} /> Send via WhatsApp
                 </button>
                 <p className={`text-center text-[11px] mt-4 ${isLight ? 'text-black/50' : 'text-white/40'}`}>
-                  We typically respond within 24 hours
+                  Opens WhatsApp to {WHATSAPP_DISPLAY}
                 </p>
               </form>
             </div>

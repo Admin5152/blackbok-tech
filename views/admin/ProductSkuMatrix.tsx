@@ -17,6 +17,7 @@ import {
   findDuplicateSkuKeys,
   SKU_SIM_CODES,
 } from '../../lib/productSkuMatrix';
+import { formatSimTypeLabel } from '../../lib/productLabels';
 import { formatCurrency } from '../../lib/utils';
 
 type Props = {
@@ -82,7 +83,12 @@ export const ProductSkuMatrix: React.FC<Props> = ({
   const inStockRows = rows.filter((r) => r.stock > 0 && r.is_active !== false).length;
 
   const rowLabel = (row: SkuMatrixRow) => {
-    const parts = [row.color, row.storage, row.ram, row.sim_type].filter(Boolean);
+    const parts = [
+      row.color,
+      row.storage,
+      row.ram,
+      row.sim_type ? formatSimTypeLabel(row.sim_type) : '',
+    ].filter(Boolean);
     return parts.length ? parts.join(' · ') : 'Default';
   };
 
@@ -125,8 +131,8 @@ export const ProductSkuMatrix: React.FC<Props> = ({
             <Layers size={12} /> Inventory per selection
           </p>
           <p className={`text-[11px] mt-1 max-w-md ${muted}`}>
-            Each row is one purchasable SKU (Color × Storage × RAM × SIM). Absolute price blank =
-            base + modifier.
+            Each row is one sellable version (color × storage × RAM × SIM). Leave the fixed price
+            blank to use the base price plus any adjustment.
           </p>
         </div>
         <label
@@ -147,13 +153,13 @@ export const ProductSkuMatrix: React.FC<Props> = ({
 
       {!canMatrix && (
         <p className="text-xs text-amber-400/95 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3">
-          Add Color, Storage, RAM, or SIM options above first — then enable per-SKU stock here.
+          Add Color, Storage, RAM, or SIM options above first — then enable stock per version here.
         </p>
       )}
 
       {canMatrix && !enabled && (
         <p className={`text-xs px-1 ${muted}`}>
-          Simple mode: one stock number on the Details tab. Enable per-SKU stock for{' '}
+          Simple mode: one stock number on the Details tab. Enable stock per version for{' '}
           <strong className={title}>{comboCount}</strong> combination{comboCount === 1 ? '' : 's'}.
         </p>
       )}
@@ -167,18 +173,18 @@ export const ProductSkuMatrix: React.FC<Props> = ({
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#B38B21] text-black text-[10px] font-black uppercase tracking-wide hover:bg-[#D4AF37] transition-colors"
             >
               <RefreshCw size={12} />
-              {rows.length ? 'Rebuild from options' : `Create ${comboCount} SKUs`}
+              {rows.length ? 'Rebuild from options' : `Create ${comboCount} versions`}
             </button>
             <span className={`text-[10px] ${muted}`}>
-              {rows.length} SKU{rows.length === 1 ? '' : 's'} · {inStockRows} in stock ·{' '}
+              {rows.length} version{rows.length === 1 ? '' : 's'} · {inStockRows} in stock ·{' '}
               <strong className="text-[#B38B21]">{total}</strong> units
             </span>
           </div>
 
           {duplicateKeys.size > 0 && (
             <p className="text-xs text-amber-400 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-2">
-              Duplicate combinations detected (same color/storage/RAM/SIM). Fix before saving —
-              matches DB constraint uq_variant_combo.
+              Duplicate combinations detected (same color / storage / RAM / SIM). Fix before saving —
+              each combination must be unique.
             </p>
           )}
 
@@ -189,8 +195,8 @@ export const ProductSkuMatrix: React.FC<Props> = ({
               }`}
             >
               <Package size={28} className={`mb-3 ${isLight ? 'text-black/20' : 'text-white/20'}`} />
-              <p className={`text-sm font-bold ${muted}`}>No SKU rows yet</p>
-              <p className={`text-xs mt-1 ${muted}`}>Click &quot;Create SKUs&quot; to generate combinations.</p>
+              <p className={`text-sm font-bold ${muted}`}>No versions yet</p>
+              <p className={`text-xs mt-1 ${muted}`}>Click &quot;Create versions&quot; to generate combinations.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[min(52vh,420px)] overflow-y-auto bb-scrollbar pr-1">
@@ -204,7 +210,7 @@ export const ProductSkuMatrix: React.FC<Props> = ({
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className={`text-[9px] font-black uppercase tracking-widest ${muted}`}>
-                          SKU #{i + 1}
+                          Version #{i + 1}
                         </p>
                         <p className={`text-sm font-bold leading-snug truncate ${title}`}>{rowLabel(row)}</p>
                         <p
@@ -214,9 +220,9 @@ export const ProductSkuMatrix: React.FC<Props> = ({
                         >
                           {priceLbl.text}
                           {priceLbl.muted ? (
-                            <span className={`font-normal ${muted}`}> (base + modifier)</span>
+                            <span className={`font-normal ${muted}`}> (from base price)</span>
                           ) : (
-                            <span className={`font-normal ${muted}`}> (absolute)</span>
+                            <span className={`font-normal ${muted}`}> (fixed price)</span>
                           )}
                         </p>
                       </div>
@@ -258,14 +264,14 @@ export const ProductSkuMatrix: React.FC<Props> = ({
                           <option value="">—</option>
                           {SKU_SIM_CODES.map((c) => (
                             <option key={c} value={c}>
-                              {c}
+                              {formatSimTypeLabel(c)}
                             </option>
                           ))}
                         </select>
                       </div>
                       <div>
                         <label className={`text-[8px] font-black uppercase block mb-1 ${muted}`}>
-                          Absolute GH₵
+                          Fixed price GH₵
                         </label>
                         <input
                           type="number"
@@ -300,12 +306,12 @@ export const ProductSkuMatrix: React.FC<Props> = ({
                       </div>
                       <div className="col-span-2">
                         <label className={`text-[8px] font-black uppercase block mb-1 ${muted}`}>
-                          SKU code
+                          Item code
                         </label>
                         <div className="flex gap-1.5">
                           <input
                             type="text"
-                            placeholder="auto on save if blank"
+                            placeholder="Generated on save if blank"
                             value={row.sku}
                             onChange={(e) => patchRow(i, { sku: e.target.value })}
                             className={`${inputCls.replace('text-sm font-bold', 'text-xs')} flex-1`}

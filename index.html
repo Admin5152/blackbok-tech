@@ -3,10 +3,23 @@
 <html lang="en-GH">
 <head>
     <meta charset="UTF-8">
+    <meta name="color-scheme" content="dark light">
     <script>
       try {
         if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
       } catch (e) {}
+    </script>
+    <script>
+      /* Apply saved theme before paint so native <select> menus match light/dark. */
+      (function () {
+        try {
+          var t = localStorage.getItem('bb_v4_theme');
+          if (t !== 'light' && t !== 'dark') t = 'dark';
+          document.documentElement.dataset.theme = t;
+          document.documentElement.classList.toggle('dark', t === 'dark');
+          document.documentElement.style.colorScheme = t;
+        } catch (e) {}
+      })();
     </script>
     <script>
       /* Hash SPA: bare / or /# must become /#/ before React loads */

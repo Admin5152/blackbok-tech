@@ -23,6 +23,13 @@
   --bb-scrollbar-track: rgba(255, 255, 255, 0.08);
   --bb-scrollbar-thumb: rgba(205, 160, 50, 0.55);
   --bb-scrollbar-thumb-hover: rgba(205, 160, 50, 0.85);
+
+  /* Native <select> popup follows OS chrome when color-scheme matches theme */
+  color-scheme: dark;
+}
+
+html {
+  color-scheme: dark;
 }
 
 html[data-theme="light"] {
@@ -41,6 +48,79 @@ html[data-theme="light"] {
   --bb-scrollbar-track: rgba(0, 0, 0, 0.06);
   --bb-scrollbar-thumb: rgba(179, 139, 33, 0.55);
   --bb-scrollbar-thumb-hover: rgba(179, 139, 33, 0.85);
+
+  color-scheme: light;
+}
+
+/*
+ * Native dropdowns (<select> / <option>) — readable in both themes.
+ * Browsers paint the open list with OS chrome; color-scheme + explicit
+ * option colors fix white-on-white / dark-on-dark in Chromium & Safari.
+ */
+select,
+.select-bb,
+.bb-select {
+  color-scheme: inherit;
+  background-color: var(--bb-surface-2);
+  color: var(--bb-text);
+  border-color: color-mix(in srgb, var(--bb-text) 18%, transparent);
+}
+
+select:disabled,
+.select-bb:disabled,
+.bb-select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+select option,
+select optgroup,
+.bb-select option,
+.bb-select optgroup {
+  background-color: var(--bb-surface-2);
+  color: var(--bb-text);
+}
+
+html[data-theme='dark'] select,
+html.dark select,
+html:not([data-theme='light']) select {
+  color-scheme: dark;
+  background-color: #111111;
+  color: #ffffff;
+}
+
+html[data-theme='dark'] select option,
+html[data-theme='dark'] select optgroup,
+html.dark select option,
+html.dark select optgroup,
+html:not([data-theme='light']) select option,
+html:not([data-theme='light']) select optgroup {
+  background-color: #111111;
+  color: #ffffff;
+}
+
+html[data-theme='light'] select {
+  color-scheme: light;
+  background-color: #ffffff;
+  color: #1d1d1f;
+}
+
+html[data-theme='light'] select option,
+html[data-theme='light'] select optgroup {
+  background-color: #ffffff;
+  color: #1d1d1f;
+}
+
+/* Transparent/select-on-dark admin fields still need readable option panes */
+html:not([data-theme='light']) select.bg-transparent,
+html.dark select.bg-transparent {
+  background-color: #111111;
+  color: #ffffff;
+}
+
+html[data-theme='light'] select.bg-transparent {
+  background-color: #ffffff;
+  color: #1d1d1f;
 }
 
 /* Light-mode compatibility layer for legacy dark-first Tailwind classes.
@@ -410,6 +490,18 @@ html.lenis.lenis-smooth {
 
 html.lenis [data-lenis-prevent] {
   overscroll-behavior: contain;
+}
+
+/* Nested panels must scroll themselves while Lenis owns the document */
+html.lenis [data-lenis-prevent],
+.bb-scroll-locked [data-lenis-prevent] {
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+html.bb-scroll-locked,
+html.bb-scroll-locked body {
+  overflow: hidden !important;
 }
 
 /* Home: horizontal product rails — allow vertical page scroll on touch + wheel */

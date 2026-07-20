@@ -39,6 +39,8 @@ export interface AppContextType {
   setCompareIds: Dispatch<SetStateAction<string[]>>;
   addToCart: (p: Product, o?: Record<string, string>, q?: number) => void;
   toggleWishlist: (id: string) => void;
+  /** Clears local + server wishlist for the signed-in user. */
+  clearWishlist: () => void;
   toggleCompare: (id: string) => void;
   onToggleCompare: (id: string) => void;
   updateQuantity: (id: string, o: Record<string, string> | undefined, d: number) => void;

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from '@tanstack/react-router';
 import { ArrowLeft, Download, Share2 } from 'lucide-react';
 import { Order } from '../types';
 import { formatCurrency, formatDate } from '../lib/utils';
+import { formatProductOptionLabel } from '../lib/productLabels';
 import { supabase } from '../lib/supabase';
 import { useAppContext } from '../App';
 import {
@@ -355,7 +356,7 @@ export const Receipt: React.FC = () => {
                         (Object.keys(item.selectedOptions || {}).length
                           ? Object.entries(item.selectedOptions || {})
                               .filter(([, v]) => v)
-                              .map(([k, v]) => `${k}: ${v}`)
+                              .map(([k, v]) => `${formatProductOptionLabel(k)}: ${v}`)
                               .join(' · ')
                           : '');
                       return (

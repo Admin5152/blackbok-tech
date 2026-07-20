@@ -127,10 +127,10 @@ export const TRADE_COPY = {
     detailColor: 'Colour',
     detailPrice: 'Price',
     detailAvailability: 'Availability',
-    availabilityInStock: 'In stock (confirmed at visit)',
-    availabilityPreference: 'Preference noted — confirm at BlackBox',
+    availabilityInStock: 'In stock',
+    availabilityPreference: 'Preference noted',
     preferenceNote:
-      'This exact combo isn’t listed in stock right now — we’ll note your preference and confirm at BlackBox.',
+      'This exact combo isn’t listed in stock right now — we’ll note your preference.',
     storage: 'Storage',
     ram: 'RAM',
     simType: 'SIM type',
@@ -150,9 +150,9 @@ export const TRADE_COPY = {
     outOfStock: 'Out of stock',
     /**
      * D11: stock_reservation=none — first come, first served; no hold on submit.
+     * UI banner removed — customers don’t need the “confirmed at shop” note.
      */
-    availabilityNote:
-      'Availability is first come, first served; stock is confirmed when you visit BlackBox.',
+    availabilityNote: '',
     // TODO(D8): top-up payment method pending client — placeholder until Paystack/on-exchange decided
     topUpPaymentPlaceholder: 'Pay the top-up amount at BlackBox when you drop off your device.',
     continue: 'Continue',
@@ -469,7 +469,7 @@ export const TRADE_COPY = {
     generic: 'Something went wrong. Please try again.',
     duplicateImei: 'This IMEI already has an open trade-in.',
     outOfStock:
-      'Cannot complete: the upgrade target is out of stock. Restock or switch to another variant.',
+      'Cannot complete: the upgrade target is out of stock. Restock or switch to another upgrade option.',
     restockOrSwitch: 'Restock or switch target',
     switchTargetSaved: 'Target updated. Re-check top-up, then complete again.',
   },

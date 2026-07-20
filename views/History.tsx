@@ -25,11 +25,15 @@ import { tradeOfferAmount } from '../lib/tradeOffer';
 import { TRADE_COPY } from '../lib/tradeCopy';
 import { TradeOfferRespondButtons } from '../components/TradeOfferRespondButtons';
 import { tradeNeedsOfferResponse } from '../lib/tradeOfferRespond';
+import { CancelRequestButton } from '../components/CancelRequestButton';
+import { canCancelOrder, canCancelTrade } from '../lib/customerCancel';
+import { PAGE_SIZES, usePagination } from '../lib/pagination';
+import { Pagination } from '../components/Pagination';
 
 type HistoryTab = 'orders' | 'trades' | 'repairs';
 
 export const History: React.FC = () => {
-    const { theme, orders = [], repairs = [], trades = [], setTrades, user, notify } = useAppContext();
+    const { theme, orders = [], repairs = [], trades = [], setTrades, setOrders, user, notify } = useAppContext();
     const isLight = theme === 'light';
     const navigate = useNavigate();
     const { tab } = useSearch({ from: '/history' } as any);
@@ -144,6 +148,22 @@ export const History: React.FC = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [repairs, q]);
 
+    const ordersPaging = usePagination(
+      filteredOrders,
+      PAGE_SIZES.list,
+      `orders:${q}`,
+    );
+    const tradesPaging = usePagination(
+      filteredTrades,
+      PAGE_SIZES.list,
+      `trades:${q}`,
+    );
+    const repairsPaging = usePagination(
+      filteredRepairs,
+      PAGE_SIZES.list,
+      `repairs:${q}`,
+    );
+
     // HST-04 still passes: badges show the unfiltered totals so users
     // can see at a glance how many records exist on each tab even while
     // they're typing into the search box.
@@ -213,7 +233,8 @@ export const History: React.FC = () => {
                 <div className="grid gap-6">
                     {activeTab === 'orders' && (
                         filteredOrders.length > 0 ? (
-                            filteredOrders.map(order => (
+                            <>
+                            {ordersPaging.pageItems.map(order => (
                                 <div
                                     key={order.id}
                                     className={`group p-6 md:p-8 rounded-[2.5rem] border transition-all duration-500 flex flex-col md:flex-row md:items-center justify-between gap-8 ${isLight ? 'bg-white border-black/5 hover:border-black' : 'bg-white/5 border-white/5 hover:border-[#CDA032]/30 hover:bg-white/[0.07] shadow-2xl shadow-black'}`}
@@ -230,7 +251,7 @@ export const History: React.FC = () => {
                                             <p className="text-[10px] font-bold opacity-60 uppercase tracking-widest">Placed on {new Date(order.date).toLocaleDateString()}</p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center justify-between md:justify-end gap-3 border-t md:border-0 pt-6 md:pt-0 border-white/5">
+                                    <div className="flex flex-wrap items-center justify-between md:justify-end gap-3 border-t md:border-0 pt-6 md:pt-0 border-white/5">
                                         <span className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest max-w-[11rem] truncate ${customerStatusBadgeClasses(order.status, 'order', isLight)}`} title={formatCustomerStatusShort('order', order.status)}>
                                             {formatCustomerStatusShort('order', order.status)}
                                         </span>
@@ -240,9 +261,33 @@ export const History: React.FC = () => {
                                         >
                                             View Receipt
                                         </Link>
+                                        {canCancelOrder(order) && notify && (
+                                            <CancelRequestButton
+                                                kind="order"
+                                                order={order}
+                                                isLight={isLight}
+                                                notify={notify}
+                                                onCancelled={(id) => {
+                                                    setOrders((prev) =>
+                                                        prev.map((o) =>
+                                                            o.id === id ? { ...o, status: 'Cancelled' } : o,
+                                                        ),
+                                                    );
+                                                }}
+                                            />
+                                        )}
                                     </div>
                                 </div>
-                            ))
+                            ))}
+                            <Pagination
+                                page={ordersPaging.page}
+                                pageCount={ordersPaging.pageCount}
+                                onPageChange={ordersPaging.setPage}
+                                total={ordersPaging.total}
+                                pageSize={PAGE_SIZES.list}
+                                isLight={isLight}
+                            />
+                            </>
                         ) : (
                             <div className="py-20 text-center space-y-6">
                                 <div className="w-20 h-20 rounded-full bg-white/5 mx-auto flex items-center justify-center text-white/20">
@@ -259,7 +304,8 @@ export const History: React.FC = () => {
 
                     {activeTab === 'trades' && (
                         filteredTrades.length > 0 ? (
-                            filteredTrades.map(trade => {
+                            <>
+                            {tradesPaging.pageItems.map(trade => {
                                 const offerAmt = tradeOfferAmount(trade);
                                 const estimateAmt = Number(trade.estimatedValue ?? trade.estimated_value) || 0;
                                 const ref = trade.display_id || trade.id;
@@ -313,9 +359,33 @@ export const History: React.FC = () => {
                                     isLight={isLight}
                                   />
                                 )}
+                                {canCancelTrade(trade) && notify && (
+                                  <CancelRequestButton
+                                    kind="trade"
+                                    trade={trade}
+                                    isLight={isLight}
+                                    notify={notify}
+                                    onCancelled={(id) => {
+                                      setTrades(
+                                        trades.map((t) =>
+                                          t.id === id ? { ...t, status: 'Cancelled' } : t,
+                                        ),
+                                      );
+                                    }}
+                                  />
+                                )}
                                 </div>
                                 );
-                            })
+                            })}
+                            <Pagination
+                                page={tradesPaging.page}
+                                pageCount={tradesPaging.pageCount}
+                                onPageChange={tradesPaging.setPage}
+                                total={tradesPaging.total}
+                                pageSize={PAGE_SIZES.list}
+                                isLight={isLight}
+                            />
+                            </>
                         ) : (
                             <div className="py-20 text-center space-y-6">
                                 <div className="w-20 h-20 rounded-full bg-white/5 mx-auto flex items-center justify-center text-white/20">
@@ -332,7 +402,8 @@ export const History: React.FC = () => {
 
                     {activeTab === 'repairs' && (
                         filteredRepairs.length > 0 ? (
-                            filteredRepairs.map(repair => (
+                            <>
+                            {repairsPaging.pageItems.map(repair => (
                                 <Link
                                     key={repair.id}
                                     to={`/tracking/repair/${repair.id}`}
@@ -359,7 +430,16 @@ export const History: React.FC = () => {
                                         </div>
                                     </div>
                                 </Link>
-                            ))
+                            ))}
+                            <Pagination
+                                page={repairsPaging.page}
+                                pageCount={repairsPaging.pageCount}
+                                onPageChange={repairsPaging.setPage}
+                                total={repairsPaging.total}
+                                pageSize={PAGE_SIZES.list}
+                                isLight={isLight}
+                            />
+                            </>
                         ) : (
                             <div className="py-20 text-center space-y-6">
                                 <div className="w-20 h-20 rounded-full bg-white/5 mx-auto flex items-center justify-center text-white/20">

@@ -23,6 +23,10 @@ import { tradeNeedsOfferResponse } from '../../lib/tradeOfferRespond';
 import type { TradeRequest } from '../../types';
 import { PageBackButton } from '../../components/PageBackButton';
 import { TradeOfferRespondButtons } from '../../components/TradeOfferRespondButtons';
+import { CancelRequestButton } from '../../components/CancelRequestButton';
+import { canCancelTrade } from '../../lib/customerCancel';
+import { PAGE_SIZES, usePagination } from '../../lib/pagination';
+import { Pagination } from '../../components/Pagination';
 
 function isExpired(t: TradeRequest): boolean {
   if (!t.expires_at) return false;
@@ -64,6 +68,8 @@ export function MyTradeInsPage() {
     }
     void load();
   }, [authReady, user, load]);
+
+  const tradesPaging = usePagination(rows, PAGE_SIZES.list, rows.length);
 
   return (
     <div
@@ -109,8 +115,9 @@ export function MyTradeInsPage() {
           </button>
         </div>
       ) : (
+        <>
         <ul className="space-y-4">
-          {rows.map((t) => {
+          {tradesPaging.pageItems.map((t) => {
             const expired = isExpired(t);
             const estimate = Number(t.estimated_value ?? t.estimatedValue) || 0;
             const finalOffer = tradeOfferAmount(t);
@@ -215,13 +222,30 @@ export function MyTradeInsPage() {
                   )}
                 </div>
 
-                <div className="mt-3">
+                <div className="mt-3 flex flex-wrap items-center gap-4">
                   <Link
                     to={`/tracking/trade/${t.id}` as any}
                     className="text-[10px] font-black uppercase tracking-widest text-[#CDA032] hover:underline"
                   >
                     {TRADE_COPY.myTrades.viewTracking}
                   </Link>
+                  {canCancelTrade(t) && (
+                    <CancelRequestButton
+                      kind="trade"
+                      trade={t}
+                      isLight={isLight}
+                      notify={notify}
+                      onCancelled={(id) => {
+                        const next = (trades.length ? trades : rows).map((row) =>
+                          row.id === id ? { ...row, status: 'Cancelled' } : row,
+                        );
+                        setTrades(next);
+                        setRows((prev) =>
+                          prev.map((r) => (r.id === id ? { ...r, status: 'Cancelled' } : r)),
+                        );
+                      }}
+                    />
+                  )}
                 </div>
 
                 {showRespond && (
@@ -256,6 +280,15 @@ export function MyTradeInsPage() {
             );
           })}
         </ul>
+        <Pagination
+          page={tradesPaging.page}
+          pageCount={tradesPaging.pageCount}
+          onPageChange={tradesPaging.setPage}
+          total={tradesPaging.total}
+          pageSize={PAGE_SIZES.list}
+          isLight={isLight}
+        />
+        </>
       )}
     </div>
   );

@@ -289,7 +289,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
             return;
         }
         if (skuMatrixEnabled && skuRows.length === 0) {
-            setError('Add Color / Storage / RAM chips, enable per-combination stock, and wait for rows to appear (or click Create rows).');
+            setError('Add Color / Storage / RAM options, turn on stock per version, and wait for rows to appear (or click Create versions).');
             return;
         }
         if (
@@ -302,14 +302,14 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
             (!skuMatrixEnabled || skuRows.length === 0)
         ) {
             setError(
-                'You added Color / Storage / RAM / SIM options — turn on per-combination stock and create SKU rows so the shop and trade-in only show real configs.',
+                'You added Color / Storage / RAM / SIM options — turn on stock per version and create versions so the shop and trade-in only show real options.',
             );
             return;
         }
         if (skuMatrixEnabled && skuRows.length > 0) {
             const dups = findDuplicateSkuKeys(skuRows);
             if (dups.length) {
-                setError('Duplicate SKU combinations (color/storage/RAM/SIM). Fix duplicates before saving.');
+                setError('Duplicate combinations (color / storage / RAM / SIM). Fix duplicates before saving.');
                 return;
             }
         }
@@ -403,7 +403,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
             const msg = friendlyProductActionError(e, 'save');
             if (/stock versions|product setup|Duplicate/i.test(msg)) {
                 setError(msg);
-            } else if (/Duplicate SKU|duplicate/i.test(String((e as Error)?.message || ''))) {
+            } else if (/Duplicate combination|Duplicate SKU|duplicate/i.test(String((e as Error)?.message || ''))) {
                 setError(String((e as Error).message));
             } else {
                 setError(msg);

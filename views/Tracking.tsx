@@ -29,7 +29,9 @@ import { PageBackButton } from '../components/PageBackButton';
 import { tradeOfferAmount } from '../lib/tradeOffer';
 import { TRADE_COPY } from '../lib/tradeCopy';
 import { TradeOfferRespondButtons } from '../components/TradeOfferRespondButtons';
-import type { TradeRequest } from '../types';
+import { CancelRequestButton } from '../components/CancelRequestButton';
+import { canCancelOrder, canCancelTrade } from '../lib/customerCancel';
+import type { Order, TradeRequest } from '../types';
 
 interface TimelineStep {
   id: string;
@@ -54,7 +56,14 @@ function matchByRef<T extends { id?: string; display_id?: string }>(
 }
 
 export const Tracking: React.FC = () => {
-  const { type, id } = useParams({ from: '/tracking/$type/$id' });
+  // shouldThrow: false — avoid SYSTEM ANOMALY when the match is briefly missing
+  // (e.g. notification deep-link race). Fall through to "Reference Not Found".
+  const params = useParams({
+    from: '/tracking/$type/$id',
+    shouldThrow: false,
+  }) as { type?: string; id?: string } | undefined;
+  const type = String(params?.type || '').trim();
+  const id = String(params?.id || '').trim();
   const {
     theme,
     orders = [],
@@ -62,6 +71,7 @@ export const Tracking: React.FC = () => {
     trades = [],
     setTrades,
     setRepairs,
+    setOrders,
     notify,
   } = useAppContext();
   const isLight = theme === 'light';
@@ -457,6 +467,7 @@ export const Tracking: React.FC = () => {
   }
 
   const entityId = trackingData.entityId || id;
+  const MainIcon = trackingData.mainIcon;
 
   return (
     <div
@@ -473,11 +484,50 @@ export const Tracking: React.FC = () => {
           label="Back"
         />
 
+        {(type === 'order' || type === 'trade') && (
+          <div className="flex flex-wrap items-center gap-4 -mt-4">
+            {type === 'order' &&
+              trackingData.originalData &&
+              canCancelOrder(trackingData.originalData as Order) && (
+                <CancelRequestButton
+                  kind="order"
+                  order={trackingData.originalData as Order}
+                  isLight={isLight}
+                  notify={notify}
+                  onCancelled={(id) => {
+                    setOrders(
+                      orders.map((o) =>
+                        o.id === id ? { ...o, status: 'Cancelled' } : o,
+                      ),
+                    );
+                  }}
+                />
+              )}
+            {type === 'trade' && trade && canCancelTrade(trade) && (
+              <CancelRequestButton
+                kind="trade"
+                trade={trade}
+                isLight={isLight}
+                notify={notify}
+                onCancelled={() => {
+                  const updated = { ...trade, status: 'Cancelled' as const };
+                  setFetchedTrade(updated);
+                  setTrades(
+                    (Array.isArray(trades) ? trades : []).map((t) =>
+                      t.id === trade.id ? updated : t,
+                    ),
+                  );
+                }}
+              />
+            )}
+          </div>
+        )}
+
         <div className="grid md:grid-cols-2 gap-12 items-end">
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-2xl bg-[#CDA032]/20 flex items-center justify-center text-[#CDA032]">
-                <trackingData.mainIcon size={24} />
+                <MainIcon size={24} />
               </div>
               <span className="text-[10px] font-black uppercase tracking-[0.4em] opacity-40">
                 {trackingData.subtitle}
@@ -533,11 +583,13 @@ export const Tracking: React.FC = () => {
           }`}
         >
           <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
-            <trackingData.mainIcon size={180} />
+            <MainIcon size={180} />
           </div>
 
           <div className="relative space-y-12">
-            {trackingData.steps.map((step, index) => (
+            {trackingData.steps.map((step, index) => {
+              const StepIcon = step.icon;
+              return (
               <div key={step.id} className="relative flex gap-8 group">
                 {index !== trackingData.steps.length - 1 && (
                   <div
@@ -566,7 +618,7 @@ export const Tracking: React.FC = () => {
                           : 'bg-white/5 border-white/5 text-white/20'
                   }`}
                 >
-                  <step.icon size={24} />
+                  <StepIcon size={24} />
                 </div>
 
                 <div className="space-y-2 pt-1 flex-1">
@@ -673,7 +725,8 @@ export const Tracking: React.FC = () => {
                     )}
                 </div>
               </div>
-            ))}
+            );
+            })}
           </div>
         </div>
       </div>

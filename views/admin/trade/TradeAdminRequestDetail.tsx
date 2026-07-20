@@ -54,7 +54,7 @@ const OFFER_REQUIRED = new Set(['offer_made', 'awaiting_user']);
 
 const formatCatalogVariantLabel = (v: ProductVariant): string => {
   const parts = [v.color, v.storage, v.ram].filter(Boolean) as string[];
-  const head = parts.length > 0 ? parts.join(' · ') : (v.name || v.sku || 'Variant');
+  const head = parts.length > 0 ? parts.join(' · ') : (v.name || v.sku || 'Configuration');
   const sku = v.sku && !head.includes(v.sku) ? ` · ${v.sku}` : '';
   const st = v.stock != null ? ` — stock ${v.stock}` : '';
   return `${head}${sku}${st}`;
@@ -271,7 +271,7 @@ export const TradeAdminRequestDetail: React.FC = () => {
     if (s === 'completed' && catalogTargetVariants.length > 0) {
       const pick = (draftTargetVariantId || catalogTargetVariants[0]?.id || '').trim();
       if (!pick) {
-        notify?.('Pick a target variant before marking completed.', 'error');
+        notify?.('Pick an upgrade configuration before marking completed.', 'error');
         return;
       }
       let before: number | null = null;
@@ -643,7 +643,7 @@ export const TradeAdminRequestDetail: React.FC = () => {
               ))}
             </select>
           ) : (
-            <p className="text-[10px] text-white/35">Product-level stock (no variant rows).</p>
+            <p className="text-[10px] text-white/35">Overall product stock (no per-version stock).</p>
           )
         ) : (
           <p className="text-[10px] text-white/35">
@@ -779,7 +779,7 @@ export const TradeAdminRequestDetail: React.FC = () => {
                 Target stock check
               </p>
               <p className="text-white/80">
-                Variant <span className="font-mono text-white/50">{stockCheck.variantId.slice(0, 8)}…</span>
+                Configuration <span className="font-mono text-white/50">{stockCheck.variantId.slice(0, 8)}…</span>
                 {': '}
                 {stockCheck.before != null ? stockCheck.before : '—'} →{' '}
                 {stockCheck.after != null ? stockCheck.after : '—'}

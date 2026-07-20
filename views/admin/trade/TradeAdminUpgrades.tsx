@@ -247,7 +247,7 @@ export const TradeAdminUpgrades: React.FC = () => {
               className="w-full rounded-xl border border-[var(--bb-border)] bg-[var(--bb-surface-2)] px-3 py-2 text-sm"
             />
           </div>
-          <div className="max-h-[min(60vh,520px)] overflow-y-auto p-2 space-y-1">
+          <div className="max-h-[min(60vh,520px)] min-h-0 overflow-y-auto p-2 space-y-1 [-webkit-overflow-scrolling:touch]" data-lenis-prevent>
             {eligibleRows.length === 0 ? (
               <p className="text-xs opacity-40 p-4 leading-relaxed">
                 No trade-linked iPhone / iPad products yet. Open{' '}
@@ -355,7 +355,7 @@ export const TradeAdminUpgrades: React.FC = () => {
               Clear list
             </button>
           </div>
-          <div className="max-h-[min(60vh,520px)] overflow-y-auto p-2 space-y-1 flex-1">
+          <div className="max-h-[min(60vh,520px)] min-h-0 overflow-y-auto p-2 space-y-1 flex-1 [-webkit-overflow-scrolling:touch]" data-lenis-prevent>
             {pickIds.length === 0 ? (
               <p className="text-xs opacity-40 p-4 leading-relaxed">
                 Nothing selected — the trade-in upgrade step shows every trade-linked

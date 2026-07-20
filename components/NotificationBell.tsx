@@ -2,6 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Bell, Check, Package, Wrench, RefreshCcw, Megaphone, Info as InfoIcon, X } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import { useNotifications, type Notification, type NotificationType } from '../hooks/useNotifications';
+import {
+  notificationNavigateTarget,
+  toNavigateOptions,
+} from '../lib/notificationLinks';
 import { TRADE_COPY } from '../lib/tradeCopy';
 
 interface NotificationBellProps {
@@ -10,27 +14,6 @@ interface NotificationBellProps {
 
 const MAX_DISPLAYED = 20;
 const BODY_CLAMP_CHARS = 140;
-
-/** Maps a notification.type → in-app route. Trade offers go to My trade-ins. */
-function getNotificationLink(notification: Notification): string | null {
-  if (notification.type === 'trade') {
-    if (!notification.reference_id) return '/account/trade-ins';
-    const blob = `${notification.title} ${notification.body}`.toLowerCase();
-    if (blob.includes('offer') || blob.includes('awaiting')) return '/account/trade-ins';
-    return `/tracking/trade/${notification.reference_id}`;
-  }
-  if (!notification.reference_id) return null;
-  switch (notification.type) {
-    case 'order':
-      return `/tracking/order/${notification.reference_id}`;
-    case 'repair':
-      return `/tracking/repair/${notification.reference_id}`;
-    case 'info':
-    case 'promo':
-    default:
-      return null;
-  }
-}
 
 /** Lightweight "x time ago" formatter so we don't pull in dayjs. */
 function timeAgo(iso: string): string {
@@ -148,10 +131,14 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ theme }) => 
       // Fire-and-forget; the hook does an optimistic update.
       void markAsRead(notification.id);
     }
-    const link = getNotificationLink(notification);
-    if (link) {
+    const target = notificationNavigateTarget(notification);
+    if (target) {
       setIsOpen(false);
-      navigate({ to: link as any });
+      try {
+        void navigate(toNavigateOptions(target) as any);
+      } catch (err) {
+        console.error('Notification navigation failed:', err);
+      }
     }
   };
 
@@ -268,7 +255,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ theme }) => 
           </div>
 
           {/* List */}
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]" data-lenis-prevent>
             {loading && notifications.length === 0 ? (
               <div className="p-8 text-center">
                 <div
@@ -306,7 +293,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ theme }) => 
               visible.map((notification) => {
                 const Icon = typeIcon(notification.type);
                 const accent = typeAccent(notification.type);
-                const hasLink = getNotificationLink(notification) !== null;
+                const hasLink = notificationNavigateTarget(notification) !== null;
                 const interactive = hasLink || !notification.is_read;
                 return (
                   <div
@@ -400,7 +387,11 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ theme }) => 
               type="button"
               onClick={() => {
                 setIsOpen(false);
-                navigate({ to: '/account/notifications' });
+                try {
+                  void navigate({ to: '/account/notifications' });
+                } catch (err) {
+                  console.error('Open notifications page failed:', err);
+                }
               }}
               className={`text-[10px] uppercase tracking-widest font-black transition-colors ${
                 isLight

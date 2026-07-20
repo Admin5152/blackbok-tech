@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { CartItem, Product, User } from "../types";
 import { formatCurrency } from "../lib/utils";
+import { formatProductOptionLabel } from "../lib/productLabels";
 import { ProductCard } from "../components/ProductCard";
 import { PageBackButton } from "../components/PageBackButton";
 import { useAppContext } from "../App";
@@ -251,7 +252,7 @@ export const Cart: React.FC<CartProps> = ({
                                       key={key}
                                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#CDA032]/40 bg-[#CDA032]/10 text-[10px] font-black uppercase tracking-[0.18em] text-[#CDA032]"
                                     >
-                                      <span className="opacity-60">{key}:</span>
+                                      <span className="opacity-60">{formatProductOptionLabel(key)}:</span>
                                       <span>{val}</span>
                                     </span>
                                   ))}
