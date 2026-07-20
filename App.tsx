@@ -1447,11 +1447,11 @@ function RootComponent() {
     if (existingIndex > -1) {
       const cur = prev[existingIndex].quantity;
       if (cur + safeQty > available) {
-        notify(`Only ${available} in stock for this configuration.`, 'error');
+        notify('The requested quantity exceeds available stock for this configuration.', 'error');
         return;
       }
     } else if (safeQty > available) {
-      notify(`Only ${available} in stock.`, 'error');
+      notify('The requested quantity exceeds available stock.', 'error');
       return;
     }
 
@@ -1509,7 +1509,7 @@ function RootComponent() {
           const live = products.find((p) => p.id === id);
           const cap = live ? getAvailableStock(live, item.selectedOptions || {}) : Math.max(0, Number(item.stock ?? 0));
           if (nextQty > cap) {
-            notify(`Only ${cap} available for this item.`, 'error');
+            notify('The requested quantity exceeds available stock.', 'error');
             return item;
           }
         }
