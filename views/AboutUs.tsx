@@ -139,7 +139,7 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
                 {/* Background photo layer */}
                 <div className="absolute inset-0 z-0" aria-hidden>
                     <img
-                        src="/BlackGroup.jpeg"
+                        src="/Group2.jpeg"
                         alt=""
                         className="h-full w-full object-cover"
                         style={{ filter: isLight ? 'brightness(0.96)' : 'brightness(0.5)' }}
