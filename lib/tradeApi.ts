@@ -583,7 +583,7 @@ export async function submitTradeRequest(input: SubmitTradeRequestInput) {
       imei_2: (input.imei2 ?? input.deviceLock.imei2 ?? '').trim() || null,
       serial_number:
         (input.serialNumber ?? input.deviceLock.serialNumber ?? '').trim() || null,
-      imei_serial: input.imeiSerial.trim(),
+      imei_serial: input.imeiSerial.trim() || undefined,
       contact_name: input.contactName,
       contact_phone: input.contactPhone,
       contact_email: input.contactEmail || undefined,

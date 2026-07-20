@@ -71,26 +71,31 @@ export const TRADE_COPY = {
     imei2: 'IMEI 2 (dual SIM)',
     serialNumber: 'Serial number',
     imeiHelp: 'Dial *#06# or go to Settings → General → About.',
-    imei1Help: 'Primary IMEI — required for cellular devices.',
-    imei2Help: 'Optional. Enter the second IMEI if your phone is dual SIM.',
-    serialHelp: 'Required for Wi-Fi-only iPads; recommended for all devices.',
+    imei1Help: 'Optional · 15 digits. Helps us match your device at drop-off.',
+    imei2Help: 'Optional · second 15-digit IMEI for dual-SIM phones only.',
+    serialHelp: 'Optional · 8–20 letters or numbers from Settings → About.',
     imeiInfoTitle: 'How to find your IMEI / serial',
     imeiInfoBody:
-      'On iPhone or iPad: dial *#06# or open Settings → General → About. Use the IMEI (15 digits) when shown, or the serial number. We use this to confirm the device matches your request.',
+      'On iPhone or iPad: dial *#06# or open Settings → General → About. Use the IMEI (15 digits) when shown, or the serial number. These fields are optional — you can continue without them and share details at the store.',
     imei1InfoTitle: 'How to find IMEI 1',
     imei1InfoBody:
-      'Dial *#06# on the keypad, or go to Settings → General → About and look for IMEI or IMEI1. It is a 15-digit number. On dual-SIM phones, IMEI 1 is the first line shown.',
+      'Dial *#06# on the keypad, or go to Settings → General → About and look for IMEI or IMEI1. It is exactly 15 digits. Optional — leave blank if you do not have it yet.',
     imei2InfoTitle: 'How to find IMEI 2',
     imei2InfoBody:
       'Dial *#06# or open Settings → General → About. Dual-SIM devices show IMEI and IMEI2 (or IMEI1 / IMEI2). Leave blank if your device has only one IMEI.',
     serialInfoTitle: 'How to find the serial number',
     serialInfoBody:
-      'Go to Settings → General → About and look for Serial Number. You can also find it on the original box or SIM tray. Wi-Fi-only iPads use serial instead of IMEI.',
+      'Go to Settings → General → About and look for Serial Number. You can also find it on the original box or SIM tray. Optional — leave blank if you prefer to share it at drop-off.',
     imeiInvalid: 'Enter a valid 15-digit IMEI, or a serial of at least 8 letters or numbers.',
-    imei1Invalid: 'Enter a valid 15-digit IMEI for IMEI 1.',
-    imei2Invalid: 'IMEI 2 must be a valid 15-digit IMEI, or leave it blank.',
-    serialInvalid: 'Enter a valid serial (8–20 letters/numbers), or leave blank if you provided IMEI 1.',
-    identityRequired: 'Enter IMEI 1 for cellular devices, or a serial number for Wi-Fi-only devices.',
+    imei1Invalid:
+      'IMEI 1 is incomplete. It needs exactly 15 digits, or clear the field to continue without it.',
+    imei2Invalid:
+      'IMEI 2 is incomplete. It needs exactly 15 digits, or clear the field to continue without it.',
+    serialInvalid:
+      'Serial is incomplete. Use 8–20 letters/numbers, or clear the field to continue without it.',
+    identityRequired: 'IMEI and serial are optional — fix incomplete entries or clear them to continue.',
+    identityOptionalNote:
+      'IMEI and serial are optional. If you start typing one, finish it (or clear it) before continuing.',
     helpText:
       'Not sure of your storage or SIM type? Check Settings → General → About.',
     colorNote: 'Color is for identification only — it does not affect your trade-in value.',

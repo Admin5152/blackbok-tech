@@ -107,17 +107,12 @@ export function TradeDetailsScreen() {
     }
     if (!state.targetLock) {
       void navigate({ to: '/trade/target', replace: true });
-      return;
-    }
-    if (!imeiSerial) {
-      void navigate({ to: '/trade/config', replace: true });
     }
   }, [
     state.quizComplete,
     state.deviceLock,
     state.lastEstimate,
     state.targetLock,
-    imeiSerial,
     navigate,
   ]);
 
@@ -150,7 +145,7 @@ export function TradeDetailsScreen() {
       return;
     }
 
-    if (!state.deviceLock || !state.lastEstimate || !state.targetLock || !imeiSerial) {
+    if (!state.deviceLock || !state.lastEstimate || !state.targetLock) {
       notify(TRADE_COPY.states.errorGeneric, 'error');
       return;
     }
@@ -234,7 +229,7 @@ export function TradeDetailsScreen() {
     void onSubmit();
   }, [authReady, user?.id, onSubmit]);
 
-  if (!state.deviceLock || !state.lastEstimate || !state.targetLock || !imeiSerial) {
+  if (!state.deviceLock || !state.lastEstimate || !state.targetLock) {
     return (
       <p className="text-sm text-[color:var(--bb-muted)] py-12 text-center">
         {TRADE_COPY.states.loading}
@@ -324,12 +319,17 @@ export function TradeDetailsScreen() {
                 </p>
               </div>
             ))}
+          {!imei1 && !imei2 && !serialNumber && (
+            <p className={isLight ? 'text-black/45' : 'text-white/40'}>
+              No IMEI or serial added — you can share these at drop-off, or add them now.
+            </p>
+          )}
           <button
             type="button"
             className={`underline text-xs ${isLight ? 'text-black/45' : 'text-white/40'}`}
             onClick={() => void navigate({ to: '/trade/config' })}
           >
-            Change IMEI / serial
+            {imei1 || imei2 || serialNumber ? 'Change IMEI / serial' : 'Add IMEI / serial (optional)'}
           </button>
         </div>
       </div>

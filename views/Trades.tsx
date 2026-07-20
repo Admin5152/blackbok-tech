@@ -40,6 +40,7 @@ import {
 import { TRADE_COPY } from '../lib/tradeCopy';
 import { tradeFriendlyError } from '../lib/tradeErrors';
 import { friendlyError } from '../lib/friendlyErrors';
+import { imeiFieldHint, serialFieldHint } from '../lib/imeiValidation';
 import { TRADE_COMPONENT_DEFS } from '../lib/tradeValuation';
 import { isTradeComponentKey, type TradeComponentKey } from '../lib/tradeComponentKeys';
 import {
@@ -627,9 +628,22 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
       notify('Please type your specific model name.', 'error');
       return;
     }
-    if (!deviceDetails.imei?.trim() && !deviceDetails.serialNumber?.trim()) {
-      notify('Please enter the IMEI and/or Serial number', 'error');
-      return;
+    // IMEI / serial optional on legacy flow — validate only when provided
+    const imeiRaw = deviceDetails.imei?.trim() || '';
+    const serialRaw = deviceDetails.serialNumber?.trim() || '';
+    if (imeiRaw) {
+      const hint = imeiFieldHint(imeiRaw, 'IMEI');
+      if (!hint.ok) {
+        notify(hint.message, 'error');
+        return;
+      }
+    }
+    if (serialRaw) {
+      const hint = serialFieldHint(serialRaw);
+      if (!hint.ok) {
+        notify(hint.message, 'error');
+        return;
+      }
     }
     if (!formData.name || !formData.email || !formData.phone) { notify('Please fill in all contact details', 'error'); return; }
     if (targetProduct) {
@@ -1313,14 +1327,32 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                   />
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <input type="text" placeholder="IMEI *"
-                      value={deviceDetails.imei}
-                      onChange={e => setDeviceDetails({ ...deviceDetails, imei: e.target.value })}
-                      className="w-full border border-[var(--bb-border)] rounded-2xl px-5 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />
-                    <input type="text" placeholder="Serial number *"
-                      value={deviceDetails.serialNumber}
-                      onChange={e => setDeviceDetails({ ...deviceDetails, serialNumber: e.target.value })}
-                      className="w-full border border-[var(--bb-border)] rounded-2xl px-5 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />
+                    <div className="space-y-1">
+                      <input type="text" placeholder="IMEI (optional)"
+                        value={deviceDetails.imei}
+                        onChange={e => setDeviceDetails({ ...deviceDetails, imei: e.target.value.replace(/\D/g, '').slice(0, 15) })}
+                        className="w-full border border-[var(--bb-border)] rounded-2xl px-5 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />
+                      {deviceDetails.imei.trim() ? (
+                        <p className={`text-[11px] ${imeiFieldHint(deviceDetails.imei, 'IMEI').ok ? 'text-emerald-600' : 'text-red-500'}`}>
+                          {imeiFieldHint(deviceDetails.imei, 'IMEI').message}
+                        </p>
+                      ) : (
+                        <p className="text-[11px] opacity-50">Optional · 15 digits</p>
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      <input type="text" placeholder="Serial number (optional)"
+                        value={deviceDetails.serialNumber}
+                        onChange={e => setDeviceDetails({ ...deviceDetails, serialNumber: e.target.value.replace(/[^A-Za-z0-9]/g, '').slice(0, 20) })}
+                        className="w-full border border-[var(--bb-border)] rounded-2xl px-5 py-3 text-sm bg-[var(--bb-surface)] outline-none focus:border-[#CDA032]/50" />
+                      {deviceDetails.serialNumber.trim() ? (
+                        <p className={`text-[11px] ${serialFieldHint(deviceDetails.serialNumber).ok ? 'text-emerald-600' : 'text-red-500'}`}>
+                          {serialFieldHint(deviceDetails.serialNumber).message}
+                        </p>
+                      ) : (
+                        <p className="text-[11px] opacity-50">Optional · 8–20 letters/numbers</p>
+                      )}
+                    </div>
                   </div>
 
                   <textarea rows={2} placeholder="Anything else about cosmetic condition? "

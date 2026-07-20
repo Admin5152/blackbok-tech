@@ -19,15 +19,15 @@ export interface TradeDeviceLock {
   storage: string;
   sim: string;
   color: string;
-  /** Primary IMEI (15-digit) when cellular */
+  /** Primary IMEI (15-digit) when provided — optional */
   imei1: string | null;
   /** Secondary IMEI for dual-SIM — optional */
   imei2: string | null;
-  /** Apple serial — required for Wi-Fi-only */
+  /** Apple serial — optional */
   serialNumber: string | null;
   /**
    * Primary identity for duplicate checks / legacy column:
-   * imei1 || serialNumber || imei2
+   * imei1 || serialNumber || imei2 (may be empty when all optional fields skipped)
    */
   imeiSerial: string;
   /**
