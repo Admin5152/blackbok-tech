@@ -1097,15 +1097,8 @@ function RootComponent() {
     } catch (error) {
       console.error('Failed to fetch products from Supabase, using INITIAL_PRODUCTS fallback:', error);
       setProducts(INITIAL_PRODUCTS);
-      setNotifications((prev) => [
-        ...prev,
-        {
-          id: generateId(),
-          message: friendlyError(error, 'load the shop catalogue'),
-          type: 'warning',
-          duration: 5000,
-        },
-      ]);
+      // Public storefront bootstrap: never toast “staff/admin” permission copy.
+      // Catalogue errors for staff tools are handled inside admin views.
     }
   }, []);
 

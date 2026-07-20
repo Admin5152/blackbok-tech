@@ -62,6 +62,14 @@ export function friendlyError(e: unknown, action: FriendlyAction = 'complete tha
     if (/sign in|sign up|login/i.test(act)) {
       return 'Sign-in failed. Check your email and password, or create an account first.';
     }
+    // Public storefront / customer actions — never imply they need a staff account
+    if (
+      /shop catalogue|catalogue|storefront|browse|wishlist|cart|checkout|place order|load products|load the shop/i.test(
+        act,
+      )
+    ) {
+      return `Could not ${act} right now. Please refresh and try again.`;
+    }
     return `You don’t have permission to ${act}. Sign in with a staff or admin account, or ask a manager.`;
   }
 
