@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import {
     Mail,
@@ -108,6 +108,12 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
     const isLight = theme === 'light';
     const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
 
+    useEffect(() => {
+        window.requestAnimationFrame(() => {
+            window.dispatchEvent(new Event('bb-scroll-reveal-scan'));
+        });
+    }, [theme]);
+
     const customerReviews = [
         {
             name: "Kwame Osei",
@@ -129,54 +135,98 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
     return (
         <div data-about-page className={`min-h-screen bb-theme-transition ${isLight ? 'bg-[#ffffff] text-black' : 'bg-black text-white'}`}>
             {/* Hero Section */}
-            <section className={`relative bb-theme-transition pt-40 md:pt-48 pb-20 overflow-hidden flex flex-col items-center ${isLight ? 'bg-[#ffffff]' : ''}`}>
+            <section className={`relative bb-theme-transition overflow-hidden px-4 pb-16 pt-24 sm:px-6 sm:pb-20 sm:pt-28 md:pt-36 ${isLight ? 'bg-[#ffffff]' : 'bg-black'}`}>
                 {/* Background photo layer */}
                 <div className="absolute inset-0 z-0" aria-hidden>
                     <img
-                        src="/about-hero.jpg"
+                        src="/Group2.jpeg"
                         alt=""
                         className="h-full w-full object-cover"
-                        style={{ filter: isLight ? 'blur(4px) brightness(0.9)' : 'blur(3px) brightness(0.55)' }}
+                        style={{ filter: isLight ? 'brightness(0.96)' : 'brightness(0.5)' }}
                     />
                     {/* Overlay so text stays legible over the photo */}
                     <div
                         className={`absolute inset-0 bb-theme-transition ${
                             isLight
-                                ? 'bg-gradient-to-b from-white/70 via-white/60 to-white'
-                                : 'bg-gradient-to-b from-black/70 via-black/75 to-black'
+                                ? 'bg-gradient-to-br from-white via-white/90 to-white/76'
+                                : 'bg-gradient-to-br from-black via-black/88 to-black/76'
                         }`}
                     />
+                    <div className={`absolute inset-0 ${isLight ? 'bg-gradient-to-t from-white via-white/50 to-transparent' : 'bg-gradient-to-t from-black via-black/50 to-transparent'}`} />
                 </div>
 
-                <div className="absolute top-28 left-4 sm:left-8 z-20">
+                <div className="absolute left-4 top-4 z-20 sm:left-6 sm:top-6">
                     <PageBackButton isLight={isLight} fallbackTo="/" />
                 </div>
-                <div className="absolute inset-0 z-[1] pointer-events-none" aria-hidden>
-                    <div
-                        className={`bb-theme-transition absolute inset-0 bg-gradient-to-br from-[#D4AF37]/10 via-transparent to-transparent ${isLight ? 'opacity-0' : 'opacity-50'
-                            }`}
-                    />
-                    <div
-                        className={`bb-theme-transition absolute top-0 right-0 w-[500px] h-[500px] bg-[#D4AF37]/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2 ${isLight ? 'opacity-0' : 'opacity-100'
-                            }`}
-                    />
-                    <div
-                        className={`bb-theme-transition absolute bottom-0 left-0 w-[500px] h-[500px] bg-[#D4AF37]/5 rounded-full blur-[120px] translate-y-1/2 -translate-x-1/2 ${isLight ? 'opacity-0' : 'opacity-100'
-                            }`}
-                    />
-                </div>
 
-                <div className="relative z-10 max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-12 duration-1000">
-                    <TypographyLogo prefix="We Are" size="hero" isLight={isLight} prefixClassName="text-6xl md:text-9xl" />
+                <div className="relative z-10 mx-auto grid min-h-[calc(100vh-7rem)] w-full max-w-6xl items-center gap-10 animate-in fade-in slide-in-from-bottom-12 duration-1000 lg:grid-cols-[minmax(0,1.02fr)_minmax(320px,0.78fr)] lg:gap-16">
+                    <div className="max-w-3xl text-left">
+                        <div className="mb-6 flex items-center gap-3">
+                            <div className="h-px w-10 bg-[#D4AF37]" />
+                            <span className="text-[10px] font-black uppercase tracking-[0.34em] text-[#D4AF37]">About BlackBox</span>
+                        </div>
 
-                    <div className="space-y-6 -mt-4">
-                        <p className={`text-xl md:text-3xl ${isLight ? 'text-black/60' : 'text-white/60'} font-medium max-w-3xl mx-auto leading-relaxed tracking-tight`}>
-                            Your reliable home for <span className="text-[#D4AF37] font-bold">innovation</span> and digital <span className="text-[#D4AF37] font-bold">excellence</span>.
+                        <h1 className="max-w-4xl text-5xl font-black leading-[0.98] tracking-tight sm:text-6xl md:text-7xl lg:text-8xl">
+                            We are{' '}
+                            <span className="block bg-gradient-to-r from-[#D4AF37] via-[#F4E4C1] to-[#D4AF37] bg-clip-text text-transparent">
+                                BlackBox.
+                            </span>
+                        </h1>
+
+                        <p className={`mt-6 max-w-2xl text-lg font-medium leading-8 sm:text-xl md:text-2xl md:leading-9 ${isLight ? 'text-black/68' : 'text-white/68'}`}>
+                            Your reliable home for <span className="font-bold text-[#D4AF37]">innovation</span> and digital <span className="font-bold text-[#D4AF37]">excellence</span>.
                         </p>
-                        <div className="flex items-center justify-center gap-4 pt-4">
-                            <div className={`h-[1px] w-12 ${isLight ? 'bg-black/10' : 'bg-white/10'}`}></div>
-                            <span className={`text-[10px] font-black uppercase tracking-[0.5em] ${isLight ? 'text-black/30' : 'text-white/30'}`}></span>
-                            <div className={`h-[1px] w-12 ${isLight ? 'bg-black/10' : 'bg-white/10'}`}></div>
+
+                        <p className={`mt-5 max-w-xl text-sm font-medium leading-7 sm:text-base ${isLight ? 'text-black/55' : 'text-white/52'}`}>
+                            Built around clarity, care, and confidence, we help people buy, repair, and upgrade their tech without the usual uncertainty.
+                        </p>
+
+                        <div className="mt-8 flex flex-wrap gap-3">
+                            {[
+                                { icon: ShieldCheck, label: 'Trusted devices' },
+                                { icon: Wrench, label: 'Expert repairs' },
+                                { icon: Scale, label: 'Fair trade-ins' },
+                            ].map(({ icon: Icon, label }) => (
+                                <div
+                                    key={label}
+                                    className={`bb-theme-transition inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] ${
+                                        isLight
+                                            ? 'border-black/10 bg-white/72 text-black/72 shadow-[0_10px_30px_-18px_rgba(0,0,0,0.35)]'
+                                            : 'border-white/12 bg-black/42 text-white/76 shadow-[0_14px_36px_-18px_rgba(0,0,0,0.9)]'
+                                    }`}
+                                >
+                                    <Icon size={14} className="text-[#D4AF37]" />
+                                    <span>{label}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className={`bb-theme-transition relative rounded-[1.5rem] border p-5 shadow-2xl sm:p-6 lg:justify-self-end ${
+                        isLight
+                            ? 'border-black/[0.08] bg-white shadow-[0_24px_70px_-36px_rgba(0,0,0,0.38)]'
+                            : 'border-white/[0.1] bg-[#0b0b0d] shadow-[0_28px_80px_-30px_rgba(0,0,0,0.9)]'
+                    }`}>
+                        <div className={`aspect-[4/3] overflow-hidden rounded-[1rem] border ${isLight ? 'border-black/[0.06] bg-[#f5f5f7]' : 'border-white/[0.08] bg-black'}`}>
+                            <img
+                                src="/BlackBox.jpeg"
+                                alt="BlackBox"
+                                className="h-full w-full object-contain p-8 transition-[filter] [transition-duration:var(--bb-theme-duration)] [transition-timing-function:var(--bb-theme-easing)]"
+                                style={{ filter: isLight ? 'invert(1) brightness(1.2)' : 'none' }}
+                            />
+                        </div>
+
+                        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                            {[
+                                ['10k+', 'Customers'],
+                                ['5+', 'Years'],
+                                ['98%', 'Recommend'],
+                            ].map(([value, label]) => (
+                                <div key={label} className={`rounded-xl border px-3 py-4 text-center ${isLight ? 'border-black/[0.08] bg-[#f5f5f7]' : 'border-white/[0.1] bg-white/[0.06]'}`}>
+                                    <div className="text-2xl font-black tracking-tight text-[#D4AF37]">{value}</div>
+                                    <div className={`mt-1 text-[9px] font-black uppercase tracking-[0.18em] ${isLight ? 'text-black/60' : 'text-white/62'}`}>{label}</div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>
@@ -189,63 +239,91 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
             </section>
 
             {/* Mission & Vision grid */}
-            <section className={`bb-theme-transition py-32 px-8 relative z-10 ${isLight ? 'bg-[#ffffff]' : 'bg-[#0a0a0a]'}`}>
-                <div className="max-w-6xl mx-auto">
-                    <div className="grid md:grid-cols-2 gap-16 md:gap-32 items-center">
-                        <div className="space-y-16 reveal-on-scroll">
-                            <div className="space-y-6 group">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-[2px] bg-[#D4AF37]"></div>
-                                    <h2 className="text-xs font-black uppercase tracking-[0.4em] text-[#D4AF37]">Our Mission</h2>
-                                </div>
-                                <h3 className="text-4xl md:text-6xl font-bold tracking-tighter leading-[0.9] italic">
-                                    Precision &<br />Respect.
-                                </h3>
-                                <p className={`text-lg md:text-xl ${isLight ? 'text-black/70' : 'text-gray-400'} leading-relaxed max-w-md font-medium`}>
-                                    We care about you and your devices, treating each piece of technology with precision and respect to deliver the best experience possible.
-                                </p>
+            <section className={`bb-theme-transition relative z-10 px-4 py-24 sm:px-8 md:py-32 ${isLight ? 'bg-[#ffffff]' : 'bg-[#0a0a0a]'}`}>
+                <div className="mx-auto max-w-6xl">
+                    <div className="mb-12 grid gap-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)] lg:items-end">
+                        <div className="reveal-on-scroll">
+                            <div className="mb-5 flex items-center gap-3">
+                                <div className="h-px w-10 bg-[#D4AF37]" />
+                                <span className="text-[10px] font-black uppercase tracking-[0.34em] text-[#D4AF37]">Why We Exist</span>
                             </div>
+                            <h2 className="text-4xl font-black leading-[1.02] tracking-tight sm:text-5xl md:text-6xl">
+                                Tech should feel clear,
+                                <span className="block text-[#D4AF37]">not confusing.</span>
+                            </h2>
+                        </div>
+                        <p className={`max-w-2xl text-base font-medium leading-8 sm:text-lg ${isLight ? 'text-black/62' : 'text-white/58'}`}>
+                            We saw people spending too much money on devices they could not fully trust, repairs they could not follow, and trade-in offers they could not understand. BlackBox exists to make every step feel simple, fair, and well guided.
+                        </p>
+                    </div>
 
-                            <div className="space-y-6 group">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-[2px] bg-[#D4AF37]"></div>
-                                    <h2 className="text-xs font-black uppercase tracking-[0.4em] text-[#D4AF37]">Our Vision</h2>
+                    <div className="grid gap-5 lg:grid-cols-[minmax(0,1.08fr)_minmax(300px,0.92fr)] lg:gap-8">
+                        <div className="grid gap-4 reveal-on-scroll reveal-delay-1 sm:grid-cols-3 lg:grid-cols-1">
+                            {[
+                                {
+                                    label: 'We inspect',
+                                    title: 'Every detail matters.',
+                                    body: 'From device condition to repair diagnosis, we slow down where it matters so customers do not have to guess.',
+                                    icon: Eye,
+                                },
+                                {
+                                    label: 'We explain',
+                                    title: 'No hidden language.',
+                                    body: 'Pricing, options, risks, and timelines are communicated in plain terms before a decision is made.',
+                                    icon: Lightbulb,
+                                },
+                                {
+                                    label: 'We stand by it',
+                                    title: 'The relationship continues.',
+                                    body: 'Buying, repairing, or trading in should feel like the start of support, not the end of a transaction.',
+                                    icon: HeartHandshake,
+                                },
+                            ].map(({ label, title, body, icon: Icon }) => (
+                                <div key={label} className={panelClass(isLight, 'p-6 sm:p-7')}>
+                                    <div className="mb-5 flex items-center justify-between gap-4">
+                                        <span className="text-[10px] font-black uppercase tracking-[0.28em] text-[#D4AF37]">{label}</span>
+                                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#D4AF37]/12 text-[#D4AF37]">
+                                            <Icon size={18} />
+                                        </div>
+                                    </div>
+                                    <h3 className="text-xl font-black tracking-tight sm:text-2xl">{title}</h3>
+                                    <p className={`mt-3 text-sm font-medium leading-7 ${isLight ? 'text-black/60' : 'text-white/56'}`}>{body}</p>
                                 </div>
-                                <h3 className="text-4xl md:text-6xl font-bold tracking-tighter leading-[0.9] italic">
-                                    Ahead of the<br />Curve.
-                                </h3>
-                                <p className={`text-lg md:text-xl ${isLight ? 'text-black/70' : 'text-gray-400'} leading-relaxed max-w-md font-medium`}>
-                                    Your reliable home for innovation, keeping you ahead with the latest tech improvements and sustainable upgrade solutions.
-                                </p>
-                            </div>
-
-                            <div className="pt-8">
-                                <Link
-                                    to="/contact"
-                                    className="group relative inline-flex items-center gap-4 px-10 py-5 bg-[#D4AF37] text-black rounded-full text-xs font-black uppercase tracking-[0.2em] transition-all duration-300 hover:scale-105 shadow-[0_20px_40px_rgba(212,175,55,0.2)] overflow-hidden"
-                                >
-                                    <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-                                    <Mail size={18} className="relative z-10" />
-                                    <span className="relative z-10">Get in Touch</span>
-                                    <ArrowRight size={18} className="relative z-10 group-hover:translate-x-1 transition-transform" />
-                                </Link>
-                            </div>
+                            ))}
                         </div>
 
-                        <div className="relative group reveal-on-scroll reveal-delay-2">
-                            <div className={`absolute -inset-4 bg-[#D4AF37]/5 blur-2xl rounded-[4rem] opacity-0 group-hover:opacity-100 transition-opacity duration-700`}></div>
-                            <div className={`bb-theme-transition relative aspect-square rounded-[3rem] p-12 flex flex-col items-center justify-center text-center transition-all duration-700 shadow-2xl border ${isLight ? 'bg-[#f5f5f7] border-black/5 hover:border-black/10' : 'bg-black border-white/5 hover:border-white/10'}`}>
-                                <div className="transform group-hover:scale-110 transition-transform duration-1000">
-                                    <TypographyLogo size="medium" isLight={isLight} prefix="" />
+                        <div className={`bb-theme-transition overflow-hidden rounded-[1.75rem] border reveal-on-scroll reveal-delay-2 ${isLight ? 'border-black/[0.06] bg-[#f5f5f7]' : 'border-white/[0.08] bg-black'}`}>
+                            <div className="relative aspect-[4/3] min-h-[18rem]">
+                                <img key={theme} src="/BlackRun.jpeg" alt="BlackBox team at work" className="h-full w-full object-cover" loading="eager" decoding="async" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent" />
+                                <div className="absolute bottom-0 left-0 right-0 p-6 text-white sm:p-8">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.35em] text-[#D4AF37]">Our Promise</p>
+                                    <h3 className="mt-3 max-w-sm text-3xl font-black leading-tight tracking-tight sm:text-4xl">
+                                        Precision, respect, and real support.
+                                    </h3>
                                 </div>
-                                <h3 className="text-3xl font-bold mt-12 mb-2 tracking-tight">BlackBox</h3>
-                                <p className={`text-lg ${isLight ? 'text-black/50' : 'text-white/50'} font-medium tracking-wide`}>Your Tech Partner</p>
-
-                                <div className="absolute top-8 right-8 flex gap-1">
-                                    {[...Array(3)].map((_, i) => (
-                                        <div key={i} className={`w-1 h-1 rounded-full ${isLight ? 'bg-black/20' : 'bg-white/20'}`}></div>
-                                    ))}
-                                </div>
+                            </div>
+                            <div className="grid gap-px sm:grid-cols-2">
+                                {[
+                                    {
+                                        label: 'Our Mission',
+                                        title: 'Precision & Respect.',
+                                        body: 'We care about you and your devices, treating each piece of technology with precision and respect to deliver the best experience possible.',
+                                    },
+                                    {
+                                        label: 'Our Vision',
+                                        title: 'Ahead of the Curve.',
+                                        body: 'Your reliable home for innovation, keeping you ahead with the latest tech improvements and sustainable upgrade solutions.',
+                                    },
+                                ].map(({ label, title, body }) => (
+                                    <div key={label} className={`p-6 sm:p-7 ${isLight ? 'bg-white' : 'bg-[#0f0f12]'}`}>
+                                        <p className="text-[10px] font-black uppercase tracking-[0.32em] text-[#D4AF37]">{label}</p>
+                                        <h3 className="mt-3 text-2xl font-black italic leading-tight tracking-tight sm:text-3xl">
+                                            {title}
+                                        </h3>
+                                        <p className={`mt-4 text-sm font-medium leading-7 ${isLight ? 'text-black/68' : 'text-white/64'}`}>{body}</p>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     </div>
@@ -264,14 +342,14 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
                         {/* Left: headline */}
                         <div className="space-y-6 reveal-on-scroll lg:sticky lg:top-28">
                             <SectionEyebrow>The Numbers</SectionEyebrow>
-                            <h2 className="text-4xl font-black italic leading-[0.95] tracking-tighter md:text-6xl lg:text-7xl">
+                            <h2 className="text-4xl font-black leading-[1.02] tracking-tight md:text-6xl lg:text-7xl">
                                 Trusted by{' '}
                                 <span className="bg-gradient-to-r from-[#B38B21] to-[#F4E4C1] bg-clip-text text-transparent">
                                     Thousands.
                                 </span>
                             </h2>
                             <p className={`max-w-md text-base font-medium leading-relaxed md:text-lg ${isLight ? 'text-black/60' : 'text-white/55'}`}>
-                                Join our community of satisfied customers who trust BlackBox for their premium tech needs.
+                                Trust is not a claim we make once. It is earned through every diagnosis, every product handoff, and every message after the sale.
                             </p>
                         </div>
 
@@ -392,9 +470,12 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
                 <div className="mx-auto max-w-6xl">
                     <div className="mb-14 space-y-5 text-center reveal-on-scroll md:mb-20">
                         <SectionEyebrow>Our Goals</SectionEyebrow>
-                        <h2 className="text-4xl font-black italic tracking-tighter md:text-6xl">
-                            Where We&apos;re <span className="text-[#D4AF37]">Headed.</span>
+                        <h2 className="text-4xl font-black tracking-tight md:text-6xl">
+                            What Happens <span className="text-[#D4AF37]">Next.</span>
                         </h2>
+                        <p className={`mx-auto max-w-2xl text-base font-medium leading-8 sm:text-lg ${isLight ? 'text-black/60' : 'text-white/56'}`}>
+                            The goal is not just to sell more tech. It is to make the BlackBox experience easier to trust, easier to understand, and easier to return to.
+                        </p>
                     </div>
 
                     <div className="relative reveal-on-scroll reveal-delay-1">
@@ -432,9 +513,12 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
                 <div className="mx-auto max-w-6xl">
                     <div className="mb-14 space-y-5 text-center reveal-on-scroll md:mb-16">
                         <SectionEyebrow>Our Values</SectionEyebrow>
-                        <h2 className="text-4xl font-black italic tracking-tighter md:text-6xl">
+                        <h2 className="text-4xl font-black tracking-tight md:text-6xl">
                             What We <span className="text-[#D4AF37]">Stand For.</span>
                         </h2>
+                        <p className={`mx-auto max-w-2xl text-base font-medium leading-8 sm:text-lg ${isLight ? 'text-black/60' : 'text-white/56'}`}>
+                            These are the standards that shape the small decisions customers feel, even when they never see the work behind them.
+                        </p>
                     </div>
 
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 reveal-on-scroll reveal-delay-1">

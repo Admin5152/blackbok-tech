@@ -71,34 +71,13 @@ export function ProductAvailabilityBadge({
           sold out
         </span>
       ) : (
-        <>
-          {(inStock || !inline) && (
-            <span
-              className={`font-black tabular-nums leading-none tracking-tight ${
-                inStock ? 'text-[#CDA032]' : isLight ? 'text-red-800' : 'text-red-100'
-              } ${inline ? 'text-xs' : dense ? 'text-sm' : 'text-base sm:text-lg'}`}
-            >
-              {inStock ? available : '0'}
-            </span>
-          )}
-          <span
-            className={`font-black uppercase tracking-[0.12em] leading-tight ${
-              inline ? 'text-[7px]' : dense ? 'text-[8px]' : 'text-[9px] sm:text-[10px]'
-            } ${isLight ? (inStock ? 'text-black/75' : 'text-red-900/85') : inStock ? 'text-white/90' : 'text-red-100'}`}
-          >
-            {inline
-              ? inStock
-                ? available === 1
-                  ? 'unit'
-                  : 'units'
-                : null
-              : inStock
-                ? available === 1
-                  ? 'unit in stock'
-                  : 'units in stock'
-                : 'out of stock'}
-          </span>
-        </>
+        <span
+          className={`font-black uppercase tracking-[0.12em] leading-tight ${
+            inline ? 'text-[7px]' : dense ? 'text-[8px]' : 'text-[9px] sm:text-[10px]'
+          } ${isLight ? (inStock ? 'text-black/75' : 'text-red-900/85') : inStock ? 'text-white/90' : 'text-red-100'}`}
+        >
+          {inStock ? 'in stock' : 'out of stock'}
+        </span>
       )}
     </div>
   );
