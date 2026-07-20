@@ -9,6 +9,12 @@ import {
   type AdminNavBadgeKey,
 } from '../lib/navBadgeWatermarks';
 import { NavUnreadBadge, NavUnreadDot } from '../components/NavUnreadBadge';
+import {
+  canEditRepairs,
+  canEditStoreOps,
+  canManageUserRoles,
+  normalizeCanonicalRole,
+} from '../lib/roles';
 import { AdminOverview } from './admin/AdminOverview';
 import { AdminOrders } from './admin/AdminOrders';
 import { AdminCustomers } from './admin/AdminCustomers';
@@ -35,7 +41,7 @@ interface AdminProps {
   initialSection?: AdminSection;
 }
 
-const NAV_ITEMS: { id: AdminSection; label: string; icon: any }[] = [
+const NAV_ITEMS: { id: AdminSection; label: string; icon: any; adminOnly?: boolean }[] = [
   { id: 'overview', label: 'Overview', icon: Home },
   { id: 'orders', label: 'Orders', icon: ShoppingCart },
   { id: 'customers', label: 'Customers', icon: Users },
@@ -43,7 +49,7 @@ const NAV_ITEMS: { id: AdminSection; label: string; icon: any }[] = [
   { id: 'trades', label: 'Trade-Ins', icon: RefreshCcw },
   { id: 'returns', label: 'Returns', icon: RotateCcw },
   { id: 'repairs', label: 'Repairs', icon: Wrench },
-  { id: 'users', label: 'User Roles', icon: Shield },
+  { id: 'users', label: 'User Roles', icon: Shield, adminOnly: true },
 ];
 
 const SECTION_TITLES: Record<AdminSection, string> = {
@@ -82,16 +88,25 @@ const ZERO_BADGES: Record<AdminNavBadgeKey, number> = {
 
 export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme = 'dark', initialSection }) => {
   const routerNavigate = useNavigate();
-  const role: string = (user?.role || 'user').toString().toLowerCase();
+  const role = normalizeCanonicalRole(user?.role);
   const [section, setSection] = useState<AdminSection>(initialSection || 'overview');
   const [sidebar, setSidebar] = useState(true);
   const [badgeCounts, setBadgeCounts] = useState<Record<AdminNavBadgeKey, number>>(ZERO_BADGES);
   const badgePollRef = useRef<number | null>(null);
 
+  const visibleNav = NAV_ITEMS.filter((item) => !item.adminOnly || canManageUserRoles(role));
+
   // Deep-link /admin/products must open Shop even if Admin was already mounted.
   useEffect(() => {
     if (initialSection) setSection(initialSection);
   }, [initialSection]);
+
+  // Staff must not stay on admin-only User Roles if deep-linked somehow.
+  useEffect(() => {
+    if (section === 'users' && !canManageUserRoles(role)) {
+      setSection('overview');
+    }
+  }, [section, role]);
 
   const refreshBadgeCounts = useCallback(async () => {
     const uid = user?.id;
@@ -124,14 +139,10 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
     void refreshBadgeCounts();
   }, [section, user?.id, refreshBadgeCounts]);
 
-  // Role-derived permissions. The route-level guard already ensures the
-  // visitor is an admin to land on this page; these flags further gate
-  // mutation actions inside individual admin sub-views. Admins get full
-  // access; staff/sales roles only get the customer-facing tooling
-  // (products, trades, returns); repair techs only get repairs.
-  const isAdmin = role === 'admin';
-  const isSales = isAdmin || role === 'staff' || role === 'sales';
-  const isRepair = isAdmin || role === 'repair' || role === 'technician';
+  // Route shell already requires admin|staff. These flags gate mutations inside sub-views.
+  const canEditOps = canEditStoreOps(role);
+  const canEditRepairQueue = canEditRepairs(role);
+  const canEditRoles = canManageUserRoles(role);
 
   const navigate = (s: AdminSection) => {
     setSection(s);
@@ -185,7 +196,7 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
 
         {/* Nav items — ALL sections always visible */}
         <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]" data-lenis-prevent>
-          {NAV_ITEMS.map(item => {
+          {visibleNav.map(item => {
             const n = isNavBadgeKey(item.id) ? badgeCounts[item.id] : 0;
             return (
             <button
@@ -322,11 +333,13 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
           {/* {section === 'inbox' && <AdminInbox />} */}
           {section === 'orders' && <AdminOrders />}
           {section === 'customers' && <AdminCustomers />}
-          {section === 'products' && <AdminProducts canEdit={isSales} theme={theme} />}
+          {section === 'products' && <AdminProducts canEdit={canEditOps} theme={theme} />}
           {section === 'trades' && <TradeAdminShell />}
-          {section === 'returns' && <AdminReturns canEdit={isSales} />}
-          {section === 'repairs' && <AdminRepairs canEdit={isRepair} />}
-          {section === 'users' && <AdminUsers />}
+          {section === 'returns' && <AdminReturns canEdit={canEditOps} />}
+          {section === 'repairs' && <AdminRepairs canEdit={canEditRepairQueue} />}
+          {section === 'users' && canEditRoles && (
+            <AdminUsers canEdit={canEditRoles} currentUserId={user?.id} />
+          )}
         </main>
       </div>
     </div>

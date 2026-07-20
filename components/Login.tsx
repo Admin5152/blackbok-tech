@@ -136,7 +136,7 @@ export const Login: React.FC<LoginProps> = ({
 
       if (response.user) {
         console.log('Authentication successful, user:', response.user);
-        // Role already resolved in AuthService (DB role + optional admin-email elevation).
+        // Role resolved from user_roles / profiles (never JWT metadata).
         const resolvedRole = normalizeCanonicalRole(response.user.role ?? 'user') as User['role'];
 
         // Convert AuthUser to User format for compatibility

@@ -15,7 +15,10 @@ const ROLES = [
 
 type RoleId = typeof ROLES[number]['id'];
 
-export const AdminUsers: React.FC = () => {
+export const AdminUsers: React.FC<{
+  canEdit?: boolean;
+  currentUserId?: string;
+}> = ({ canEdit = false, currentUserId }) => {
     const [users, setUsers] = useState<User[]>([]);
     const [deletedAccounts, setDeletedAccounts] = useState<AccountDeletionRow[]>([]);
     const [listTab, setListTab] = useState<'active' | 'deleted'>('active');
@@ -85,10 +88,21 @@ export const AdminUsers: React.FC = () => {
     };
 
     const toggleRole = async (userId: string, role: RoleId) => {
+        if (!canEdit) {
+            alert('Only admins can change user roles.');
+            return;
+        }
+        if (currentUserId && userId === currentUserId) {
+            alert('You cannot change your own role.');
+            return;
+        }
         setUpdating(userId);
         try {
             await updateUserRole(userId, role);
             setUsers(users.map(u => u.id === userId ? { ...u, role } : u));
+            if (selectedUser?.id === userId) {
+                setSelectedUser({ ...selectedUser, role });
+            }
         } catch (e) {
             console.error('Failed to update role in DB:', e);
             alert(friendlyError(e, 'update this user’s role'));
@@ -106,7 +120,8 @@ export const AdminUsers: React.FC = () => {
     if (selectedUser) {
         const stats = getUserStats(selectedUser.id);
         const roleInfo = getRoleInfo(selectedUser.role ?? 'user');
-        const isCurrentUser = selectedUser.id === '1';
+        const isCurrentUser = Boolean(currentUserId && selectedUser.id === currentUserId);
+        const canChangeRole = canEdit && !isCurrentUser;
 
         return (
             <div className="space-y-5">
@@ -197,7 +212,7 @@ export const AdminUsers: React.FC = () => {
                                 <span className="text-sm font-black capitalize" style={{ color: roleInfo.color }}>{roleInfo.label}</span>
                             </div>
                         </div>
-                        {!isCurrentUser && (
+                        {canChangeRole && (
                             <div className="mt-4">
                                 <span className="text-sm text-white/70 block mb-3">Change Role:</span>
                                 <div className="flex items-center gap-2">
@@ -231,6 +246,13 @@ export const AdminUsers: React.FC = () => {
                             <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
                                 <p className="text-xs text-yellow-500 font-medium">
                                     You cannot change your own role for security reasons.
+                                </p>
+                            </div>
+                        )}
+                        {!canEdit && !isCurrentUser && (
+                            <div className="mt-4 p-3 bg-white/5 border border-white/10 rounded-lg">
+                                <p className="text-xs text-white/50 font-medium">
+                                    Only admins can change roles.
                                 </p>
                             </div>
                         )}
@@ -399,14 +421,16 @@ export const AdminUsers: React.FC = () => {
                                         </button>
                                     </th>
                                     <th className="text-left p-4 font-black uppercase text-[10px] text-white/50 tracking-widest">Current Role</th>
-                                    <th className="text-left p-4 font-black uppercase text-[10px] text-white/50 tracking-widest">Change Role</th>
+                                    {canEdit && (
+                                      <th className="text-left p-4 font-black uppercase text-[10px] text-white/50 tracking-widest">Change Role</th>
+                                    )}
                                     <th className="text-left p-4 font-black uppercase text-[10px] text-white/50 tracking-widest">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {sorted.map(u => {
                                     const roleInfo = getRoleInfo(u.role ?? 'user');
-                                    const isCurrentUser = u.id === '1'; // Prevent self-role change
+                                    const isCurrentUser = Boolean(currentUserId && u.id === currentUserId);
                                     return (
                                         <tr key={u.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                                             <td className="p-4">
@@ -431,6 +455,7 @@ export const AdminUsers: React.FC = () => {
                                                     <span className="text-xs font-black capitalize" style={{ color: roleInfo.color }}>{roleInfo.label}</span>
                                                 </div>
                                             </td>
+                                            {canEdit && (
                                             <td className="p-4">
                                                 <div className="flex items-center gap-1.5">
                                                     {ROLES.map(r => {
@@ -457,6 +482,7 @@ export const AdminUsers: React.FC = () => {
                                                     })}
                                                 </div>
                                             </td>
+                                            )}
                                             <td className="p-4">
                                                 <button
                                                     onClick={() => setSelectedUser(u)}

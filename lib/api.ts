@@ -31,7 +31,8 @@ import {
   EmailSendQueue
 } from '../types';
 import { formatCurrency } from './utils';
-import { normalizeCanonicalRole } from './roles';
+import { normalizeCanonicalRole, pickHighestRole, isAdminRole } from './roles';
+import AuthService from './auth';
 import { resolveUserDisplayName } from './userDisplayName';
 import type { AdminNavBadgeKey } from './navBadgeWatermarks';
 import {
@@ -121,7 +122,7 @@ export const signIn = async (email: string, password: string) => {
   if (data.user) {
     const profile = await getUserProfile(data.user.id);
     const roles = await getUserRoles(data.user.id);
-    const role = normalizeCanonicalRole(roles[0]?.role ?? profile?.role ?? 'user');
+    const role = pickHighestRole(roles, profile?.role ?? 'user');
 
     return {
       user: {
@@ -2099,6 +2100,13 @@ export const updateTradeRequest = async (id: string, updates: Partial<TradeInReq
 // ==========================================
 
 export const updateUserRole = async (userId: string, role: string) => {
+  const caller = await AuthService.getCurrentUser();
+  if (!caller || !isAdminRole(caller.role)) {
+    throw new Error('Only admins can change user roles.');
+  }
+  if (caller.id === userId) {
+    throw new Error('You cannot change your own role.');
+  }
   const normalized = normalizeCanonicalRole(role);
   const { data, error } = await supabase
     .from('profiles')
