@@ -4,7 +4,8 @@
  * WHY: Central staff surface for catalog CRUD; trade_model bridges to
  * trade_devices so PDP trade-in banners resolve correctly.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Save, X, Package, ImageIcon, Layers, Tag, Upload, Star } from 'lucide-react';
 import type { Product, ProductImage } from '../../types';
 import type { SkuMatrixRow } from '../../lib/productSkuMatrix';
@@ -158,6 +159,8 @@ export const AdminProductForm: React.FC<Props> = ({
   const [tradeDevices, setTradeDevices] = useState<TradeDeviceRow[]>([]);
   const [tradeSearch, setTradeSearch] = useState('');
   const [tradeOpen, setTradeOpen] = useState(false);
+  const [tradeMenuPos, setTradeMenuPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const tradeInputRef = useRef<HTMLInputElement>(null);
   const [imgBusy, setImgBusy] = useState(false);
   const [imgError, setImgError] = useState('');
   const [specsJsonError, setSpecsJsonError] = useState('');
@@ -210,9 +213,48 @@ export const AdminProductForm: React.FC<Props> = ({
     return tradeDevices.filter((d) => d.model.toLowerCase().includes(q)).slice(0, 40);
   }, [tradeDevices, tradeSearch]);
 
+  const updateTradeMenuPos = useCallback(() => {
+    const el = tradeInputRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const gap = 4;
+    const maxH = 192; // max-h-48
+    const spaceBelow = window.innerHeight - r.bottom - gap;
+    const openUp = spaceBelow < Math.min(maxH, 120) && r.top > spaceBelow;
+    setTradeMenuPos({
+      top: openUp ? Math.max(8, r.top - gap - Math.min(maxH, r.top - 8)) : r.bottom + gap,
+      left: r.left,
+      width: r.width,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!tradeOpen) {
+      setTradeMenuPos(null);
+      return;
+    }
+    updateTradeMenuPos();
+    const onReposition = () => updateTradeMenuPos();
+    window.addEventListener('resize', onReposition);
+    document.addEventListener('scroll', onReposition, true);
+    return () => {
+      window.removeEventListener('resize', onReposition);
+      document.removeEventListener('scroll', onReposition, true);
+    };
+  }, [tradeOpen, filteredTradeModels.length, updateTradeMenuPos]);
+
+  useEffect(() => {
+    if (!tradeOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setTradeOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [tradeOpen]);
+
   const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
     { id: 'details', label: 'Details', icon: <Package size={12} /> },
-                { id: 'options', label: 'Options & stock versions', icon: <Layers size={12} /> },
+    { id: 'options', label: 'Options & stock versions', icon: <Layers size={12} /> },
     { id: 'images', label: 'Images', icon: <ImageIcon size={12} /> },
     { id: 'listing', label: 'Listing', icon: <Tag size={12} /> },
   ];
@@ -355,9 +397,9 @@ export const AdminProductForm: React.FC<Props> = ({
 
   return (
     <div className="flex flex-col lg:flex-row min-h-0">
-      <div className="flex-1 min-w-0 flex flex-col">
-        <div className={`sticky top-0 z-20 backdrop-blur border-b px-5 sm:px-6 py-4 ${s.headerBg} ${s.headerBorder}`}>
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+      <div className="flex-1 min-w-0 flex flex-col min-h-0">
+        <div className={`shrink-0 sticky top-0 z-20 backdrop-blur border-b px-5 sm:px-6 py-4 ${s.headerBg} ${s.headerBorder}`}>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pr-8">
             <div>
               <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#B38B21]">
                 {draft.id ? 'Edit product' : 'New product'}
@@ -400,7 +442,7 @@ export const AdminProductForm: React.FC<Props> = ({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto bb-scrollbar px-5 sm:px-6 py-5 max-h-[min(70vh,640px)]">
+        <div className="px-5 sm:px-6 py-5">
           {error && (
             <div className={`mb-4 text-xs rounded-xl px-4 py-3 ${s.errorBox}`}>
               {error}
@@ -495,9 +537,10 @@ export const AdminProductForm: React.FC<Props> = ({
                   </select>
                 </div>
                 {/* Trade bridge: products.trade_model must match trade_devices.model */}
-                <div className="sm:col-span-2 relative">
+                <div className="sm:col-span-2">
                   <label className={s.label}>Matching trade-in model</label>
                   <input
+                    ref={tradeInputRef}
                     type="text"
                     value={tradeOpen ? tradeSearch : (draft.trade_model ?? '')}
                     onFocus={() => {
@@ -509,53 +552,69 @@ export const AdminProductForm: React.FC<Props> = ({
                       setTradeOpen(true);
                     }}
                     onBlur={() => {
-                      // Delay so option click registers
                       window.setTimeout(() => setTradeOpen(false), 180);
                     }}
                     className={s.input}
                     placeholder="Search trade-in models… e.g. iPhone 14"
                     autoComplete="off"
+                    aria-expanded={tradeOpen}
+                    aria-controls="trade-model-listbox"
+                    role="combobox"
                   />
-                  {tradeOpen && (
-                    <div
-                      className={`absolute z-30 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-xl border shadow-xl ${
-                        isLight ? 'bg-white border-black/10' : 'bg-[#121212] border-white/10'
-                      }`}
-                    >
-                      <button
-                        type="button"
-                        className={`w-full text-left px-3 py-2 text-xs ${s.muted} hover:bg-[#B38B21]/10`}
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => {
-                          setDraft({ ...draft, trade_model: null });
-                          setTradeSearch('');
-                          setTradeOpen(false);
+                  {tradeOpen &&
+                    tradeMenuPos &&
+                    createPortal(
+                      <div
+                        id="trade-model-listbox"
+                        role="listbox"
+                        data-lenis-prevent
+                        style={{
+                          position: 'fixed',
+                          top: tradeMenuPos.top,
+                          left: tradeMenuPos.left,
+                          width: tradeMenuPos.width,
+                          zIndex: 200,
                         }}
+                        className={`max-h-48 overflow-y-auto overscroll-y-contain bb-scrollbar rounded-xl border shadow-2xl [-webkit-overflow-scrolling:touch] ${
+                          isLight ? 'bg-white border-black/10' : 'bg-[#121212] border-white/15'
+                        }`}
+                        onMouseDown={(e) => e.preventDefault()}
                       >
-                        Clear (not trade-eligible)
-                      </button>
-                      {filteredTradeModels.length === 0 && (
-                        <p className={`px-3 py-2 text-xs ${s.muted}`}>No models match</p>
-                      )}
-                      {filteredTradeModels.map((d) => (
                         <button
-                          key={d.model}
                           type="button"
-                          className={`w-full text-left px-3 py-2 text-xs font-bold hover:bg-[#B38B21]/15 ${s.title}`}
-                          onMouseDown={(e) => e.preventDefault()}
+                          role="option"
+                          className={`w-full text-left px-3 py-2.5 text-xs ${s.muted} hover:bg-[#B38B21]/10`}
                           onClick={() => {
-                            setDraft({ ...draft, trade_model: d.model });
-                            setTradeSearch(d.model);
+                            setDraft({ ...draft, trade_model: null });
+                            setTradeSearch('');
                             setTradeOpen(false);
                           }}
                         >
-                          {d.model}
-                          <span className={`ml-2 font-normal ${s.muted}`}>{d.device_type}</span>
+                          Clear (not trade-eligible)
                         </button>
-                      ))}
-                    </div>
-                  )}
-                  <p className={`text-[10px] mt-1 ${s.muted}`}>
+                        {filteredTradeModels.length === 0 && (
+                          <p className={`px-3 py-2.5 text-xs ${s.muted}`}>No models match</p>
+                        )}
+                        {filteredTradeModels.map((d) => (
+                          <button
+                            key={d.model}
+                            type="button"
+                            role="option"
+                            className={`w-full text-left px-3 py-2.5 text-xs font-bold hover:bg-[#B38B21]/15 ${s.title}`}
+                            onClick={() => {
+                              setDraft({ ...draft, trade_model: d.model });
+                              setTradeSearch(d.model);
+                              setTradeOpen(false);
+                            }}
+                          >
+                            {d.model}
+                            <span className={`ml-2 font-normal ${s.muted}`}>{d.device_type}</span>
+                          </button>
+                        ))}
+                      </div>,
+                      document.body,
+                    )}
+                  <p className={`text-[10px] mt-1.5 leading-relaxed ${s.muted}`}>
                     Links this product to a trade-in device model so trade-in banners and upgrade targets work.
                   </p>
                 </div>
@@ -854,7 +913,7 @@ export const AdminProductForm: React.FC<Props> = ({
         </div>
       </div>
 
-      <aside className={`lg:w-[240px] xl:w-[260px] shrink-0 border-t lg:border-t-0 lg:border-l p-5 ${s.asideBg} ${s.asideBorder}`}>
+      <aside className={`lg:w-[240px] xl:w-[260px] shrink-0 border-t lg:border-t-0 lg:border-l p-5 lg:sticky lg:top-0 ${s.asideBg} ${s.asideBorder}`}>
         <p className={`text-[9px] font-black uppercase tracking-widest mb-3 ${s.muted}`}>Preview</p>
         <div className={`rounded-2xl border overflow-hidden ${s.previewCard}`}>
           <div className={`aspect-square flex items-center justify-center p-4 ${isLight ? 'bg-black/[0.03]' : 'bg-white/5'}`}>

@@ -416,7 +416,7 @@ export const TradeAdminDevices: React.FC = () => {
                       search={{ model: row.model, tab: 'deductions' } as any}
                       className="text-xs font-bold text-[#CDA032] underline"
                     >
-                      Condition discounts
+                      Condition deductions
                     </Link>
                   </div>
                 </td>

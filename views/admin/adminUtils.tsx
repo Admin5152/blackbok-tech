@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Calendar } from 'lucide-react';
+import { useAppContext } from '../../lib/appContext';
+import { lockPageScroll } from '../../lib/pageScrollLock';
 
 // Shared utilities, types and helpers for admin modules
 export const TRADE_KEY = 'bb_v4_trades';
@@ -67,31 +69,48 @@ export const Modal = ({
     children: React.ReactNode;
     maxW?: string;
     isLight?: boolean;
-}) => (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
-        <div
-            className={`absolute inset-0 backdrop-blur-xl ${isLight ? 'bg-black/40' : 'bg-black/90'}`}
-            onClick={onClose}
-        />
-        <div
-            className={`relative w-full ${maxW} rounded-2xl shadow-2xl overflow-y-auto max-h-[90vh] ${
-                isLight ? 'bg-white border border-black/10 text-black' : 'bg-[#0d0d0d] border border-white/10'
-            }`}
-        >
-            {children}
+}) => {
+    useEffect(() => lockPageScroll(), []);
+
+    return (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-3 sm:p-4">
+            <div
+                className={`absolute inset-0 backdrop-blur-xl ${isLight ? 'bg-black/40' : 'bg-black/90'}`}
+                onClick={onClose}
+                aria-hidden
+            />
+            <div
+                role="dialog"
+                aria-modal="true"
+                data-lenis-prevent
+                className={`relative z-10 w-full ${maxW} max-h-[min(92vh,920px)] flex flex-col overflow-hidden rounded-2xl shadow-2xl ${
+                    isLight ? 'bg-white border border-black/10 text-black' : 'bg-[#0d0d0d] border border-white/10'
+                }`}
+            >
+                <div
+                    data-lenis-prevent
+                    className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain bb-scrollbar [-webkit-overflow-scrolling:touch]"
+                >
+                    {children}
+                </div>
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 export const ModalClose = ({ onClose, isLight = false }: { onClose: () => void; isLight?: boolean }) => (
-    <button
-        onClick={onClose}
-        className={`absolute top-4 right-4 p-1.5 rounded-full z-10 ${
-            isLight ? 'bg-black/5 hover:bg-black/10 text-black/70' : 'bg-white/5 hover:bg-white/10 text-white'
-        }`}
-    >
-        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-    </button>
+    <div className="sticky top-0 z-30 flex justify-end h-0 overflow-visible pointer-events-none">
+        <button
+            type="button"
+            onClick={onClose}
+            className={`pointer-events-auto m-3 p-1.5 rounded-full shadow-lg ${
+                isLight ? 'bg-white/95 border border-black/10 text-black/70 hover:bg-black/5' : 'bg-[#1a1a1a]/95 border border-white/10 text-[#F5F5F5] hover:bg-white/10'
+            }`}
+            aria-label="Close"
+        >
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+    </div>
 );
 
 export const SectionHeader = ({ title, count, action }: { title: string; count?: number; action?: React.ReactNode }) => (
@@ -106,7 +125,7 @@ export const SectionHeader = ({ title, count, action }: { title: string; count?:
 
 export const TableWrapper = ({ children }: { children: React.ReactNode }) => (
     <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overscroll-x-contain bb-scrollbar [-webkit-overflow-scrolling:touch]" data-lenis-prevent>
             <table className="w-full">{children}</table>
         </div>
     </div>
@@ -187,6 +206,8 @@ export const DonutChart = ({ segments }: { segments: { value: number; color: str
 export const DateFilterDropdown = ({ value, onChange, options }: { value: string; onChange: (val: string) => void; options: readonly string[] }) => {
     const [isOpen, setIsOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
+    const { theme } = useAppContext();
+    const isLight = theme === 'light';
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -202,18 +223,30 @@ export const DateFilterDropdown = ({ value, onChange, options }: { value: string
         <div className="relative group shrink-0" ref={ref}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 bg-white/5 border border-white/10 text-white/70 text-[9px] sm:text-[11px] font-bold uppercase rounded-2xl px-2.5 sm:px-3 py-1.5 hover:bg-white/10 hover:border-[#B38B21]/50 focus:outline-none transition-colors w-[100px] sm:w-[130px] justify-between shadow-sm"
+                className={`flex items-center gap-2 border text-[9px] sm:text-[11px] font-bold uppercase rounded-2xl px-2.5 sm:px-3 py-1.5 hover:border-[#B38B21]/50 focus:outline-none transition-colors w-[100px] sm:w-[130px] justify-between shadow-sm ${
+                    isLight
+                        ? 'bg-black/[0.04] border-black/15 text-black/75 hover:bg-black/[0.07]'
+                        : 'bg-white/5 border-white/10 text-[#E5E5E5] hover:bg-white/10'
+                }`}
             >
                 <div className="flex items-center gap-1.5 truncate">
                     <Calendar size={13} className="text-[#B38B21] shrink-0 hidden sm:block" />
                     <span className="truncate">{value}</span>
                 </div>
-                <ChevronDown size={14} className={`text-white/40 shrink-0 transition-transform duration-300 ${isOpen ? 'rotate-180 text-white/70' : ''}`} />
+                <ChevronDown
+                    size={14}
+                    className={`shrink-0 transition-transform duration-300 ${
+                        isLight ? 'text-black/45' : 'text-[#A3A3A3]'
+                    } ${isOpen ? 'rotate-180' : ''}`}
+                />
             </button>
 
             {/* Animated Dropdown Menu */}
-            <div className={`absolute top-full right-0 sm:left-0 sm:right-auto mt-2 w-40 bg-[#111] border border-white/10 rounded-xl shadow-2xl py-1.5 z-50 overflow-hidden transform transition-all duration-200 origin-top
-                ${isOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'}`}>
+            <div
+                className={`absolute top-full right-0 sm:left-0 sm:right-auto mt-2 w-40 rounded-xl shadow-2xl py-1.5 z-50 overflow-hidden transform transition-all duration-200 origin-top border ${
+                    isLight ? 'bg-white border-black/10' : 'bg-[#111] border-white/10'
+                } ${isOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'}`}
+            >
                 {options.map(opt => (
                     <button
                         key={opt}
@@ -221,11 +254,24 @@ export const DateFilterDropdown = ({ value, onChange, options }: { value: string
                             onChange(opt);
                             setIsOpen(false);
                         }}
-                        className={`w-full text-left px-4 py-2.5 text-xs font-bold uppercase transition-colors flex items-center justify-between group
-                            ${value === opt ? 'text-[#B38B21] bg-[#B38B21]/10' : 'text-white/60 hover:bg-white/5 hover:text-white'}`}
+                        className={`w-full text-left px-4 py-2.5 text-xs font-bold uppercase transition-colors flex items-center justify-between group ${
+                            value === opt
+                                ? 'text-[#B38B21] bg-[#B38B21]/10'
+                                : isLight
+                                  ? 'text-black/75 hover:bg-black/5 hover:text-black'
+                                  : 'text-[#E5E5E5] hover:bg-white/10 hover:text-[#F5F5F5]'
+                        }`}
                     >
                         {opt}
-                        <div className={`w-1.5 h-1.5 rounded-full transition-colors ${value === opt ? 'bg-[#B38B21]' : 'bg-transparent group-hover:bg-white/20'}`} />
+                        <div
+                            className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                                value === opt
+                                    ? 'bg-[#B38B21]'
+                                    : isLight
+                                      ? 'bg-transparent group-hover:bg-black/25'
+                                      : 'bg-transparent group-hover:bg-white/20'
+                            }`}
+                        />
                     </button>
                 ))}
             </div>

@@ -442,7 +442,7 @@ export const TradeAdminPricing: React.FC = () => {
           {(
             [
               ['bases', 'Starting prices'],
-              ['deductions', 'Condition discounts'],
+              ['deductions', 'Condition deductions'],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -777,7 +777,7 @@ export const TradeAdminPricing: React.FC = () => {
                   <tr>
                     <th className="px-3 py-2">Model</th>
                     <th className="px-3 py-2">Condition issue</th>
-                    <th className="px-3 py-2">Discount (GHS)</th>
+                    <th className="px-3 py-2">Deduction (GHS)</th>
                     <th className="px-3 py-2">Shown</th>
                     <th className="px-3 py-2">Delete</th>
                   </tr>

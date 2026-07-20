@@ -21,7 +21,7 @@ export const TRADE_ADMIN_SETUP_STEPS: Array<{
     step: 2,
     label: 'Prices',
     to: '/admin/trade/pricing',
-    tip: 'Starting value + condition discounts for each storage/SIM',
+    tip: 'Starting value + condition deductions for each storage/SIM',
   },
   {
     step: 3,
@@ -55,7 +55,7 @@ export const TRADE_ADMIN_PAGE_INTRO: Record<
   devices: {
     title: 'Devices we accept',
     body: 'Turn models on or off for the online trade-in list. The model name must match exactly what you set on Products → Matching trade-in model.',
-    next: 'Next: Prices & discounts — add starting prices for each storage and SIM type.',
+    next: 'Next: Prices & deductions — add starting prices for each storage and SIM type.',
   },
   upgrades: {
     title: 'Upgrade phones we sell into',
@@ -63,8 +63,8 @@ export const TRADE_ADMIN_PAGE_INTRO: Record<
     next: 'If Add is locked, open Products and set Matching trade-in model first.',
   },
   pricing: {
-    title: 'Prices & condition discounts',
-    body: 'Starting trade-in price is per model + storage + SIM (Physical / eSIM). Customers can only pick storage/SIM combinations you price here. Condition discounts are fixed cedis off that starting price.',
+    title: 'Prices & condition deductions',
+    body: 'Starting trade-in price is per model + storage + SIM (Physical / eSIM). Customers can only pick storage/SIM combinations you price here. Condition deductions are fixed cedis taken off that starting price.',
     next: 'Tip: if you sell both Physical SIM and eSIM, add a price row for each — missing eSIM means no eSIM option for customers.',
   },
   thresholds: {
@@ -74,16 +74,16 @@ export const TRADE_ADMIN_PAGE_INTRO: Record<
   },
   config: {
     title: 'Business rules',
-    body: 'Battery bands, appearance discounts, Find My / iCloud behaviour, rounding, and store location. These affect live customer quotes — change carefully.',
+    body: 'Battery bands, appearance deductions, Find My / iCloud behaviour, rounding, and store location. These affect live customer quotes — change carefully.',
     next: 'Do not edit the upgrade product ID list here — use Upgrade phones instead.',
   },
   questionnaire: {
     title: 'Condition questions',
-    body: 'Each answer can leave the price alone, apply a condition discount, mark for in-store check, or block the online estimate. Link answers to a part (screen, battery…) so discounts match Pricing.',
-    next: 'Deduct answers need a matching Condition discount row on Prices for that part.',
+    body: 'Each answer can leave the price alone, apply a condition deduction, mark for in-store check, or block the online estimate. Link answers to a part (screen, battery…) so deductions match Pricing.',
+    next: 'Deduct answers need a matching Condition deduction row on Prices for that part.',
   },
   aesthetics: {
-    title: 'Appearance discounts',
+    title: 'Appearance deductions',
     body: 'Real GHS amounts per phone model for light wear and heavier wear. These apply only when Business rules set that wear level to “Set per phone model”.',
     next: 'For percent or one global GHS amount, use Business rules instead — this page is ignored for that wear level.',
   },
@@ -98,11 +98,11 @@ export const TRADE_ADMIN_NAV_PLAIN: Record<string, string> = {
   Queue: 'Requests',
   'Tradable devices': 'Devices we accept',
   'Upgrade targets': 'Upgrade phones',
-  'Pricing & deductions': 'Prices & discounts',
+  'Pricing & deductions': 'Prices & deductions',
   Thresholds: 'Minimum values',
   Config: 'Business rules',
   Questionnaire: 'Condition questions',
-  Aesthetics: 'Appearance discounts',
+  Aesthetics: 'Appearance deductions',
   Audit: 'Change history',
 };
 
@@ -124,11 +124,11 @@ export const TRADE_ADMIN_STATUS_PLAIN: Record<string, string> = {
 export const TRADE_CONFIG_KEY_LABELS: Record<string, { label: string; tip: string }> = {
   battery_healthy_min: {
     label: 'Healthy battery minimum %',
-    tip: 'Battery health at or above this % is treated as fine (no battery discount).',
+    tip: 'Battery health at or above this % is treated as fine (no battery deduction).',
   },
   battery_half_min: {
-    label: 'Half-discount battery %',
-    tip: 'Between this % and the healthy minimum, apply a smaller battery discount.',
+    label: 'Half-deduction battery %',
+    tip: 'Between this % and the healthy minimum, apply a smaller battery deduction.',
   },
   battery_replaced_policy: {
     label: 'If battery was replaced',
@@ -160,19 +160,19 @@ export const TRADE_CONFIG_KEY_LABELS: Record<string, { label: string; tip: strin
   },
   aesthetic_a1_mode: {
     label: 'Light wear — how to calculate',
-    tip: 'Percent → set % below. Fixed cedis → set GHS below. Per phone model → set real amounts on Appearance discounts (this page value is ignored).',
+    tip: 'Percent → set % below. Fixed cedis → set GHS below. Per phone model → set real amounts on Appearance deductions (this page value is ignored).',
   },
   aesthetic_a1_value: {
     label: 'Light wear — amount',
-    tip: 'Used only for Percent (%) or Fixed (GHS). When mode is “Set per phone model”, edit Appearance discounts instead.',
+    tip: 'Used only for Percent (%) or Fixed (GHS). When mode is “Set per phone model”, edit Appearance deductions instead.',
   },
   aesthetic_a2_mode: {
     label: 'Heavier wear — how to calculate',
-    tip: 'Percent → set % below. Fixed cedis → set GHS below. Per phone model → set real amounts on Appearance discounts (this page value is ignored).',
+    tip: 'Percent → set % below. Fixed cedis → set GHS below. Per phone model → set real amounts on Appearance deductions (this page value is ignored).',
   },
   aesthetic_a2_value: {
     label: 'Heavier wear — amount',
-    tip: 'Used only for Percent (%) or Fixed (GHS). When mode is “Set per phone model”, edit Appearance discounts instead.',
+    tip: 'Used only for Percent (%) or Fixed (GHS). When mode is “Set per phone model”, edit Appearance deductions instead.',
   },
   estimate_validity_days: {
     label: 'Estimate valid for (days)',
@@ -197,11 +197,11 @@ export const TRADE_CONFIG_KEY_LABELS: Record<string, { label: string; tip: strin
 };
 
 export const TRADE_CONFIG_VALUE_LABELS: Record<string, string> = {
-  full: 'Full discount',
-  half_if_85: 'Half discount if under 85%',
-  none_if_90: 'No discount if 90% or higher',
-  full_verify: 'Full discount + check in store',
-  none_if_working: 'No discount if it still works',
+  full: 'Full deduction',
+  half_if_85: 'Half deduction if under 85%',
+  none_if_90: 'No deduction if 90% or higher',
+  full_verify: 'Full deduction + check in store',
+  none_if_working: 'No deduction if it still works',
   hard_stop: 'Block online trade-in',
   screen_deduction: 'Treat like screen damage',
   percent: 'Percent of starting price',
@@ -215,11 +215,11 @@ export const TRADE_CONFIG_VALUE_LABELS: Record<string, string> = {
 
 export const TRADE_OUTCOME_LABELS: Record<TradeAnswerOutcome | string, string> = {
   none: 'No change to price',
-  deduct_full: 'Full condition discount',
-  deduct_half: 'Half condition discount',
-  deduct_quarter: 'Quarter condition discount',
-  aesthetic_a1: 'Apply light-wear discount',
-  aesthetic_a2: 'Apply heavier-wear discount',
+  deduct_full: 'Full condition deduction',
+  deduct_half: 'Half condition deduction',
+  deduct_quarter: 'Quarter condition deduction',
+  aesthetic_a1: 'Apply light-wear deduction',
+  aesthetic_a2: 'Apply heavier-wear deduction',
   battery_replaced_policy: 'Use battery-replaced rule',
   camera_replaced_policy: 'Use camera-replaced rule',
   hard_stop: 'Block online trade-in',

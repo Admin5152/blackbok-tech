@@ -1572,8 +1572,8 @@ html {
 
 .bb-scrollbar::-webkit-scrollbar,
 .custom-scrollbar::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
 }
 
 .bb-scrollbar::-webkit-scrollbar-thumb,

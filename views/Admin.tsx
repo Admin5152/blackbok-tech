@@ -152,7 +152,7 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
   const isLight = theme === 'light';
 
   return (
-    <div className={`min-h-screen flex ${isLight ? 'bg-[#FAFAFA]' : 'bg-[#060606]'}`}>
+    <div className={`h-[100dvh] min-h-0 flex overflow-hidden ${isLight ? 'bg-[#FAFAFA]' : 'bg-[#060606]'}`}>
       {/* Mobile backdrop */}
       {sidebar && (
         <div
@@ -184,7 +184,7 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
         </div>
 
         {/* Nav items — ALL sections always visible */}
-        <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]" data-lenis-prevent>
           {NAV_ITEMS.map(item => {
             const n = isNavBadgeKey(item.id) ? badgeCounts[item.id] : 0;
             return (
@@ -317,7 +317,7 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
         </header>
 
         {/* Content */}
-        <main className="flex-1 overflow-auto p-4 sm:p-5 lg:p-6">
+        <main className="flex-1 min-h-0 overflow-auto overscroll-y-contain p-4 sm:p-5 lg:p-6 [-webkit-overflow-scrolling:touch]" data-lenis-prevent>
           {section === 'overview' && <AdminOverview onNavigate={navigate} />}
           {/* {section === 'inbox' && <AdminInbox />} */}
           {section === 'orders' && <AdminOrders />}

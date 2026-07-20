@@ -639,6 +639,14 @@ const AdminAccessDenied: React.FC<{
   theme: 'light' | 'dark';
 }> = ({ reason, navigateTo, theme }) => {
   const isLight = theme === 'light';
+
+  // Keep customers off the admin URL — bounce after a short beat so the message is readable.
+  useEffect(() => {
+    if (reason !== 'not-admin') return;
+    const t = window.setTimeout(() => navigateTo('/'), 2200);
+    return () => window.clearTimeout(t);
+  }, [reason, navigateTo]);
+
   return (
     <div className={`min-h-screen flex items-center justify-center p-6 ${isLight ? 'bg-[#F0F0F0] text-black' : 'bg-black text-white'}`}>
       <div className={`w-full max-w-md rounded-2xl border p-8 text-center ${isLight ? 'bg-white border-black/10' : 'bg-[#0a0a0a] border-white/10'}`}>
@@ -652,10 +660,11 @@ const AdminAccessDenied: React.FC<{
         <p className={`text-sm mb-6 ${isLight ? 'text-black/60' : 'text-white/60'}`}>
           {reason === 'not-logged-in'
             ? 'You need to sign in with an admin or staff account to view this page.'
-            : 'Your account does not have admin or staff permissions. Contact a system administrator if you believe this is a mistake.'}
+            : 'Your account does not have admin or staff permissions. Taking you back to the store…'}
         </p>
         <div className="flex flex-col gap-2">
           <button
+            type="button"
             onClick={() => navigateTo(reason === 'not-logged-in' ? '/auth' : '/')}
             className="w-full py-3 bg-[#CDA032] text-black font-black rounded-xl text-xs uppercase tracking-[0.15em] hover:brightness-110 transition-all"
           >
@@ -663,6 +672,7 @@ const AdminAccessDenied: React.FC<{
           </button>
           {reason === 'not-admin' && (
             <button
+              type="button"
               onClick={() => navigateTo('/auth')}
               className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-[0.15em] border transition-all ${isLight ? 'border-black/10 hover:bg-black/5' : 'border-white/10 hover:bg-white/5'}`}
             >

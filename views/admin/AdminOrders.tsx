@@ -3,10 +3,13 @@ import { ShoppingCart, Package, Calendar, MapPin, CreditCard, ChevronRight, Chev
 import { Badge, SearchInput, Modal, ModalClose, Td, Th, TableWrapper, EmptyState, DateFilterDropdown } from './adminUtils';
 import { getAdminOrdersFromItems, updateOrderStatus } from '../../lib/api';
 import { friendlyError } from '../../lib/friendlyErrors';
+import { useAppContext } from '../../lib/appContext';
 import type { Order } from '../../types';
 import { formatCurrency } from '../../lib/utils';
 
 export const AdminOrders: React.FC = () => {
+    const { theme } = useAppContext();
+    const isLight = theme === 'light';
     const [orders, setOrders] = useState<Order[]>([]);
     const [q, setQ] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
@@ -117,13 +120,24 @@ export const AdminOrders: React.FC = () => {
                 {isOpen && (
                     <>
                         <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-                        <div className="absolute top-full left-0 mt-1 w-32 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-xl overflow-hidden z-50 py-1">
+                        <div
+                            className={`absolute top-full left-0 mt-1 w-32 rounded-xl shadow-xl overflow-hidden z-50 py-1 border ${
+                                isLight
+                                    ? 'bg-white border-black/10'
+                                    : 'bg-[#1a1a1a] border-white/10'
+                            }`}
+                        >
                             {ORDER_STATUS_OPTIONS.map(s => (
                                 <button
                                     key={s}
                                     onClick={() => handleSelect(s)}
-                                    className={`w-full text-left px-3 py-1.5 text-[10px] font-bold uppercase transition-colors
-                                        ${order.status === s ? 'text-[#B38B21] bg-[#B38B21]/10' : 'text-white/70 hover:bg-white/5 hover:text-white'}`}
+                                    className={`w-full text-left px-3 py-1.5 text-[10px] font-bold uppercase transition-colors ${
+                                        order.status === s
+                                            ? 'text-[#B38B21] bg-[#B38B21]/10'
+                                            : isLight
+                                              ? 'text-black/75 hover:bg-black/5 hover:text-black'
+                                              : 'text-[#E5E5E5] hover:bg-white/10 hover:text-[#F5F5F5]'
+                                    }`}
                                 >
                                     {s}
                                 </button>

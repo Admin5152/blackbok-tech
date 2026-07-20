@@ -353,8 +353,6 @@ class AuthService {
           const finalRole = this.resolveRoleFromUserRolesRows(
             roleRows as { role: string }[] | undefined,
             profileRow?.role,
-            data.user.user_metadata?.role,
-            data.user.app_metadata?.role
           );
           console.log(' User role resolved:', finalRole);
           
@@ -546,13 +544,12 @@ class AuthService {
 
   /**
    * Resolve canonical role from user_roles rows (admin > staff > user).
-   * Avoids maybeSingle() failing when multiple rows exist.
+   * Prefer user_roles; fall back to profiles.role only.
+   * Never trust JWT user_metadata (client-writable) for privilege.
    */
   private static resolveRoleFromUserRolesRows(
     rows: { role: string }[] | null | undefined,
     profileRole: unknown,
-    userMetaRole: unknown,
-    appMetaRole: unknown
   ): CanonicalAppRole {
     const list = (rows ?? [])
       .map((r) => String(r.role ?? '').toLowerCase())
@@ -560,9 +557,7 @@ class AuthService {
     if (list.includes('admin')) return 'admin';
     if (list.includes('staff')) return 'staff';
     if (list.length > 0) return this.resolveAppRole(list[0]);
-    return this.resolveAppRole(
-      profileRole ?? userMetaRole ?? appMetaRole
-    );
+    return this.resolveAppRole(profileRole);
   }
 
   /**
@@ -618,8 +613,6 @@ class AuthService {
       const finalRole = this.resolveRoleFromUserRolesRows(
         roleRows as { role: string }[] | undefined,
         profile?.role,
-        user.user_metadata?.role,
-        user.app_metadata?.role
       );
       console.log('User role resolved:', finalRole);
       

@@ -7,6 +7,7 @@
 import React, { useMemo } from 'react';
 import { Link, Outlet, useLocation } from '@tanstack/react-router';
 import { Info } from 'lucide-react';
+import { useAppContext } from '../../../lib/appContext';
 import {
   TRADE_ADMIN_PAGE_INTRO,
   TRADE_ADMIN_SETUP_STEPS,
@@ -40,6 +41,8 @@ export const TradeAdminShell: React.FC = () => {
   const location = useLocation();
   const path = location.pathname;
   const intro = useMemo(() => introForPath(path), [path]);
+  const { theme } = useAppContext();
+  const isLight = theme === 'light';
 
   return (
     <div className="flex flex-col gap-4 min-h-0">
@@ -56,7 +59,9 @@ export const TradeAdminShell: React.FC = () => {
               className={`shrink-0 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${
                 active
                   ? 'bg-[#B38B21] text-black border-[#B38B21]'
-                  : 'bg-white/[0.08] text-white/85 border-white/20 hover:bg-white/15 hover:text-white hover:border-white/35'
+                  : isLight
+                    ? 'bg-black/[0.04] text-black/75 border-black/15 hover:bg-black/[0.08] hover:text-black hover:border-black/25'
+                    : 'bg-white/[0.08] text-[#E8E8E8] border-white/20 hover:bg-white/15 hover:text-[#F5F5F5] hover:border-white/35'
               }`}
             >
               {item.label}
@@ -65,8 +70,18 @@ export const TradeAdminShell: React.FC = () => {
         })}
       </nav>
 
-      <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2.5">
-        <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-2">
+      <div
+        className={`rounded-xl border px-3 py-2.5 ${
+          isLight
+            ? 'border-black/10 bg-black/[0.03]'
+            : 'border-white/10 bg-black/25'
+        }`}
+      >
+        <p
+          className={`text-[9px] font-black uppercase tracking-widest mb-2 ${
+            isLight ? 'text-black/45' : 'text-[#A3A3A3]'
+          }`}
+        >
           Setup order (do this once, then handle requests)
         </p>
         <ol className="flex flex-wrap gap-1.5">
@@ -80,10 +95,16 @@ export const TradeAdminShell: React.FC = () => {
                   className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[10px] font-bold transition-colors ${
                     active
                       ? 'border-[#B38B21]/60 bg-[#B38B21]/15 text-[#B38B21]'
-                      : 'border-white/10 bg-white/[0.03] text-white/70 hover:border-[#B38B21]/40 hover:text-white'
+                      : isLight
+                        ? 'border-black/10 bg-white text-black/70 hover:border-[#B38B21]/40 hover:text-black'
+                        : 'border-white/10 bg-white/[0.03] text-[#D4D4D4] hover:border-[#B38B21]/40 hover:text-[#F5F5F5]'
                   }`}
                 >
-                  <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-white/10 text-[9px] font-black">
+                  <span
+                    className={`inline-flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-black ${
+                      isLight ? 'bg-black/10 text-black/70' : 'bg-white/10 text-[#E5E5E5]'
+                    }`}
+                  >
                     {s.step}
                   </span>
                   {s.label}
@@ -98,7 +119,13 @@ export const TradeAdminShell: React.FC = () => {
         <Info size={16} className="shrink-0 mt-0.5 text-[#B38B21]" aria-hidden />
         <div>
           <p className="text-xs font-black text-[#B38B21] tracking-tight">{intro.title}</p>
-          <p className="text-[11px] text-white/60 leading-relaxed mt-0.5">{intro.body}</p>
+          <p
+            className={`text-[11px] leading-relaxed mt-0.5 ${
+              isLight ? 'text-black/65' : 'text-[#C4C4C4]'
+            }`}
+          >
+            {intro.body}
+          </p>
           {intro.next && (
             <p className="text-[11px] text-[#B38B21]/90 leading-relaxed mt-1.5 font-medium">
               {intro.next}

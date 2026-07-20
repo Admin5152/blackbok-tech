@@ -415,7 +415,7 @@ export const TradeAdminQuestionnaire: React.FC = () => {
                       Linked part
                       <FieldInfoTip
                         title="Linked part"
-                        body="Optional. Ties the question to a condition discount (screen, battery, etc.)."
+                        body="Optional. Ties the question to a condition deduction (screen, battery, etc.)."
                       />
                       <select
                         value={q.component ?? ''}
@@ -464,9 +464,9 @@ export const TradeAdminQuestionnaire: React.FC = () => {
                   ) &&
                     !q.component && (
                       <p className="text-[11px] text-amber-200 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5">
-                        This question has a discount answer but no linked part — the estimate may
-                        not apply the discount. Set “Linked part” above (screen, battery, …) and
-                        match a row on Prices → Condition discounts.
+                        This question has a deduction answer but no linked part — the estimate may
+                        not apply the deduction. Set “Linked part” above (screen, battery, …) and
+                        match a row on Prices → Condition deductions.
                       </p>
                     )}
                   {q.answers.map((a, ai) => (

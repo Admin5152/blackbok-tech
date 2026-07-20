@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, MoreVertical, MessageSquare, Check, Send, ArrowLeft, Clock, ChevronDown } from 'lucide-react';
 import { DateFilterDropdown } from './adminUtils';
+import { useAppContext } from '../../lib/appContext';
 
 // Mock Data Types
 type InboxStatus = 'unseen' | 'inprogress' | 'resolved';
@@ -112,6 +113,8 @@ const formatRelativeDate = (isoString: string) => {
 };
 
 export const AdminInbox: React.FC = () => {
+    const { theme } = useAppContext();
+    const isLight = theme === 'light';
     const [messages, setMessages] = useState<Message[]>(MOCK_MESSAGES);
     const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -441,21 +444,54 @@ export const AdminInbox: React.FC = () => {
                                     </button>
 
                                     {isStatusDropdownOpen && (
-                                        <div className="absolute right-0 top-full mt-2 w-48 bg-[#111] border border-white/10 rounded-xl shadow-2xl py-1 z-50 overflow-hidden">
-                                            <div className="px-3 py-2 border-b border-white/5 bg-white/5">
-                                                <span className="text-[9px] uppercase tracking-wider font-bold text-white/40">Set Message Status</span>
+                                        <div
+                                            className={`absolute right-0 top-full mt-2 w-48 rounded-xl shadow-2xl py-1 z-50 overflow-hidden border ${
+                                                isLight ? 'bg-white border-black/10' : 'bg-[#111] border-white/10'
+                                            }`}
+                                        >
+                                            <div
+                                                className={`px-3 py-2 border-b ${
+                                                    isLight
+                                                        ? 'border-black/5 bg-black/[0.03]'
+                                                        : 'border-white/5 bg-white/5'
+                                                }`}
+                                            >
+                                                <span
+                                                    className={`text-[9px] uppercase tracking-wider font-bold ${
+                                                        isLight ? 'text-black/45' : 'text-[#A3A3A3]'
+                                                    }`}
+                                                >
+                                                    Set Message Status
+                                                </span>
                                             </div>
                                             {(['unseen', 'inprogress', 'resolved'] as InboxStatus[]).map((status) => (
                                                 <button
                                                     key={status}
                                                     onClick={(e) => handleStatusChange(e, selectedMessage.id, status)}
-                                                    className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-white/5 transition-colors group"
+                                                    className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors group ${
+                                                        isLight ? 'hover:bg-black/5' : 'hover:bg-white/5'
+                                                    }`}
                                                 >
                                                     <div className={`w-2 h-2 rounded-full ${STATUS_CONFIG[status].dotClass} opacity-60 group-hover:opacity-100`} />
-                                                    <span className={`text-xs font-bold ${selectedMessage.status === status ? 'text-white' : 'text-white/60 group-hover:text-white'}`}>
+                                                    <span
+                                                        className={`text-xs font-bold ${
+                                                            selectedMessage.status === status
+                                                                ? isLight
+                                                                    ? 'text-black'
+                                                                    : 'text-[#F5F5F5]'
+                                                                : isLight
+                                                                  ? 'text-black/70 group-hover:text-black'
+                                                                  : 'text-[#D4D4D4] group-hover:text-[#F5F5F5]'
+                                                        }`}
+                                                    >
                                                         {STATUS_CONFIG[status].label}
                                                     </span>
-                                                    {selectedMessage.status === status && <Check size={14} className="text-white ml-auto" />}
+                                                    {selectedMessage.status === status && (
+                                                        <Check
+                                                            size={14}
+                                                            className={`ml-auto ${isLight ? 'text-black' : 'text-[#F5F5F5]'}`}
+                                                        />
+                                                    )}
                                                 </button>
                                             ))}
                                         </div>

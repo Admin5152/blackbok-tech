@@ -201,7 +201,7 @@ export const TradeAdminConfig: React.FC = () => {
         <span className="text-white/70">Fixed cedis</span> here — or{' '}
         <span className="text-white/70">Set per phone model</span> and enter real GHS amounts under{' '}
         <Link to="/admin/trade/aesthetics" className="text-[#B38B21] hover:underline">
-          Appearance discounts
+          Appearance deductions
         </Link>
         . Only one mode applies at a time.
       </p>
@@ -323,7 +323,7 @@ export const TradeAdminConfig: React.FC = () => {
                     to="/admin/trade/aesthetics"
                     className="text-[#B38B21] font-bold hover:underline"
                   >
-                    Appearance discounts
+                    Appearance deductions
                   </Link>{' '}
                   (real GHS per phone model). The percentage / fixed value below is not used while
                   mode is “Set per phone model”.

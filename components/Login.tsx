@@ -162,6 +162,14 @@ export const Login: React.FC<LoginProps> = ({
         // including staff. Amazon-style: sign in, then continue where you left off.
         const safeReturnTo = resolveReturnTo(returnTo, fromSearch);
 
+        // Customers must never land on /admin* after login
+        if (safeReturnTo?.startsWith('/admin') && !isStaff) {
+          clearResumeAfterAuth();
+          notify('Admin access is limited to staff accounts.', 'error');
+          navigateTo('home');
+          return;
+        }
+
         if (safeReturnTo && !safeReturnTo.startsWith('/admin')) {
           clearResumeAfterAuth();
           notify('Continuing where you left off.', 'success');

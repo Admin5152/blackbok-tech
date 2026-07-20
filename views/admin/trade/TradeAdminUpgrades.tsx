@@ -43,7 +43,8 @@ type LinkModalState = {
 };
 
 export const TradeAdminUpgrades: React.FC = () => {
-  const { notify } = useAppContext();
+  const { notify, theme } = useAppContext();
+  const isLight = theme === 'light';
   const [products, setProducts] = useState<Product[]>([]);
   const [tradeDevices, setTradeDevices] = useState<TradeDeviceRow[]>([]);
   const [pickIds, setPickIds] = useState<string[]>([]);
@@ -508,29 +509,47 @@ export const TradeAdminUpgrades: React.FC = () => {
         >
           <button
             type="button"
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            className={`absolute inset-0 backdrop-blur-sm ${
+              isLight ? 'bg-black/40' : 'bg-black/75'
+            }`}
             aria-label="Close"
             onClick={closeLinkModal}
           />
-          <div className="relative z-10 w-full max-w-md rounded-2xl border border-white/10 bg-[#0c0c0c] p-5 sm:p-6 shadow-2xl space-y-4">
+          <div
+            className={`relative z-10 w-full max-w-md rounded-2xl border p-5 sm:p-6 shadow-2xl space-y-4 ${
+              isLight
+                ? 'bg-white border-black/10 text-black'
+                : 'bg-[#121212] border-white/15 text-[#F5F5F5]'
+            }`}
+          >
             <div className="flex items-start justify-between gap-3">
-              <div>
+              <div className="min-w-0">
                 <p
                   id="link-trade-model-title"
                   className="text-sm font-black uppercase tracking-widest text-[#CDA032]"
                 >
                   Link trade-in model
                 </p>
-                <p className="text-xs text-white/55 mt-2 leading-relaxed">
-                  <span className="text-white font-bold">{linkModal.product.name}</span> is not linked
-                  to an active tradable device. Pick the matching model so it can appear in trade-in
-                  upgrades.
+                <p
+                  className={`text-xs mt-2 leading-relaxed ${
+                    isLight ? 'text-black/75' : 'text-[#D4D4D4]'
+                  }`}
+                >
+                  <span className={`font-bold ${isLight ? 'text-black' : 'text-[#F5F5F5]'}`}>
+                    {linkModal.product.name}
+                  </span>{' '}
+                  is not linked to an active tradable device. Pick the matching model so it can
+                  appear in trade-in upgrades.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={closeLinkModal}
-                className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10"
+                className={`shrink-0 p-1.5 rounded-lg transition-colors ${
+                  isLight
+                    ? 'text-black/55 hover:text-black hover:bg-black/5'
+                    : 'text-[#A3A3A3] hover:text-[#F5F5F5] hover:bg-white/10'
+                }`}
                 aria-label="Close"
               >
                 <X size={16} />
@@ -538,22 +557,36 @@ export const TradeAdminUpgrades: React.FC = () => {
             </div>
 
             {activeTradeDevices.length === 0 ? (
-              <p className="text-xs text-amber-300/90 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-3 leading-relaxed">
+              <p
+                className={`text-xs rounded-xl border px-3 py-3 leading-relaxed ${
+                  isLight
+                    ? 'border-amber-500/40 bg-amber-50 text-amber-950'
+                    : 'border-amber-500/30 bg-amber-500/10 text-amber-100'
+                }`}
+              >
                 No active tradable devices yet. Add models under{' '}
-                <Link to="/admin/trade/devices" className="underline text-[#CDA032]">
+                <Link to="/admin/trade/devices" className="underline text-[#B38B21] font-bold">
                   Tradable devices
                 </Link>{' '}
                 first.
               </p>
             ) : (
               <div>
-                <label className="text-[10px] font-black uppercase tracking-widest text-white/40 block mb-1.5">
+                <label
+                  className={`text-[10px] font-black uppercase tracking-widest block mb-1.5 ${
+                    isLight ? 'text-black/60' : 'text-[#B0B0B0]'
+                  }`}
+                >
                   Matching trade-in model
                 </label>
                 <select
                   value={linkModel}
                   onChange={(e) => setLinkModel(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-black/50 px-3 py-2.5 text-sm text-white focus:border-[#CDA032]/50 focus:outline-none"
+                  className={`w-full rounded-xl border px-3 py-2.5 text-sm focus:border-[#CDA032]/60 focus:outline-none focus:ring-2 focus:ring-[#CDA032]/25 ${
+                    isLight
+                      ? 'border-black/15 bg-[#F5F5F7] text-black'
+                      : 'border-white/20 bg-[#1a1a1a] text-[#F5F5F5]'
+                  }`}
                 >
                   <option value="">Select model…</option>
                   {activeTradeDevices.map((d) => (
@@ -571,7 +604,11 @@ export const TradeAdminUpgrades: React.FC = () => {
                 type="button"
                 onClick={closeLinkModal}
                 disabled={linkSaving}
-                className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-white/10 text-white/60 hover:bg-white/5 disabled:opacity-40"
+                className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-colors disabled:opacity-40 ${
+                  isLight
+                    ? 'border-black/20 text-black/80 hover:bg-black/5'
+                    : 'border-white/25 text-[#E5E5E5] hover:bg-white/10'
+                }`}
               >
                 Cancel
               </button>
@@ -579,7 +616,7 @@ export const TradeAdminUpgrades: React.FC = () => {
                 type="button"
                 disabled={linkSaving || !linkModel || activeTradeDevices.length === 0}
                 onClick={() => void confirmLinkAndMaybeAdd()}
-                className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-[#CDA032] text-black disabled:opacity-40"
+                className="px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-[#CDA032] text-black hover:bg-[#D4AF37] disabled:opacity-40"
               >
                 {linkSaving
                   ? 'Saving…'
