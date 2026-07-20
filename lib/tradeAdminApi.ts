@@ -417,6 +417,7 @@ export async function upsertTradeDevice(
     .select()
     .single();
   if (error) throw error;
+  await bumpTradeCaches();
   return data as TradeDeviceRow;
 }
 

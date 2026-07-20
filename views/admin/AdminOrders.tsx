@@ -7,6 +7,35 @@ import { useAppContext } from '../../lib/appContext';
 import type { Order } from '../../types';
 import { formatCurrency } from '../../lib/utils';
 
+function isStorePickupOrder(order: Pick<Order, 'shipping_method'>): boolean {
+    const m = String(order.shipping_method || '').toLowerCase();
+    return m === 'pickup' || m.includes('pick');
+}
+
+/** Admin-facing status label (pickup reuses Shipped as “ready”). */
+function adminOrderStatusLabel(order: Order, status: string): string {
+    if (isStorePickupOrder(order) && status === 'Shipped') return 'Ready for pickup';
+    if (isStorePickupOrder(order) && status === 'Delivered') return 'Picked up';
+    return status;
+}
+
+function primaryOrderAction(order: Order): { label: string; next: Order['status'] } | null {
+    const s = order.status;
+    if (s === 'Delivered' || s === 'Cancelled' || s === 'Refunded') return null;
+
+    if (isStorePickupOrder(order)) {
+        if (s === 'Shipped') {
+            return { label: 'Mark as picked up', next: 'Delivered' };
+        }
+        return { label: 'Mark ready for pickup', next: 'Shipped' };
+    }
+
+    if (s === 'Shipped') {
+        return { label: 'Mark as delivered', next: 'Delivered' };
+    }
+    return { label: 'Mark as shipped', next: 'Shipped' };
+}
+
 export const AdminOrders: React.FC = () => {
     const { theme } = useAppContext();
     const isLight = theme === 'light';
@@ -40,6 +69,14 @@ export const AdminOrders: React.FC = () => {
         if (r === 'pickup' || r.includes('pick')) return 'Store pickup';
         if (r === 'delivery' || r.includes('deliver')) return 'Delivery';
         return raw ? String(raw) : 'Standard';
+    };
+
+    const paymentStatusLabel = (raw?: string) => {
+        const r = String(raw || 'pending').toLowerCase();
+        if (r === 'paid') return 'Paid';
+        if (r === 'failed') return 'Failed';
+        if (r === 'refunded') return 'Refunded';
+        return 'Pending';
     };
 
     useEffect(() => {
@@ -113,7 +150,7 @@ export const AdminOrders: React.FC = () => {
                                         order.status === 'Shipped' ? 'text-emerald-400 bg-emerald-400/20 shadow-[0_0_10px_rgba(52,211,153,0.3)]' :
                                             'text-amber-400 bg-amber-400/10'}`}
                 >
-                    {isUpdating ? 'Updating...' : order.status}
+                    {isUpdating ? 'Updating...' : adminOrderStatusLabel(order, order.status)}
                     <ChevronDown size={12} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                 </button>
 
@@ -121,7 +158,7 @@ export const AdminOrders: React.FC = () => {
                     <>
                         <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
                         <div
-                            className={`absolute top-full left-0 mt-1 w-32 rounded-xl shadow-xl overflow-hidden z-50 py-1 border ${
+                            className={`absolute top-full left-0 mt-1 w-40 rounded-xl shadow-xl overflow-hidden z-50 py-1 border ${
                                 isLight
                                     ? 'bg-white border-black/10'
                                     : 'bg-[#1a1a1a] border-white/10'
@@ -139,7 +176,7 @@ export const AdminOrders: React.FC = () => {
                                               : 'text-[#E5E5E5] hover:bg-white/10 hover:text-[#F5F5F5]'
                                     }`}
                                 >
-                                    {s}
+                                    {adminOrderStatusLabel(order, s)}
                                 </button>
                             ))}
                         </div>
@@ -150,6 +187,10 @@ export const AdminOrders: React.FC = () => {
     };
 
     const statuses = ['All', 'Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled', 'Refunded'];
+    const statusFilterLabel = (s: string) => {
+        if (s === 'Shipped') return 'Shipped / Ready';
+        return s;
+    };
 
     const filtered = useMemo(() => {
         const isDateInRange = (dateString: string, filterStr: string) => {
@@ -257,7 +298,7 @@ export const AdminOrders: React.FC = () => {
                         <button key={s} onClick={() => setStatusFilter(s)}
                             className={`px-2.5 py-1 md:py-1.5 rounded-xl text-[9px] md:text-[11px] font-black uppercase whitespace-nowrap transition-all 
                                 ${statusFilter === s ? 'bg-[#B38B21] text-black shadow-[0_0_15px_rgba(179,139,33,0.3)]' : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white'}`}>
-                            {s} <span className="opacity-70">({count})</span>
+                            {statusFilterLabel(s)} <span className="opacity-70">({count})</span>
                         </button>
                     );
                 })}
@@ -357,87 +398,109 @@ export const AdminOrders: React.FC = () => {
 
             {/* Premium Order Details Modal */}
             {sel && (
-                <Modal onClose={() => setSel(null)}>
+                <Modal onClose={() => setSel(null)} isLight={isLight}>
                     <div className="max-w-3xl w-full mx-auto pb-6">
-                        {/* Modal Header */}
-                        <div className="sticky top-0 z-10 bg-[#0a0a0a]/90 backdrop-blur-xl border-b border-white/5 p-5 md:p-6 flex items-start justify-between rounded-t-2xl">
-                            <div>
-                                <div className="flex items-center gap-3 mb-1">
-                                    <h2 className="text-lg md:text-xl font-black text-white tracking-tight uppercase">
+                        {(() => {
+                            const action = primaryOrderAction(sel);
+                            const titleCls = isLight ? 'text-black' : 'text-white';
+                            const mutedCls = isLight ? 'text-black/45' : 'text-white/40';
+                            const cardCls = isLight
+                                ? 'bg-black/[0.03] border border-black/10 rounded-xl p-4'
+                                : 'bg-white/[0.02] border border-white/5 rounded-xl p-4';
+                            const bodyCls = isLight ? 'text-black/70' : 'text-white/50';
+                            const strongCls = isLight ? 'text-black' : 'text-white';
+                            const headerCls = isLight
+                                ? 'sticky top-0 z-10 bg-white/95 backdrop-blur-xl border-b border-black/10 p-5 md:p-6 flex items-start justify-between rounded-t-2xl'
+                                : 'sticky top-0 z-10 bg-[#0a0a0a]/90 backdrop-blur-xl border-b border-white/5 p-5 md:p-6 flex items-start justify-between rounded-t-2xl';
+                            return (
+                                <>
+                        <div className={headerCls}>
+                            <div className="min-w-0 flex-1 pr-3">
+                                <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-1">
+                                    <h2 className={`text-lg md:text-xl font-black tracking-tight uppercase ${titleCls}`}>
                                         Order {sel.display_id ? sel.display_id : `#${sel.id.slice(-6).toUpperCase()}`}
                                     </h2>
                                     <StatusDropdown order={sel} />
-                                    {sel.status !== 'Shipped' && sel.status !== 'Delivered' && (
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); handleStatusChange(sel.id, 'Shipped'); }}
+                                    {action && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                void handleStatusChange(sel.id, action.next);
+                                            }}
                                             disabled={updatingOrderId === sel.id}
-                                            className="ml-auto px-4 py-1.5 md:py-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-wider hover:bg-emerald-500/30 transition-colors disabled:opacity-50"
+                                            className="px-4 py-1.5 md:py-2 bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-wider hover:bg-emerald-500/30 transition-colors disabled:opacity-50"
                                         >
-                                            Mark as Shipped
+                                            {updatingOrderId === sel.id ? 'Updating…' : action.label}
                                         </button>
                                     )}
                                 </div>
-                                <p className="text-xs font-bold text-white/40 flex items-center gap-1.5"><Calendar size={12} /> Placed on {new Date(sel.date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} at {new Date(sel.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                <p className={`text-xs font-bold flex items-center gap-1.5 ${mutedCls}`}>
+                                    <Calendar size={12} /> Placed on {new Date(sel.date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} at {new Date(sel.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </p>
                             </div>
-                            <ModalClose onClose={() => setSel(null)} />
+                            <ModalClose onClose={() => setSel(null)} isLight={isLight} />
                         </div>
 
                         <div className="p-5 md:p-6 space-y-6 overflow-y-auto max-h-[70vh]">
-
-                            {/* Summary Cards */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+                                <div className={cardCls}>
                                     <h3 className="text-[10px] font-black uppercase tracking-widest text-[#B38B21] mb-3 flex items-center gap-2">
                                         <MapPin size={12} /> Customer & Delivery
                                     </h3>
-                                    <p className="text-sm font-bold text-white mb-1">{sel.userName || 'Guest User'}</p>
-                                    <p className="text-xs text-white/50 mb-1">{sel.userEmail || 'N/A'}</p>
-                                    <p className="text-xs text-white/50 mb-1">{sel.userPhone || 'No phone'}</p>
-                                    <p className="text-xs text-white/50 mb-3">{sel.shipping_address || 'No address provided'}</p>
-                                    <div className="pt-3 border-t border-white/5 flex items-center justify-between text-xs">
-                                        <span className="text-white/40 font-bold">Shipping method</span>
-                                        <span className="text-white font-bold">{shippingMethodLabel(sel.shipping_method)}</span>
+                                    <p className={`text-sm font-bold mb-1 ${strongCls}`}>{sel.userName || 'Guest User'}</p>
+                                    <p className={`text-xs mb-1 ${bodyCls}`}>{sel.userEmail || 'N/A'}</p>
+                                    <p className={`text-xs mb-1 ${bodyCls}`}>{sel.userPhone || 'No phone'}</p>
+                                    <p className={`text-xs mb-3 ${bodyCls}`}>{sel.shipping_address || 'No address provided'}</p>
+                                    <div className={`pt-3 border-t flex items-center justify-between text-xs ${isLight ? 'border-black/10' : 'border-white/5'}`}>
+                                        <span className={`font-bold ${mutedCls}`}>Shipping method</span>
+                                        <span className={`font-bold ${strongCls}`}>{shippingMethodLabel(sel.shipping_method)}</span>
                                     </div>
                                     <div className="flex items-center justify-between text-xs mt-2">
-                                        <span className="text-white/40 font-bold">Shipping cost</span>
-                                        <span className="text-white font-bold">{formatCurrency(sel.shipping_cost ?? 0)}</span>
+                                        <span className={`font-bold ${mutedCls}`}>Shipping cost</span>
+                                        <span className={`font-bold ${strongCls}`}>{formatCurrency(sel.shipping_cost ?? 0)}</span>
                                     </div>
                                 </div>
 
-                                <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+                                <div className={cardCls}>
                                     <h3 className="text-[10px] font-black uppercase tracking-widest text-[#B38B21] mb-3 flex items-center gap-2">
                                         <CreditCard size={12} /> Payment Info
                                     </h3>
                                     <div className="space-y-2 text-xs">
                                         <div className="flex justify-between items-center">
-                                            <span className="text-white/50 font-bold">Status</span>
-                                            <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-black ${sel.payment_status === 'paid' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
-                                                {sel.payment_status || 'Pending'}
+                                            <span className={`font-bold ${bodyCls}`}>Status</span>
+                                            <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-black ${
+                                                String(sel.payment_status || '').toLowerCase() === 'paid'
+                                                    ? 'bg-emerald-500/10 text-emerald-500'
+                                                    : 'bg-amber-500/10 text-amber-500'
+                                            }`}>
+                                                {paymentStatusLabel(sel.payment_status)}
                                             </span>
                                         </div>
                                         <div className="flex justify-between">
-                                            <span className="text-white/50 font-bold">Method</span>
-                                            <span className="text-white font-bold">{paymentMethodLabel(sel.paymentMethod || sel.payment_method)}</span>
+                                            <span className={`font-bold ${bodyCls}`}>Method</span>
+                                            <span className={`font-bold ${strongCls}`}>{paymentMethodLabel(sel.paymentMethod || sel.payment_method)}</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Order Items List */}
                             <div>
-                                <h3 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3 ml-1">Items Ordered ({sel.items.length})</h3>
-                                <div className="bg-white/[0.02] border border-white/5 rounded-xl overflow-hidden divide-y divide-white/5">
+                                <h3 className={`text-[10px] font-black uppercase tracking-widest mb-3 ml-1 ${mutedCls}`}>
+                                    Items Ordered ({sel.items.length})
+                                </h3>
+                                <div className={`${cardCls} !p-0 overflow-hidden divide-y ${isLight ? 'divide-black/10' : 'divide-white/5'}`}>
                                     {sel.items.map((item, idx) => (
-                                        <div key={idx} className="p-4 flex gap-4 items-center hover:bg-white/[0.01] transition-colors">
-                                            <div className="w-16 h-16 rounded-lg bg-black flex-shrink-0 border border-white/10 overflow-hidden relative">
+                                        <div key={idx} className={`p-4 flex gap-4 items-center transition-colors ${isLight ? 'hover:bg-black/[0.02]' : 'hover:bg-white/[0.01]'}`}>
+                                            <div className={`w-16 h-16 rounded-lg flex-shrink-0 border overflow-hidden relative ${isLight ? 'bg-black/5 border-black/10' : 'bg-black border-white/10'}`}>
                                                 {item.image ? (
                                                     <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                                                 ) : (
-                                                    <div className="w-full h-full flex items-center justify-center text-white/20"><Package size={20} /></div>
+                                                    <div className={`w-full h-full flex items-center justify-center ${mutedCls}`}><Package size={20} /></div>
                                                 )}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <h4 className="text-sm font-bold text-white truncate">{item.name}</h4>
+                                                <h4 className={`text-sm font-bold truncate ${strongCls}`}>{item.name}</h4>
                                                 {item.configurationLine ? (
                                                     <p className="text-[11px] font-bold text-[#B38B21] mt-1.5 leading-snug" title={item.configurationLine}>
                                                         {item.configurationLine}
@@ -453,41 +516,42 @@ export const AdminOrders: React.FC = () => {
                                                         ))}
                                                     </div>
                                                 ) : (
-                                                    <p className="text-xs text-white/40 truncate mt-0.5">{item.description || item.category}</p>
+                                                    <p className={`text-xs truncate mt-0.5 ${mutedCls}`}>{item.description || item.category}</p>
                                                 )}
                                             </div>
                                             <div className="text-right flex-shrink-0">
-                                                <p className="text-sm font-black text-white">{formatCurrency(item.price)}</p>
-                                                <p className="text-[10px] text-white/50">each</p>
-                                                <p className="text-xs font-bold text-white/40">Qty: {item.quantity}</p>
+                                                <p className={`text-sm font-black ${strongCls}`}>{formatCurrency(item.price)}</p>
+                                                <p className={`text-[10px] ${bodyCls}`}>each</p>
+                                                <p className={`text-xs font-bold ${mutedCls}`}>Qty: {item.quantity}</p>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             </div>
 
-                            {/* Financial Totals */}
                             <div className="flex justify-end">
-                                <div className="w-full md:w-1/2 lg:w-1/3 space-y-3 bg-white/[0.02] border border-white/5 rounded-xl p-4">
+                                <div className={`w-full md:w-1/2 lg:w-1/3 space-y-3 ${cardCls}`}>
                                     <div className="flex justify-between items-start gap-3 text-xs">
-                                        <span className="text-white/50 font-bold">Subtotal</span>
-                                        <span className="text-white font-bold text-right break-all">{formatCurrency(modalLineSubtotal)}</span>
+                                        <span className={`font-bold ${bodyCls}`}>Subtotal</span>
+                                        <span className={`font-bold text-right break-all ${strongCls}`}>{formatCurrency(modalLineSubtotal)}</span>
                                     </div>
                                     <div className="flex justify-between items-start gap-3 text-xs">
-                                        <span className="text-white/50 font-bold">Shipping</span>
-                                        <span className="text-white font-bold text-right break-all">{formatCurrency(sel.shipping_cost ?? 0)}</span>
+                                        <span className={`font-bold ${bodyCls}`}>Shipping</span>
+                                        <span className={`font-bold text-right break-all ${strongCls}`}>{formatCurrency(sel.shipping_cost ?? 0)}</span>
                                     </div>
                                     {Math.abs(modalLineSubtotal + (sel.shipping_cost ?? 0) - sel.total) > 0.02 && (
-                                        <p className="text-[10px] text-white/40 font-bold text-right">Order total reflects discounts or adjustments from checkout.</p>
+                                        <p className={`text-[10px] font-bold text-right ${mutedCls}`}>Order total reflects discounts or adjustments from checkout.</p>
                                     )}
-                                    <div className="pt-3 border-t border-white/10 flex justify-between items-start gap-3">
-                                        <span className="text-xs font-black uppercase text-white/70">Total</span>
+                                    <div className={`pt-3 border-t flex justify-between items-start gap-3 ${isLight ? 'border-black/10' : 'border-white/10'}`}>
+                                        <span className={`text-xs font-black uppercase ${isLight ? 'text-black/60' : 'text-white/70'}`}>Total</span>
                                         <span className="text-base sm:text-lg font-black text-[#B38B21] text-right break-all leading-tight">{formatCurrency(sel.total)}</span>
                                     </div>
                                 </div>
                             </div>
-
                         </div>
+                                </>
+                            );
+                        })()}
                     </div>
                 </Modal>
             )}

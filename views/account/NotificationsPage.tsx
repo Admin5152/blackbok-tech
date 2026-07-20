@@ -18,6 +18,7 @@ import { saveReturnTo } from '../../lib/returnTo';
 import { PageBackButton } from '../../components/PageBackButton';
 import { PAGE_SIZES, usePagination } from '../../lib/pagination';
 import { Pagination } from '../../components/Pagination';
+import { WebPushSettingsCard } from '../../components/WebPushSettingsCard';
 
 function iconFor(type: Notification['type']) {
   switch (type) {
@@ -104,6 +105,12 @@ export function NotificationsPage() {
           </button>
         )}
       </div>
+
+      {user && (
+        <div className="mb-6">
+          <WebPushSettingsCard isLight={isLight} signedIn={Boolean(user)} />
+        </div>
+      )}
 
       {!authReady || loading ? (
         <p className="text-sm text-center py-12 opacity-50">{TRADE_COPY.states.loading}</p>

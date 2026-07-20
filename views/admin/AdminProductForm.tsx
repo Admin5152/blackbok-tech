@@ -15,12 +15,13 @@ import { ProductSkuMatrix } from './ProductSkuMatrix';
 import { getApf, type AdminProductFormStyles } from './adminProductFormStyles';
 import { getTradeDevices } from '../../lib/tradeApi';
 import type { TradeDeviceRow } from '../../types/supabase';
-import { uploadImage } from '../../lib/upload';
+import { uploadImage, compressImage } from '../../lib/upload';
 import {
   addProductImage,
   setPrimaryProductImage,
   deleteProductImage,
   setProductImageVariant,
+  updateProduct,
   friendlyProductActionError,
 } from '../../lib/api';
 import { friendlyError } from '../../lib/friendlyErrors';
@@ -289,36 +290,81 @@ export const AdminProductForm: React.FC<Props> = ({
 
   const handleUploadImage = async (file: File | null) => {
     if (!file) return;
+    await handleUploadFiles([file]);
+  };
+
+  const handleUploadFiles = async (files: FileList | File[] | null) => {
+    if (!files || (files as FileList).length === 0) return;
+    const list = Array.from(files as FileList).filter((f) => f.type.startsWith('image/'));
+    if (list.length === 0) {
+      setImgError('Please choose an image file (JPEG, PNG, or WebP).');
+      return;
+    }
+
     setImgBusy(true);
     setImgError('');
+    const productId = draft.id;
+    const added: ProductImage[] = [];
+
     try {
-      const url = await uploadImage(file, 'product-images');
-      if (!url) throw new Error('Upload returned no URL');
-      if (draft.id) {
-        const row = await addProductImage(draft.id, {
-          url,
-          sort_order: gallery.length,
-          is_primary: gallery.length === 0,
-        });
-        const next = [...gallery, row];
-        setDraft({
-          ...draft,
-          images: next,
-          image: row.is_primary ? row.url : draft.image,
-        });
-      } else {
-        const pending: ProductImage = {
-          id: `pending-${Date.now()}`,
-          url,
-          sort_order: gallery.length,
-          is_primary: gallery.length === 0,
-        };
-        setDraft({
-          ...draft,
-          images: [...gallery, pending],
-          image: pending.is_primary ? url : draft.image,
-        });
+      for (const file of list) {
+        let toUpload = file;
+        try {
+          toUpload = await compressImage(file, 1600, 0.85);
+        } catch {
+          toUpload = file;
+        }
+        const url = await uploadImage(toUpload, 'product-images');
+        if (!url) throw new Error('Upload returned no URL');
+
+        const sortOrder = (draft.images?.length || 0) + added.length;
+        const isPrimary = sortOrder === 0;
+
+        if (productId) {
+          try {
+            const row = await addProductImage(productId, {
+              url,
+              sort_order: sortOrder,
+              is_primary: isPrimary,
+            });
+            added.push(row);
+          } catch (galleryErr) {
+            // Storage succeeded but gallery RLS may still block — keep the photo on the product.
+            console.warn('product_images insert failed; saving image_url on product', galleryErr);
+            if (isPrimary || !draft.image) {
+              try {
+                await updateProduct(productId, { image: url });
+              } catch (prodErr) {
+                console.warn('products.image_url update failed', prodErr);
+              }
+            }
+            added.push({
+              id: `pending-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+              url,
+              sort_order: sortOrder,
+              is_primary: isPrimary,
+            });
+          }
+        } else {
+          added.push({
+            id: `pending-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            url,
+            sort_order: sortOrder,
+            is_primary: isPrimary,
+          });
+        }
       }
+
+      setDraft((d) => {
+        const prev = d.images || [];
+        const images = [...prev, ...added];
+        const primary = images.find((img) => img.is_primary) || images[0];
+        return {
+          ...d,
+          images,
+          image: primary?.url || d.image,
+        };
+      });
     } catch (e) {
       setImgError(friendlyError(e, 'upload this image'));
     } finally {
@@ -666,15 +712,50 @@ export const AdminProductForm: React.FC<Props> = ({
               <div className={s.card}>
                 <label className={s.label}>
                   <ImageIcon size={10} className="inline mr-1 opacity-60" />
-                  Primary image URL
+                  Product photo
                 </label>
-                <input
-                  type="url"
-                  placeholder="https://... (or manage gallery in Images tab)"
-                  value={draft.image ?? ''}
-                  onChange={(e) => setDraft({ ...draft, image: e.target.value })}
-                  className={s.input}
-                />
+                <p className={`text-[10px] mb-3 leading-relaxed ${s.muted}`}>
+                  Upload a photo from your computer (JPEG, PNG, WebP — up to 10MB). First upload becomes the main storefront image.
+                </p>
+                {imgError && tab === 'details' && (
+                  <div className={`mb-3 text-xs rounded-xl px-3 py-2 ${s.errorBox}`}>{imgError}</div>
+                )}
+                <div className="flex flex-wrap items-center gap-3">
+                  <label
+                    className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#B38B21] text-black text-[10px] font-black uppercase cursor-pointer hover:bg-[#D4AF37] transition-colors ${
+                      imgBusy ? 'opacity-50 pointer-events-none' : ''
+                    }`}
+                  >
+                    <Upload size={12} />
+                    {imgBusy ? 'Uploading…' : draft.image ? 'Replace photo' : 'Upload photo'}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif,image/jpg"
+                      className="hidden"
+                      disabled={imgBusy}
+                      onChange={(e) => {
+                        void handleUploadImage(e.target.files?.[0] ?? null);
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                  {draft.image && (
+                    <div
+                      className={`w-16 h-16 rounded-xl overflow-hidden border flex items-center justify-center ${
+                        isLight ? 'border-black/10 bg-black/[0.03]' : 'border-white/10 bg-white/5'
+                      }`}
+                    >
+                      <img src={draft.image} alt="" className="max-w-full max-h-full object-contain" />
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setTab('images')}
+                    className={`text-[10px] font-black uppercase tracking-wider underline-offset-2 hover:underline ${s.muted}`}
+                  >
+                    Manage gallery →
+                  </button>
+                </div>
               </div>
 
               <div className={s.card}>
@@ -786,29 +867,53 @@ export const AdminProductForm: React.FC<Props> = ({
 
           {tab === 'images' && (
             <div className="space-y-4">
-              <p className={`text-[11px] px-1 ${s.muted}`}>
-                Upload to the product-images bucket. Primary mirrors to products.image_url.
-                {!draft.id && ' New products: images upload now and link on save.'}
+              <p className={`text-[11px] px-1 leading-relaxed ${s.muted}`}>
+                Upload photos directly from your device. The primary photo is shown on the storefront.
+                {!draft.id && ' You can upload before saving — images link to the product when you publish.'}
               </p>
               {imgError && <div className={`text-xs rounded-xl px-4 py-3 ${s.errorBox}`}>{imgError}</div>}
-              <div className={s.card}>
-                <label className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#B38B21] text-black text-[10px] font-black uppercase cursor-pointer ${imgBusy ? 'opacity-50' : ''}`}>
-                  <Upload size={12} />
-                  {imgBusy ? 'Uploading…' : 'Upload image'}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    disabled={imgBusy}
-                    onChange={(e) => {
-                      void handleUploadImage(e.target.files?.[0] ?? null);
-                      e.target.value = '';
-                    }}
-                  />
-                </label>
+              <div
+                className={`${s.card} border-dashed ${
+                  isLight ? 'border-black/20 bg-black/[0.02]' : 'border-white/20 bg-white/[0.02]'
+                }`}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (imgBusy) return;
+                  void handleUploadFiles(e.dataTransfer.files);
+                }}
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <label
+                    className={`inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#B38B21] text-black text-[10px] font-black uppercase cursor-pointer hover:bg-[#D4AF37] transition-colors ${
+                      imgBusy ? 'opacity-50 pointer-events-none' : ''
+                    }`}
+                  >
+                    <Upload size={14} />
+                    {imgBusy ? 'Uploading…' : 'Choose photos'}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif,image/jpg"
+                      multiple
+                      className="hidden"
+                      disabled={imgBusy}
+                      onChange={(e) => {
+                        void handleUploadFiles(e.target.files);
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                  <p className={`text-[10px] ${s.muted}`}>
+                    Or drag and drop images here · JPEG / PNG / WebP · max 10MB each
+                  </p>
+                </div>
               </div>
               {gallery.length === 0 ? (
-                <div className={`text-center py-10 text-sm ${s.muted}`}>No gallery images yet</div>
+                <div className={`text-center py-10 text-sm ${s.muted}`}>No gallery images yet — upload a photo above</div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {gallery.map((img) => (

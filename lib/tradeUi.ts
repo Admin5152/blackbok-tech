@@ -12,7 +12,7 @@ export const TRADE_CARD_TILE =
 
 /** Model image cards */
 export const TRADE_CARD_MODEL =
-  'relative flex flex-col items-center gap-2 p-3 pt-4 min-h-11 rounded-2xl border transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032]';
+  'relative flex flex-col items-center gap-2 p-3 pt-4 min-h-[9.5rem] rounded-2xl border transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032]';
 
 export function tradeCardSelected(selected: boolean): string {
   return selected

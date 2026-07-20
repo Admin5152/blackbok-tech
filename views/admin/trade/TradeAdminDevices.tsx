@@ -6,7 +6,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { Plus, RefreshCcw, Trash2 } from 'lucide-react';
+import { ImagePlus, Plus, RefreshCcw, Trash2 } from 'lucide-react';
 import {
   deleteTradeDevice,
   getAdminDevices,
@@ -15,6 +15,7 @@ import {
   tradeAdminErrorMessage,
   upsertTradeDevice,
 } from '../../../lib/tradeAdminApi';
+import { uploadImage, compressImage } from '../../../lib/upload';
 import { useAppContext } from '../../../lib/appContext';
 import type { TradeDeviceRow, TradeDeviceType } from '../../../types/supabase';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
@@ -152,7 +153,9 @@ export const TradeAdminDevices: React.FC = () => {
 
   const saveMeta = async (
     row: TradeDeviceRow,
-    patch: Partial<Pick<TradeDeviceRow, 'series' | 'product_line' | 'biometric' | 'sort_order'>>,
+    patch: Partial<
+      Pick<TradeDeviceRow, 'series' | 'product_line' | 'biometric' | 'sort_order' | 'image_url'>
+    >,
   ) => {
     setSaving(row.model);
     try {
@@ -165,7 +168,7 @@ export const TradeAdminDevices: React.FC = () => {
         biometric: patch.biometric ?? row.biometric,
         sort_order: patch.sort_order ?? row.sort_order,
         is_active: row.is_active,
-        image_url: row.image_url,
+        image_url: patch.image_url !== undefined ? patch.image_url : row.image_url,
         threshold_value: row.threshold_value,
         generation: row.generation,
         screen_size: row.screen_size,
@@ -175,6 +178,28 @@ export const TradeAdminDevices: React.FC = () => {
     } catch (e) {
       notify?.(tradeAdminErrorMessage(e), 'error');
     } finally {
+      setSaving(null);
+    }
+  };
+
+  const uploadDevicePhoto = async (row: TradeDeviceRow, file: File | null) => {
+    if (!file || !file.type.startsWith('image/')) {
+      notify?.('Choose a JPEG, PNG, or WebP image.', 'error');
+      return;
+    }
+    setSaving(row.model);
+    try {
+      let toUpload = file;
+      try {
+        toUpload = await compressImage(file, 1200, 0.85);
+      } catch {
+        toUpload = file;
+      }
+      const url = await uploadImage(toUpload, 'product-images');
+      if (!url) throw new Error('Upload returned no URL');
+      await saveMeta(row, { image_url: url });
+    } catch (e) {
+      notify?.(tradeAdminErrorMessage(e), 'error');
       setSaving(null);
     }
   };
@@ -189,8 +214,10 @@ export const TradeAdminDevices: React.FC = () => {
         <div>
           <h2 className="text-xl font-black tracking-tight">Tradable devices</h2>
           <p className="text-xs opacity-60 mt-1 max-w-xl">
-            Turn models on/off for the customer trade-in list. After adding a device, set
-            base values and fault deductions on{' '}
+            Turn models on/off for the customer trade-in list. Upload a photo per model
+            (or link a shop product with the same trade model) so the trade-in picker
+            shows the real device. After adding a device, set base values and fault
+            deductions on{' '}
             <Link to="/admin/trade/pricing" className="text-[#CDA032] underline font-bold">
               Pricing & deductions
             </Link>
@@ -309,6 +336,7 @@ export const TradeAdminDevices: React.FC = () => {
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-[10px] uppercase tracking-widest opacity-50 border-b border-[var(--bb-border)] bg-[var(--bb-surface-2)]">
+              <th className="p-3">Photo</th>
               <th className="p-3">Model</th>
               <th className="p-3">Type</th>
               <th className="p-3">Series / line</th>
@@ -325,6 +353,34 @@ export const TradeAdminDevices: React.FC = () => {
                 key={row.model}
                 className="border-b border-[var(--bb-border)]/60 hover:bg-[var(--bb-surface-2)]/50"
               >
+                <td className="p-3">
+                  <label
+                    className={`relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-xl border border-[var(--bb-border)] bg-[var(--bb-surface-2)] cursor-pointer ${
+                      saving === row.model ? 'opacity-50 pointer-events-none' : 'hover:border-[#CDA032]/50'
+                    }`}
+                    title="Upload model photo for trade-in picker"
+                  >
+                    {row.image_url ? (
+                      <img
+                        src={row.image_url}
+                        alt=""
+                        className="h-full w-full object-contain p-1"
+                      />
+                    ) : (
+                      <ImagePlus size={16} className="opacity-40" aria-hidden />
+                    )}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif,image/jpg"
+                      className="hidden"
+                      disabled={saving === row.model}
+                      onChange={(e) => {
+                        void uploadDevicePhoto(row, e.target.files?.[0] ?? null);
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                </td>
                 <td className="p-3 font-bold">{row.model}</td>
                 <td className="p-3 uppercase text-[10px] font-black tracking-wider opacity-60">
                   {row.device_type}

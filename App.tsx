@@ -1114,10 +1114,11 @@ function RootComponent() {
     preventAppClose();
 
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations()
-        .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+      // Keep a single SW for Web Push. Drop legacy cache-bust workers that self-unregister.
+      navigator.serviceWorker
+        .register('/sw.js', { scope: '/' })
         .catch((error) => {
-          console.log('Service Worker cleanup failed:', error);
+          console.log('Service Worker registration failed:', error);
         });
     }
 
@@ -1617,7 +1618,7 @@ function RootComponent() {
     <AppContext.Provider value={contextValues}>
       <SessionTimeoutProvider />
       <ScrollToTop />
-      <SmoothScroll />
+      <SmoothScroll enabled={!isAdminRoute} />
       <ScrollReveal />
       {/* Welcome Screen */}
       {showWelcomeScreen && (

@@ -80,14 +80,17 @@ export const uploadImage = async (file: File, bucket: string = REPAIR_IMAGES_BUC
       );
     }
 
-    // Scoped path — must match storage RLS (see database/migrations/*repair_images*.sql)
+    // Product images: prefer a flat public path so storefront URLs stay short.
+    // Repair images stay under `{user_id}/…` for private RLS.
     const safeExt = (file.name.split('.').pop() || 'jpg').replace(/[^a-zA-Z0-9]/g, '').slice(0, 8) || 'jpg';
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${safeExt}`;
-    const filePath = `${user.id}/${fileName}`;
+    const filePath =
+      bucket === 'product-images' ? `catalog/${fileName}` : `${user.id}/${fileName}`;
 
     const { error } = await supabase.storage.from(bucket).upload(filePath, file, {
       cacheControl: '3600',
       upsert: false,
+      contentType: file.type || 'image/jpeg',
     });
 
     if (error) {
@@ -96,8 +99,15 @@ export const uploadImage = async (file: File, bucket: string = REPAIR_IMAGES_BUC
       if (/bucket|not found|does not exist/i.test(msg)) {
         throw new Error(
           bucket === 'product-images'
-            ? 'Product image storage is not set up yet. Run database/storage_setup.sql in Supabase.'
+            ? 'Product image storage is not set up yet. Run database/migrations/2026_07_product_images_storage_staff.sql in Supabase.'
             : 'Photo storage is not set up yet. Ask an admin to run the repair-images storage migrations in Supabase.',
+        );
+      }
+      if (/row-level security|rls|not authorized|42501|policy/i.test(msg)) {
+        throw new Error(
+          bucket === 'product-images'
+            ? 'Upload blocked by storage permissions. Run database/migrations/2026_07_product_images_storage_staff.sql in the Supabase SQL editor (fixes admin/staff uploads even when user_roles is out of sync).'
+            : 'You do not have permission to upload this photo.',
         );
       }
       throw error;

@@ -384,12 +384,19 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                 // Flush pending gallery uploads created before the product had an id
                 const pending = (draft.images || []).filter((img) => String(img.id).startsWith('pending-'));
                 for (const img of pending) {
-                    await addProductImage(productId, {
-                        url: img.url,
-                        sort_order: img.sort_order,
-                        is_primary: Boolean(img.is_primary),
-                        variant_id: img.variant_id ?? null,
-                    });
+                    try {
+                        await addProductImage(productId, {
+                            url: img.url,
+                            sort_order: img.sort_order,
+                            is_primary: Boolean(img.is_primary),
+                            variant_id: img.variant_id ?? null,
+                        });
+                    } catch (galleryErr) {
+                        console.warn('Pending gallery insert failed; keeping products.image_url', galleryErr);
+                        if (img.is_primary || img.url === productPayload.image) {
+                            await updateProduct(productId, { image: img.url });
+                        }
+                    }
                 }
             }
 

@@ -89,10 +89,11 @@ function buildReturnToFromLocation(pathname: string, search: unknown): string {
 }
 
 /**
- * Strict 12-minute idle logout with cross-tab activity sync.
+ * Strict 10-minute *visible* idle logout with cross-tab activity sync.
  *
- * Timing guarantee: logout fires when `Date.now() - lastActivity >= IDLE_TIMEOUT_MS`
+ * Timing guarantee: logout fires when visible idle time reaches IDLE_TIMEOUT_MS
  * (± IDLE_CHECK_INTERVAL_MS poll tolerance), regardless of Supabase JWT refresh.
+ * Time spent with the tab minimized/hidden does not count toward idle.
  *
  * Mount once at the authenticated app root via `SessionTimeoutProvider`.
  */
@@ -102,6 +103,7 @@ export function useIdleLogout(): void {
 
   const lastActivityRef = useRef<number>(Date.now());
   const lastLocalResetRef = useRef<number>(0);
+  const hiddenSinceRef = useRef<number | null>(null);
   const loggingOutRef = useRef(false);
   const tabIdRef = useRef<string>(
     typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -202,6 +204,10 @@ export function useIdleLogout(): void {
 
   const checkIdle = useCallback(() => {
     if (!isAuthenticated || loggingOutRef.current) return;
+    // Minimize / background: pause the idle clock — do not sign out.
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+      return;
+    }
     if (Date.now() - lastActivityRef.current >= IDLE_TIMEOUT_MS) {
       void performIdleSignOutRef.current();
     }
@@ -221,13 +227,30 @@ export function useIdleLogout(): void {
     const stored = readStoredLastActivity();
     lastActivityRef.current = Math.max(stored, now);
     lastLocalResetRef.current = 0;
+    hiddenSinceRef.current =
+      document.visibilityState === 'hidden' ? now : null;
     writeStoredLastActivity(lastActivityRef.current);
 
-    const onLocalActivity = () => recordActivityRef.current(Date.now(), true);
+    const onLocalActivity = () => {
+      if (document.visibilityState === 'hidden') return;
+      recordActivityRef.current(Date.now(), true);
+    };
 
     const onVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        recordActivityRef.current(Date.now(), true);
+      if (document.visibilityState === 'hidden') {
+        // Freeze the idle clock while minimized / in background.
+        hiddenSinceRef.current = Date.now();
+        return;
+      }
+      // Visible again: credit paused time so minimize does not burn the window.
+      if (hiddenSinceRef.current != null) {
+        const pausedMs = Math.max(0, Date.now() - hiddenSinceRef.current);
+        hiddenSinceRef.current = null;
+        if (pausedMs > 0) {
+          const adjusted = lastActivityRef.current + pausedMs;
+          lastActivityRef.current = adjusted;
+          writeStoredLastActivity(adjusted);
+        }
       }
     };
 

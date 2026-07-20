@@ -4,10 +4,11 @@ import { setLenis } from '../lib/lenisScroll';
 import { shouldUseSmoothScroll } from '../lib/shouldUseSmoothScroll';
 
 /** Desktop wheel smoothing; touch devices use native scroll for responsiveness. */
-export function SmoothScroll() {
+export function SmoothScroll({ enabled = true }: { enabled?: boolean }) {
   useEffect(() => {
-    if (!shouldUseSmoothScroll()) {
+    if (!enabled || !shouldUseSmoothScroll()) {
       setLenis(null);
+      document.documentElement.classList.remove('lenis', 'lenis-smooth', 'bb-is-scrolling');
       return;
     }
 
@@ -65,7 +66,7 @@ export function SmoothScroll() {
       lenis.destroy();
       setLenis(null);
     };
-  }, []);
+  }, [enabled]);
 
   return null;
 }

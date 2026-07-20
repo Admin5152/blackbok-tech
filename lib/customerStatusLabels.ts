@@ -6,7 +6,18 @@ import {
   normalizeTradeStatusForUi,
 } from './api';
 
-export function customerOrderStatusLabel(uiStatus: string): string {
+export function customerOrderStatusLabel(uiStatus: string, opts?: { pickup?: boolean }): string {
+  if (opts?.pickup) {
+    const pickupMap: Record<string, string> = {
+      Pending: 'Order placed — waiting to prepare',
+      Processing: 'Being prepared for pickup',
+      Shipped: 'Ready for pickup at the store',
+      Delivered: 'Picked up',
+      Cancelled: 'Cancelled',
+      Refunded: 'Refunded',
+    };
+    return pickupMap[uiStatus] ?? uiStatus;
+  }
   const map: Record<string, string> = {
     Pending: 'Order placed — waiting to process',
     Processing: 'Being prepared',
@@ -18,7 +29,18 @@ export function customerOrderStatusLabel(uiStatus: string): string {
   return map[uiStatus] ?? uiStatus;
 }
 
-export function customerOrderStatusShort(uiStatus: string): string {
+export function customerOrderStatusShort(uiStatus: string, opts?: { pickup?: boolean }): string {
+  if (opts?.pickup) {
+    const pickupMap: Record<string, string> = {
+      Pending: 'Processing',
+      Processing: 'Preparing',
+      Shipped: 'Ready for pickup',
+      Delivered: 'Picked up',
+      Cancelled: 'Cancelled',
+      Refunded: 'Refunded',
+    };
+    return pickupMap[uiStatus] ?? uiStatus;
+  }
   const map: Record<string, string> = {
     Pending: 'Processing',
     Processing: 'Preparing',

@@ -1,7 +1,7 @@
 /**
  * Spec Screen 3 — Model pick (Repair split: preview pane + scrollable grid).
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Check, Smartphone } from 'lucide-react';
 import { useTradeFlow } from '../../lib/tradeFlowContext';
@@ -13,6 +13,7 @@ import {
   modelsInCategoryFromPriced,
   peekPricedActiveModels,
 } from '../../lib/tradeCatalogCache';
+import { enrichTradeModelsWithImages } from '../../lib/tradeModelImages';
 import { TRADE_COPY } from '../../lib/tradeCopy';
 import { TRADE_CARD_MODEL, tradeCardSelected } from '../../lib/tradeUi';
 import { track, TRADE_ANALYTICS } from '../../lib/analytics';
@@ -30,7 +31,7 @@ function shortModelName(model: string, category: string | null): string {
 }
 
 export function TradeModelScreen() {
-  const { theme } = useAppContext();
+  const { theme, products } = useAppContext();
   const { state, dispatch } = useTradeFlow();
   const navigate = useNavigate();
   const isLight = theme === 'light';
@@ -43,9 +44,14 @@ export function TradeModelScreen() {
             : null;
         })()
       : null;
-  const [models, setModels] = useState<TradeDeviceRow[]>(cachedModels ?? []);
+  const [rawModels, setRawModels] = useState<TradeDeviceRow[]>(cachedModels ?? []);
   const [loading, setLoading] = useState(cachedModels == null);
   const [error, setError] = useState<string | null>(null);
+
+  const models = useMemo(
+    () => enrichTradeModelsWithImages(rawModels, products),
+    [rawModels, products],
+  );
 
   useEffect(() => {
     if (!state.deviceType || !state.category) {
@@ -64,7 +70,7 @@ export function TradeModelScreen() {
     if (!state.deviceType || !state.category) return;
     const peek = peekPricedActiveModels(state.deviceType);
     if (peek) {
-      setModels(
+      setRawModels(
         modelsInCategoryFromPriced(state.deviceType, state.category, peek),
       );
       setLoading(false);
@@ -80,7 +86,7 @@ export function TradeModelScreen() {
           state.deviceType!,
           state.category!,
         );
-        if (!cancelled) setModels(rows);
+        if (!cancelled) setRawModels(rows);
       } catch (e) {
         console.warn('getTradeModelsInCategory failed', e);
         if (!cancelled) setError(TRADE_COPY.states.errorPricing);
@@ -175,11 +181,11 @@ export function TradeModelScreen() {
       <div className="flex flex-col lg:flex-row gap-5 lg:gap-6">
         <div className="lg:w-[220px] xl:w-[260px] shrink-0">
           <div className="rounded-3xl border border-[var(--bb-border)] bg-[var(--bb-surface)] p-5 flex flex-col items-center justify-center gap-4 min-h-[220px] sticky top-28">
-            <div className="w-full aspect-[3/4] max-h-[200px] rounded-2xl bg-[var(--bb-surface-2)] flex items-center justify-center overflow-hidden">
+            <div className="w-full aspect-[3/4] max-h-[220px] rounded-2xl bg-[var(--bb-surface-2)] flex items-center justify-center overflow-hidden">
               {selectedRow?.image_url ? (
                 <img
                   src={selectedRow.image_url}
-                  alt=""
+                  alt={selectedRow.model}
                   width={180}
                   height={240}
                   className="h-full w-auto object-contain p-3 drop-shadow-xl"
@@ -193,7 +199,7 @@ export function TradeModelScreen() {
                 />
               )}
             </div>
-            <div className="text-center">
+            <div className="text-center px-1">
               {state.model ? (
                 <>
                   <p className="text-[9px] font-black uppercase tracking-widest text-[#CDA032]/60 mb-0.5">
@@ -214,9 +220,8 @@ export function TradeModelScreen() {
 
         <div className="flex-1 min-w-0">
           <div
-            className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 content-start max-h-[520px] overflow-y-auto pr-1 [-webkit-overflow-scrolling:touch]"
+            className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3 content-start max-h-[560px] overflow-y-auto pr-1 [-webkit-overflow-scrolling:touch]"
             data-lenis-prevent
-
             style={{
               scrollbarWidth: 'thin',
               scrollbarColor: 'rgba(205,160,50,0.3) transparent',
@@ -224,48 +229,58 @@ export function TradeModelScreen() {
           >
             {modelPaging.pageItems.map((m) => {
               const selected = state.model === m.model;
+              const label = shortModelName(m.model, state.category);
               return (
                 <button
                   key={m.model}
                   type="button"
                   onClick={() => pick(m.model)}
-                  className={`${TRADE_CARD_MODEL} ${tradeCardSelected(selected)}`}
+                  aria-label={m.model}
+                  title={m.model}
+                  className={`${TRADE_CARD_MODEL} group ${tradeCardSelected(selected)}`}
                 >
                   {selected && (
-                    <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-[#CDA032] flex items-center justify-center">
+                    <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-[#CDA032] flex items-center justify-center z-10">
                       <Check size={9} className="text-black" strokeWidth={4} aria-hidden />
                     </div>
                   )}
-                  <div className="w-full h-14 flex items-center justify-center">
+                  <div className="w-full h-24 sm:h-28 flex items-center justify-center rounded-xl bg-[var(--bb-surface-2)]/60 overflow-hidden">
                     {m.image_url ? (
                       <img
                         src={m.image_url}
-                        alt=""
-                        width={48}
-                        height={56}
-                        className={`h-12 w-auto object-contain transition-all ${
+                        alt={m.model}
+                        width={96}
+                        height={112}
+                        className={`max-h-full max-w-[90%] object-contain transition-all ${
                           selected
-                            ? 'scale-110 drop-shadow-lg'
-                            : 'opacity-60 group-hover:opacity-90'
+                            ? 'scale-105 drop-shadow-lg'
+                            : 'opacity-80 group-hover:opacity-100'
                         }`}
                         loading="lazy"
                         decoding="async"
                       />
                     ) : (
                       <Smartphone
-                        size={28}
+                        size={36}
                         className={selected ? 'text-[#CDA032]' : 'opacity-40'}
                         aria-hidden
                       />
                     )}
                   </div>
-                  <p
-                    className={`text-[11px] font-black leading-tight text-center ${
-                      selected ? 'text-[#CDA032]' : ''
-                    }`}
-                  >
-                    {shortModelName(m.model, state.category)}
-                  </p>
+                  <div className="w-full text-center space-y-0.5 px-0.5">
+                    <p
+                      className={`text-[11px] sm:text-xs font-black leading-tight ${
+                        selected ? 'text-[#CDA032]' : ''
+                      }`}
+                    >
+                      {label}
+                    </p>
+                    {label !== m.model && (
+                      <p className="text-[9px] leading-tight text-[color:var(--bb-muted)] line-clamp-2">
+                        {m.model}
+                      </p>
+                    )}
+                  </div>
                 </button>
               );
             })}

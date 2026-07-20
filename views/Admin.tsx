@@ -163,7 +163,7 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
   const isLight = theme === 'light';
 
   return (
-    <div className={`h-[100dvh] min-h-0 flex overflow-hidden ${isLight ? 'bg-[#FAFAFA]' : 'bg-[#060606]'}`}>
+    <div className={`min-h-screen flex ${isLight ? 'bg-[#FAFAFA]' : 'bg-[#060606]'}`}>
       {/* Mobile backdrop */}
       {sidebar && (
         <div
@@ -174,7 +174,7 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
 
       {/* ── Sidebar ── */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-[80] flex flex-col transition-all duration-300
+        className={`fixed inset-y-0 left-0 lg:sticky lg:top-0 lg:h-screen lg:inset-auto z-[80] flex flex-col transition-all duration-300 shrink-0
           ${sidebar ? 'translate-x-0 w-60' : '-translate-x-full lg:translate-x-0 lg:w-[68px]'}
           ${isLight ? 'bg-white border-r border-black/10' : 'bg-[#0a0a0a] border-r border-white/5'}`}
       >
@@ -195,7 +195,7 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
         </div>
 
         {/* Nav items — ALL sections always visible */}
-        <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]" data-lenis-prevent>
+        <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]">
           {visibleNav.map(item => {
             const n = isNavBadgeKey(item.id) ? badgeCounts[item.id] : 0;
             return (
@@ -266,7 +266,7 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
       </aside>
 
       {/* ── Main ── */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
         {/* Header */}
         <header className={`px-4 sm:px-6 py-3.5 flex items-center gap-3 sticky top-0 z-10 border-b ${isLight ? 'bg-white border-black/10' : 'bg-[#0a0a0a] border-white/5'}`}>
           <button
@@ -327,8 +327,8 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
           </button>
         </header>
 
-        {/* Content */}
-        <main className="flex-1 min-h-0 overflow-auto overscroll-y-contain p-4 sm:p-5 lg:p-6 [-webkit-overflow-scrolling:touch]" data-lenis-prevent>
+        {/* Content — page scrolls normally (Lenis disabled on /admin) */}
+        <main className="flex-1 p-4 sm:p-5 lg:p-6">
           {section === 'overview' && <AdminOverview onNavigate={navigate} />}
           {/* {section === 'inbox' && <AdminInbox />} */}
           {section === 'orders' && <AdminOrders />}

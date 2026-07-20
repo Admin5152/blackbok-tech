@@ -2,12 +2,13 @@
  * Client-side session idle configuration.
  *
  * Supabase enforces inactivity only at JWT refresh boundaries (up to ~27m in
- * edge cases). The frontend owns a strict 12-minute idle timer so logout
- * happens at exactly 12m of true inactivity, independent of token refresh.
+ * edge cases). The frontend owns a strict 10-minute *visible* idle timer so
+ * logout happens after 10m of inactivity while the tab is in the foreground.
+ * Minimizing / hiding the tab pauses the clock — it does not sign you out.
  */
 
-/** Strict inactivity threshold — single source of truth for idle logout. */
-export const IDLE_TIMEOUT_MS = 12 * 60 * 1000;
+/** Strict inactivity threshold while the tab is visible. */
+export const IDLE_TIMEOUT_MS = 10 * 60 * 1000;
 
 /** Minimum interval between activity-driven timer resets (avoids thrash). */
 export const ACTIVITY_THROTTLE_MS = 1_000;
