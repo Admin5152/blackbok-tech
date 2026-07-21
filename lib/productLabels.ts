@@ -37,6 +37,8 @@ export function formatSimTypeLabel(code: string): string {
     case 'es':
     case 'esim':
       return 'eSIM';
+    case 'single':
+      return 'Standard';
     case 'wifi':
     case 'wi-fi':
       return 'Wi‑Fi only';

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Product, ProductImage } from '../types';
 import { X, Plus, Minus, Heart, Share2, Check, Truck, Shield, RefreshCw, ArrowLeft, Copy, Facebook, Twitter, ChevronRight } from 'lucide-react';
 import { formatGhs } from '../lib/money';
+import { formatSimTypeLabel } from '../lib/productLabels';
 import { ProductImageGallery } from '../components/product/ProductImageGallery';
 import { ProductAvailabilityBadge } from '../components/ProductAvailabilityBadge';
 import {
@@ -318,7 +319,9 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               >
                 {normalizedVariants.map((variant) => {
                   const isColorGroup = variant.name.trim().toLowerCase() === 'color';
-                  const sel = (selectedOptions[variant.name] || '').trim();
+                  const isSimGroup = variant.name.trim().toLowerCase() === 'sim';
+                  const selRaw = (selectedOptions[variant.name] || '').trim();
+                  const sel = isSimGroup ? formatSimTypeLabel(selRaw) : selRaw;
                   return (
                     <div key={variant.name} className="space-y-2">
                       <div className="flex items-center justify-between gap-3">
@@ -339,6 +342,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                           const opt = toOptionString(option);
                           const ol = opt.toLowerCase();
                           const isSelected = selectedOptions[variant.name] === opt;
+                          const chipLabel = isSimGroup ? formatSimTypeLabel(opt) : opt;
                           const trialOpts = {
                             ...selectedOptions,
                             [variant.name]: opt,
@@ -412,7 +416,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                                       : 'border-white/12 bg-white/[0.04] text-white/80 hover:border-white/28'
                               }`}
                             >
-                              {opt}
+                              {chipLabel}
                             </button>
                           );
                         })}
