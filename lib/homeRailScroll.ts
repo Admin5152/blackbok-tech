@@ -13,6 +13,8 @@ function railAtHorizontalEdge(rail: HTMLElement, deltaX: number): boolean {
  * Home horizontal product rails must not trap vertical page scroll.
  * - Touch: CSS uses pan-y + pan-x (not pan-x only).
  * - Wheel: forward mostly-vertical deltas to Lenis / window.
+ *   Use immediate Lenis steps — animated tweens felt like random jumps
+ *   while the cursor was over a carousel.
  */
 export function bindHomeRailScroll(rail: HTMLElement): () => void {
   const onWheel = (e: WheelEvent) => {
@@ -36,7 +38,7 @@ export function bindHomeRailScroll(rail: HTMLElement): () => void {
     const lenis = getLenis();
     if (lenis) {
       e.preventDefault();
-      lenis.scrollTo(lenis.scroll + e.deltaY);
+      lenis.scrollTo(lenis.scroll + e.deltaY, { immediate: true });
       return;
     }
 

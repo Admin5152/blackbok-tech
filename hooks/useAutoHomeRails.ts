@@ -4,7 +4,8 @@ import { scrollHomeRailLoop } from '../lib/homeCarouselScroll';
 /**
  * Auto-advance homepage product rails (phones / laptops / highlights).
  * Pauses while the user hovers, focuses, touches, or manually scrolls a rail,
- * and while the tab is hidden.
+ * while the tab is hidden, and while the rail is mostly off-screen
+ * (off-screen auto-scroll was yanking the page via scroll anchoring).
  */
 export function useAutoHomeRails(
   railIds: string[],
@@ -17,7 +18,9 @@ export function useAutoHomeRails(
 
     for (const railId of railIds) {
       let paused = false;
+      let inView = false;
       let resumeTimer: ReturnType<typeof setTimeout> | null = null;
+      let io: IntersectionObserver | null = null;
 
       const pause = (ms = 0) => {
         paused = true;
@@ -52,6 +55,16 @@ export function useAutoHomeRails(
         rail.addEventListener('scroll', onScroll, { passive: true });
         rail.addEventListener('touchstart', onTouchStart, { passive: true });
 
+        io = new IntersectionObserver(
+          (entries) => {
+            const entry = entries[0];
+            // Require a meaningful share of the rail so partial peeks don't auto-tick.
+            inView = Boolean(entry?.isIntersecting && entry.intersectionRatio >= 0.4);
+          },
+          { threshold: [0, 0.25, 0.4, 0.6, 1], rootMargin: '0px' },
+        );
+        io.observe(rail);
+
         return () => {
           rail.removeEventListener('mouseenter', onPointerEnter);
           rail.removeEventListener('mouseleave', onPointerLeave);
@@ -59,6 +72,8 @@ export function useAutoHomeRails(
           rail.removeEventListener('focusout', onFocusOut);
           rail.removeEventListener('scroll', onScroll);
           rail.removeEventListener('touchstart', onTouchStart);
+          io?.disconnect();
+          io = null;
         };
       };
 
@@ -69,7 +84,7 @@ export function useAutoHomeRails(
       }, 800);
 
       const tick = window.setInterval(() => {
-        if (paused || document.visibilityState === 'hidden') return;
+        if (paused || !inView || document.visibilityState === 'hidden') return;
         scrollHomeRailLoop(railId, 'next');
       }, intervalMs);
 

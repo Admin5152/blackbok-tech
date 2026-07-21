@@ -22,6 +22,7 @@ import AuthService from './lib/auth';
 import { canAccessAdminDashboard, normalizeCanonicalRole } from './lib/roles';
 import { setupMobileBackButton, preventAppClose } from './lib/mobileNavigation';
 import { scrollToDocumentTop } from './lib/scrollToDocumentTop';
+import { consumeAuthRedirect } from './lib/consumeAuthRedirect';
 import { SmoothScroll } from './components/SmoothScroll';
 import { ScrollReveal } from './components/ScrollReveal';
 import { whatsAppUrl } from './lib/contact';
@@ -116,13 +117,12 @@ import { AppContext, useAppContext, type AppContextType, type Theme } from './li
 
 export { AppContext, useAppContext, type AppContextType, type Theme };
 
-// HOME-01 / NAV-01: disable browser scroll restoration and force top-of-page
-// after route changes and after late layout (images). Hash-router pathname
-// alone can miss updates; include search + hash in the dependency key.
+// HOME-01 / NAV-01: force top-of-page only when the *path* changes.
+// Search/hash updates (store filters, history tabs) must not yank scroll —
+// delayed 120/400ms retries were also fighting the user mid-scroll.
 const ScrollToTop = () => {
-  // TanStack Router: `location.search` is the validated search *object*, not `?query=`.
-  // Stringifying it in a template can throw (e.g. "Cannot convert object to primitive value").
-  const scrollKey = useLocation({ select: (l) => l.href });
+  const pathname = useLocation({ select: (l) => l.pathname });
+  const prevPathRef = useRef(pathname);
 
   useEffect(() => {
     try {
@@ -137,24 +137,37 @@ const ScrollToTop = () => {
   // useLayoutEffect runs before paint so mobile Safari does not keep the prior
   // route’s scroll position (user stuck viewing the footer after navigation).
   useLayoutEffect(() => {
-    scrollToDocumentTop();
-    let rafInner = 0;
-    const rafOuter = window.requestAnimationFrame(() => {
-      scrollToDocumentTop();
-      rafInner = window.requestAnimationFrame(scrollToDocumentTop);
-    });
-    const t0 = window.setTimeout(scrollToDocumentTop, 0);
-    const t1 = window.setTimeout(scrollToDocumentTop, 120);
-    const t2 = window.setTimeout(scrollToDocumentTop, 400);
+    const prev = prevPathRef.current;
+    prevPathRef.current = pathname;
+    if (prev === pathname) return;
+
+    let cancelled = false;
+    const goTop = () => {
+      if (!cancelled) scrollToDocumentTop();
+    };
+
+    goTop();
+    const raf = window.requestAnimationFrame(goTop);
+    // One short retry for late mobile layout — cancel if the user scrolls.
+    const retry = window.setTimeout(goTop, 80);
+
+    // Wheel/touch only — our own scrollTo would fire a `scroll` event and
+    // cancel the Safari layout retry before it can help.
+    const cancelOnUserIntent = () => {
+      cancelled = true;
+      window.clearTimeout(retry);
+    };
+    window.addEventListener('wheel', cancelOnUserIntent, { passive: true, once: true });
+    window.addEventListener('touchmove', cancelOnUserIntent, { passive: true, once: true });
 
     return () => {
-      window.cancelAnimationFrame(rafOuter);
-      if (rafInner) window.cancelAnimationFrame(rafInner);
-      window.clearTimeout(t0);
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
+      cancelled = true;
+      window.cancelAnimationFrame(raf);
+      window.clearTimeout(retry);
+      window.removeEventListener('wheel', cancelOnUserIntent);
+      window.removeEventListener('touchmove', cancelOnUserIntent);
     };
-  }, [scrollKey]);
+  }, [pathname]);
 
   return null;
 };
@@ -1216,47 +1229,62 @@ function RootComponent() {
     };
   }, []);
 
-  // Email-flow routing. Supabase's redirect after a "forgot password" or
-  // "confirm email" click is unreliable when the redirectTo URL uses a
-  // hash fragment (fragments can be stripped, recovery tokens can land in
-  // either the search string or the hash). To make this robust:
-  //   1. Listen for the PASSWORD_RECOVERY auth event and bounce to
-  //      /reset-password whenever it fires.
-  //   2. Inspect the entry URL on mount and bounce immediately if we see
-  //      a `type=recovery` or `type=email_confirm` marker in either the
-  //      search string or the hash.
+  // Email-flow routing. Supabase recovery / confirm redirects land on `/?type=…`
+  // (no hash route in redirectTo — tokens need the hash). We consume tokens in
+  // main.tsx via consumeAuthRedirect, then route here once a session exists.
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
 
+    let cancelled = false;
+
     const goTo = (path: string) => {
-      if (location.pathname !== path) {
+      if (!cancelled && location.pathname !== path) {
         navigate({ to: path as any });
       }
     };
 
-    // Initial URL inspection (covers links that land on the homepage with
-    // auth-flow params in either the search or the hash).
-    try {
-      const search = window.location.search || '';
-      const hash = window.location.hash || '';
-      const looksLike = (marker: string): boolean =>
-        new RegExp(`(^|[?&#])type=${marker}(?:&|$)`).test(search) ||
-        new RegExp(`(^|[?&#])type=${marker}(?:&|$)`).test(hash);
+    const routeFromAuthCallback = async () => {
+      try {
+        const kind = await consumeAuthRedirect();
+        if (cancelled) return;
 
-      if (looksLike('recovery') || /access_token=.*type=recovery/.test(hash)) {
-        goTo('/reset-password');
-      } else if (looksLike('email_confirm') || looksLike('signup')) {
-        goTo('/emailconfirm');
+        const { data } = await supabase.auth.getSession();
+        const hasSession = Boolean(data.session);
+
+        const search = window.location.search || '';
+        const hash = window.location.hash || '';
+        const looksLike = (marker: string): boolean =>
+          new RegExp(`(^|[?&#])type=${marker}(?:&|$)`).test(search) ||
+          new RegExp(`(^|[?&#])type=${marker}(?:&|$)`).test(hash);
+
+        if (kind === 'recovery' || looksLike('recovery') || /access_token=.*type=recovery/.test(hash)) {
+          // Only bounce when we have a session (or already on reset). Avoid
+          // racing ahead of token exchange and wiping the recovery hash.
+          if (hasSession || location.pathname === '/reset-password') {
+            goTo('/reset-password');
+          } else if (looksLike('recovery')) {
+            goTo('/reset-password');
+          }
+        } else if (
+          kind === 'signup' ||
+          looksLike('email_confirm') ||
+          looksLike('signup')
+        ) {
+          goTo('/emailconfirm');
+        }
+      } catch {
+        /* ignore */
       }
-    } catch {
-      /* ignore — window may be unavailable */
-    }
+    };
+
+    void routeFromAuthCallback();
 
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') goTo('/reset-password');
     });
 
     return () => {
+      cancelled = true;
       sub.subscription.unsubscribe();
     };
   }, [navigate, location.pathname]);

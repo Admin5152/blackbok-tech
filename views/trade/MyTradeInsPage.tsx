@@ -5,8 +5,11 @@
  * Expired badge when past expires_at. awaiting_user / offer_made: show final
  * offer beside original estimate (never overwrite) with Accept / Decline.
  * RLS blocks completed/scheduled updates — surface a friendly error.
+ *
+ * Uses App context `trades` as the list source (hydration + realtime). A quiet
+ * refresh on mount never blanks the UI once rows are already on screen.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useAppContext } from '../../lib/appContext';
 import { getTradeRequests } from '../../lib/api';
@@ -38,38 +41,60 @@ function isExpired(t: TradeRequest): boolean {
   return new Date(t.expires_at).getTime() < Date.now();
 }
 
+function tradesSignature(list: TradeRequest[]): string {
+  return list
+    .map((t) => `${t.id}:${t.status}:${t.offered_price ?? t.offeredPrice ?? ''}:${t.expires_at ?? ''}`)
+    .join('|');
+}
+
 export function MyTradeInsPage() {
   const { theme, user, authReady, notify, setTrades, trades } = useAppContext();
   const isLight = theme === 'light';
   const navigate = useNavigate();
-  const [rows, setRows] = useState<TradeRequest[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    if (!user?.id) return;
-    setLoading(true);
-    try {
-      const data = await getTradeRequests(user.id);
-      setRows(data);
-      setTrades(data);
-    } catch (e) {
-      console.warn(e);
-      notify(tradeFriendlyError(e), 'error');
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id, setTrades, notify]);
+  const [loading, setLoading] = useState(() => Boolean(user) && trades.length === 0);
+  const notifyRef = useRef(notify);
+  const tradesSigRef = useRef(tradesSignature(trades));
+  notifyRef.current = notify;
+  tradesSigRef.current = tradesSignature(trades);
 
   useEffect(() => {
     if (!authReady) return;
-    if (!user) {
+    if (!user?.id) {
       setLoading(false);
       return;
     }
-    void load();
-  }, [authReady, user, load]);
 
-  const tradesPaging = usePagination(rows, PAGE_SIZES.list, rows.length);
+    let cancelled = false;
+    const hasRows = tradesSigRef.current.length > 0;
+    // Only blank the page when there is nothing to show yet.
+    if (!hasRows) setLoading(true);
+
+    void (async () => {
+      try {
+        const data = await getTradeRequests(user.id);
+        if (cancelled) return;
+        const nextSig = tradesSignature(data);
+        if (nextSig !== tradesSigRef.current) {
+          tradesSigRef.current = nextSig;
+          setTrades(data);
+        }
+      } catch (e) {
+        console.warn(e);
+        if (!cancelled) notifyRef.current(tradeFriendlyError(e), 'error');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // Intentionally only re-run on auth/user identity — not on notify/trades.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authReady, user?.id, setTrades]);
+
+  const rows = trades;
+  const tradesPaging = usePagination(rows, PAGE_SIZES.list, user?.id ?? 'anon');
 
   return (
     <div
@@ -82,7 +107,7 @@ export function MyTradeInsPage() {
         <h1 className="text-2xl font-black tracking-tight">{TRADE_COPY.myTrades.heading}</h1>
       </div>
 
-      {!authReady || loading ? (
+      {!authReady || (loading && rows.length === 0) ? (
         <p className="text-sm text-[color:var(--bb-muted)] py-12 text-center">
           {TRADE_COPY.states.loading}
         </p>
@@ -236,12 +261,10 @@ export function MyTradeInsPage() {
                       isLight={isLight}
                       notify={notify}
                       onCancelled={(id) => {
-                        const next = (trades.length ? trades : rows).map((row) =>
-                          row.id === id ? { ...row, status: 'Cancelled' } : row,
-                        );
-                        setTrades(next);
-                        setRows((prev) =>
-                          prev.map((r) => (r.id === id ? { ...r, status: 'Cancelled' } : r)),
+                        setTrades(
+                          trades.map((row) =>
+                            row.id === id ? { ...row, status: 'Cancelled' } : row,
+                          ),
                         );
                       }}
                     />
@@ -251,16 +274,8 @@ export function MyTradeInsPage() {
                 {showRespond && (
                   <TradeOfferRespondButtons
                     trade={t}
-                    trades={trades.length ? trades : rows}
-                    setTrades={(next) => {
-                      setTrades(next);
-                      setRows((prev) =>
-                        prev.map((r) => {
-                          const updated = next.find((n) => n.id === r.id);
-                          return updated ? { ...r, ...updated } : r;
-                        }),
-                      );
-                    }}
+                    trades={trades}
+                    setTrades={setTrades}
                     notify={notify}
                     isLight={isLight}
                     className="mt-4"

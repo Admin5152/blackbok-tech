@@ -778,13 +778,9 @@ class AuthService {
       }
 
       const client = getSupabaseClient();
-      // Defense in depth: include BOTH a query parameter (Supabase preserves
-      // these reliably across the redirect) AND the hash route (used if the
-      // host happens to forward fragments cleanly). Anchor to the site root
-      // (`/`) rather than `window.location.pathname` so the redirect can't
-      // land on a path the host returns 404 for before the SPA boots.
-      // The App.tsx recovery listener routes to /reset-password whichever
-      // way the URL lands.
+      // Defense in depth: marker query only (no `#/reset-password` in redirectTo).
+      // Supabase puts tokens in the URL hash; a hash route would race and wipe them.
+      // App + consumeAuthRedirect route to /reset-password after the session exists.
       const redirectTo = authPasswordRecoveryRedirectUrl();
 
       const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo });
@@ -813,6 +809,18 @@ class AuthService {
       }
 
       const client = getSupabaseClient();
+
+      // Recovery must leave an active session; otherwise updateUser fails with
+      // a generic auth error that we surface as "link expired".
+      const { data: sessionData, error: sessionError } = await client.auth.getSession();
+      if (sessionError || !sessionData.session) {
+        return {
+          success: false,
+          error:
+            'This reset link expired or was already used. Request a new link from Forgot password.',
+        };
+      }
+
       const { error } = await client.auth.updateUser({ password: newPassword });
       if (error) {
         return { success: false, error: this.formatPasswordError(error.message) };

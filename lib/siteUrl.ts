@@ -15,11 +15,15 @@ export function getSiteBaseUrl(): string {
 /** Redirect target after email confirmation (see App.tsx recovery / confirm handlers). */
 export function authEmailConfirmRedirectUrl(): string {
   const base = getSiteBaseUrl();
-  return `${base}/?type=email_confirm#/emailconfirm`;
+  // No hash route in redirectTo — Supabase puts tokens in the hash and would
+  // overwrite `#/emailconfirm`. App routes after consumeAuthRedirect.
+  return `${base}/?type=email_confirm`;
 }
 
 /** Redirect target after password recovery email (see App.tsx). */
 export function authPasswordRecoveryRedirectUrl(): string {
   const base = getSiteBaseUrl();
-  return `${base}/?type=recovery#/reset-password`;
+  // Root + marker only. Putting `#/reset-password` in redirectTo races with
+  // Supabase's `#access_token=…` fragment and breaks the recovery session.
+  return `${base}/?type=recovery`;
 }
