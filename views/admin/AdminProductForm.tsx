@@ -15,6 +15,7 @@ import { ProductSkuMatrix } from './ProductSkuMatrix';
 import { ProductColorImageUploader } from '../../components/admin/ProductColorImageUploader';
 import { getApf, type AdminProductFormStyles } from './adminProductFormStyles';
 import { getTradeDevices } from '../../lib/tradeApi';
+import { ensureTradeCatalogModel, getAdminDevices } from '../../lib/tradeAdminApi';
 import type { TradeDeviceRow } from '../../types/supabase';
 import { uploadImage, compressImage } from '../../lib/upload';
 import {
@@ -255,11 +256,18 @@ export const AdminProductForm: React.FC<Props> = ({
     let cancelled = false;
     (async () => {
       try {
-        const devices = await getTradeDevices();
+        // Include inactive catalog stubs so upgrade-target models appear here too.
+        const devices = await getAdminDevices(true);
         if (!cancelled) setTradeDevices(devices);
       } catch (e) {
-        console.warn('getTradeDevices failed:', e);
-        setTradeDevices([]);
+        console.warn('getAdminDevices failed, falling back to active trade devices:', e);
+        try {
+          const devices = await getTradeDevices();
+          if (!cancelled) setTradeDevices(devices);
+        } catch (e2) {
+          console.warn('getTradeDevices failed:', e2);
+          if (!cancelled) setTradeDevices([]);
+        }
       }
     })();
     return () => {
@@ -652,9 +660,9 @@ export const AdminProductForm: React.FC<Props> = ({
                     <option value="USD">USD</option>
                   </select>
                 </div>
-                {/* Trade bridge: products.trade_model must match trade_devices.model */}
+                {/* Catalog model link: used for upgrade targets + trade-in eligibility */}
                 <div className="sm:col-span-2">
-                  <label className={s.label}>Matching trade-in model</label>
+                  <label className={s.label}>Matching catalog model</label>
                   <input
                     ref={tradeInputRef}
                     type="text"
@@ -671,7 +679,7 @@ export const AdminProductForm: React.FC<Props> = ({
                       window.setTimeout(() => setTradeOpen(false), 180);
                     }}
                     className={s.input}
-                    placeholder="Search trade-in models… e.g. iPhone 14"
+                    placeholder="Search or type model… e.g. iPhone 14"
                     autoComplete="off"
                     aria-expanded={tradeOpen}
                     aria-controls="trade-model-listbox"
@@ -708,7 +716,31 @@ export const AdminProductForm: React.FC<Props> = ({
                         >
                           Clear (not trade-eligible)
                         </button>
-                        {filteredTradeModels.length === 0 && (
+                        {tradeSearch.trim() &&
+                          !tradeDevices.some(
+                            (d) => d.model.toLowerCase() === tradeSearch.trim().toLowerCase(),
+                          ) && (
+                            <button
+                              type="button"
+                              role="option"
+                              className={`w-full text-left px-3 py-2.5 text-xs font-bold hover:bg-[#B38B21]/15 ${s.title}`}
+                              onClick={() => {
+                                const model = tradeSearch.trim();
+                                setDraft({ ...draft, trade_model: model });
+                                setTradeSearch(model);
+                                setTradeOpen(false);
+                                void ensureTradeCatalogModel(model, {
+                                  category: draft.category,
+                                }).catch((e) =>
+                                  console.warn('ensureTradeCatalogModel failed:', e),
+                                );
+                              }}
+                            >
+                              Use “{tradeSearch.trim()}”
+                              <span className={`ml-2 font-normal ${s.muted}`}>new model</span>
+                            </button>
+                          )}
+                        {filteredTradeModels.length === 0 && !tradeSearch.trim() && (
                           <p className={`px-3 py-2.5 text-xs ${s.muted}`}>No models match</p>
                         )}
                         {filteredTradeModels.map((d) => (
@@ -724,14 +756,18 @@ export const AdminProductForm: React.FC<Props> = ({
                             }}
                           >
                             {d.model}
-                            <span className={`ml-2 font-normal ${s.muted}`}>{d.device_type}</span>
+                            <span className={`ml-2 font-normal ${s.muted}`}>
+                              {d.device_type}
+                              {d.is_active === false ? ' · catalog only' : ''}
+                            </span>
                           </button>
                         ))}
                       </div>,
                       document.body,
                     )}
                   <p className={`text-[10px] mt-1.5 leading-relaxed ${s.muted}`}>
-                    Links this product to a trade-in device model so trade-in banners and upgrade targets work.
+                    Links this shop product so it can appear as a trade-into upgrade target. You can
+                    type a new model name if it is not in the list yet.
                   </p>
                 </div>
                 {!skuMatrixEnabled && (

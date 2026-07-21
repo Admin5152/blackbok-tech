@@ -246,23 +246,25 @@ export function resolveUpgradeTargetProducts(products: Product[]): Product[] {
 }
 
 /**
- * Always drops rows without trade_model — unlinked shop SKUs never appear.
- * Upgrade targets do not require the model to be a tradable trade-IN device.
+ * Always drops unlinked rows when there is no staff allowlist.
+ * When staff set an allowlist, those product IDs are shown even if trade_model
+ * is still empty (so newly added upgrade targets appear on /trade immediately).
  */
 export function filterTradeTargetRowsByUpgradePicks(
   rows: TradeTargetRow[],
   allowIds?: string[] | null,
   _knownTradeModels?: Set<string> | string[] | null,
 ): TradeTargetRow[] {
-  const linked = rows.filter((r) => isTradeLinkedTargetRow(r));
   const ids = allowIds === undefined ? readStoredUpgradeProductIds() : allowIds;
 
   if (ids?.length) {
     const set = new Set(ids);
-    return linked.filter((r) => set.has(r.product_id));
+    return rows.filter((r) => set.has(r.product_id));
   }
 
-  return linked.filter((r) => isDefaultUpgradeTargetRow(r));
+  return rows
+    .filter((r) => isTradeLinkedTargetRow(r))
+    .filter((r) => isDefaultUpgradeTargetRow(r));
 }
 
 export function orderTargetProductsByAllowlist<T extends { productId: string }>(

@@ -71,9 +71,6 @@ export const Home: React.FC<HomeProps> = ({
 
   const heroSlideCount = heroImageFilenames.length;
 
-  useHomeRailScroll(
-    `${featuredSliderProducts.length}-${phoneSliderProducts.length}-${laptopSliderProducts.length}`,
-  );
   useAutoHomeRails(['featured-products-slider', 'phones-slider', 'laptop-slider']);
 
   useEffect(() => {
@@ -155,6 +152,10 @@ export const Home: React.FC<HomeProps> = ({
         12,
       ),
     [homeProducts],
+  );
+
+  useHomeRailScroll(
+    `${featuredSliderProducts.length}-${phoneSliderProducts.length}-${laptopSliderProducts.length}`,
   );
 
   const featuredLeadProduct = featuredSliderProducts[0] ?? null;

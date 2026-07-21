@@ -164,6 +164,27 @@ export const TradeAdminUpgrades: React.FC = () => {
     }
 
     if (!isTradeLinkedProduct(p)) {
+      const suggested = suggestTradeModelFromProduct(p);
+      if (suggested) {
+        void (async () => {
+          try {
+            await ensureTradeCatalogModel(suggested, { category: p.category });
+            const updated = await updateProduct(p.id, { trade_model: suggested });
+            setProducts((prev) =>
+              prev.map((x) =>
+                x.id === updated.id ? { ...x, ...updated, trade_model: suggested } : x,
+              ),
+            );
+            addEligible(p.id);
+            notify?.(`Linked “${updated.name}” → ${suggested} and added.`, 'success');
+            window.dispatchEvent(new CustomEvent('products:refresh'));
+          } catch (e) {
+            openLinkModal(p, true);
+            notify?.(friendlyError(e, 'auto-link catalog model'), 'warning');
+          }
+        })();
+        return;
+      }
       openLinkModal(p, true);
       return;
     }
@@ -222,8 +243,26 @@ export const TradeAdminUpgrades: React.FC = () => {
   const save = async () => {
     setSaving(true);
     try {
+      const nextProducts = [...products];
+      const byIdLocal = new Map(nextProducts.map((p) => [p.id, p]));
+
+      for (const id of pickIds) {
+        const p = byIdLocal.get(id);
+        if (!p || isTradeLinkedProduct(p)) continue;
+        const model = suggestTradeModelFromProduct(p) || String(p.name || '').trim();
+        if (!model) continue;
+        await ensureTradeCatalogModel(model, { category: p.category });
+        const updated = await updateProduct(id, { trade_model: model });
+        const merged = { ...p, ...updated, trade_model: model };
+        byIdLocal.set(id, merged);
+        const idx = nextProducts.findIndex((x) => x.id === id);
+        if (idx >= 0) nextProducts[idx] = merged;
+      }
+
+      setProducts(nextProducts);
+
       const clean = pickIds.filter((id) => {
-        const p = byId.get(id);
+        const p = byIdLocal.get(id);
         return p && isEligibleTradeUpgradeProduct(p);
       });
       await saveUpgradeProductIds(clean);
@@ -231,10 +270,11 @@ export const TradeAdminUpgrades: React.FC = () => {
       setDirty(false);
       notify?.(
         clean.length
-          ? `Saved ${clean.length} trade-linked upgrade target(s).`
+          ? `Saved ${clean.length} upgrade target(s) for the trade-in page.`
           : 'Cleared list — customers see all trade-linked iPhone / iPad products.',
         'success',
       );
+      window.dispatchEvent(new CustomEvent('products:refresh'));
     } catch (e) {
       notify?.(friendlyError(e, 'save upgrade targets'), 'error');
     } finally {
