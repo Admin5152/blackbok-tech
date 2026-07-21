@@ -11,6 +11,7 @@ import { formatCurrency, TW_DARK_BTN_DEPTH, TW_DARK_GOLD_BTN_DEPTH } from '../li
 import { normalizeProductCategory } from '../lib/api';
 import { scrollHomeRail } from '../lib/homeCarouselScroll';
 import { useHomeRailScroll } from '../hooks/useHomeRailScroll';
+import { useAutoHomeRails } from '../hooks/useAutoHomeRails';
 
 /** Editorial overlap positions (sizes bumped so flyers fill the hero). Rotation = CSS animation per tile. */
 const HERO_COLLAGE_FRAMES = [
@@ -73,6 +74,10 @@ export const Home: React.FC<HomeProps> = ({
   const heroSlideCount = heroImageFilenames.length;
 
   useHomeRailScroll();
+  useAutoHomeRails(
+    ['featured-products-slider', 'phones-slider', 'laptop-slider'],
+    4500,
+  );
 
   useEffect(() => {
     setHeroSlide(0);
@@ -200,7 +205,9 @@ export const Home: React.FC<HomeProps> = ({
                       className="bb-hero-tile-reveal bb-hero-tile-img h-full w-full min-h-full min-w-full object-cover object-center"
                       style={{
                         animationDelay: `${i * 36}ms`,
-                        filter: theme === 'light' && filename === 'BlackBox.jpeg' ? 'invert(1) brightness(1.2)' : undefined
+                        ...(theme === 'light' && filename === 'BlackBox.jpeg'
+                          ? { filter: 'invert(1) brightness(1.2)' }
+                          : undefined),
                       }}
                       loading={i < 2 ? 'eager' : 'lazy'}
                       decoding="async"
@@ -214,10 +221,7 @@ export const Home: React.FC<HomeProps> = ({
         </div>
 
         <div
-          className={`bb-theme-transition pointer-events-none absolute inset-0 z-[8] ${isDark
-            ? 'bg-gradient-to-b from-black/75 via-black/55 to-black/[0.98] sm:from-black/70 sm:via-black/50 sm:to-black'
-            : 'bg-gradient-to-b from-black/75 via-black/55 to-black/[0.98] sm:from-black/70 sm:via-black/50 sm:to-black'
-            }`}
+          className="bb-theme-transition pointer-events-none absolute inset-0 z-[8] bg-gradient-to-b from-black/70 via-black/50 to-black"
           aria-hidden
         />
 
@@ -257,7 +261,6 @@ export const Home: React.FC<HomeProps> = ({
                 Premium tech, expert repairs, and seamless trade-ins for the modern enthusiast.
               </p>
             </div>
-
             {/* Shop + About — box buttons */}
             <div className="bb-home-hero-stack__block grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
               <Link

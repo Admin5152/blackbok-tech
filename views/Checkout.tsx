@@ -26,6 +26,7 @@ import type { AppliedCoupon } from '../hooks/useCoupons';
 import { useCheckout, type CheckoutCartItem } from '../hooks/useCheckout';
 import { buildProductOptionsForRpc } from '../lib/orderItemOptions';
 import { normalizeCanonicalRole } from '../lib/roles';
+import { requestLifecycleEmail } from '../lib/clientNotifyEmail';
 
 // ============================================================
 // Constants — kept at the top so they're easy to audit / extend.
@@ -467,6 +468,15 @@ export const Checkout: React.FC = () => {
       setOrders([newOrder, ...orders]);
       setCompletedOrder(newOrder);
       setShowOrderComplete(true);
+
+      void requestLifecycleEmail('order_placed', {
+        displayId: newOrder.display_id,
+        referenceId: newOrder.id,
+        extraBody:
+          shippingMethod === 'pickup'
+            ? 'You chose store pickup — we will email you when it is ready.'
+            : undefined,
+      });
       notify('Order placed successfully!', 'success');
     } catch (error: unknown) {
       console.error('Error placing order:', error);

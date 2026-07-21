@@ -43,6 +43,7 @@ import {
   getRepairUrgencyLevel,
 } from '../data/repairBooking';
 import { createRepairRequest, updateRepairRequest, REPAIR_REQUEST_CONSTRAINT_MESSAGE } from '../lib/api';
+import { requestLifecycleEmail } from '../lib/clientNotifyEmail';
 import { saveResumeAfterAuth, peekRestorePayload, clearRestorePayload } from '../lib/resumeAfterAuth';
 import { saveReturnTo } from '../lib/returnTo';
 import { PageBackButton } from '../components/PageBackButton';
@@ -311,6 +312,10 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
       setRepairs([newRepair, ...repairs]);
       const refLabel = created.display_id ? ` (${created.display_id})` : '';
       notify(`Repair request submitted${refLabel}! We’ll review and confirm your booking.`, 'success');
+      void requestLifecycleEmail('repair_submitted', {
+        displayId: created.display_id || created.id,
+        referenceId: created.id,
+      });
       navigate({ to: '/profile' });
     } catch (err: unknown) {
       const message =

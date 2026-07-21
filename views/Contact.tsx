@@ -3,7 +3,7 @@ import { Mail, Phone, MapPin, Send } from 'lucide-react';
 import { useAppContext } from '../App';
 import { INSTAGRAM_URL, mailtoSupport, SUPPORT_EMAIL, SUPPORT_PHONE_TEL, WHATSAPP_DISPLAY, whatsAppUrl } from '../lib/contact';
 import { PageBackButton } from '../components/PageBackButton';
-
+import { sendContactCustomerConfirmation } from '../lib/clientNotifyEmail';
 const inputBase = (isLight: boolean) =>
   `w-full rounded-xl px-4 py-3 text-[13px] focus:outline-none transition-all border ${
     isLight
@@ -42,17 +42,26 @@ export const Contact: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    const text = buildContactWhatsAppMessage({
+    const fields = {
       name: name.trim(),
       email: email.trim(),
       phone: phone.trim(),
       subject: subject.trim(),
       message: message.trim(),
-    });
+    };
+    if (!fields.name || !fields.email || !fields.subject || !fields.message) {
+      notify('Please fill in name, email, subject, and message.', 'error');
+      return;
+    }
 
-    window.open(whatsAppUrl(text), '_blank', 'noopener,noreferrer');
-    notify('Opening WhatsApp with your message…', 'success');
+    // Primary: WhatsApp to BlackBox. Best-effort: confirmation email to customer.
+    window.open(
+      whatsAppUrl(buildContactWhatsAppMessage(fields)),
+      '_blank',
+      'noopener,noreferrer',
+    );
+    void sendContactCustomerConfirmation(fields);
+    notify('Opening WhatsApp — we also emailed you a copy of your message.', 'success');
     setName('');
     setEmail('');
     setPhone('');
@@ -185,7 +194,7 @@ export const Contact: React.FC = () => {
                   <Send size={16} /> Send via WhatsApp
                 </button>
                 <p className={`text-center text-[11px] mt-4 ${isLight ? 'text-black/50' : 'text-white/40'}`}>
-                  Opens WhatsApp to {WHATSAPP_DISPLAY}
+                  Opens WhatsApp to {WHATSAPP_DISPLAY}. We’ll also email a confirmation to you.
                 </p>
               </form>
             </div>

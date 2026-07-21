@@ -3,6 +3,7 @@ import type { Plugin } from 'vite';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { webPushTestPlugin } from './vite-plugin-web-push-test';
+import { emailApiPlugin } from './vite-plugin-email-api';
 
 /** Public customer site; used for OG/canonical in production builds if VITE_APP_URL is unset. */
 const DEFAULT_PRODUCTION_ORIGIN = 'https://blackboxghana.com';
@@ -40,7 +41,7 @@ export default defineConfig(({ mode }) => {
       esbuild: isProd
         ? { drop: ['console', 'debugger'] as const, legalComments: 'none' }
         : undefined,
-      plugins: [react(), socialMetaPlugin(mode), webPushTestPlugin(mode)],
+      plugins: [react(), socialMetaPlugin(mode), webPushTestPlugin(mode), emailApiPlugin(mode)],
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),

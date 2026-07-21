@@ -53,8 +53,14 @@ export async function getPricedActiveModelsCached(
       supabase.from('trade_base_values').select('model').eq('is_active', true),
     ]);
 
-    if (devRes.error) throw devRes.error;
-    if (baseRes.error) throw baseRes.error;
+    if (devRes.error) {
+      console.error('[tradeCatalog] trade_devices', devRes.error);
+      throw devRes.error;
+    }
+    if (baseRes.error) {
+      console.error('[tradeCatalog] trade_base_values', baseRes.error);
+      throw baseRes.error;
+    }
 
     const priced = new Set(
       (baseRes.data ?? []).map((r: { model: string }) => r.model),

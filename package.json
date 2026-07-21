@@ -11,6 +11,7 @@
     "promote-admin": "node scripts/promote-admin.mjs",
     "generate:vapid": "node scripts/generate-vapid-keys.mjs",
     "test:push": "node --env-file=.env scripts/send-web-push-test.mjs",
+    "test:email": "node --env-file=.env scripts/send-email-test.mjs",
     "test:engine": "node scripts/engine-matrix.mjs",
     "test:rls": "node scripts/rls-trade-tests.mjs",
     "test:trade": "node scripts/engine-matrix.mjs && node scripts/rls-trade-tests.mjs",
@@ -24,6 +25,7 @@
     "lucide-react": "^0.562.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
+    "resend": "^6.17.2",
     "web-push": "^3.6.7"
   },
   "devDependencies": {

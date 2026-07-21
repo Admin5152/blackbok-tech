@@ -15,6 +15,7 @@ import { Info, Mail, MapPin, Phone, User } from 'lucide-react';
 import { useTradeFlow } from '../../lib/tradeFlowContext';
 import { useAppContext } from '../../lib/appContext';
 import { submitTradeRequest, getTradeConfigValue } from '../../lib/tradeApi';
+import { requestLifecycleEmail } from '../../lib/clientNotifyEmail';
 import { saveReturnTo } from '../../lib/returnTo';
 import { TRADE_COPY } from '../../lib/tradeCopy';
 import { tradeFriendlyError } from '../../lib/tradeErrors';
@@ -228,6 +229,10 @@ export function TradeDetailsScreen() {
       });
       clearDraft();
       dispatch({ type: 'SET_SUBMITTED_TRADE', result });
+      void requestLifecycleEmail('trade_submitted', {
+        displayId: result.display_id || result.id,
+        referenceId: result.id,
+      });
       void navigate({ to: '/trade/confirmation' });
     } catch (err: unknown) {
       const reason = tradeFriendlyError(err);

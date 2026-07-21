@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import {
   X, Moon, Sun, Search, ShoppingCart, ChevronRight, ChevronDown,
-  User as UserIcon, LogOut, ShoppingBag, Wrench, RefreshCcw,
+  User as UserIcon, LogOut, ShoppingBag, Wrench, RefreshCcw, LayoutDashboard,
 } from 'lucide-react';
 import { NavUnreadBadge } from './NavUnreadBadge';
 import { handleSignOut } from '../lib/signOut';
@@ -62,6 +62,7 @@ export interface MobileNavDrawerProps {
   onAfterNavigate: () => void;
   setUser?: (user: null) => void;
   navigateTo?: (view: string) => void;
+  showAdminLink?: boolean;
 }
 
 export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
@@ -81,6 +82,7 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
   onAfterNavigate,
   setUser,
   navigateTo,
+  showAdminLink = false,
 }) => {
   const navigate = useNavigate();
 
@@ -172,6 +174,9 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
             { to: '/store' as const, label: 'Shop', icon: ShoppingBag },
             { to: '/repair' as const, label: 'Repair', icon: Wrench },
             { to: '/trade' as const, label: 'Trade-in', icon: RefreshCcw },
+            ...(showAdminLink
+              ? [{ to: '/admin' as const, label: 'Admin', icon: LayoutDashboard }]
+              : []),
           ].map((link) => (
             <Link key={link.to} to={link.to} onClick={onAfterNavigate} className="bb-mobile-nav__quick-link">
               <link.icon size={16} aria-hidden />

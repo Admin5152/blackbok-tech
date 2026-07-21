@@ -89,7 +89,7 @@ function buildReturnToFromLocation(pathname: string, search: unknown): string {
 }
 
 /**
- * Strict 10-minute *visible* idle logout with cross-tab activity sync.
+ * Strict 12-minute *visible* idle logout with cross-tab activity sync.
  *
  * Timing guarantee: logout fires when visible idle time reaches IDLE_TIMEOUT_MS
  * (± IDLE_CHECK_INTERVAL_MS poll tolerance), regardless of Supabase JWT refresh.

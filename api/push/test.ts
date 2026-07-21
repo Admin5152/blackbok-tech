@@ -6,7 +6,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import {
   resolveUserIdFromBearer,
   sendWebPushToUser,
-} from '../lib/server/webPushSend';
+} from '../../lib/server/webPushSend';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') {

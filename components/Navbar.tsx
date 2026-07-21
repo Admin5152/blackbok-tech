@@ -591,30 +591,8 @@ export const Navbar: React.FC<{
               </Link>
             </div>
 
-            {/* Right Section: Account, Search, Theme, Mobile Menu */}
-            <div
-              className={`relative z-[1] flex items-center gap-2 sm:gap-3 shrink-0 transition-[opacity,visibility] duration-150 ${
-                searchExpanded ? 'max-lg:pointer-events-none max-lg:invisible max-lg:w-0 max-lg:overflow-hidden max-lg:gap-0' : ''
-              }`}
-            >
-
-              {!searchExpanded && (
-                <button
-                  type="button"
-                  data-nav-search-trigger
-                  onClick={openSearch}
-                  title="Search the shop"
-                  aria-label="Open shop search"
-                  aria-expanded={false}
-                  className={`sm:hidden flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition-all ${
-                    isLight
-                      ? 'border-black/10 bg-white text-black/70 hover:border-[#B38B21]/40 hover:text-black'
-                      : 'border-white/12 bg-white/[0.06] text-white/70 hover:border-[#CDA032]/40 hover:text-white'
-                  }`}
-                >
-                  <Search size={18} strokeWidth={2.25} aria-hidden />
-                </button>
-              )}
+            {/* Right Section — keep lean on mobile so the menu button stays visible */}
+            <div className="relative z-[1] flex min-w-0 items-center gap-1.5 sm:gap-2 shrink-0">
 
               {/* Notification System */}
               {user && <NotificationBell theme={theme} />}
@@ -625,7 +603,7 @@ export const Navbar: React.FC<{
                   title="Open staff dashboard"
                   aria-label="Open staff dashboard"
                   className={`
-                  flex shrink-0 items-center justify-center w-11 h-11 min-w-11 min-h-11 rounded-xl border-2 transition-all
+                  hidden lg:flex shrink-0 items-center justify-center w-11 h-11 min-w-11 min-h-11 rounded-xl border-2 transition-all
                   ${isLight
                     ? 'border-[#B38B21] bg-[#B38B21]/25 text-black hover:bg-[#B38B21]/40'
                     : 'border-[#B38B21] bg-[#B38B21]/20 text-[#CDA032] hover:bg-[#B38B21]/35'}
@@ -674,11 +652,11 @@ export const Navbar: React.FC<{
                 </Link>
               )}
 
-              {/* Theme toggle — props or context; always visible when setter exists */}
+              {/* Theme toggle — desktop; mobile uses drawer control */}
               <button
                 type="button"
                 onClick={() => applyTheme(isLight ? 'dark' : 'light')}
-                className={`shrink-0 p-2.5 rounded-full border transition-all ${isLight ? 'border-black/10 bg-black/5 text-black hover:bg-black/10' : 'border-white/10 bg-white/5 text-white hover:bg-white/10'} ${TW_DARK_BTN_DEPTH}`}
+                className={`hidden lg:inline-flex shrink-0 p-2.5 rounded-full border transition-all ${isLight ? 'border-black/10 bg-black/5 text-black hover:bg-black/10' : 'border-white/10 bg-white/5 text-white hover:bg-white/10'} ${TW_DARK_BTN_DEPTH}`}
                 aria-label={isLight ? 'Switch to dark mode' : 'Switch to light mode'}
               >
                 {isLight ? <Moon size={18} /> : <Sun size={18} />}
@@ -703,22 +681,7 @@ export const Navbar: React.FC<{
                 </Link>
               )}
 
-              <Link
-                to="/store"
-                title="Shop"
-                aria-label="Open shop"
-                className={[
-                  'lg:hidden flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-all',
-                  isLight
-                    ? 'border-black/10 bg-black/5 text-black hover:bg-[#CDA032] hover:text-black hover:border-[#CDA032]/50'
-                    : 'border-white/10 bg-white/5 text-white hover:bg-[#CDA032] hover:text-black hover:border-[#CDA032]/50',
-                  TW_DARK_BTN_DEPTH,
-                ].join(' ')}
-              >
-                <ShoppingBag size={20} strokeWidth={2.25} />
-              </Link>
-
-              {/* Mobile / tablet cart — always visible below lg (desktop cart lives in the main nav row) */}
+              {/* Mobile / tablet cart */}
               <Link
                 to="/cart"
                 title={cartCount > 0 ? `Cart: ${cartCount} item${cartCount === 1 ? '' : 's'}` : 'Cart'}
@@ -744,12 +707,19 @@ export const Navbar: React.FC<{
                 )}
               </Link>
 
-              {/* Mobile Menu Trigger */}
+              {/* Mobile Menu Trigger — always last, always visible below lg */}
               <button
+                type="button"
                 onClick={() => setIsMobileMenuOpen(true)}
-                className={`lg:hidden p-2.5 rounded-full transition-all ${isLight ? 'text-black/60 hover:text-black hover:bg-black/5' : 'text-white/40 hover:text-white hover:bg-white/5'} ${TW_DARK_BTN_DEPTH}`}
+                aria-label="Open menu"
+                aria-expanded={isMobileMenuOpen}
+                className={`lg:hidden flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition-all ${
+                  isLight
+                    ? 'border-black/15 bg-black/5 text-black hover:bg-black/10'
+                    : 'border-white/15 bg-white/10 text-white hover:bg-white/15'
+                } ${TW_DARK_BTN_DEPTH}`}
               >
-                <Menu size={24} />
+                <Menu size={22} strokeWidth={2.25} />
               </button>
             </div>
           </div>
@@ -772,6 +742,7 @@ export const Navbar: React.FC<{
           onAfterNavigate={closeMobileNavAfterNav}
           setUser={setUser}
           navigateTo={navigateTo}
+          showAdminLink={showAdminLink}
         />
       </>
     );

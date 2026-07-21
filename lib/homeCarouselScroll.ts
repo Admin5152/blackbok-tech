@@ -35,3 +35,43 @@ export function scrollHomeRail(railId: string, direction: 'prev' | 'next'): void
     inline: 'start',
   });
 }
+
+/**
+ * Auto-carousel step: advances one card, then loops to the start when at the end
+ * (or to the end when stepping prev from the start).
+ */
+export function scrollHomeRailLoop(railId: string, direction: 'prev' | 'next' = 'next'): void {
+  const rail = document.getElementById(railId);
+  if (!rail) return;
+
+  const items = rail.querySelectorAll<HTMLElement>('[data-home-rail-item]');
+  if (items.length <= 1) return;
+
+  const railRect = rail.getBoundingClientRect();
+  const railCenter = railRect.left + railRect.width / 2;
+
+  let activeIndex = 0;
+  let bestDist = Infinity;
+  items.forEach((el, i) => {
+    const r = el.getBoundingClientRect();
+    const center = r.left + r.width / 2;
+    const dist = Math.abs(center - railCenter);
+    if (dist < bestDist) {
+      bestDist = dist;
+      activeIndex = i;
+    }
+  });
+
+  let nextIndex: number;
+  if (direction === 'next') {
+    nextIndex = activeIndex >= items.length - 1 ? 0 : activeIndex + 1;
+  } else {
+    nextIndex = activeIndex <= 0 ? items.length - 1 : activeIndex - 1;
+  }
+
+  items[nextIndex].scrollIntoView({
+    behavior: 'smooth',
+    block: 'nearest',
+    inline: 'start',
+  });
+}
