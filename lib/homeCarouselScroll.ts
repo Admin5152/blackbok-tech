@@ -1,7 +1,7 @@
 import { getLenis } from './lenisScroll';
 
-/** Visible auto-advance duration so users notice the carousel moving (~1.1s). */
-export const HOME_RAIL_SCROLL_MS = 1100;
+/** Auto-advance slide duration — short enough to feel snappy, long enough to read. */
+export const HOME_RAIL_SCROLL_MS = 650;
 
 /** Read current page scroll Y (Lenis or window). */
 function readPageScrollY(): number {
@@ -32,16 +32,19 @@ function restorePageScrollY(y: number): void {
   }
 }
 
-function easeInOutCubic(t: number): number {
-  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+/** Smooth ease — soft start/stop so the rail doesn’t feel stepped. */
+function easeInOutQuint(t: number): number {
+  return t < 0.5
+    ? 16 * t * t * t * t * t
+    : 1 - Math.pow(-2 * t + 2, 5) / 2;
 }
 
 /** Track in-flight rail animations so we don't stack intervals mid-scroll. */
 const railAnimating = new WeakMap<HTMLElement, number>();
+const railSnapRestore = new WeakMap<HTMLElement, number>();
 
 /**
  * Horizontally scroll a home product rail to an item without moving the page.
- * Uses a timed animation (~1.4s for autoplay) so the motion is noticeable.
  */
 function scrollRailToItem(
   rail: HTMLElement,
@@ -61,6 +64,8 @@ function scrollRailToItem(
 
   const existing = railAnimating.get(rail);
   if (existing) cancelAnimationFrame(existing);
+  const pendingSnap = railSnapRestore.get(rail);
+  if (pendingSnap) window.clearTimeout(pendingSnap);
 
   if (durationMs <= 0) {
     rail.scrollLeft = targetLeft;
@@ -72,20 +77,26 @@ function scrollRailToItem(
   const start = performance.now();
 
   const tick = (now: number) => {
-    const t = Math.min(1, (now - start) / durationMs);
-    rail.scrollLeft = startLeft + delta * easeInOutCubic(t);
+    const raw = Math.min(1, (now - start) / durationMs);
+    const t = easeInOutQuint(raw);
+    rail.scrollLeft = startLeft + delta * t;
     restorePageScrollY(pageY);
 
-    if (t < 1) {
+    if (raw < 1) {
       railAnimating.set(rail, requestAnimationFrame(tick));
       return;
     }
 
     rail.scrollLeft = targetLeft;
     restorePageScrollY(pageY);
-    rail.style.scrollSnapType = prevSnap;
     railAnimating.delete(rail);
-    requestAnimationFrame(() => restorePageScrollY(pageY));
+    // Delay snap restore so CSS snap doesn’t yank the final frame.
+    const snapTimer = window.setTimeout(() => {
+      rail.style.scrollSnapType = prevSnap;
+      restorePageScrollY(pageY);
+      railSnapRestore.delete(rail);
+    }, 80);
+    railSnapRestore.set(rail, snapTimer);
   };
 
   railAnimating.set(rail, requestAnimationFrame(tick));
@@ -134,12 +145,11 @@ export function scrollHomeRail(railId: string, direction: 'prev' | 'next'): void
       ? Math.min(activeIndex + 1, items.length - 1)
       : Math.max(activeIndex - 1, 0);
 
-  // Manual arrows: roughly the same pace as autoplay.
-  scrollRailToItem(rail, items[nextIndex], 1000);
+  scrollRailToItem(rail, items[nextIndex], HOME_RAIL_SCROLL_MS);
 }
 
 /**
- * Auto-carousel step: advances one card (~1.4s), then loops to the start when at the end.
+ * Auto-carousel step: advances one card, then loops to the start when at the end.
  */
 export function scrollHomeRailLoop(railId: string, direction: 'prev' | 'next' = 'next'): void {
   const rail = document.getElementById(railId);

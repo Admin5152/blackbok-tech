@@ -81,7 +81,7 @@ export const RepairReceipt: React.FC = () => {
       invoiceDate: formatDate(repair.date),
       items: [
         {
-          name: repair.device || 'Repair service',
+          name: (repair.device || 'Repair service').toUpperCase(),
           description: descParts.join(', '),
           qty: 1,
           rate,

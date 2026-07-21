@@ -2,9 +2,9 @@ import { useEffect } from 'react';
 import { isHomeRailAnimating, scrollHomeRailLoop } from '../lib/homeCarouselScroll';
 
 /**
- * Auto-advance cadence: ~1.1s slide + a short pause so the move is readable.
+ * Auto-advance cadence: ~0.65s smooth slide + pause before the next card.
  */
-export const HOME_RAIL_AUTO_MS = 3400;
+export const HOME_RAIL_AUTO_MS = 2900;
 
 /**
  * Auto-advance homepage product rails (phones / laptops / highlights).

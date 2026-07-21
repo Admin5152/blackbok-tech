@@ -5,21 +5,41 @@ export function BlackBoxInvoiceMark({ className = '' }: { className?: string }) 
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 72 72"
+      viewBox="0 0 88 88"
       className={className}
       role="img"
       aria-label="BlackBox"
     >
-      {/* Four corner brackets */}
+      {/* Thick corner brackets like the store letterhead */}
       <path
-        d="M14 28V16c0-1.1.9-2 2-2h12M44 14h12c1.1 0 2 .9 2 2v12M58 44v12c0 1.1-.9 2-2 2H44M28 58H16c-1.1 0-2-.9-2-2V44"
+        d="M20 36V20c0-2.8 2.2-5 5-5h16"
         fill="none"
         stroke="currentColor"
-        strokeWidth="5"
-        strokeLinecap="round"
+        strokeWidth="9"
+        strokeLinecap="square"
       />
-      {/* Center capsule */}
-      <rect x="24" y="31" width="24" height="10" rx="5" fill="currentColor" />
+      <path
+        d="M47 15h16c2.8 0 5 2.2 5 5v16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="9"
+        strokeLinecap="square"
+      />
+      <path
+        d="M68 52v16c0 2.8-2.2 5-5 5H47"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="9"
+        strokeLinecap="square"
+      />
+      <path
+        d="M41 73H25c-2.8 0-5-2.2-5-5V52"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="9"
+        strokeLinecap="square"
+      />
+      <rect x="30" y="38" width="28" height="12" rx="6" fill="currentColor" />
     </svg>
   );
 }

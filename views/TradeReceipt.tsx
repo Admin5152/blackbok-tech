@@ -85,7 +85,7 @@ export const TradeReceipt: React.FC = () => {
       invoiceDate: formatDate(trade.date),
       items: [
         {
-          name: trade.device || 'Trade-in device',
+          name: (trade.device || 'Trade-in device').toUpperCase(),
           description: descParts.join(', '),
           qty: 1,
           rate: value,
@@ -95,9 +95,11 @@ export const TradeReceipt: React.FC = () => {
         subTotal: value,
         total: value,
         paymentMade: 0,
-        balanceDue: value,
-        adjustmentLabel: 'Trade-in credit',
+        balanceDue: 0,
       },
+      tradeInValuation: value > 0
+        ? [{ label: (trade.device || 'Device').toUpperCase(), amount: value }]
+        : [],
       notes: notesBits || 'Trade-in valuation invoice — credit applies toward an eligible upgrade.',
     };
   }, [trade]);
@@ -143,6 +145,7 @@ export const TradeReceipt: React.FC = () => {
       items={model.items}
       totals={model.totals}
       notes={model.notes}
+      tradeInValuation={model.tradeInValuation}
       onBack={() => navigate({ to: '/profile' })}
       onPrint={() => window.print()}
       onShare={async () => {

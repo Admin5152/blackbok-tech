@@ -25,6 +25,17 @@ export function formatInvoicePlain(amount: number): string {
   });
 }
 
+/** Trade-in valuation lines use GHC without forced decimals when whole. */
+export function formatInvoiceGhcPlain(amount: number): string {
+  const n = Number(amount);
+  if (!Number.isFinite(n)) return '0';
+  if (Number.isInteger(n)) return n.toLocaleString('en-GH');
+  return n.toLocaleString('en-GH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
 export function formatInvoiceQty(qty: number): string {
   const n = Number(qty);
   if (!Number.isFinite(n)) return '0.00 pcs';
@@ -33,13 +44,21 @@ export function formatInvoiceQty(qty: number): string {
 
 /** Normalize display ids toward INV-##### style when possible. */
 export function formatInvoiceNumber(displayId: string | null | undefined, fallbackId: string): string {
-  const raw = (displayId || '').trim();
+  const raw = (displayId || '').trim().toUpperCase();
   if (raw) {
-    const upper = raw.toUpperCase();
-    if (upper.startsWith('INV')) return `# ${upper}`;
-    if (upper.startsWith('ORD')) return `# ${upper.replace(/^ORD/, 'INV')}`;
-    return `# ${upper}`;
+    // ORD-000125 / INV-000125 / bare digits
+    const digits = raw.replace(/\D/g, '');
+    if (raw.startsWith('INV') && digits) {
+      return `# INV-${digits.padStart(6, '0')}`;
+    }
+    if (raw.startsWith('ORD') && digits) {
+      return `# INV-${digits.padStart(6, '0')}`;
+    }
+    if (/^\d+$/.test(digits) && digits.length >= 3) {
+      return `# INV-${digits.padStart(6, '0')}`;
+    }
+    return `# ${raw}`;
   }
-  const short = fallbackId.replace(/-/g, '').slice(-6).toUpperCase();
+  const short = fallbackId.replace(/-/g, '').replace(/\D/g, '').slice(-6).toUpperCase() || '000001';
   return `# INV-${short.padStart(6, '0')}`;
 }

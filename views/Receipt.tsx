@@ -177,7 +177,7 @@ export const Receipt: React.FC = () => {
               .join(', ')
           : '');
       return {
-        name: item.name,
+        name: String(item.name || 'Product').toUpperCase(),
         description: cfg || undefined,
         qty: item.quantity,
         rate: item.price,
@@ -201,13 +201,22 @@ export const Receipt: React.FC = () => {
         ? 'Pay on Pickup'
         : 'Due on Receipt';
 
+    const payMethod = String(order.paymentMethod || order.payment_method || '').trim();
+    const noteParts = [
+      order.notes?.trim() || null,
+      !isPaid && payMethod
+        ? `Payment method: ${payMethod}. Balance is due per the terms above.`
+        : null,
+      order.tracking_number ? `Tracking: ${order.tracking_number}` : null,
+    ].filter(Boolean);
+
     return {
       billToName: displayName,
       billToLines,
       items,
       invoiceDate,
       terms,
-      notes: order.notes,
+      notes: noteParts.length ? noteParts.join('\n') : null,
       totals: {
         subTotal,
         shipping,
