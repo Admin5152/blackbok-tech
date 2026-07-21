@@ -71,7 +71,9 @@ export const Home: React.FC<HomeProps> = ({
 
   const heroSlideCount = heroImageFilenames.length;
 
-  useHomeRailScroll(products.length);
+  useHomeRailScroll(
+    `${featuredSliderProducts.length}-${phoneSliderProducts.length}-${laptopSliderProducts.length}`,
+  );
   useAutoHomeRails(['featured-products-slider', 'phones-slider', 'laptop-slider']);
 
   useEffect(() => {
@@ -126,10 +128,38 @@ export const Home: React.FC<HomeProps> = ({
     [homeProducts]
   );
 
-  const featuredSliderProducts = useMemo(() => {
-    if (featuredProducts.length > 0) return featuredProducts.slice(0, 12);
-    return homeProducts.slice(0, 12);
-  }, [homeProducts, featuredProducts]);
+  const featuredSliderProducts = useMemo(
+    () => featuredProducts.slice(0, 12),
+    [featuredProducts],
+  );
+
+  const sortFeaturedFirst = (items: Product[]) => {
+    const featured = items.filter((p) => Boolean((p as any).featured));
+    const rest = items.filter((p) => !Boolean((p as any).featured));
+    return [...featured, ...rest];
+  };
+
+  const phoneSliderProducts = useMemo(
+    () =>
+      sortFeaturedFirst(homeProducts.filter((p) => matchesCategory(p.category, 'iPhone'))).slice(
+        0,
+        12,
+      ),
+    [homeProducts],
+  );
+
+  const laptopSliderProducts = useMemo(
+    () =>
+      sortFeaturedFirst(homeProducts.filter((p) => matchesCategory(p.category, 'Laptop'))).slice(
+        0,
+        12,
+      ),
+    [homeProducts],
+  );
+
+  const featuredLeadProduct = featuredSliderProducts[0] ?? null;
+  const phoneLeadProduct = phoneSliderProducts[0] ?? null;
+  const laptopLeadProduct = laptopSliderProducts[0] ?? null;
 
   const highlights = useMemo(() => {
     const combined = [...featuredProducts, ...homeProducts.filter(p => !featuredProducts.find(f => f.id === p.id))];
@@ -375,29 +405,45 @@ export const Home: React.FC<HomeProps> = ({
               data-home-rail-item
               className={`bb-home-rail-promo-card group w-[300px] md:w-[400px] h-[400px] md:h-[500px] rounded-[2rem] flex-shrink-0 relative overflow-hidden shadow-sm border border-black/5 dark:border-white/5 ring-1 ring-inset ${theme === 'dark' ? 'ring-white/[0.06]' : 'ring-black/[0.06]'} ${homePromoCardHover}`}
             >
-              <img src="/iPhone.jpeg" alt="" className="bb-home-rail-promo-card__img" loading="lazy" decoding="async" />
-              <div className="bb-home-rail-promo-card__scrim" aria-hidden />
-              <div className="bb-home-rail-promo-card__content">
-                <h2 className="text-3xl md:text-5xl font-bold tracking-tight drop-shadow-sm">Featured picks</h2>
-                <p className="mt-3 max-w-[20rem] text-sm leading-relaxed text-white/75">
-                  Scroll this row, then tap a card or the eye icon for a quick preview. The arrow opens the full listing.
-                </p>
-              </div>
+              {featuredLeadProduct ? (
+                <Link
+                  to="/product/$productId"
+                  params={{ productId: featuredLeadProduct.id } as any}
+                  className="absolute inset-0 z-10"
+                  aria-label={`View ${featuredLeadProduct.name}`}
+                >
+                  <img src={featuredLeadProduct.image} alt="" className="bb-home-rail-promo-card__img" loading="lazy" decoding="async" />
+                  <div className="bb-home-rail-promo-card__scrim" aria-hidden />
+                  <div className="bb-home-rail-promo-card__content">
+                    <h2 className="text-3xl md:text-5xl font-bold tracking-tight drop-shadow-sm">Featured picks</h2>
+                    <p className="mt-3 max-w-[20rem] text-sm leading-relaxed text-white/75 line-clamp-2">
+                      {featuredLeadProduct.name}
+                    </p>
+                    <p className="mt-2 text-lg font-black text-[#CDA032]">
+                      {formatCurrency(featuredLeadProduct.price)}
+                    </p>
+                  </div>
+                </Link>
+              ) : (
+                <Link to="/store" className="absolute inset-0 z-10" aria-label="Browse the store">
+                  <img src="/iPhone.jpeg" alt="" className="bb-home-rail-promo-card__img" loading="lazy" decoding="async" />
+                  <div className="bb-home-rail-promo-card__scrim" aria-hidden />
+                  <div className="bb-home-rail-promo-card__content">
+                    <h2 className="text-3xl md:text-5xl font-bold tracking-tight drop-shadow-sm">Featured picks</h2>
+                    <p className="mt-3 max-w-[20rem] text-sm leading-relaxed text-white/75">
+                      Star products in admin to show them here.
+                    </p>
+                  </div>
+                </Link>
+              )}
             </div>
 
             {featuredSliderProducts.map((p) => (
-              <div
+              <Link
                 key={p.id}
+                to="/product/$productId"
+                params={{ productId: p.id } as any}
                 data-home-rail-item
-                role="button"
-                tabIndex={0}
-                onClick={() => onQuickView(p)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    onQuickView(p);
-                  }
-                }}
                 className={`w-[260px] md:w-[300px] h-[360px] md:h-[420px] rounded-[2rem] flex-shrink-0 flex flex-col group cursor-pointer overflow-hidden relative shadow-lg ${theme === 'dark' ? 'bg-[#14141c] border border-white/[0.07] shadow-[0_20px_48px_-14px_rgba(0,0,0,0.6)]' : 'bg-[#ffffff] border border-black/[0.08]'} ${homeProductCardHover}`}
               >
                 <div className="pointer-events-none absolute inset-0 z-10">
@@ -468,7 +514,7 @@ export const Home: React.FC<HomeProps> = ({
                     </div>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
 
@@ -514,22 +560,45 @@ export const Home: React.FC<HomeProps> = ({
               data-home-rail-item
               className={`bb-home-rail-promo-card group w-[300px] md:w-[400px] h-[400px] md:h-[500px] rounded-[2rem] flex-shrink-0 relative overflow-hidden shadow-sm border border-black/5 dark:border-white/5 ring-1 ring-inset ${theme === 'dark' ? 'ring-white/[0.06]' : 'ring-black/[0.06]'} ${homePromoCardHover}`}
             >
-              <img src="/iPhone.jpeg" alt="Phones" className="bb-home-rail-promo-card__img" loading="lazy" decoding="async" />
-              <div className="bb-home-rail-promo-card__scrim" aria-hidden />
-              <div className="bb-home-rail-promo-card__content">
-                <h2 className="text-3xl md:text-5xl font-bold tracking-tight drop-shadow-sm">Take a peek</h2>
-                <p className="mt-3 max-w-[20rem] text-sm leading-relaxed text-white/75">
-                  Swipe or scroll sideways, then tap a card or the eye icon to preview phones before you add to cart.
-                </p>
-              </div>
+              {phoneLeadProduct ? (
+                <Link
+                  to="/product/$productId"
+                  params={{ productId: phoneLeadProduct.id } as any}
+                  className="absolute inset-0 z-10"
+                  aria-label={`View ${phoneLeadProduct.name}`}
+                >
+                  <img src={phoneLeadProduct.image} alt="Phones" className="bb-home-rail-promo-card__img" loading="lazy" decoding="async" />
+                  <div className="bb-home-rail-promo-card__scrim" aria-hidden />
+                  <div className="bb-home-rail-promo-card__content">
+                    <h2 className="text-3xl md:text-5xl font-bold tracking-tight drop-shadow-sm">Take a peek</h2>
+                    <p className="mt-3 max-w-[20rem] text-sm leading-relaxed text-white/75 line-clamp-2">
+                      {phoneLeadProduct.name}
+                    </p>
+                    <p className="mt-2 text-lg font-black text-[#CDA032]">
+                      {formatCurrency(phoneLeadProduct.price)}
+                    </p>
+                  </div>
+                </Link>
+              ) : (
+                <Link to="/store" search={{ category: 'iPhone' } as any} className="absolute inset-0 z-10" aria-label="Browse phones">
+                  <img src="/iPhone.jpeg" alt="Phones" className="bb-home-rail-promo-card__img" loading="lazy" decoding="async" />
+                  <div className="bb-home-rail-promo-card__scrim" aria-hidden />
+                  <div className="bb-home-rail-promo-card__content">
+                    <h2 className="text-3xl md:text-5xl font-bold tracking-tight drop-shadow-sm">Take a peek</h2>
+                    <p className="mt-3 max-w-[20rem] text-sm leading-relaxed text-white/75">
+                      Star phones in admin to feature them here first.
+                    </p>
+                  </div>
+                </Link>
+              )}
             </div>
 
-            {/* Product Cards */}
-            {homeProducts.filter(p => matchesCategory(p.category, 'iPhone')).slice(0, 8).map(p => (
-              <div
+            {phoneSliderProducts.map((p) => (
+              <Link
                 key={p.id}
+                to="/product/$productId"
+                params={{ productId: p.id } as any}
                 data-home-rail-item
-                onClick={() => onQuickView(p)}
                 className={`w-[260px] md:w-[300px] h-[360px] md:h-[420px] rounded-[2rem] flex-shrink-0 flex flex-col group cursor-pointer overflow-hidden relative shadow-lg ${theme === 'dark' ? 'bg-[#14141c] border border-white/[0.07] shadow-[0_20px_48px_-14px_rgba(0,0,0,0.6)]' : 'bg-[#ffffff] border border-black/[0.08]'} ${homeProductCardHover}`}
               >
                 <div className="pointer-events-none absolute inset-0 z-10">
@@ -583,7 +652,8 @@ export const Home: React.FC<HomeProps> = ({
 
                       {/* Add to Cart Button */}
                       <button
-                        onClick={(e) => { e.stopPropagation(); onAddToCart(p); }}
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); e.preventDefault(); onAddToCart(p); }}
                         className={`w-10 h-10 rounded-full bg-white/10 hover:bg-[#B38B21] backdrop-blur-md text-white hover:text-black transition-all flex items-center justify-center group/btn border border-white/20 hover:border-transparent hover:scale-110 hover:shadow-[0_0_0_1px_rgba(212,175,55,0.45)] active:scale-95 ${TW_DARK_BTN_DEPTH}`}
                       >
                         <ShoppingCart size={16} className="group-hover/btn:-translate-x-0.5 transition-transform" />
@@ -591,7 +661,7 @@ export const Home: React.FC<HomeProps> = ({
                     </div>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
 
@@ -640,23 +710,47 @@ export const Home: React.FC<HomeProps> = ({
               data-home-rail-item
               className={`bb-home-rail-promo-card group w-[300px] md:w-[400px] h-[400px] md:h-[500px] rounded-[2rem] flex-shrink-0 relative overflow-hidden shadow-sm border border-black/5 dark:border-white/5 ring-1 ring-inset ${theme === 'dark' ? 'ring-white/[0.06]' : 'ring-black/[0.06]'} ${homePromoCardHover}`}
             >
-              <img src="/laptop.jpeg" alt="Laptops" className="bb-home-rail-promo-card__img" loading="lazy" decoding="async" />
-              <div className="bb-home-rail-promo-card__scrim" aria-hidden />
-              <div className="absolute -bottom-10 -right-10 z-[1] w-40 h-40 rounded-full bg-[#CDA032]/25 blur-[60px] transition-transform duration-1000 group-hover:scale-150 pointer-events-none" aria-hidden />
-              <div className="bb-home-rail-promo-card__content">
-                <h2 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase leading-tight drop-shadow-sm">Laptops.</h2>
-                <p className="mt-3 max-w-[20rem] text-sm font-normal not-italic tracking-normal leading-relaxed text-white/75">
-                  Scroll for MacBooks and more; tap a card or the eye for quick view, then use the arrow for full details.
-                </p>
-              </div>
+              {laptopLeadProduct ? (
+                <Link
+                  to="/product/$productId"
+                  params={{ productId: laptopLeadProduct.id } as any}
+                  className="absolute inset-0 z-10"
+                  aria-label={`View ${laptopLeadProduct.name}`}
+                >
+                  <img src={laptopLeadProduct.image} alt="Laptops" className="bb-home-rail-promo-card__img" loading="lazy" decoding="async" />
+                  <div className="bb-home-rail-promo-card__scrim" aria-hidden />
+                  <div className="absolute -bottom-10 -right-10 z-[1] w-40 h-40 rounded-full bg-[#CDA032]/25 blur-[60px] transition-transform duration-1000 group-hover:scale-150 pointer-events-none" aria-hidden />
+                  <div className="bb-home-rail-promo-card__content">
+                    <h2 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase leading-tight drop-shadow-sm">Laptops.</h2>
+                    <p className="mt-3 max-w-[20rem] text-sm font-normal not-italic tracking-normal leading-relaxed text-white/75 line-clamp-2">
+                      {laptopLeadProduct.name}
+                    </p>
+                    <p className="mt-2 text-lg font-black text-[#CDA032]">
+                      {formatCurrency(laptopLeadProduct.price)}
+                    </p>
+                  </div>
+                </Link>
+              ) : (
+                <Link to="/store" search={{ category: 'Laptop' } as any} className="absolute inset-0 z-10" aria-label="Browse laptops">
+                  <img src="/laptop.jpeg" alt="Laptops" className="bb-home-rail-promo-card__img" loading="lazy" decoding="async" />
+                  <div className="bb-home-rail-promo-card__scrim" aria-hidden />
+                  <div className="absolute -bottom-10 -right-10 z-[1] w-40 h-40 rounded-full bg-[#CDA032]/25 blur-[60px] transition-transform duration-1000 group-hover:scale-150 pointer-events-none" aria-hidden />
+                  <div className="bb-home-rail-promo-card__content">
+                    <h2 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase leading-tight drop-shadow-sm">Laptops.</h2>
+                    <p className="mt-3 max-w-[20rem] text-sm font-normal not-italic tracking-normal leading-relaxed text-white/75">
+                      Star laptops in admin to feature them here first.
+                    </p>
+                  </div>
+                </Link>
+              )}
             </div>
 
-            {/* Product Cards */}
-            {homeProducts.filter(p => matchesCategory(p.category, 'Laptop')).map(p => (
-              <div
+            {laptopSliderProducts.map((p) => (
+              <Link
                 key={p.id}
+                to="/product/$productId"
+                params={{ productId: p.id } as any}
                 data-home-rail-item
-                onClick={() => onQuickView(p)}
                 className={`w-[260px] md:w-[300px] h-[360px] md:h-[420px] rounded-[2rem] flex-shrink-0 flex flex-col group cursor-pointer overflow-hidden relative shadow-lg ${theme === 'dark' ? 'bg-[#14141c] border border-white/[0.07] shadow-[0_20px_48px_-14px_rgba(0,0,0,0.6)]' : 'bg-[#ffffff] border border-black/[0.08]'} ${homeProductCardHover}`}
               >
                 <div className="pointer-events-none absolute inset-0 z-10">
@@ -709,7 +803,8 @@ export const Home: React.FC<HomeProps> = ({
                       </button>
 
                       <button
-                        onClick={(e) => { e.stopPropagation(); onAddToCart(p); }}
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); e.preventDefault(); onAddToCart(p); }}
                         className={`w-10 h-10 rounded-full backdrop-blur-md transition-all flex items-center justify-center group/btn border hover:border-transparent hover:scale-110 hover:shadow-[0_0_0_1px_rgba(212,175,55,0.45)] active:scale-95 ${theme === 'dark' ? 'bg-white/10 text-white hover:bg-[#CDA032] hover:text-black border-white/20' : 'bg-black/5 text-black hover:bg-[#CDA032] border-black/10 shadow-sm'} ${TW_DARK_BTN_DEPTH}`}
                       >
                         <ShoppingCart size={16} className="group-hover/btn:-translate-x-0.5 transition-transform" />
@@ -717,7 +812,7 @@ export const Home: React.FC<HomeProps> = ({
                     </div>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
 
@@ -1035,9 +1130,10 @@ export const Home: React.FC<HomeProps> = ({
                     style={{ transform: `translateX(-${currentHighlightsIndex * 50}%)` }}
                   >
                     {highlights.map((p) => (
-                      <div
+                      <Link
                         key={p.id}
-                        onClick={() => onQuickView(p)}
+                        to="/product/$productId"
+                        params={{ productId: p.id } as any}
                         className={`min-w-[45%] h-28 rounded-2xl overflow-hidden relative group/mini cursor-pointer ${theme === 'light' ? 'bg-gray-100 border border-black/10' : 'bg-[#050505] border border-white/10'} ${homeMiniCardHover}`}
                       >
                         <div className="bb-product-card-media bb-product-card-media--mini">
@@ -1046,7 +1142,7 @@ export const Home: React.FC<HomeProps> = ({
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/mini:opacity-100 transition-opacity flex items-center justify-center">
                           <Eye size={12} className="text-white" />
                         </div>
-                      </div>
+                      </Link>
                     ))}
                   </div>
                 </div>

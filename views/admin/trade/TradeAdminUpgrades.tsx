@@ -1,16 +1,15 @@
 /**
  * Trade Admin — Upgrade targets: which shop products customers can trade into.
  *
- * Staff pick from the shop catalogue. Products must be linked to a Matching
- * trade-in model (active Tradable device). If not linked, Add opens a quick
- * assign popup so staff can link then add in one step.
+ * Staff pick from the shop catalogue. Products need a catalog model link
+ * (`products.trade_model`). If not linked, Add opens a quick assign popup.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, Link2, Package, RefreshCcw, X } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import { useAppContext } from '../../../lib/appContext';
 import { getProductsAdmin, updateProduct } from '../../../lib/api';
-import { getTradeDevices } from '../../../lib/tradeApi';
+import { ensureTradeCatalogModel, getAdminDevices } from '../../../lib/tradeAdminApi';
 import { friendlyError } from '../../../lib/friendlyErrors';
 import {
   isEligibleTradeUpgradeProduct,
@@ -18,6 +17,7 @@ import {
   loadUpgradeProductIds,
   productTradeModel,
   saveUpgradeProductIds,
+  suggestTradeModelFromProduct,
   tradeUpgradeBlockReason,
 } from '../../../lib/tradeUpgradePicks';
 import { formatGhs } from '../../../lib/money';
@@ -57,22 +57,12 @@ export const TradeAdminUpgrades: React.FC = () => {
   const [linkModel, setLinkModel] = useState('');
   const [linkSaving, setLinkSaving] = useState(false);
 
-  const tradeModels = useMemo(
-    () =>
-      new Set(
-        tradeDevices
-          .filter((d) => d.is_active !== false)
-          .map((d) => String(d.model || '').trim())
-          .filter(Boolean),
-      ),
-    [tradeDevices],
-  );
-
-  const activeTradeDevices = useMemo(
+  const catalogModelSuggestions = useMemo(
     () =>
       [...tradeDevices]
-        .filter((d) => d.is_active !== false && String(d.model || '').trim())
-        .sort((a, b) => String(a.model).localeCompare(String(b.model), undefined, { numeric: true })),
+        .map((d) => String(d.model || '').trim())
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
     [tradeDevices],
   );
 
@@ -82,20 +72,14 @@ export const TradeAdminUpgrades: React.FC = () => {
       const [catalog, loaded, devices] = await Promise.all([
         getProductsAdmin(),
         loadUpgradeProductIds(),
-        getTradeDevices().catch(() => []),
+        getAdminDevices(true).catch(() => []),
       ]);
-      const modelSet = new Set(
-        (devices || [])
-          .filter((d) => d.is_active !== false)
-          .map((d) => String(d.model || '').trim())
-          .filter(Boolean),
-      );
       setTradeDevices(devices || []);
       setProducts(catalog.filter((p) => String(p.status || 'active') !== 'archived'));
       setListSource(loaded.source);
       const nextIds = (loaded.ids ?? []).filter((id) => {
         const p = catalog.find((x) => x.id === id);
-        return p && isEligibleTradeUpgradeProduct(p, modelSet);
+        return p && isEligibleTradeUpgradeProduct(p);
       });
       setPickIds(nextIds);
       setDirty(false);
@@ -140,19 +124,20 @@ export const TradeAdminUpgrades: React.FC = () => {
         );
       })
       .sort((a, b) => {
-        const aOk = isEligibleTradeUpgradeProduct(a, tradeModels) ? 0 : 1;
-        const bOk = isEligibleTradeUpgradeProduct(b, tradeModels) ? 0 : 1;
+        const aOk = isEligibleTradeUpgradeProduct(a) ? 0 : 1;
+        const bOk = isEligibleTradeUpgradeProduct(b) ? 0 : 1;
         if (aOk !== bOk) return aOk - bOk;
         return a.name.localeCompare(b.name);
       });
-  }, [products, q, tradeModels]);
+  }, [products, q]);
 
   const openLinkModal = (product: Product, addAfterLink: boolean) => {
     const current = productTradeModel(product) || '';
     const suggested =
-      current && tradeModels.has(current)
-        ? current
-        : activeTradeDevices[0]?.model || '';
+      current ||
+      suggestTradeModelFromProduct(product) ||
+      catalogModelSuggestions[0] ||
+      '';
     setLinkModel(suggested);
     setLinkModal({ product, addAfterLink });
   };
@@ -173,18 +158,17 @@ export const TradeAdminUpgrades: React.FC = () => {
     if (!p) return;
     if (pickIds.includes(id)) return;
 
-    if (isEligibleTradeUpgradeProduct(p, tradeModels)) {
+    if (isEligibleTradeUpgradeProduct(p)) {
       addEligible(id);
       return;
     }
 
-    // Needs Matching trade-in model (or model not on Tradable devices) → quick assign
-    if (!isTradeLinkedProduct(p) || (productTradeModel(p) && !tradeModels.has(productTradeModel(p)!))) {
+    if (!isTradeLinkedProduct(p)) {
       openLinkModal(p, true);
       return;
     }
 
-    const reason = tradeUpgradeBlockReason(p, tradeModels);
+    const reason = tradeUpgradeBlockReason(p);
     notify?.(reason || 'This product cannot be used as an upgrade target.', 'error');
   };
 
@@ -192,19 +176,13 @@ export const TradeAdminUpgrades: React.FC = () => {
     if (!linkModal) return;
     const model = linkModel.trim();
     if (!model) {
-      notify?.('Pick a trade-in model to link.', 'warning');
-      return;
-    }
-    if (!tradeModels.has(model)) {
-      notify?.(
-        'That model is not an active tradable device. Add it under Tradable devices first.',
-        'error',
-      );
+      notify?.('Enter the catalog model name to link.', 'warning');
       return;
     }
 
     setLinkSaving(true);
     try {
+      await ensureTradeCatalogModel(model, { category: linkModal.product.category });
       const updated = await updateProduct(linkModal.product.id, { trade_model: model });
       setProducts((prev) =>
         prev.map((p) => (p.id === updated.id ? { ...p, ...updated, trade_model: model } : p)),
@@ -246,7 +224,7 @@ export const TradeAdminUpgrades: React.FC = () => {
     try {
       const clean = pickIds.filter((id) => {
         const p = byId.get(id);
-        return p && isEligibleTradeUpgradeProduct(p, tradeModels);
+        return p && isEligibleTradeUpgradeProduct(p);
       });
       await saveUpgradeProductIds(clean);
       setPickIds(clean);
@@ -277,9 +255,10 @@ export const TradeAdminUpgrades: React.FC = () => {
             Upgrade targets
           </h2>
           <p className="text-xs opacity-60 mt-1 max-w-2xl leading-relaxed">
-            Add shop products customers can trade into. Each product must be linked to a{' '}
-            <strong className="opacity-90">Matching trade-in model</strong>. If it isn’t linked yet,
-            Add opens a quick popup to assign the right model, then adds it to the list. Press{' '}
+            Add shop products customers can trade into. Each product needs a{' '}
+            <strong className="opacity-90">catalog model link</strong> (e.g. iPhone 17 Pro Max).
+            If it isn’t linked yet, Add opens a quick popup to assign the model, then adds it to
+            the list. Press{' '}
             <strong className="opacity-90">Save list</strong> when done.
           </p>
           {dirty && (
@@ -346,8 +325,7 @@ export const TradeAdminUpgrades: React.FC = () => {
               </p>
             ) : (
               catalogueRows.map((p) => {
-                const linked = isTradeLinkedProduct(p);
-                const eligible = isEligibleTradeUpgradeProduct(p, tradeModels);
+                const eligible = isEligibleTradeUpgradeProduct(p);
                 const model = productTradeModel(p);
                 const onList = pickIds.includes(p.id);
                 return (
@@ -373,8 +351,6 @@ export const TradeAdminUpgrades: React.FC = () => {
                         {p.price != null ? ` · ${formatGhs(Number(p.price))}` : ''}
                         {eligible && model ? (
                           <span className="text-[#CDA032]"> · → {model}</span>
-                        ) : linked && model ? (
-                          <span className="text-amber-400"> · → {model} (not tradable)</span>
                         ) : (
                           <span className="text-amber-400"> · Not linked</span>
                         )}
@@ -385,7 +361,7 @@ export const TradeAdminUpgrades: React.FC = () => {
                         type="button"
                         onClick={() => openLinkModal(p, false)}
                         className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-[#CDA032]/30 text-[#CDA032] text-[9px] font-black uppercase"
-                        title="Assign matching trade-in model"
+                        title="Assign catalog model"
                       >
                         <Link2 size={11} aria-hidden /> Link
                       </button>
@@ -528,7 +504,7 @@ export const TradeAdminUpgrades: React.FC = () => {
                   id="link-trade-model-title"
                   className="text-sm font-black uppercase tracking-widest text-[#CDA032]"
                 >
-                  Link trade-in model
+                  Link catalog model
                 </p>
                 <p
                   className={`text-xs mt-2 leading-relaxed ${
@@ -538,8 +514,7 @@ export const TradeAdminUpgrades: React.FC = () => {
                   <span className={`font-bold ${isLight ? 'text-black' : 'text-[#F5F5F5]'}`}>
                     {linkModal.product.name}
                   </span>{' '}
-                  is not linked to an active tradable device. Pick the matching model so it can
-                  appear in trade-in upgrades.
+                  needs a catalog model link so customers can pick it as an upgrade target.
                 </p>
               </div>
               <button
@@ -556,48 +531,34 @@ export const TradeAdminUpgrades: React.FC = () => {
               </button>
             </div>
 
-            {activeTradeDevices.length === 0 ? (
-              <p
-                className={`text-xs rounded-xl border px-3 py-3 leading-relaxed ${
-                  isLight
-                    ? 'border-amber-500/40 bg-amber-50 text-amber-950'
-                    : 'border-amber-500/30 bg-amber-500/10 text-amber-100'
+            <div>
+              <label
+                className={`text-[10px] font-black uppercase tracking-widest block mb-1.5 ${
+                  isLight ? 'text-black/60' : 'text-[#B0B0B0]'
                 }`}
               >
-                No active tradable devices yet. Add models under{' '}
-                <Link to="/admin/trade/devices" className="underline text-[#B38B21] font-bold">
-                  Tradable devices
-                </Link>{' '}
-                first.
+                Catalog model name
+              </label>
+              <input
+                list="bb-trade-catalog-models"
+                value={linkModel}
+                onChange={(e) => setLinkModel(e.target.value)}
+                placeholder="e.g. iPhone 17 Pro Max"
+                className={`w-full rounded-xl border px-3 py-2.5 text-sm focus:border-[#CDA032]/60 focus:outline-none focus:ring-2 focus:ring-[#CDA032]/25 ${
+                  isLight
+                    ? 'border-black/15 bg-[#F5F5F7] text-black'
+                    : 'border-white/20 bg-[#1a1a1a] text-[#F5F5F5]'
+                }`}
+              />
+              <datalist id="bb-trade-catalog-models">
+                {catalogModelSuggestions.map((m) => (
+                  <option key={m} value={m} />
+                ))}
+              </datalist>
+              <p className={`text-[10px] mt-2 leading-relaxed ${isLight ? 'text-black/50' : 'text-white/45'}`}>
+                Use the exact model name. New names are saved to the catalog automatically.
               </p>
-            ) : (
-              <div>
-                <label
-                  className={`text-[10px] font-black uppercase tracking-widest block mb-1.5 ${
-                    isLight ? 'text-black/60' : 'text-[#B0B0B0]'
-                  }`}
-                >
-                  Matching trade-in model
-                </label>
-                <select
-                  value={linkModel}
-                  onChange={(e) => setLinkModel(e.target.value)}
-                  className={`w-full rounded-xl border px-3 py-2.5 text-sm focus:border-[#CDA032]/60 focus:outline-none focus:ring-2 focus:ring-[#CDA032]/25 ${
-                    isLight
-                      ? 'border-black/15 bg-[#F5F5F7] text-black'
-                      : 'border-white/20 bg-[#1a1a1a] text-[#F5F5F5]'
-                  }`}
-                >
-                  <option value="">Select model…</option>
-                  {activeTradeDevices.map((d) => (
-                    <option key={d.model} value={d.model}>
-                      {d.model}
-                      {d.device_type ? ` (${d.device_type})` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+            </div>
 
             <div className="flex flex-wrap justify-end gap-2 pt-1">
               <button
@@ -614,7 +575,7 @@ export const TradeAdminUpgrades: React.FC = () => {
               </button>
               <button
                 type="button"
-                disabled={linkSaving || !linkModel || activeTradeDevices.length === 0}
+                disabled={linkSaving || !linkModel.trim()}
                 onClick={() => void confirmLinkAndMaybeAdd()}
                 className="px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-[#CDA032] text-black hover:bg-[#D4AF37] disabled:opacity-40"
               >

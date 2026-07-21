@@ -15,7 +15,14 @@ export const PRODUCT_CATEGORIES = [
   'Trades',
 ] as const;
 
-export const PRODUCT_CONDITIONS = ['new', 'pre-owned', 'refurbished'] as const;
+export const PRODUCT_CONDITION_OPTIONS = [
+  { value: 'new', label: 'New' },
+  { value: 'preowned', label: 'Pre-owned' },
+  { value: 'refurbished', label: 'Refurbished' },
+] as const;
+
+/** DB values for products.condition (CHECK: new | preowned | refurbished). */
+export const PRODUCT_CONDITIONS = PRODUCT_CONDITION_OPTIONS.map((o) => o.value);
 export const PRODUCT_STATUSES = ['active', 'draft', 'archived'] as const;
 
 /** Common SIM codes matching trade pricing / product_variants.sim_type */

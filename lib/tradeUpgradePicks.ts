@@ -1,9 +1,9 @@
 /**
  * Staff allowlist of shop products shown as “trade into” (upgrade) targets.
  *
- * RULE: A shop product must be trade-linked (`products.trade_model` set to a
- * tradable device model, e.g. "iPhone 17 Pro Max") before it can appear on
- * Upgrade targets or the customer Trade into screen.
+ * RULE: A shop product must have `products.trade_model` set (catalog link key,
+ * e.g. "iPhone 17 Pro Max") before it can appear on Upgrade targets or the
+ * customer Trade into screen. It does NOT need to be a tradable trade-IN device.
  *
  * Persistence: trade_config.upgrade_target_product_ids (shared) + localStorage.
  */
@@ -22,7 +22,7 @@ export function productTradeModel(product: Pick<Product, 'trade_model'>): string
   return m || null;
 }
 
-/** True when staff linked this shop SKU to a trade-in device model. */
+/** True when staff linked this shop SKU to a catalog model (`products.trade_model`). */
 export function isTradeLinkedProduct(product: Pick<Product, 'trade_model'>): boolean {
   return Boolean(productTradeModel(product));
 }
@@ -32,23 +32,28 @@ export function isTradeLinkedTargetRow(row: Pick<TradeTargetRow, 'trade_model'>)
   return Boolean(String(row.trade_model ?? '').trim());
 }
 
-function toModelSet(
-  knownTradeModels?: Set<string> | string[] | null,
-): Set<string> | null {
-  if (knownTradeModels == null) return null;
-  if (knownTradeModels instanceof Set) return knownTradeModels;
-  return new Set(
-    [...knownTradeModels].map((m) => String(m || '').trim()).filter(Boolean),
-  );
+/** Suggest a catalog model name from a shop product title. */
+export function suggestTradeModelFromProduct(
+  product: Pick<Product, 'name' | 'category'>,
+): string {
+  const name = String(product.name ?? '').trim();
+  if (!name) return '';
+  const iphone = name.match(/iPhone\s+[\w\s]+(?:Pro\s+Max|Pro|Plus|Max|mini|SE)?/i);
+  if (iphone) return iphone[0].replace(/\s+/g, ' ').trim();
+  const ipad = name.match(/iPad\s+[\w\s]+(?:Pro|Air|mini)?/i);
+  if (ipad) return ipad[0].replace(/\s+/g, ' ').trim();
+  const cat = String(product.category ?? '').toLowerCase();
+  if (cat.includes('iphone') || cat.includes('ipad')) return name;
+  return '';
 }
 
 /**
  * Eligible upgrade target: iPhone/iPad shop product with trade_model set.
- * When knownTradeModels is provided, trade_model must match an active device.
+ * Does not require the model to exist under Tradable devices (trade-IN list).
  */
 export function isEligibleTradeUpgradeProduct(
   product: Product,
-  knownTradeModels?: Set<string> | string[] | null,
+  _knownTradeModels?: Set<string> | string[] | null,
 ): boolean {
   const name = (product.name || '').toLowerCase();
   const rawCat = String(product.category || '').toLowerCase();
@@ -71,18 +76,15 @@ export function isEligibleTradeUpgradeProduct(
   const linked = productTradeModel(product);
   if (!linked) return false;
 
-  const set = toModelSet(knownTradeModels);
-  if (set && set.size > 0 && !set.has(linked)) return false;
-
   return true;
 }
 
 /** Why a product cannot be added as an upgrade target (null = ok). */
 export function tradeUpgradeBlockReason(
   product: Product,
-  knownTradeModels?: Set<string> | string[] | null,
+  _knownTradeModels?: Set<string> | string[] | null,
 ): string | null {
-  if (isEligibleTradeUpgradeProduct(product, knownTradeModels)) return null;
+  if (isEligibleTradeUpgradeProduct(product)) return null;
 
   const name = (product.name || '').toLowerCase();
   const rawCat = String(product.category || '').toLowerCase();
@@ -95,12 +97,7 @@ export function tradeUpgradeBlockReason(
     return 'Only iPhone / iPad shop products can be upgrade targets.';
   }
   if (!isTradeLinkedProduct(product)) {
-    return 'Set Matching trade-in model on this product first (e.g. iPhone 17 Pro Max).';
-  }
-  const linked = productTradeModel(product);
-  const set = toModelSet(knownTradeModels);
-  if (linked && set && set.size > 0 && !set.has(linked)) {
-    return `“${linked}” is not an active tradable device. Add it under Tradable devices, or pick a matching model.`;
+    return 'Set Matching catalog model on this product first (e.g. iPhone 17 Pro Max).';
   }
   return 'This product cannot be used as a trade-into target.';
 }
@@ -110,15 +107,12 @@ export function isDefaultUpgradeCategory(category: string | null | undefined): b
   return c.includes('iphone') || c.includes('ipad');
 }
 
-/** Must be trade-linked + iPhone/iPad. Optional: trade_model must be an active tradable device. */
+/** Must be trade-linked + iPhone/iPad. */
 export function isDefaultUpgradeTargetRow(
   row: TradeTargetRow,
-  knownTradeModels?: Set<string> | string[] | null,
+  _knownTradeModels?: Set<string> | string[] | null,
 ): boolean {
   if (!isTradeLinkedTargetRow(row)) return false;
-  const linked = String(row.trade_model ?? '').trim();
-  const set = toModelSet(knownTradeModels);
-  if (set && set.size > 0 && !set.has(linked)) return false;
   if (isDefaultUpgradeCategory(row.category)) return true;
   const name = String(row.name || '').toLowerCase();
   return name.includes('iphone') || name.includes('ipad');
@@ -253,21 +247,14 @@ export function resolveUpgradeTargetProducts(products: Product[]): Product[] {
 
 /**
  * Always drops rows without trade_model — unlinked shop SKUs never appear.
- * When knownTradeModels is provided, Matching trade-in model must match an
- * active Tradable device (same gate as Admin → Upgrade phones).
+ * Upgrade targets do not require the model to be a tradable trade-IN device.
  */
 export function filterTradeTargetRowsByUpgradePicks(
   rows: TradeTargetRow[],
   allowIds?: string[] | null,
-  knownTradeModels?: Set<string> | string[] | null,
+  _knownTradeModels?: Set<string> | string[] | null,
 ): TradeTargetRow[] {
-  const modelSet = toModelSet(knownTradeModels);
-  const linked = rows.filter((r) => {
-    if (!isTradeLinkedTargetRow(r)) return false;
-    const m = String(r.trade_model ?? '').trim();
-    if (modelSet && modelSet.size > 0 && !modelSet.has(m)) return false;
-    return true;
-  });
+  const linked = rows.filter((r) => isTradeLinkedTargetRow(r));
   const ids = allowIds === undefined ? readStoredUpgradeProductIds() : allowIds;
 
   if (ids?.length) {
@@ -275,7 +262,7 @@ export function filterTradeTargetRowsByUpgradePicks(
     return linked.filter((r) => set.has(r.product_id));
   }
 
-  return linked.filter((r) => isDefaultUpgradeTargetRow(r, knownTradeModels));
+  return linked.filter((r) => isDefaultUpgradeTargetRow(r));
 }
 
 export function orderTargetProductsByAllowlist<T extends { productId: string }>(

@@ -45,12 +45,14 @@ export function useAutoHomeRails(
         const rail = document.getElementById(railId);
         if (!rail) return null;
 
-        const onPointerEnter = () => pause();
+        const onPointerEnter = () => pause(12000);
         const onPointerLeave = () => resume();
-        const onFocusIn = () => pause();
+        const onFocusIn = () => pause(12000);
         const onFocusOut = () => resume();
-        const onScroll = () => pause(4000);
-        const onTouchStart = () => pause(4000);
+        const onScroll = () => pause(12000);
+        const onTouchStart = () => pause(12000);
+        const onPointerDown = () => pause(12000);
+        const onWheel = () => pause(12000);
 
         rail.addEventListener('mouseenter', onPointerEnter);
         rail.addEventListener('mouseleave', onPointerLeave);
@@ -58,6 +60,8 @@ export function useAutoHomeRails(
         rail.addEventListener('focusout', onFocusOut);
         rail.addEventListener('scroll', onScroll, { passive: true });
         rail.addEventListener('touchstart', onTouchStart, { passive: true });
+        rail.addEventListener('pointerdown', onPointerDown);
+        rail.addEventListener('wheel', onWheel, { passive: true });
 
         io = new IntersectionObserver(
           (entries) => {
@@ -75,6 +79,8 @@ export function useAutoHomeRails(
           rail.removeEventListener('focusout', onFocusOut);
           rail.removeEventListener('scroll', onScroll);
           rail.removeEventListener('touchstart', onTouchStart);
+          rail.removeEventListener('pointerdown', onPointerDown);
+          rail.removeEventListener('wheel', onWheel);
           io?.disconnect();
           io = null;
         };

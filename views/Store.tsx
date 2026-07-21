@@ -505,7 +505,7 @@ export const Store: React.FC<StoreProps> = ({
             </p>
 
             {filteredProducts.length > 0 && viewMode === 'grid' && (
-              <div className={`bb-store-product-grid grid gap-2 sm:gap-3 ${gridCols}`}>
+              <div className={`bb-store-product-grid grid gap-2 sm:gap-2.5 lg:gap-2.5 ${gridCols}`}>
                 {pageProducts.map((product, index) => (
                   <div
                     key={product.id}

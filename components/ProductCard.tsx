@@ -148,7 +148,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </button>
         <button
           type="button"
-          className={`transition-all p-2 rounded-full border hover:bg-[#CDA032] hover:text-black hover:border-[#CDA032] ${
+          className={`transition-all rounded-full border hover:bg-[#CDA032] hover:text-black hover:border-[#CDA032] ${
+            isCompact ? 'p-1.5' : 'p-2'
+          } ${
             isLight
               ? 'border-black/10 bg-white/85 text-black/50'
               : 'border-white/15 bg-black/55 text-white/70 backdrop-blur-md'
@@ -188,9 +190,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </div>
 
         <div
-          className={`flex flex-col gap-1.5 ${isCompact ? 'p-2.5' : 'p-3'} ${isLight ? 'bg-white' : 'bg-black'}`}
+          className={`bb-product-card-body flex flex-col gap-1.5 ${isCompact ? 'p-2.5 md:p-2' : 'p-3'} ${isLight ? 'bg-white' : 'bg-black'}`}
         >
-          <div className="space-y-1 min-w-0">
+          <div className="space-y-0.5 min-w-0">
             <p
               className={`font-bold uppercase tracking-[0.18em] truncate ${
                 isCompact ? 'text-[7px]' : 'text-[8px]'
@@ -209,7 +211,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
           {/* Color dots from view.colors[] — display only, max 5 +n */}
           {visibleColors.length > 0 && (
-            <div className={`flex flex-wrap items-center gap-1 min-h-0 ${isCompact ? 'max-sm:hidden' : ''}`}>
+            <div className={`bb-product-card-colors flex flex-wrap items-center gap-1 min-h-0 ${isCompact ? 'max-sm:hidden' : ''}`}>
               {visibleColors.map((c) => (
                 <span
                   key={c}
@@ -235,7 +237,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </div>
           )}
 
-          <div className={`flex items-end justify-between gap-2 pt-0.5 ${isCompact ? 'gap-1' : ''}`}>
+          <div className={`flex items-end justify-between gap-2 pt-0 ${isCompact ? 'gap-1' : ''}`}>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
                 {showFrom && (
@@ -291,7 +293,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               title={totalStock <= 0 ? 'Out of stock' : 'Add to cart'}
               aria-label={totalStock <= 0 ? 'Out of stock' : 'Add to cart'}
               className={`shrink-0 bg-[#CDA032] hover:bg-[#c29a28] text-black rounded-full font-bold transition-all flex items-center justify-center shadow-md active:scale-[0.96] disabled:opacity-40 disabled:pointer-events-none ${
-                isCompact ? 'h-8 w-8' : 'h-9 w-9'
+                isCompact ? 'h-8 w-8 md:h-7 md:w-7' : 'h-9 w-9'
               } ${TW_DARK_GOLD_BTN_DEPTH}`}
             >
               <ShoppingCart size={isCompact ? 14 : 15} strokeWidth={2.25} />

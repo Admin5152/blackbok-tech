@@ -31,6 +31,7 @@ type Props = {
   rows: SkuMatrixRow[];
   onRowsChange: (rows: SkuMatrixRow[]) => void;
   isLight?: boolean;
+  onUploadRowImage?: (index: number, file: File) => void | Promise<void>;
 };
 
 export const ProductSkuMatrix: React.FC<Props> = ({
@@ -44,6 +45,7 @@ export const ProductSkuMatrix: React.FC<Props> = ({
   rows,
   onRowsChange,
   isLight = false,
+  onUploadRowImage,
 }) => {
   const canMatrix = canUseSkuMatrix(colors, storage, ram, simTypes);
   const chipSignature = useMemo(
@@ -328,15 +330,37 @@ export const ProductSkuMatrix: React.FC<Props> = ({
                       </div>
                       <div className="col-span-2">
                         <label className={`text-[8px] font-black uppercase block mb-1 ${muted}`}>
-                          Image URL (optional)
+                          Version photo
                         </label>
-                        <input
-                          type="url"
-                          placeholder="https://…"
-                          value={row.image_url || ''}
-                          onChange={(e) => patchRow(i, { image_url: e.target.value })}
-                          className={inputCls.replace('text-sm font-bold', 'text-xs')}
-                        />
+                        <div className="flex flex-col gap-1.5">
+                          {row.image_url ? (
+                            <div className={`h-16 rounded-lg overflow-hidden flex items-center justify-center ${isLight ? 'bg-black/[0.03]' : 'bg-white/5'}`}>
+                              <img src={row.image_url} alt="" className="max-h-full max-w-full object-contain" />
+                            </div>
+                          ) : null}
+                          {onUploadRowImage ? (
+                            <label className="inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-[#B38B21]/15 text-[#B38B21] border border-[#B38B21]/30 text-[9px] font-black uppercase cursor-pointer hover:bg-[#B38B21]/25">
+                              Upload
+                              <input
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp,image/gif,image/jpg"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) void onUploadRowImage(i, file);
+                                  e.target.value = '';
+                                }}
+                              />
+                            </label>
+                          ) : null}
+                          <input
+                            type="url"
+                            placeholder="Or paste image URL"
+                            value={row.image_url || ''}
+                            onChange={(e) => patchRow(i, { image_url: e.target.value })}
+                            className={inputCls.replace('text-sm font-bold', 'text-xs')}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>

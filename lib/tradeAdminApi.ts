@@ -421,6 +421,37 @@ export async function upsertTradeDevice(
   return data as TradeDeviceRow;
 }
 
+/**
+ * Ensure a catalog model exists in trade_devices for shop linking.
+ * Creates an inactive row when missing — does not list the model for trade-IN
+ * until staff activate it and add pricing.
+ */
+export async function ensureTradeCatalogModel(
+  model: string,
+  hint?: { category?: string | null },
+): Promise<void> {
+  const name = model.trim();
+  if (!name) throw new Error('Model name is required.');
+
+  const { data: existing, error: readErr } = await supabase
+    .from('trade_devices')
+    .select('model')
+    .eq('model', name)
+    .maybeSingle();
+  if (readErr) throw readErr;
+  if (existing?.model) return;
+
+  const lower = `${name} ${String(hint?.category ?? '')}`.toLowerCase();
+  const device_type = lower.includes('ipad') ? 'ipad' : 'iphone';
+
+  await upsertTradeDevice({
+    model: name,
+    device_type,
+    is_active: false,
+    sort_order: 9990,
+  });
+}
+
 /** Toggle visibility on customer trade flow (type/series/model grids). */
 export async function setDeviceActive(
   model: string,

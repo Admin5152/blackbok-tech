@@ -15,6 +15,7 @@ import {
   findVariantRowForOptions,
 } from '../lib/productOptions';
 import { variantEffectivePrice, getMaxTradeBaseForModel, saveTradeTargetSeed } from '../lib/catalogApi';
+import { galleryImagesForSelection } from '../lib/productColorImages';
 import { PageBackButton } from '../components/PageBackButton';
 import type { ProductVariant } from '../types';
 
@@ -81,29 +82,15 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
     };
   }, [product.trade_model]);
 
-  /** Gallery: prefer variant-specific images when color/SKU selected */
+  /** Gallery: prefer variant-specific / colour images when options change */
   const galleryImages = useMemo(() => {
-    const all = (product.images ?? []) as ProductImage[];
-    const vid = matchedVariant?.id;
-    if (vid) {
-      const forVariant = all.filter((img) => img.variant_id === vid);
-      if (forVariant.length) return forVariant;
-    }
-    // Color-level: any image whose variant matches selected color
     const color = toOptionString(selectedOptions.Color || selectedOptions.color || '');
-    if (color && product.variants?.length) {
-      const colorVids = new Set(
-        product.variants
-          .filter((v) => toOptionString(v.color).toLowerCase() === color.toLowerCase())
-          .map((v) => v.id)
-          .filter(Boolean),
-      );
-      const matched = all.filter((img) => img.variant_id && colorVids.has(img.variant_id));
-      if (matched.length) return matched;
-    }
-    return all.filter((img) => !img.variant_id).length
-      ? all.filter((img) => !img.variant_id)
-      : all;
+    return galleryImagesForSelection({
+      images: (product.images ?? []) as ProductImage[],
+      variants: product.variants,
+      variantId: matchedVariant?.id,
+      color: color || null,
+    });
   }, [product.images, product.variants, matchedVariant?.id, selectedOptions]);
 
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);

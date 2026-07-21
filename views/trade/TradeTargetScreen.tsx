@@ -21,8 +21,9 @@ import { TradePhasePills } from '../../components/trade/TradePhasePills';
 import { PageBackButton } from '../../components/PageBackButton';
 import { Pagination } from '../../components/Pagination';
 import { PAGE_SIZES, usePagination } from '../../lib/pagination';
-import { getTradeDevices, getTradeTargets } from '../../lib/tradeApi';
+import { getTradeTargets } from '../../lib/tradeApi';
 import { getProductPageRow } from '../../lib/catalogApi';
+import { displayImageForColorSelection } from '../../lib/productColorImages';
 import { formatGhs } from '../../lib/money';
 import { TRADE_COPY, simVariantLabel } from '../../lib/tradeCopy';
 import {
@@ -59,7 +60,6 @@ export function TradeTargetScreen() {
   /** All active SKUs (incl. OOS) — so customers can pick the version they want */
   const [allRows, setAllRows] = useState<TradeTargetRow[]>([]);
   const [allowIds, setAllowIds] = useState<string[] | null>(null);
-  const [activeTradeModels, setActiveTradeModels] = useState<Set<string> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [productDetail, setProductDetail] = useState<{
@@ -90,22 +90,13 @@ export function TradeTargetScreen() {
         // Load all active variants so storage / eSIM choices stay visible;
         // browse cards still require at least one in-stock SKU (D11).
         // Staff allowlist (upgrade targets) filters which products appear.
-        // Active tradable models gate Matching trade-in model (same as admin).
-        const [data, loaded, devices] = await Promise.all([
+        const [data, loaded] = await Promise.all([
           getTradeTargets({ inStockOnly: false }),
           loadUpgradeProductIds(),
-          getTradeDevices().catch(() => [] as Awaited<ReturnType<typeof getTradeDevices>>),
         ]);
         if (!cancelled) {
           setAllRows(data);
           setAllowIds(loaded.ids);
-          setActiveTradeModels(
-            new Set(
-              (devices || [])
-                .map((d) => String(d.model || '').trim())
-                .filter(Boolean),
-            ),
-          );
         }
       } catch {
         if (!cancelled) setError(TRADE_COPY.states.errorPricing);
@@ -128,8 +119,8 @@ export function TradeTargetScreen() {
   }, []);
 
   const scopedRows = useMemo(
-    () => filterTradeTargetRowsByUpgradePicks(allRows, allowIds, activeTradeModels),
-    [allRows, allowIds, activeTradeModels],
+    () => filterTradeTargetRowsByUpgradePicks(allRows, allowIds),
+    [allRows, allowIds],
   );
 
   const stockRows = useMemo(() => filterInStockTargets(scopedRows), [scopedRows]);
@@ -344,11 +335,15 @@ export function TradeTargetScreen() {
 
   const inStockSelection = selectionHasStock(selectedSku);
 
-  /** Image swaps with colour — prefer variant display_image */
-  const previewImage =
-    selectedSku?.display_image ??
-    selectedProduct?.image ??
-    null;
+  /** Image swaps with colour — variant row, colour SKU photo, or product default */
+  const previewImage = useMemo(() => {
+    const colorRow = color ? colorOptions.find((r) => r.color === color) : null;
+    return displayImageForColorSelection({
+      color,
+      variantImage: selectedSku?.display_image ?? colorRow?.display_image,
+      productImage: selectedProduct?.image,
+    });
+  }, [color, colorOptions, selectedSku?.display_image, selectedProduct?.image]);
 
   const chipClass = (selected: boolean) =>
     `rounded-xl border-2 px-4 py-3 text-sm font-bold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032] ${

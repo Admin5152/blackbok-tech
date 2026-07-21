@@ -12,12 +12,14 @@ import type { SkuMatrixRow } from '../../lib/productSkuMatrix';
 import { totalSkuStock, canUseSkuMatrix, chipsFromSkuRows } from '../../lib/productSkuMatrix';
 import { formatCurrency } from '../../lib/utils';
 import { ProductSkuMatrix } from './ProductSkuMatrix';
+import { ProductColorImageUploader } from '../../components/admin/ProductColorImageUploader';
 import { getApf, type AdminProductFormStyles } from './adminProductFormStyles';
 import { getTradeDevices } from '../../lib/tradeApi';
 import type { TradeDeviceRow } from '../../types/supabase';
 import { uploadImage, compressImage } from '../../lib/upload';
 import {
   addProductImage,
+  upsertProductImageForVariant,
   setPrimaryProductImage,
   deleteProductImage,
   setProductImageVariant,
@@ -28,6 +30,7 @@ import { friendlyError } from '../../lib/friendlyErrors';
 import {
   PRODUCT_CATEGORIES,
   PRODUCT_CONDITIONS,
+  PRODUCT_CONDITION_OPTIONS,
   PRODUCT_SIM_OPTIONS,
   PRODUCT_STATUSES,
   type ProductDraft,
@@ -180,6 +183,73 @@ export const AdminProductForm: React.FC<Props> = ({
   const displayStorage = derivedChips?.storage ?? draft.storage ?? [];
   const displayRam = derivedChips?.ram ?? draft.ram ?? [];
   const displaySimTypes = derivedChips?.sim_types ?? draft.sim_types ?? [];
+
+  const colorImages = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const color of displayColors) {
+      const hit = skuRows.find((r) => r.color === color && String(r.image_url ?? '').trim());
+      if (hit?.image_url) map[color] = String(hit.image_url).trim();
+    }
+    return map;
+  }, [displayColors, skuRows]);
+
+  const applyColorImageToSkus = (color: string, url: string) => {
+    const trimmed = url.trim();
+    setSkuRows((rows) =>
+      rows.map((r) =>
+        r.color === color ? { ...r, image_url: trimmed || undefined } : r,
+      ),
+    );
+  };
+
+  const linkColorImageToGallery = async (color: string, url: string) => {
+    if (!draft.id || !url.trim()) return;
+    const variantId = skuRows.find((r) => r.color === color && r.id)?.id;
+    if (!variantId) return;
+    try {
+      const row = await upsertProductImageForVariant(draft.id, variantId, url.trim());
+      setDraft((d) => {
+        const imgs = d.images || [];
+        const idx = imgs.findIndex((g) => g.variant_id === variantId);
+        if (idx >= 0) {
+          const next = [...imgs];
+          next[idx] = { ...next[idx], url: row.url, variant_id: variantId };
+          return { ...d, images: next };
+        }
+        return { ...d, images: [...imgs, row] };
+      });
+    } catch (e) {
+      console.warn('colour gallery link failed:', e);
+    }
+  };
+
+  const handleColorImageUpload = async (color: string, file: File) => {
+    setImgBusy(true);
+    setImgError('');
+    try {
+      let toUpload = file;
+      try {
+        toUpload = await compressImage(file, 1600, 0.85);
+      } catch {
+        toUpload = file;
+      }
+      const url = await uploadImage(toUpload, 'product-images');
+      if (!url) throw new Error('Upload returned no URL');
+      applyColorImageToSkus(color, url);
+      await linkColorImageToGallery(color, url);
+    } catch (e) {
+      setImgError(friendlyError(e, 'upload this colour photo'));
+    } finally {
+      setImgBusy(false);
+    }
+  };
+
+  const handleColorImageUrl = (color: string, url: string) => {
+    applyColorImageToSkus(color, url);
+    if (draft.id && url.trim()) {
+      void linkColorImageToGallery(color, url);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -550,9 +620,9 @@ export const AdminProductForm: React.FC<Props> = ({
                     onChange={(e) => setDraft({ ...draft, condition: e.target.value })}
                     className={s.input}
                   >
-                    {PRODUCT_CONDITIONS.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
+                    {PRODUCT_CONDITION_OPTIONS.map((c) => (
+                      <option key={c.value} value={c.value}>
+                        {c.label}
                       </option>
                     ))}
                   </select>
@@ -860,6 +930,33 @@ export const AdminProductForm: React.FC<Props> = ({
                   rows={skuRows}
                   onRowsChange={setSkuRows}
                   isLight={isLight}
+                  onUploadRowImage={async (index, file) => {
+                    setImgBusy(true);
+                    setImgError('');
+                    try {
+                      let toUpload = file;
+                      try {
+                        toUpload = await compressImage(file, 1600, 0.85);
+                      } catch {
+                        toUpload = file;
+                      }
+                      const url = await uploadImage(toUpload, 'product-images');
+                      if (!url) throw new Error('Upload returned no URL');
+                      const row = skuRows[index];
+                      if (row?.color) {
+                        applyColorImageToSkus(row.color, url);
+                        await linkColorImageToGallery(row.color, url);
+                      } else {
+                        setSkuRows((rows) =>
+                          rows.map((r, i) => (i === index ? { ...r, image_url: url } : r)),
+                        );
+                      }
+                    } catch (e) {
+                      setImgError(friendlyError(e, 'upload this version photo'));
+                    } finally {
+                      setImgBusy(false);
+                    }
+                  }}
                 />
               </div>
             </div>
@@ -871,6 +968,16 @@ export const AdminProductForm: React.FC<Props> = ({
                 Upload photos directly from your device. The primary photo is shown on the storefront.
                 {!draft.id && ' You can upload before saving — images link to the product when you publish.'}
               </p>
+              {displayColors.length > 0 && (
+                <ProductColorImageUploader
+                  colors={displayColors}
+                  colorImages={colorImages}
+                  busy={imgBusy}
+                  isLight={isLight}
+                  onUpload={handleColorImageUpload}
+                  onUrlChange={handleColorImageUrl}
+                />
+              )}
               {imgError && <div className={`text-xs rounded-xl px-4 py-3 ${s.errorBox}`}>{imgError}</div>}
               <div
                 className={`${s.card} border-dashed ${

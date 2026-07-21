@@ -50,7 +50,6 @@ function snapRailToNearest(rail: HTMLElement): void {
 export function bindHomeRailScroll(rail: HTMLElement): () => void {
   let touchStartX = 0;
   let touchStartY = 0;
-  let lastTouchX = 0;
   let lastTouchY = 0;
   let axis: 'undecided' | 'x' | 'y' = 'undecided';
 
@@ -80,7 +79,6 @@ export function bindHomeRailScroll(rail: HTMLElement): () => void {
     if (e.touches.length !== 1) return;
     touchStartX = e.touches[0].clientX;
     touchStartY = e.touches[0].clientY;
-    lastTouchX = touchStartX;
     lastTouchY = touchStartY;
     axis = 'undecided';
   };
@@ -98,23 +96,62 @@ export function bindHomeRailScroll(rail: HTMLElement): () => void {
       axis = Math.abs(dy) >= Math.abs(dx) * 0.85 ? 'y' : 'x';
     }
 
+    // Horizontal: native pan-x on the rail (CSS touch-action).
+    if (axis === 'x') return;
+
     e.preventDefault();
-
-    if (axis === 'y') {
-      const delta = lastTouchY - y;
-      lastTouchY = y;
-      scrollPageBy(delta);
-      return;
-    }
-
-    const delta = lastTouchX - x;
-    lastTouchX = x;
-    rail.scrollLeft += delta;
+    const delta = lastTouchY - y;
+    lastTouchY = y;
+    scrollPageBy(delta);
   };
 
   const onTouchEnd = () => {
-    if (axis === 'x') snapRailToNearest(rail);
     axis = 'undecided';
+  };
+
+  let dragPointerId: number | null = null;
+  let dragStartX = 0;
+  let dragScrollLeft = 0;
+
+  const endDrag = (pointerId: number) => {
+    if (dragPointerId === null || pointerId !== dragPointerId) return;
+    const pid = dragPointerId;
+    dragPointerId = null;
+    rail.classList.remove('bb-home-rail--dragging');
+    try {
+      rail.releasePointerCapture(pid);
+    } catch {
+      // ignore
+    }
+    snapRailToNearest(rail);
+  };
+
+  const onPointerDown = (e: PointerEvent) => {
+    if (e.button !== 0) return;
+    const target = e.target as HTMLElement | null;
+    if (target?.closest('button, a, input, textarea, select, label')) return;
+
+    dragPointerId = e.pointerId;
+    dragStartX = e.clientX;
+    dragScrollLeft = rail.scrollLeft;
+    rail.classList.add('bb-home-rail--dragging');
+    rail.setPointerCapture(e.pointerId);
+  };
+
+  const onPointerMove = (e: PointerEvent) => {
+    if (dragPointerId === null || e.pointerId !== dragPointerId) return;
+    rail.scrollLeft = dragScrollLeft - (e.clientX - dragStartX);
+    e.preventDefault();
+  };
+
+  const onPointerUp = (e: PointerEvent) => {
+    if (dragPointerId === null || e.pointerId !== dragPointerId) return;
+    endDrag(e.pointerId);
+  };
+
+  const onPointerCancel = (e: PointerEvent) => {
+    if (dragPointerId === null || e.pointerId !== dragPointerId) return;
+    endDrag(e.pointerId);
   };
 
   rail.addEventListener('wheel', onWheel, { passive: false });
@@ -122,6 +159,10 @@ export function bindHomeRailScroll(rail: HTMLElement): () => void {
   rail.addEventListener('touchmove', onTouchMove, { passive: false });
   rail.addEventListener('touchend', onTouchEnd, { passive: true });
   rail.addEventListener('touchcancel', onTouchEnd, { passive: true });
+  rail.addEventListener('pointerdown', onPointerDown);
+  rail.addEventListener('pointermove', onPointerMove, { passive: false });
+  rail.addEventListener('pointerup', onPointerUp);
+  rail.addEventListener('pointercancel', onPointerCancel);
 
   return () => {
     rail.removeEventListener('wheel', onWheel);
@@ -129,6 +170,10 @@ export function bindHomeRailScroll(rail: HTMLElement): () => void {
     rail.removeEventListener('touchmove', onTouchMove);
     rail.removeEventListener('touchend', onTouchEnd);
     rail.removeEventListener('touchcancel', onTouchEnd);
+    rail.removeEventListener('pointerdown', onPointerDown);
+    rail.removeEventListener('pointermove', onPointerMove);
+    rail.removeEventListener('pointerup', onPointerUp);
+    rail.removeEventListener('pointercancel', onPointerCancel);
   };
 }
 

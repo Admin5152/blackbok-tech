@@ -59,17 +59,17 @@ const TypographyLogo: React.FC<{ prefix?: string, mainText?: string, isLight?: b
     return (
         <div className="flex flex-col items-center select-none transition-all duration-500 w-full">
             {prefix && (
-                <span className={`text-7xl md:text-[10rem] font-black uppercase tracking-[0.4em] mb-6 md:mb-10 transition-colors duration-500 leading-none ${isLight ? 'text-black/40' : 'text-white/40'} ${prefixClassName}`}>
+                <span className={`text-4xl sm:text-5xl md:text-6xl font-black uppercase tracking-[0.28em] sm:tracking-[0.34em] mb-4 md:mb-8 transition-colors duration-500 leading-none ${isLight ? 'text-black/40' : 'text-white/40'} ${prefixClassName}`}>
                     {prefix}
                 </span>
             )}
 
             {size === 'hero' ? (
-                <div className="w-[85%] max-w-4xl flex justify-center items-center">
+                <div className="w-full max-w-[min(100%,280px)] sm:max-w-xs md:max-w-sm mx-auto flex justify-center items-center">
                     <img
                         src="/BlackBox.jpeg"
                         alt="BlackBox"
-                        className="w-full h-auto object-contain transition-[filter] [transition-duration:var(--bb-theme-duration)] [transition-timing-function:var(--bb-theme-easing)]"
+                        className="w-full h-auto max-h-[140px] sm:max-h-[180px] md:max-h-[220px] object-contain transition-[filter] [transition-duration:var(--bb-theme-duration)] [transition-timing-function:var(--bb-theme-easing)]"
                         style={{ filter: isLight ? 'invert(1) brightness(1.2)' : 'none' }}
                     />
                 </div>
@@ -119,7 +119,7 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
                     <img
                         src="/Group2.jpeg"
                         alt=""
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-cover object-center scale-105 sm:scale-100"
                         style={{ filter: isLight ? 'brightness(0.96)' : 'brightness(0.5)' }}
                     />
                     {/* Overlay so text stays legible over the photo */}
@@ -137,7 +137,7 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
                     <PageBackButton isLight={isLight} fallbackTo="/" />
                 </div>
 
-                <div className="relative z-10 mx-auto grid min-h-[calc(100vh-7rem)] w-full max-w-6xl items-center gap-10 animate-in fade-in slide-in-from-bottom-12 duration-1000 lg:grid-cols-[minmax(0,1.02fr)_minmax(320px,0.78fr)] lg:gap-16">
+                <div className="relative z-10 mx-auto grid w-full max-w-6xl items-center gap-8 animate-in fade-in slide-in-from-bottom-12 duration-1000 py-4 sm:py-8 lg:grid-cols-[minmax(0,1.02fr)_minmax(260px,0.72fr)] lg:gap-12">
                     <div className="max-w-3xl text-left">
                         <div className="mb-6 flex items-center gap-3">
                             <div className="h-px w-10 bg-[#D4AF37]" />
@@ -180,16 +180,16 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
                         </div>
                     </div>
 
-                    <div className={`bb-theme-transition relative rounded-[1.5rem] border p-5 shadow-2xl sm:p-6 lg:justify-self-end ${
+                    <div className={`bb-theme-transition relative rounded-[1.5rem] border p-4 shadow-2xl sm:p-5 lg:justify-self-end max-w-md w-full mx-auto lg:mx-0 ${
                         isLight
                             ? 'border-black/[0.08] bg-white shadow-[0_24px_70px_-36px_rgba(0,0,0,0.38)]'
                             : 'border-white/[0.1] bg-[#0b0b0d] shadow-[0_28px_80px_-30px_rgba(0,0,0,0.9)]'
                     }`}>
-                        <div className={`aspect-[4/3] overflow-hidden rounded-[1rem] border ${isLight ? 'border-black/[0.06] bg-[#f5f5f7]' : 'border-white/[0.08] bg-black'}`}>
+                        <div className={`aspect-[4/3] max-h-[200px] sm:max-h-[240px] overflow-hidden rounded-[1rem] border flex items-center justify-center ${isLight ? 'border-black/[0.06] bg-[#f5f5f7]' : 'border-white/[0.08] bg-black'}`}>
                             <img
                                 src="/BlackBox.jpeg"
                                 alt="BlackBox"
-                                className="h-full w-full object-contain p-8 transition-[filter] [transition-duration:var(--bb-theme-duration)] [transition-timing-function:var(--bb-theme-easing)]"
+                                className="max-h-full max-w-full object-contain p-4 sm:p-6 transition-[filter] [transition-duration:var(--bb-theme-duration)] [transition-timing-function:var(--bb-theme-easing)]"
                                 style={{ filter: isLight ? 'invert(1) brightness(1.2)' : 'none' }}
                             />
                         </div>
@@ -271,7 +271,7 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
                         </div>
 
                         <div className={`bb-theme-transition overflow-hidden rounded-[1.75rem] border reveal-on-scroll reveal-delay-2 ${isLight ? 'border-black/[0.06] bg-[#f5f5f7]' : 'border-white/[0.08] bg-black'}`}>
-                            <div className="relative aspect-[4/3] min-h-[18rem]">
+                            <div className="relative aspect-video max-h-[min(52vw,320px)] sm:max-h-[360px] w-full overflow-hidden">
                                 <video
                                     className="h-full w-full object-cover"
                                     src="/videos/blackboxaboutvid.mp4"

@@ -245,6 +245,16 @@ const toSpecifications = (
   return {};
 };
 
+/** Map UI/admin labels → DB CHECK values (new | preowned | refurbished). */
+export function normalizeProductCondition(value: unknown): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  const c = String(value).trim().toLowerCase().replace(/-/g, '');
+  if (!c || c === 'new') return 'new';
+  if (c === 'preowned' || c === 'used' || c.includes('preowned')) return 'preowned';
+  if (c === 'refurbished' || c.includes('refurb')) return 'refurbished';
+  return String(value).trim();
+}
+
 export const createProduct = async (product: Partial<Product>) => {
   const priceNum = product.price != null ? Number(product.price) : NaN;
   const specsJson = toSpecifications(
@@ -257,7 +267,7 @@ export const createProduct = async (product: Partial<Product>) => {
     image_url: product.image || product.image_url,
     category: product.category,
     brand: product.brand,
-    condition: product.condition,
+    condition: normalizeProductCondition(product.condition) ?? 'new',
     status: product.status || 'active',
     trade_model: product.trade_model === '' ? null : product.trade_model,
     currency: product.currency || 'GHS',
@@ -297,7 +307,9 @@ export const updateProduct = async (id: string, updates: Partial<Product>) => {
     image_url: updates.image || updates.image_url,
     category: updates.category,
     brand: updates.brand,
-    condition: updates.condition,
+    condition: updates.condition !== undefined
+      ? normalizeProductCondition(updates.condition)
+      : undefined,
     status: updates.status,
     trade_model: updates.trade_model === '' ? null : updates.trade_model,
     currency: updates.currency,
@@ -668,6 +680,49 @@ export const addProductImage = async (
   };
 };
 
+/** One gallery row per variant — used for colour-swap photos. */
+export const upsertProductImageForVariant = async (
+  productId: string,
+  variantId: string,
+  url: string,
+): Promise<ProductImage> => {
+  const { data: existing, error: findErr } = await supabase
+    .from('product_images')
+    .select('id')
+    .eq('product_id', productId)
+    .eq('variant_id', variantId)
+    .limit(1)
+    .maybeSingle();
+  if (findErr) throw findErr;
+
+  if (existing?.id) {
+    const { data, error } = await supabase
+      .from('product_images')
+      .update({ url })
+      .eq('id', existing.id)
+      .select('*')
+      .single();
+    if (error) throw error;
+    return {
+      id: String(data.id),
+      product_id: productId,
+      url: String(data.url),
+      alt_text: data.alt_text ?? null,
+      sort_order: Number(data.sort_order ?? 0),
+      is_primary: Boolean(data.is_primary),
+      variant_id: data.variant_id ?? null,
+      created_at: data.created_at ?? undefined,
+    };
+  }
+
+  return addProductImage(productId, {
+    url,
+    variant_id: variantId,
+    sort_order: 50,
+    is_primary: false,
+  });
+};
+
 /** Mark one image primary and demote others for the product. */
 export const setPrimaryProductImage = async (productId: string, imageId: string): Promise<void> => {
   const { error: clearErr } = await supabase
@@ -831,7 +886,7 @@ export function mapProductFromDb(p: any): Product {
     total_stock: totalStock,
     trade_model: p.trade_model ?? undefined,
     currency: p.currency ?? 'GHS',
-    condition: p.condition ?? undefined,
+    condition: normalizeProductCondition(p.condition) ?? undefined,
     status: p.status ?? undefined,
     brand: p.brand ?? undefined,
     discount: p.discount != null && p.discount !== '' ? Number(p.discount) : undefined,

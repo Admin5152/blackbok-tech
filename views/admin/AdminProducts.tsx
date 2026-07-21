@@ -30,6 +30,7 @@ import { AdminProductForm } from './AdminProductForm';
 import {
   PRODUCT_CATEGORIES,
   PRODUCT_CONDITIONS,
+  PRODUCT_CONDITION_OPTIONS,
   PRODUCT_STATUSES,
   type ProductDraft,
 } from './adminProductConstants';
@@ -617,8 +618,8 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                         className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase border ${isLight ? 'bg-white border-black/10' : 'bg-black/40 border-white/10 text-white'}`}
                     >
                         <option value="All">Condition: All</option>
-                        {PRODUCT_CONDITIONS.map((c) => (
-                            <option key={c} value={c}>{c}</option>
+                        {PRODUCT_CONDITION_OPTIONS.map((c) => (
+                            <option key={c.value} value={c.value}>{c.label}</option>
                         ))}
                     </select>
                     <div className="flex-1 min-w-[140px]">

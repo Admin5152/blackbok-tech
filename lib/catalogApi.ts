@@ -8,7 +8,7 @@
 import { supabase } from './supabase';
 import type { Product, ProductImage, ProductVariant } from '../types';
 import type { ProductPageRow } from '../types/supabase';
-import { normalizeProductCategory, normalizeProductImages } from './api';
+import { normalizeProductCategory, normalizeProductImages, normalizeProductCondition } from './api';
 
 /** Map one v_product_page row → UI Product (card-ready; no variants). */
 export function mapProductPageRow(row: ProductPageRow): Product {
@@ -45,7 +45,7 @@ export function mapProductPageRow(row: ProductPageRow): Product {
     storage: Array.isArray(row.storage) ? row.storage.filter(Boolean) : [],
     ram: Array.isArray(row.ram) ? row.ram.filter(Boolean) : [],
     specs: Array.isArray(row.specs) ? row.specs.filter(Boolean) : [],
-    condition: row.condition ?? undefined,
+    condition: normalizeProductCondition(row.condition) ?? undefined,
     status: row.status ?? undefined,
     trade_model: row.trade_model ?? undefined,
     featured: Boolean(row.featured),

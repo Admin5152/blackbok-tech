@@ -12,7 +12,8 @@
 --        Colour × Storage × SIM combo. Prices are absolute GHS on the variant
 --        (same price for every colour at a given storage/SIM).
 -- Colours: official Apple options per model (lib/appleColors.ts / trade-in).
--- SIM codes: ps = Physical SIM, es = eSIM, single = no SIM picker.
+-- Condition: new retail stock by default; set pre-owned in admin when needed.
+-- trade_model links trade-IN eligibility only — it does not imply pre-owned.
 -- Stock: 0 — set live stock in admin after import.
 --
 -- Idempotent: re-run updates prices on matching (product, color, storage,
@@ -466,11 +467,11 @@ begin
         'GHS',
         0,
         'active',
-        'preowned',
+        'new',
         coalesce(v_storages, '{}'),
         v_colors,
         false,
-        false,
+        true,
         m.model
       )
       returning id into v_product_id;
@@ -535,6 +536,14 @@ begin
       end loop;
     end loop;
   end loop;
+
+  -- Earlier draft used preowned for all iPhones; retail catalog is new unless admin sets otherwise
+  update public.products p
+     set condition = 'new',
+         is_new = true
+   where p.category = 'iPhone'
+     and p.condition = 'preowned'
+     and exists (select 1 from tmp_iphone_retail r where r.model = p.name);
 end;
 $seed$;
 
