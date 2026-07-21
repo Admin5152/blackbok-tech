@@ -7,6 +7,8 @@ import {
   Trash2,
 } from 'lucide-react';
 import type { User } from '../../types';
+import { WebPushSettingsCard } from '../../components/WebPushSettingsCard';
+import { Link } from '@tanstack/react-router';
 
 interface ProfileSettingsPanelProps {
   user: User;
@@ -124,6 +126,17 @@ export const ProfileSettingsPanel: React.FC<ProfileSettingsPanelProps> = ({
             {resetSending ? 'Sending…' : 'Email reset link'}
           </button>
         </div>
+      </div>
+
+      <div className="mt-8 space-y-3">
+        <WebPushSettingsCard isLight={isLight} signedIn={Boolean(user?.id)} />
+        <p className={`text-[11px] ${isLight ? 'text-gray-500' : 'text-white/40'}`}>
+          You can also manage this under{' '}
+          <Link to="/account/notifications" className="text-[#B38B21] font-bold hover:underline">
+            Account → Notifications
+          </Link>
+          .
+        </p>
       </div>
 
       <div className="mt-8 flex items-center justify-center p-8 bg-red-600/5 border border-dashed border-red-600/20 rounded-3xl">

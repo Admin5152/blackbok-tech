@@ -872,23 +872,38 @@ export const Home: React.FC<HomeProps> = ({
               <div className="w-20 h-1 bg-[#D4AF37]"></div>
             </div>
             {/* Filters / Navigation */}
-            <div className={`flex flex-wrap items-center gap-2 md:gap-4 p-2 rounded-full border ${theme === 'light' ? 'bg-white border-black/10' : 'bg-[#14141c] border-white/[0.08]'
-              }`}>
-              {['All Gear', 'Pro Series', 'Essentials'].map((filter) => {
-                const isActive = exploreFilter === filter;
-                return (
-                  <button
-                    key={filter}
-                    onClick={() => setExploreFilter(filter as any)}
-                    className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${isActive
-                      ? (theme === 'light' ? 'bg-black text-white shadow-lg' : 'bg-[#D4AF37] text-black shadow-[0_0_20px_rgba(212,175,55,0.3)]')
-                      : (theme === 'light' ? 'text-gray-500 hover:text-black hover:bg-black/5 hover:ring-1 hover:ring-[#B38B21]/35' : 'text-white/40 hover:text-white hover:bg-white/5 hover:ring-1 hover:ring-[#D4AF37]/30')
+            <div className="w-full md:w-auto overflow-x-auto -mx-1 px-1">
+              <div
+                className={`inline-flex min-w-full md:min-w-0 items-center justify-start gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-full border ${
+                  theme === 'light' ? 'bg-white border-black/10' : 'bg-[#14141c] border-white/[0.08]'
+                }`}
+                role="tablist"
+                aria-label="Explore collection filters"
+              >
+                {['All Gear', 'Pro Series', 'Essentials'].map((filter) => {
+                  const isActive = exploreFilter === filter;
+                  return (
+                    <button
+                      key={filter}
+                      type="button"
+                      role="tab"
+                      aria-selected={isActive}
+                      onClick={() => setExploreFilter(filter as any)}
+                      className={`shrink-0 whitespace-nowrap px-4 sm:px-6 py-2 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all ${
+                        isActive
+                          ? theme === 'light'
+                            ? 'bg-black text-white shadow-lg'
+                            : 'bg-[#D4AF37] text-black shadow-[0_0_20px_rgba(212,175,55,0.3)]'
+                          : theme === 'light'
+                            ? 'text-gray-500 hover:text-black hover:bg-black/5'
+                            : 'text-white/40 hover:text-white hover:bg-white/5'
                       }`}
-                  >
-                    {filter}
-                  </button>
-                );
-              })}
+                    >
+                      {filter}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 

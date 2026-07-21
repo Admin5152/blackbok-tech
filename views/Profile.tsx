@@ -196,6 +196,11 @@ export const Profile: React.FC<ProfileProps> = ({
       setSettingsErr('Enter a display name.');
       return;
     }
+    if (trimmed === (user.name || '').trim()) {
+      setSettingsErr('');
+      notify?.('That’s already your display name — nothing to update.', 'success');
+      return;
+    }
     setNameSaving(true);
     setSettingsErr('');
     try {
@@ -375,7 +380,7 @@ export const Profile: React.FC<ProfileProps> = ({
                         to="/faq"
                         className={`flex-1 sm:flex-initial px-4 sm:px-8 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border text-center ${isLight ? 'bg-white text-black border-gray-200 hover:bg-gray-50' : 'bg-white/5 text-white border-white/10 hover:bg-white/10'}`}
                       >
-                        Help Terminal
+                        Help Center
                       </Link>
                     </div>
                   </div>

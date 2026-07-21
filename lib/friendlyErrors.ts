@@ -106,7 +106,10 @@ export function friendlyError(e: unknown, action: FriendlyAction = 'complete tha
     if (/email|user/i.test(lower)) {
       return 'That email is already registered. Sign in instead, or use a different email.';
     }
-    return `Could not ${act} because that record already exists.`;
+    if (/model|name|title|key/i.test(lower)) {
+      return 'That name is already in use. Open the existing item to edit it, or choose a different name.';
+    }
+    return 'That item already exists. Open it to edit, or change the name and try again.';
   }
 
   // Missing relation / migrations — be specific (do NOT treat every "column" as product_variants)

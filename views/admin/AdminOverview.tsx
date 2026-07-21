@@ -102,6 +102,7 @@ interface StatCardProps {
     icon: any;
     value: string | number;
     label: string;
+    hint?: string;
     trend?: number;
     trendUp?: boolean;
     spark?: number[];
@@ -109,10 +110,10 @@ interface StatCardProps {
     onClick?: () => void;
 }
 
-const StatCard: React.FC<StatCardProps & { isLight?: boolean }> = ({ icon: Icon, value, label, trend, trendUp, spark, iconColor = STATUS_COLORS.info, onClick, isLight }) => (
+const StatCard: React.FC<StatCardProps & { isLight?: boolean }> = ({ icon: Icon, value, label, hint, trend, trendUp, spark, iconColor = STATUS_COLORS.info, onClick, isLight }) => (
     <button
         onClick={onClick}
-        aria-label={`${label}: ${value}. ${trend ? `Trending ${trendUp ? 'up' : 'down'} ${trend}%` : ''}`}
+        aria-label={`${label}: ${value}. ${hint || ''} ${trend ? `Trending ${trendUp ? 'up' : 'down'} ${trend}%` : ''}`}
         className={`border rounded-2xl p-4 sm:p-5 group transition-all duration-300 text-left relative overflow-hidden
         ${isLight ? 'bg-white border-black/5 hover:border-[#B38B21]/30 hover:bg-black/5' : 'bg-[#0a0a0a] border-white/5 hover:border-[#B38B21]/30 hover:bg-white/[0.02]'}
         ${onClick ? 'cursor-pointer active:scale-[0.98]' : 'cursor-default'}`}
@@ -137,6 +138,9 @@ const StatCard: React.FC<StatCardProps & { isLight?: boolean }> = ({ icon: Icon,
         <div className="mt-4 relative z-10">
             <p className={`text-xl sm:text-2xl font-black leading-tight ${isLight ? 'text-black' : 'text-white'}`}>{value}</p>
             <p className={`text-[10px] font-black uppercase tracking-widest mt-1 ${isLight ? 'text-black/50' : 'text-white/60'}`}>{label}</p>
+            {hint && (
+              <p className={`text-[10px] mt-1.5 leading-snug ${isLight ? 'text-black/45' : 'text-white/40'}`}>{hint}</p>
+            )}
         </div>
 
         {onClick && (
@@ -533,24 +537,30 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
                 </div>
             </section>
 
-            {/* OPERATIONAL STATUS — HCI Consolidated Grouping */}
+            {/* OPERATIONAL STATUS */}
             <section className="space-y-4">
                 <div className={`flex items-center gap-2 px-1 ${isLight ? 'text-black/50' : 'text-white/50'}`}>
                     <div className="w-1 h-3 bg-purple-500/50 rounded-full" />
                     <h2 className="text-[10px] font-black uppercase tracking-[0.2em]">Operations & Fulfillment</h2>
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <StatCard isLight={isLight}
+                    <StatCard
+                        isLight={isLight}
                         icon={ArrowUpRight}
                         value={pendingTrades + activeRepairs}
-                        label="Fulfillment Tasks"
+                        label="Open queue"
+                        hint={`${pendingTrades} trade-ins pending · ${activeRepairs} repairs in progress`}
                         iconColor="#a855f7"
                         onClick={() => onNavigate('trades')}
                     />
-                    <StatCard isLight={isLight} icon={AlertTriangle} value={lowStock} label="Stock Alerts" iconColor={lowStock > 0 ? STATUS_COLORS.critical : STATUS_COLORS.success} onClick={() => onNavigate('products')} />
-                    <StatCard isLight={isLight} icon={Package} value={products.length} label="Shop items" iconColor="#06b6d4" onClick={() => onNavigate('products')} />
-                    <div className={`hidden lg:block border rounded-2xl p-5 flex items-center justify-center text-center ${isLight ? 'bg-black/5 border-black/5' : 'bg-white/[0.01] border-white/5'}`}>
-                        <p className={`text-[9px] font-black uppercase tracking-[0.2em] ${isLight ? 'text-black/40' : 'text-white/30'}`}>Capacity: 84%</p>
+                    <StatCard isLight={isLight} icon={AlertTriangle} value={lowStock} label="Stock Alerts" hint="Shop items with fewer than 5 in stock" iconColor={lowStock > 0 ? STATUS_COLORS.critical : STATUS_COLORS.success} onClick={() => onNavigate('products')} />
+                    <StatCard isLight={isLight} icon={Package} value={products.length} label="Shop items" hint="Active catalogue products" iconColor="#06b6d4" onClick={() => onNavigate('products')} />
+                    <div className={`col-span-2 lg:col-span-1 border rounded-2xl p-5 flex flex-col justify-center gap-1 ${isLight ? 'bg-black/5 border-black/5' : 'bg-white/[0.01] border-white/5'}`}>
+                        <p className={`text-[9px] font-black uppercase tracking-[0.2em] ${isLight ? 'text-black/45' : 'text-white/35'}`}>Fulfillment mode</p>
+                        <p className={`text-sm font-black ${isLight ? 'text-black' : 'text-white'}`}>Store pickup only</p>
+                        <p className={`text-[10px] leading-snug ${isLight ? 'text-black/45' : 'text-white/40'}`}>
+                          Delivery is off for shop orders. Customers collect at BlackBox HQ (KNUST).
+                        </p>
                     </div>
                 </div>
             </section>

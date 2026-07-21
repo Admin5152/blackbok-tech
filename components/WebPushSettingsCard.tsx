@@ -106,10 +106,9 @@ export function WebPushSettingsCard({ isLight, signedIn }: Props) {
           <BellRing size={16} aria-hidden />
         </div>
         <div className="min-w-0 flex-1 space-y-1">
-          <p className="text-sm font-black tracking-tight">Browser push</p>
+          <p className="text-sm font-black tracking-tight">Browser notifications</p>
           <p className={`text-xs leading-relaxed ${muted}`}>
-            Get order, repair, and trade updates even when the site is in the background.
-            Uses the Web Push API (via the Node <code className="text-[10px]">web-push</code> library on the server).
+            Turn these on to get order, repair, and trade updates on this device — even when the BlackBox tab is closed.
           </p>
         </div>
       </div>
@@ -136,7 +135,7 @@ export function WebPushSettingsCard({ isLight, signedIn }: Props) {
             className="inline-flex items-center gap-2 rounded-xl bg-[#CDA032] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-black disabled:opacity-40"
           >
             {busy ? <Loader2 size={12} className="animate-spin" /> : <BellRing size={12} />}
-            Enable push
+            Turn on notifications
           </button>
         ) : (
           <button

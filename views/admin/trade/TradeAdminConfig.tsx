@@ -131,7 +131,10 @@ export const TradeAdminConfig: React.FC = () => {
       return;
     }
     if (rows.some((r) => r.key === key)) {
-      notify?.(`Key “${key}” already exists.`, 'error');
+      notify?.(
+        `“${key}” is already in the list. Edit that row below instead of adding it again.`,
+        'warning',
+      );
       return;
     }
     setAdding(true);

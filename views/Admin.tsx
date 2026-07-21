@@ -187,8 +187,11 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
             </div>
           )}
           <button
+            type="button"
             onClick={() => setSidebar(v => !v)}
-            className={`transition-colors ml-auto shrink-0 ${isLight ? 'text-black/40 hover:text-black' : 'text-white/20 hover:text-white'}`}
+            aria-label={sidebar ? 'Collapse side menu' : 'Expand side menu'}
+            title={sidebar ? 'Collapse menu — keep content, hide labels' : 'Expand menu'}
+            className={`transition-colors ml-auto shrink-0 p-2 rounded-lg ${isLight ? 'text-black/40 hover:text-black hover:bg-black/5' : 'text-white/20 hover:text-white hover:bg-white/5'}`}
           >
             {sidebar ? <X size={18} /> : <Menu size={18} />}
           </button>

@@ -123,6 +123,16 @@ export const TradeAdminDevices: React.FC = () => {
       notify?.('Enter a model name (e.g. iPhone 15 Pro).', 'warning');
       return;
     }
+    const existing = rows.find(
+      (r) => r.model.trim().toLowerCase() === name.toLowerCase(),
+    );
+    if (existing) {
+      notify?.(
+        `"${existing.model}" is already in the list. Scroll down to edit it — you don’t need to add it again.`,
+        'warning',
+      );
+      return;
+    }
     setAdding(true);
     try {
       const row = await upsertTradeDevice({
