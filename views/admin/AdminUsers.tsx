@@ -21,6 +21,7 @@ export const AdminUsers: React.FC<{
 }> = ({ canEdit = false, currentUserId }) => {
     const [users, setUsers] = useState<User[]>([]);
     const [deletedAccounts, setDeletedAccounts] = useState<AccountDeletionRow[]>([]);
+    const [deletedLoadError, setDeletedLoadError] = useState('');
     const [listTab, setListTab] = useState<'active' | 'deleted'>('active');
     const [q, setQ] = useState('');
     const [roleFilter, setRoleFilter] = useState('all');
@@ -35,9 +36,22 @@ export const AdminUsers: React.FC<{
         let mounted = true;
         const fetchUserData = async () => {
             try {
-                const dbUsers = await getUsers();
+                const [dbUsers, deletionsResult] = await Promise.all([
+                    getUsers(),
+                    getAccountDeletions()
+                        .then((rows) => ({ rows, error: '' }))
+                        .catch((err) => {
+                            console.warn('Failed to load deleted accounts:', err);
+                            return {
+                                rows: [] as AccountDeletionRow[],
+                                error: friendlyError(err, 'load deleted accounts'),
+                            };
+                        }),
+                ]);
                 if (mounted) {
                     setUsers(dbUsers as any);
+                    setDeletedAccounts(deletionsResult.rows);
+                    setDeletedLoadError(deletionsResult.error);
                     setLoadError('');
                     setLoading(false);
                 }
@@ -45,6 +59,7 @@ export const AdminUsers: React.FC<{
                 console.error("Failed to fetch users from database:", error);
                 if (mounted) {
                     setUsers([]);
+                    setDeletedAccounts([]);
                     setLoadError(friendlyError(error, 'load users'));
                     setLoading(false);
                 }
@@ -307,6 +322,9 @@ export const AdminUsers: React.FC<{
                     >
                         <UserX size={14} />
                         Deleted accounts
+                        {!loading && (
+                            <span className="opacity-70">({deletedAccounts.length})</span>
+                        )}
                     </button>
                 </div>
             </div>
@@ -316,6 +334,11 @@ export const AdminUsers: React.FC<{
                     <p className="text-xs text-white/50">
                         Customers who used “Delete account” in their profile. Auth and shop rows for that login are removed; this list is kept for support and audit.
                     </p>
+                    {deletedLoadError && (
+                        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200 font-medium">
+                            {deletedLoadError}
+                        </div>
+                    )}
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <SearchInput value={q} onChange={setQ} placeholder="Search by email or name…" />
                     </div>

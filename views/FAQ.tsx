@@ -74,6 +74,10 @@ export const FAQ: React.FC<FAQProps> = ({ theme: themeProp }) => {
                     answer: "We offer a 14-day hassle-free return policy for unopened/unused accessories. For open-box devices, returns are subject to a standard restocking fee."
                 },
                 {
+                    question: "What warranty do products come with?",
+                    answer: "Devices sold by BlackBox include a 2-month warranty covering faults from BlackBox only (for example manufacturing or pre-sale defects we are responsible for). Damage caused by the customer — drops, liquid, misuse, unauthorized repairs, or similar — is not covered."
+                },
+                {
                     question: "How do I return something or request a refund?",
                     answer: "Start from your account so we can match the return to your order. Eligibility, timelines, and fees follow our Returns and Refund policies (for example, many sealed items must be within 14 days of delivery).",
                     steps: [

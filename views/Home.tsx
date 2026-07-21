@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   ChevronRight, ChevronLeft, ArrowRight, Settings,
-  Users, Award, TrendingUp, Star, Quote, ArrowLeftRight, Wrench, Mail, Phone, MapPin, Heart, Eye,
+  Users, Award, TrendingUp, ArrowLeftRight, Wrench, Mail, Phone, MapPin, Heart, Eye,
   ShoppingCart,
 } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
@@ -59,9 +59,7 @@ export const Home: React.FC<HomeProps> = ({
   theme,
   navigateTo,
 }) => {
-  const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
   const [exploreFilter, setExploreFilter] = useState<'All Gear' | 'Pro Series' | 'Essentials'>('All Gear');
-
   const [currentHighlightsIndex, setCurrentHighlightsIndex] = useState(0);
   const [heroSlide, setHeroSlide] = useState(0);
   const [heroCollageSettled, setHeroCollageSettled] = useState(false);
@@ -73,11 +71,8 @@ export const Home: React.FC<HomeProps> = ({
 
   const heroSlideCount = heroImageFilenames.length;
 
-  useHomeRailScroll();
-  useAutoHomeRails(
-    ['featured-products-slider', 'phones-slider', 'laptop-slider'],
-    4500,
-  );
+  useHomeRailScroll(products.length);
+  useAutoHomeRails(['featured-products-slider', 'phones-slider', 'laptop-slider']);
 
   useEffect(() => {
     setHeroSlide(0);
@@ -175,14 +170,6 @@ export const Home: React.FC<HomeProps> = ({
   const homeMiniCardHover = isDark
     ? 'transition-all duration-200 hover:shadow-[0_0_0_1px_rgba(212,175,55,0.28)]'
     : 'transition-all duration-200 hover:shadow-[0_0_0_1px_rgba(179,139,33,0.38)]';
-
-  const customerReviews = [
-    { name: "Kwame Asante", text: "Excellent service and quality gear. BlackBox is my go-to for all tech needs.", rating: 5 },
-    { name: "Ama Mensah", text: "Professional repair service and fair trade-in values. Highly recommended!", rating: 5 },
-    { name: "Kojo Osei", text: "Great customer service and authentic gear. The best tech store in Kumasi.", rating: 5 },
-    { name: "Yaa Boakye", text: "Fast repairs and reasonable prices. I'm very satisfied with their service.", rating: 5 },
-    { name: "Kwame Boateng", text: "Amazing experience! Got exactly what I needed at a great price.", rating: 5 }
-  ];
 
   return (
     <div className={`bb-home-page bb-theme-transition view-transition w-full min-w-0 overflow-x-hidden no-print ${isDark ? 'bg-[#030308]' : 'bg-[#f5f5f7]'}`}>
@@ -442,13 +429,6 @@ export const Home: React.FC<HomeProps> = ({
                 </button>
 
                 <div className={`bb-home-rail-product-card__footer bg-gradient-to-t ${theme === 'dark' ? 'from-[#050508]/95 via-[#050508]/55 to-transparent' : 'from-white via-white/85 to-transparent'}`}>
-                  <div className="bb-home-rail-product-card__rating flex items-center gap-2 mb-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-y-2 group-hover:translate-y-0">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} size={8} className={`${i < Math.floor(p.rating || 4) ? 'text-[#CDA032] fill-current' : theme === 'dark' ? 'text-white/20' : 'text-black/20'}`} />
-                    ))}
-                    <span className={`text-[9px] font-bold ml-1 ${theme === 'dark' ? 'text-white/50' : 'text-black/50'}`}>({p.reviewCount || 678})</span>
-                  </div>
-
                   <h3 className={`bb-home-rail-product-card__title font-black uppercase italic tracking-wider text-sm leading-tight mb-1 line-clamp-2 drop-shadow-sm ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                     {p.name}
                   </h3>
@@ -581,13 +561,6 @@ export const Home: React.FC<HomeProps> = ({
                 </button>
 
                 <div className={`bb-home-rail-product-card__footer bg-gradient-to-t ${theme === 'dark' ? 'from-[#050508]/95 via-[#050508]/55 to-transparent' : 'from-white via-white/85 to-transparent'}`}>
-                  <div className="bb-home-rail-product-card__rating flex items-center gap-2 mb-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-y-2 group-hover:translate-y-0">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} size={8} className={`${i < Math.floor(p.rating || 4) ? 'text-[#CDA032] fill-current' : theme === 'dark' ? 'text-white/20' : 'text-black/20'}`} />
-                    ))}
-                    <span className={`text-[9px] font-bold ml-1 ${theme === 'dark' ? 'text-white/50' : 'text-black/50'}`}>({p.reviewCount || 678})</span>
-                  </div>
-
                   <h3 className={`bb-home-rail-product-card__title font-black uppercase italic tracking-wider text-sm leading-tight mb-1 line-clamp-2 drop-shadow-sm ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                     {p.name}
                   </h3>
@@ -715,13 +688,6 @@ export const Home: React.FC<HomeProps> = ({
                 </button>
 
                 <div className={`bb-home-rail-product-card__footer bg-gradient-to-t ${theme === 'dark' ? 'from-[#050508]/95 via-[#050508]/55 to-transparent' : 'from-white via-white/85 to-transparent'}`}>
-                  <div className="bb-home-rail-product-card__rating flex items-center gap-2 mb-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-y-2 group-hover:translate-y-0">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} size={8} className={`${i < Math.floor(p.rating || 4) ? 'text-[#CDA032] fill-current' : theme === 'dark' ? 'text-white/20' : 'text-black/20'}`} />
-                    ))}
-                    <span className={`text-[9px] font-bold ml-1 ${theme === 'dark' ? 'text-white/50' : 'text-black/50'}`}>({p.reviewCount || 678})</span>
-                  </div>
-
                   <h3 className={`bb-home-rail-product-card__title font-black uppercase italic tracking-wider text-sm leading-tight mb-1 line-clamp-2 drop-shadow-sm ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                     {p.name}
                   </h3>

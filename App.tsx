@@ -23,6 +23,7 @@ import { canAccessAdminDashboard, normalizeCanonicalRole } from './lib/roles';
 import { setupMobileBackButton, preventAppClose } from './lib/mobileNavigation';
 import { scrollToDocumentTop } from './lib/scrollToDocumentTop';
 import { consumeAuthRedirect } from './lib/consumeAuthRedirect';
+import { ensureWebPushEnabledByDefault } from './lib/webPushClient';
 import { SmoothScroll } from './components/SmoothScroll';
 import { ScrollReveal } from './components/ScrollReveal';
 import { whatsAppUrl } from './lib/contact';
@@ -1137,6 +1138,15 @@ function RootComponent() {
 
     return cleanup;
   }, []);
+
+  // Browser push on by default for signed-in users (skips if they opted out / denied).
+  useEffect(() => {
+    if (!authReady || !user?.id) return;
+    const t = window.setTimeout(() => {
+      void ensureWebPushEnabledByDefault();
+    }, 1200);
+    return () => window.clearTimeout(t);
+  }, [authReady, user?.id]);
 
   useEffect(() => {
     let cancelled = false;

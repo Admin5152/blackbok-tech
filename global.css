@@ -504,21 +504,29 @@ html.bb-scroll-locked body {
   overflow: hidden !important;
 }
 
-/* Home: horizontal product rails — allow vertical page scroll on touch + wheel */
+/* Home: horizontal product rails.
+   touch-action: none — JS (homeRailScroll) owns vertical page + horizontal rail
+   because data-lenis-prevent blocks Lenis on these nodes. */
 .bb-home-rail {
   -webkit-overflow-scrolling: touch;
-  touch-action: pan-x pan-y;
+  touch-action: none;
   overscroll-behavior-x: contain;
-  overscroll-behavior-y: contain;
+  overscroll-behavior-y: auto;
   scroll-behavior: auto;
-  scroll-snap-type: x proximity;
-  /* Auto horizontal scroll must not shift the document via scroll anchoring */
+  scroll-snap-type: x mandatory;
   overflow-anchor: none;
 }
 
 .bb-home-rail > [data-home-rail-item] {
   scroll-snap-align: start;
-  scroll-snap-stop: normal;
+  scroll-snap-stop: always;
+  -webkit-user-drag: none;
+}
+
+.bb-home-rail img {
+  -webkit-user-drag: none;
+  user-select: none;
+  touch-action: none;
 }
 
 /* Home rails — intro promo cards (Featured / Take a peek / Laptops) */

@@ -1,9 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Link } from '@tanstack/react-router';
 import {
     Mail,
     Star,
-    Quote,
     ArrowRight,
     Target,
     Eye,
@@ -13,8 +12,6 @@ import {
     Users,
     ShieldCheck,
     TrendingUp,
-    ChevronLeft,
-    ChevronRight,
     Box,
     Lightbulb,
     Scale,
@@ -106,31 +103,12 @@ const panelClass = (isLight: boolean, extra = '') =>
 
 export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
     const isLight = theme === 'light';
-    const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
 
     useEffect(() => {
         window.requestAnimationFrame(() => {
             window.dispatchEvent(new Event('bb-scroll-reveal-scan'));
         });
     }, [theme]);
-
-    const customerReviews = [
-        {
-            name: "Kwame Osei",
-            text: "BlackBox completely transformed how I buy tech in Ghana. The quality is unmatched and delivery was incredibly fast.",
-            rating: 5,
-        },
-        {
-            name: "Ama Mensah",
-            text: "Traded in my old iPhone for a new Mac. The process was seamless and I got great value. Highly recommend!",
-            rating: 5,
-        },
-        {
-            name: "David Kusi",
-            text: "Outstanding customer service. They went above and beyond to help me choose the right laptop for my design work.",
-            rating: 5,
-        },
-    ];
 
     return (
         <div data-about-page className={`min-h-screen bb-theme-transition ${isLight ? 'bg-[#ffffff] text-black' : 'bg-black text-white'}`}>
@@ -379,86 +357,6 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
                                     <p className={`mt-2 text-[10px] font-black uppercase tracking-[0.22em] ${isLight ? 'text-black/80' : 'text-white/85'}`}>{label}</p>
                                     <p className={`mt-1 text-[9px] font-bold uppercase tracking-widest ${isLight ? 'text-black/40' : 'text-white/35'}`}>{sub}</p>
                                 </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Testimonials */}
-                    <div className="mt-16 md:mt-20 reveal-on-scroll reveal-delay-2">
-                        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                            <div>
-                                <p className={`text-[10px] font-black uppercase tracking-[0.4em] ${isLight ? 'text-black/40' : 'text-white/40'}`}>Customer voices</p>
-                                <h3 className="mt-2 text-2xl font-black italic tracking-tight md:text-3xl">Real people. Real trust.</h3>
-                            </div>
-                            <div className="flex gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => setCurrentReviewIndex((i) => (i - 1 + customerReviews.length) % customerReviews.length)}
-                                    className={`flex h-10 w-10 items-center justify-center rounded-full border transition-all ${isLight ? 'border-black/10 hover:bg-black hover:text-white' : 'border-white/15 hover:bg-[#D4AF37] hover:text-black hover:border-transparent'}`}
-                                    aria-label="Previous review"
-                                >
-                                    <ChevronLeft size={18} />
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setCurrentReviewIndex((i) => (i + 1) % customerReviews.length)}
-                                    className={`flex h-10 w-10 items-center justify-center rounded-full border transition-all ${isLight ? 'border-black/10 hover:bg-black hover:text-white' : 'border-white/15 hover:bg-[#D4AF37] hover:text-black hover:border-transparent'}`}
-                                    aria-label="Next review"
-                                >
-                                    <ChevronRight size={18} />
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Featured quote */}
-                        <div className={`${panelClass(isLight, 'relative overflow-hidden p-8 md:p-12 mb-6')}`}>
-                            <Quote className="absolute right-6 top-6 text-[#D4AF37]/15 md:right-10 md:top-10" size={64} />
-                            <div className="relative z-10 max-w-3xl">
-                                <div className="mb-6 flex gap-1">
-                                    {[...Array(customerReviews[currentReviewIndex].rating)].map((_, i) => (
-                                        <Star key={i} size={16} className="fill-[#D4AF37] text-[#D4AF37]" />
-                                    ))}
-                                </div>
-                                <blockquote className={`text-xl font-medium italic leading-relaxed md:text-2xl md:leading-relaxed ${isLight ? 'text-black/85' : 'text-white/85'}`}>
-                                    &ldquo;{customerReviews[currentReviewIndex].text}&rdquo;
-                                </blockquote>
-                                <footer className="mt-8 flex items-center gap-4">
-                                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-[#D4AF37] to-[#B38B21] text-sm font-black text-black">
-                                        {customerReviews[currentReviewIndex].name.charAt(0)}
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-black uppercase tracking-widest">{customerReviews[currentReviewIndex].name}</p>
-                                        <p className={`text-[10px] font-bold uppercase tracking-[0.3em] ${isLight ? 'text-black/40' : 'text-white/40'}`}>Verified customer</p>
-                                    </div>
-                                </footer>
-                            </div>
-                            <div className="mt-8 flex justify-center gap-2">
-                                {customerReviews.map((_, i) => (
-                                    <button
-                                        key={i}
-                                        type="button"
-                                        onClick={() => setCurrentReviewIndex(i)}
-                                        aria-label={`Show review ${i + 1}`}
-                                        className={`h-2 rounded-full transition-all ${currentReviewIndex === i ? 'w-8 bg-[#D4AF37]' : `w-2 ${isLight ? 'bg-black/15' : 'bg-white/20'}`}`}
-                                    />
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Compact review strip */}
-                        <div className="grid gap-4 md:grid-cols-3">
-                            {customerReviews.map((review, index) => (
-                                <button
-                                    key={review.name}
-                                    type="button"
-                                    onClick={() => setCurrentReviewIndex(index)}
-                                    className={`${panelClass(isLight, `text-left p-5 hover:-translate-y-0.5 ${currentReviewIndex === index ? 'ring-2 ring-[#D4AF37]/40 border-[#D4AF37]/30' : ''}`)}`}
-                                >
-                                    <p className={`line-clamp-3 text-sm font-medium leading-relaxed ${isLight ? 'text-black/70' : 'text-white/65'}`}>
-                                        &ldquo;{review.text}&rdquo;
-                                    </p>
-                                    <p className="mt-4 text-[10px] font-black uppercase tracking-widest text-[#D4AF37]">{review.name}</p>
-                                </button>
                             ))}
                         </div>
                     </div>

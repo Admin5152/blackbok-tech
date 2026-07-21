@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { X, Minus, Plus, ShoppingCart, Star, ShieldCheck, Package } from 'lucide-react';
+import { X, Minus, Plus, ShoppingCart, ShieldCheck, Package } from 'lucide-react';
 import { Product } from '../types';
 import { formatCurrency } from '../lib/utils';
 import { useAppContext } from '../App';
@@ -133,16 +133,6 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
                   <span className="rounded-full border border-[#CDA032]/20 bg-[#CDA032]/10 px-3 py-1 text-[8px] font-black uppercase tracking-widest text-[#CDA032]">
                     {product.category}
                   </span>
-                  <div
-                    className={`flex items-center gap-1.5 rounded-full border px-3 py-1 ${
-                      isLight ? 'bg-black/[0.04] border-black/10' : 'bg-white/5 border-white/5'
-                    }`}
-                  >
-                    <Star size={10} className="fill-[#CDA032] text-[#CDA032]" />
-                    <span className="text-[9px] font-black" style={{ color: 'var(--bb-muted)' }}>
-                      {product.rating || '4.5'}
-                    </span>
-                  </div>
                 </div>
 
                 <h2 className="select-none text-2xl sm:text-3xl font-black uppercase italic leading-[0.95] tracking-tighter">
@@ -352,7 +342,7 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
                   <div className="flex items-center gap-2">
                     <ShieldCheck size={14} className="text-[#CDA032]" />
                     <span className="text-[8px] font-black uppercase tracking-widest">
-                      Global Warranty
+                      2 Month Warranty
                     </span>
                   </div>
                   <div className="flex items-center gap-2">

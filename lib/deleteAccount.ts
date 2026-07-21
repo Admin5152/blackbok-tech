@@ -69,14 +69,20 @@ export class DeleteAccountService {
         .maybeSingle();
 
       const logEmail = (profileRow?.email || user.email || '').trim();
-      if (logEmail) {
+      // Always record the deletion so Admin → Deleted accounts stays accurate.
+      {
         const { error: deletionLogError } = await client.from('account_deletions').insert({
           user_id: user.id,
-          email: logEmail,
+          email: logEmail || `deleted-${user.id.slice(0, 8)}@unknown.local`,
           display_name: profileRow?.name?.trim() || null,
         });
         if (deletionLogError) {
-          console.warn('Could not append account_deletions row (migration may be pending):', deletionLogError);
+          console.error('account_deletions insert failed:', deletionLogError);
+          return {
+            success: false,
+            error:
+              'Could not log this account for the deleted-accounts list. Try again, or contact support if it keeps failing.',
+          };
         }
       }
 

@@ -7,7 +7,7 @@
  */
 import React, { useMemo } from 'react';
 import { Link } from '@tanstack/react-router';
-import { ShoppingCart, Heart, Eye, Star, Scale } from 'lucide-react';
+import { ShoppingCart, Heart, Eye, Scale } from 'lucide-react';
 import { Product } from '../types';
 import { formatCurrency, TW_DARK_BTN_DEPTH, TW_DARK_GOLD_BTN_DEPTH } from '../lib/utils';
 import { useAppContext } from '../App';
@@ -205,26 +205,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             >
               {product.name}
             </h3>
-            <div className={`flex items-center gap-1 ${isCompact ? 'max-sm:hidden' : ''}`}>
-              <div className="flex gap-px">
-                {[...Array(5)].map((_, i) => (
-                  <Star
-                    key={i}
-                    size={9}
-                    className={
-                      i < Math.floor(product.rating || 4)
-                        ? 'fill-[#CDA032] text-[#CDA032]'
-                        : isLight
-                          ? 'text-black/20'
-                          : 'text-white/22'
-                    }
-                  />
-                ))}
-              </div>
-              <span className={`text-[9px] ${isLight ? 'text-black/45' : 'text-white/50'}`}>
-                ({product.reviewCount || 0})
-              </span>
-            </div>
           </div>
 
           {/* Color dots from view.colors[] — display only, max 5 +n */}

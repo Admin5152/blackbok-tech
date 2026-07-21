@@ -1,15 +1,17 @@
 import { useEffect } from 'react';
 import { scrollHomeRailLoop } from '../lib/homeCarouselScroll';
 
+/** Default auto-advance cadence for Feature picks / phones / laptops. */
+export const HOME_RAIL_AUTO_MS = 2800;
+
 /**
  * Auto-advance homepage product rails (phones / laptops / highlights).
- * Pauses while the user hovers, focuses, touches, or manually scrolls a rail,
- * while the tab is hidden, and while the rail is mostly off-screen
- * (off-screen auto-scroll was yanking the page via scroll anchoring).
+ * Manual swipe / arrows still work; auto pauses briefly after user interaction,
+ * while the tab is hidden, and while the rail is mostly off-screen.
  */
 export function useAutoHomeRails(
   railIds: string[],
-  intervalMs = 4500,
+  intervalMs = HOME_RAIL_AUTO_MS,
 ): void {
   useEffect(() => {
     if (typeof window === 'undefined' || railIds.length === 0) return;
@@ -45,8 +47,9 @@ export function useAutoHomeRails(
         const onPointerLeave = () => resume();
         const onFocusIn = () => pause();
         const onFocusOut = () => resume();
-        const onScroll = () => pause(7000);
-        const onTouchStart = () => pause(7000);
+        // Shorter pause so auto keeps moving after a quick swipe.
+        const onScroll = () => pause(3500);
+        const onTouchStart = () => pause(3500);
 
         rail.addEventListener('mouseenter', onPointerEnter);
         rail.addEventListener('mouseleave', onPointerLeave);
@@ -58,8 +61,7 @@ export function useAutoHomeRails(
         io = new IntersectionObserver(
           (entries) => {
             const entry = entries[0];
-            // Require a meaningful share of the rail so partial peeks don't auto-tick.
-            inView = Boolean(entry?.isIntersecting && entry.intersectionRatio >= 0.4);
+            inView = Boolean(entry?.isIntersecting && entry.intersectionRatio >= 0.25);
           },
           { threshold: [0, 0.25, 0.4, 0.6, 1], rootMargin: '0px' },
         );
@@ -77,7 +79,6 @@ export function useAutoHomeRails(
         };
       };
 
-      // Rails mount with products; retry briefly if not ready yet.
       let unbindRail: (() => void) | null = bind();
       const retry = window.setTimeout(() => {
         if (!unbindRail) unbindRail = bind();

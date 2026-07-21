@@ -82,6 +82,7 @@ async function removePersistedSubscription(endpoint: string): Promise<void> {
 
 /** Request permission, subscribe with VAPID, store endpoint for this user. */
 export async function enableWebPush(): Promise<PushSubscription> {
+  clearWebPushOptOut();
   const vapid = getVapidPublicKey();
   if (!vapid) {
     throw new Error(
@@ -111,6 +112,7 @@ export async function enableWebPush(): Promise<PushSubscription> {
 }
 
 export async function disableWebPush(): Promise<void> {
+  setWebPushOptOut();
   if (!isWebPushSupported()) return;
   const reg = await navigator.serviceWorker.ready;
   const sub = await reg.pushManager.getSubscription();
@@ -118,6 +120,58 @@ export async function disableWebPush(): Promise<void> {
   const endpoint = sub.endpoint;
   await sub.unsubscribe();
   await removePersistedSubscription(endpoint);
+}
+
+const WEB_PUSH_OPT_OUT_KEY = 'bb_web_push_opt_out';
+
+export function isWebPushOptedOut(): boolean {
+  try {
+    return localStorage.getItem(WEB_PUSH_OPT_OUT_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function setWebPushOptOut(): void {
+  try {
+    localStorage.setItem(WEB_PUSH_OPT_OUT_KEY, '1');
+  } catch {
+    /* ignore */
+  }
+}
+
+export function clearWebPushOptOut(): void {
+  try {
+    localStorage.removeItem(WEB_PUSH_OPT_OUT_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Turn browser push on by default for signed-in users.
+ * Skips if the user previously disabled push, or the browser denied permission.
+ * Safe to call repeatedly (re-persists an existing subscription).
+ */
+export async function ensureWebPushEnabledByDefault(): Promise<
+  'enabled' | 'skipped' | 'denied' | 'unsupported' | 'error'
+> {
+  if (!isWebPushSupported() || !getVapidPublicKey()) return 'unsupported';
+  if (isWebPushOptedOut()) return 'skipped';
+  if (typeof Notification !== 'undefined' && Notification.permission === 'denied') {
+    return 'denied';
+  }
+
+  try {
+    await enableWebPush();
+    return 'enabled';
+  } catch (err) {
+    console.warn('[ensureWebPushEnabledByDefault]', err);
+    if (typeof Notification !== 'undefined' && Notification.permission === 'denied') {
+      return 'denied';
+    }
+    return 'error';
+  }
 }
 
 /** Ask the Node/Vite test API to send a push to the signed-in user. */

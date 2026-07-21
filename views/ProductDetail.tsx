@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Product, ProductImage } from '../types';
-import { X, Plus, Minus, Heart, Share2, Star, Check, Truck, Shield, RefreshCw, ArrowLeft, Copy, Facebook, Twitter, ChevronRight } from 'lucide-react';
+import { X, Plus, Minus, Heart, Share2, Check, Truck, Shield, RefreshCw, ArrowLeft, Copy, Facebook, Twitter, ChevronRight } from 'lucide-react';
 import { formatGhs } from '../lib/money';
 import { ProductImageGallery } from '../components/product/ProductImageGallery';
 import { ProductAvailabilityBadge } from '../components/ProductAvailabilityBadge';
@@ -109,38 +109,6 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
   const [isCopied, setIsCopied] = useState(false);
   const overviewRef = useRef<HTMLDivElement | null>(null);
   const specsRef = useRef<HTMLDivElement | null>(null);
-  const reviewsRef = useRef<HTMLDivElement | null>(null);
-
-  const mockReviews = [
-    {
-      id: 1,
-      name: 'Kwame Asante',
-      rating: 5,
-      title: 'Exactly as described',
-      body: 'Fantastic build quality and battery life. Feels brand new even though it is pre-owned. Would definitely buy from BlackBox again.',
-      date: '2 days ago',
-    },
-    {
-      id: 2,
-      name: 'Ama Mensah',
-      rating: 4,
-      title: 'Great value for money',
-      body: 'The device had a tiny cosmetic scratch but overall performance is smooth. Customer service walked me through setup.',
-      date: '1 week ago',
-    },
-    {
-      id: 3,
-      name: 'Kojo Osei',
-      rating: 5,
-      title: 'Perfect for my workflow',
-      body: 'Display is crisp, speakers are loud and the battery easily lasts a full day. Trade-in credit also helped a lot.',
-      date: '3 weeks ago',
-    },
-  ];
-
-  const averageRating =
-    mockReviews.reduce((sum, r) => sum + r.rating, 0) / mockReviews.length;
-  const totalReviews = mockReviews.length;
 
   useEffect(() => {
     setSelectedOptions(defaultSelectedOptionsForProduct(product));
@@ -268,12 +236,6 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               >
                 Specs
               </button>
-              <button
-                onClick={() => scrollTo(reviewsRef)}
-                className={`shrink-0 px-4 py-2 rounded-full border text-[10px] font-black uppercase tracking-[0.35em] transition ${isLight ? 'bg-black/5 border-black/10 hover:bg-black/10 text-black' : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'}`}
-              >
-                Reviews
-              </button>
             </div>
           </div>
         </div>
@@ -308,7 +270,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               </h1>
             </div>
 
-            {/* Price + rating — effective price for selected SKU (fn_variant_effective_price) */}
+            {/* Price — effective price for selected SKU (fn_variant_effective_price) */}
             <div className="flex items-center gap-4 flex-wrap">
               <span className="text-2xl sm:text-3xl font-bold text-[#B38B21] tabular-nums">
                 {formatGhs(unitPrice)}
@@ -318,21 +280,6 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                 <span className={`text-base line-through ${isLight ? 'text-black/35' : 'text-white/40'}`}>
                   {formatGhs(listPrice)}
                 </span>
-              )}
-
-              {product.rating && (
-                <div className="flex items-center gap-1.5 text-yellow-400">
-                  <Star className="w-5 h-5 fill-yellow-400 shrink-0" />
-                  <span className={isLight ? 'text-black' : 'text-white'}>{product.rating}</span>
-                  <button
-                    onClick={() => scrollTo(reviewsRef)}
-                    className={`text-sm transition-colors ${isLight ? 'text-black/40 hover:text-black/70' : 'text-white/40 hover:text-white/70'}`}
-                    aria-label="Jump to reviews"
-                    type="button"
-                  >
-                    ({product.reviewCount})
-                  </button>
-                </div>
               )}
             </div>
 
@@ -565,7 +512,10 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               </div>
               <div>
                 <Shield className="mx-auto mb-2 text-[#B38B21]" />
-                <p className={`text-xs ${isLight ? 'text-black/50' : 'text-white/60'}`}>1 Year Warranty</p>
+                <p className={`text-xs font-semibold ${isLight ? 'text-black/70' : 'text-white/75'}`}>2 Month Warranty</p>
+                <p className={`mt-1 text-[10px] leading-snug px-1 ${isLight ? 'text-black/45' : 'text-white/45'}`}>
+                  BlackBox faults only — not user damage
+                </p>
               </div>
               <div>
                 <RefreshCw className="mx-auto mb-2 text-[#B38B21]" />
@@ -603,128 +553,6 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               )}
             </div>
 
-          </div>
-        </div>
-
-        {/* Reviews */}
-        <div ref={reviewsRef as any} className={`mt-16 border-t pt-12 ${isLight ? 'border-black/10' : 'border-white/10'}`}>
-          <div className="flex items-end justify-between gap-6 flex-wrap">
-            <div>
-              <h2 className={`text-2xl sm:text-3xl font-bold ${isLight ? 'text-black' : 'text-white'}`}>Reviews</h2>
-            </div>
-            {/* Review submission UI intentionally hidden until feature scope is approved */}
-          </div>
-
-          <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div
-              className={`lg:col-span-1 rounded-2xl border p-6 ${
-                isLight ? 'border-black/10 bg-white' : 'border-white/10 bg-black/30'
-              }`}
-            >
-              <p className={`text-[10px] font-black uppercase tracking-[0.35em] ${isLight ? 'text-black/45' : 'text-white/40'}`}>
-                Overall rating
-              </p>
-              <div className="mt-3 flex items-center gap-3">
-                <div className="text-4xl font-extrabold text-[#B38B21]">
-                  {averageRating.toFixed(1)}
-                </div>
-                <div>
-                  <div className="flex gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`w-4 h-4 ${i < Math.round(averageRating)
-                          ? 'fill-yellow-400 text-yellow-400'
-                          : isLight
-                            ? 'text-black/15'
-                            : 'text-white/20'
-                          }`}
-                      />
-                    ))}
-                  </div>
-                  <p className={`text-sm mt-1 ${isLight ? 'text-black/50' : 'text-white/50'}`}>
-                    {totalReviews} reviews
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div
-              className={`lg:col-span-2 rounded-2xl border p-6 ${
-                isLight ? 'border-black/10 bg-white' : 'border-white/10 bg-black/30'
-              }`}
-            >
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <p className={`text-[10px] font-black uppercase tracking-[0.35em] ${isLight ? 'text-black/45' : 'text-white/40'}`}>
-                  Review feed
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    className={`px-3 py-2 rounded-full border text-[9px] font-black uppercase tracking-widest ${
-                      isLight ? 'bg-black/[0.06] border-black/10 text-black' : 'bg-white/10 border-white/10 text-white'
-                    }`}
-                  >
-                    Top
-                  </button>
-                  <button
-                    type="button"
-                    className={`px-3 py-2 rounded-full border text-[9px] font-black uppercase tracking-widest transition ${
-                      isLight
-                        ? 'bg-black/[0.03] border-black/10 text-black/60 hover:text-black'
-                        : 'bg-white/5 border-white/10 text-white/60 hover:text-white'
-                    }`}
-                  >
-                    Recent
-                  </button>
-                </div>
-              </div>
-              <div className="mt-6">
-                <div className="space-y-4">
-                  {mockReviews.map((review) => (
-                    <div
-                      key={review.id}
-                      className={`rounded-2xl border p-4 sm:p-5 ${
-                        isLight ? 'border-black/10 bg-zinc-50' : 'border-white/10 bg-black/40'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-3 flex-wrap">
-                        <div>
-                          <p className={`text-sm font-semibold ${isLight ? 'text-black' : 'text-white'}`}>
-                            {review.name}
-                          </p>
-                          <p className={`text-[11px] ${isLight ? 'text-black/45' : 'text-white/40'}`}>
-                            {review.date}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {[...Array(5)].map((_, i) => (
-                            <Star
-                              key={i}
-                              className={`w-3.5 h-3.5 ${i < review.rating
-                                ? 'fill-yellow-400 text-yellow-400'
-                                : isLight
-                                  ? 'text-black/12'
-                                  : 'text-white/15'
-                                }`}
-                            />
-                          ))}
-                          <span className={`text-xs ml-1 ${isLight ? 'text-black/55' : 'text-white/60'}`}>
-                            {review.rating}.0
-                          </span>
-                        </div>
-                      </div>
-                      <h3 className={`mt-3 text-sm font-semibold ${isLight ? 'text-black' : 'text-white'}`}>
-                        {review.title}
-                      </h3>
-                      <p className={`mt-2 text-sm leading-relaxed ${isLight ? 'text-black/75' : 'text-white/70'}`}>
-                        {review.body}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 

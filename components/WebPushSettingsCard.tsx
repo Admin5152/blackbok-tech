@@ -1,11 +1,13 @@
 /**
  * Enable browser Web Push + send a self-test notification.
+ * Push is on by default for signed-in users (App auto-enables unless opted out).
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import { BellRing, Loader2, Send } from 'lucide-react';
 import {
   disableWebPush,
   enableWebPush,
+  ensureWebPushEnabledByDefault,
   getExistingPushSubscription,
   getVapidPublicKey,
   isWebPushSupported,
@@ -39,8 +41,25 @@ export function WebPushSettingsCard({ isLight, signedIn }: Props) {
   }, [supported]);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    if (!signedIn || !supported || !hasVapid) {
+      void refresh();
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const result = await ensureWebPushEnabledByDefault();
+      if (cancelled) return;
+      if (result === 'enabled') {
+        setEnabled(true);
+        setMessage('Browser notifications are on for this device.');
+      } else {
+        await refresh();
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [signedIn, supported, hasVapid, refresh]);
 
   const onEnable = async () => {
     setBusy(true);
@@ -108,7 +127,8 @@ export function WebPushSettingsCard({ isLight, signedIn }: Props) {
         <div className="min-w-0 flex-1 space-y-1">
           <p className="text-sm font-black tracking-tight">Browser notifications</p>
           <p className={`text-xs leading-relaxed ${muted}`}>
-            Turn these on to get order, repair, and trade updates on this device — even when the BlackBox tab is closed.
+            On by default when you sign in — order, repair, and trade updates on this device,
+            even when the BlackBox tab is closed. You can turn them off anytime.
           </p>
         </div>
       </div>

@@ -226,7 +226,15 @@ export const Policies: React.FC<PoliciesProps> = ({ theme: themeProp }) => {
                                 </ul>
                             </Section>
 
-                            <Section number="03" title="Finality of Sale">
+                            <Section number="03" title="Product Warranty">
+                                <ul className="space-y-2">
+                                    <Bullet>Products sold by BlackBox carry a 2-month warranty from the date of purchase.</Bullet>
+                                    <Bullet>Coverage applies only to faults attributable to BlackBox (for example pre-sale or manufacturing defects we are responsible for).</Bullet>
+                                    <Bullet>Damage caused by the customer — including drops, liquid exposure, misuse, or unauthorized repairs — is not covered.</Bullet>
+                                </ul>
+                            </Section>
+
+                            <Section number="04" title="Finality of Sale">
                                 <ul className="space-y-2">
                                     <Bullet>Once a purchase is completed, it is considered final unless covered under our <button onClick={() => setActiveTab('refund')} className="underline hover:text-[#CDA032]">Refund Policy</button>.</Bullet>
                                 </ul>

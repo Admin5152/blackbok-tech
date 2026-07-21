@@ -12,6 +12,8 @@ import {
   Lock,
   LogIn,
   UserPlus,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import { useAppContext } from '../App';
@@ -103,6 +105,7 @@ const InlineAuthForm: React.FC<InlineAuthFormProps> = ({ onAuthenticated, notify
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [busy, setBusy] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -205,15 +208,28 @@ const InlineAuthForm: React.FC<InlineAuthFormProps> = ({ onAuthenticated, notify
         </div>
         <div>
           <label className="block text-sm font-medium mb-2">Password</label>
-          <input
-            type="password"
-            required
-            minLength={6}
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-            className="w-full bg-neutral-100 dark:bg-black/50 border border-black/15 dark:border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none text-black placeholder:text-black/45 dark:text-white dark:placeholder:text-white/35"
-            placeholder="At least 6 characters"
-          />
+          <div className="relative">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              required
+              minLength={6}
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              disabled={busy}
+              className="w-full bg-neutral-100 dark:bg-black/50 border border-black/15 dark:border-white/20 rounded-lg px-4 py-3 pr-12 focus:border-[#B38B21] outline-none text-black placeholder:text-black/45 dark:text-white dark:placeholder:text-white/35 disabled:opacity-50"
+              placeholder="At least 6 characters"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              disabled={busy}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B38B21] transition-colors disabled:opacity-50"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
         </div>
 
         <button

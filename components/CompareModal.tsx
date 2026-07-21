@@ -224,7 +224,7 @@ export const CompareModal: React.FC<CompareModalProps> = ({
                               </div>
                               <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 rounded-full bg-white/10" />
-                                <span className="text-[10px] text-white/60">Warranty</span>
+                                <span className="text-[10px] text-white/60">2 Month Warranty</span>
                               </div>
                               <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 rounded-full bg-white/10" />
