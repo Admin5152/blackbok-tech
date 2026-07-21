@@ -104,7 +104,15 @@ export function webPushTestPlugin(mode: string): Plugin {
           sendJson(200, result);
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
+          const code =
+            err && typeof err === 'object' && 'code' in err
+              ? String((err as { code?: string }).code || '')
+              : '';
           console.error('[web-push-test]', message);
+          if (code === 'PUSH_NOT_CONFIGURED' || /VAPID|SERVICE_ROLE|not configured/i.test(message)) {
+            sendJson(503, { error: message, code: 'PUSH_NOT_CONFIGURED' });
+            return;
+          }
           sendJson(500, { error: message });
         }
       });

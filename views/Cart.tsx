@@ -16,8 +16,10 @@ import {
 } from "lucide-react";
 import { CartItem, Product, User } from "../types";
 import { formatCurrency } from "../lib/utils";
+import { formatGHS, pesewasToGhs } from "../lib/promotions";
 import { ProductCard } from "../components/ProductCard";
 import { PageBackButton } from "../components/PageBackButton";
+import { PromoCodeInput, type AppliedPromoQuote } from "../components/checkout/PromoCodeInput";
 import { useAppContext } from "../App";
 
 interface CartProps {
@@ -61,6 +63,7 @@ export const Cart: React.FC<CartProps> = ({
   const [digitalAddress, setDigitalAddress] = useState(user?.address || '');
   const [region, setRegion] = useState(user?.region || '');
   const [town, setTown] = useState(user?.city || '');
+  const [appliedPromo, setAppliedPromo] = useState<AppliedPromoQuote | null>(null);
 
   const freeShippingThreshold = 5000;
   const subtotal = cart.reduce(
@@ -69,7 +72,9 @@ export const Cart: React.FC<CartProps> = ({
   );
   const tax = subtotal * 0.125;
   const shipping = 0;
-  const total = subtotal + tax + shipping;
+  // Discount display only — value came from promo_quote (pesewas → GHS).
+  const discountGhs = appliedPromo ? pesewasToGhs(appliedPromo.discount_pesewas) : 0;
+  const total = Math.max(0, subtotal + tax + shipping - discountGhs);
 
   const progressToFreeShipping = Math.min((subtotal / freeShippingThreshold) * 100, 100);
   const remainingForFreeShipping = Math.max(freeShippingThreshold - subtotal, 0);
@@ -346,18 +351,14 @@ export const Cart: React.FC<CartProps> = ({
 
               <div className="w-full h-px border-b border-dashed border-black/20 dark:border-white/20 relative z-10" />
 
-              {/* Promo Code */}
+              {/* Promo Code — promo_quote on apply + cart change */}
               <div className="relative z-10">
-                <div className="flex bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-full p-1.5 focus-within:ring-2 focus-within:ring-[#CDA032]/50 focus-within:border-[#CDA032] transition-all shadow-sm">
-                  <input
-                    type="text"
-                    placeholder="PROMO CODE"
-                    className="flex-1 bg-transparent px-4 py-2 text-xs sm:text-sm focus:outline-none uppercase font-black tracking-widest text-black dark:text-white placeholder:text-black/40 dark:placeholder:text-white/40"
-                  />
-                  <button className="px-6 py-2.5 bg-black text-white dark:bg-white dark:text-black rounded-full text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#CDA032] hover:text-black dark:hover:bg-[#CDA032] transition-all hover:scale-105 active:scale-95 shadow-md">
-                    Apply
-                  </button>
-                </div>
+                <PromoCodeInput
+                  cart={cart}
+                  onAppliedChange={setAppliedPromo}
+                  theme={theme}
+                  compact
+                />
               </div>
 
               {/* Ledger */}
@@ -366,6 +367,17 @@ export const Cart: React.FC<CartProps> = ({
                   <span className="font-bold opacity-50 uppercase tracking-widest">Subtotal</span>
                   <span className="font-black tracking-tight">{formatCurrency(subtotal)}</span>
                 </div>
+
+                {appliedPromo && (
+                  <div className="flex justify-between items-center text-xs sm:text-sm text-emerald-600 dark:text-emerald-400">
+                    <span className="font-bold uppercase tracking-widest truncate pr-2">
+                      {appliedPromo.name}
+                    </span>
+                    <span className="font-black tracking-tight shrink-0">
+                      −{formatGHS(appliedPromo.discount_pesewas)}
+                    </span>
+                  </div>
+                )}
 
                 <div className="flex justify-between items-center text-xs sm:text-sm">
                   <span className="font-bold opacity-50 uppercase tracking-widest">Taxes <span className="opacity-50 lowercase tracking-normal font-medium">(12.5%)</span></span>

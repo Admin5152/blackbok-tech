@@ -5,6 +5,7 @@ import React from 'react';
 import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
 import { RefreshCcw } from 'lucide-react';
 import { PageBackButton } from '../../components/PageBackButton';
+import { FlowBreadcrumb } from '../../components/FlowBreadcrumb';
 import { TradeCollapsedSteps } from '../../components/trade/TradeCollapsedSteps';
 import { TradeSummarySidebar } from '../../components/trade/TradeSummarySidebar';
 import { TradeFlowProvider } from '../../components/trade/TradeFlowProvider';
@@ -14,14 +15,14 @@ import { isTradeV2Enabled } from '../../lib/tradeFeatureFlags';
 import { prefetchTradeCatalog } from '../../lib/tradeCatalogCache';
 
 const STEP_PATHS = [
-  { id: 1, path: '/trade/type' },
-  { id: 2, path: '/trade/category' },
-  { id: 3, path: '/trade/model' },
-  { id: 4, path: '/trade/config' },
-  { id: 5, path: '/trade/target' },
-  { id: 6, path: '/trade/condition' },
-  { id: 7, path: '/trade/summary' },
-  { id: 8, path: '/trade/details' },
+  { id: 1, path: '/trade/type', label: 'Device' },
+  { id: 2, path: '/trade/category', label: 'Category' },
+  { id: 3, path: '/trade/model', label: 'Model' },
+  { id: 4, path: '/trade/config', label: 'Config' },
+  { id: 5, path: '/trade/target', label: 'Upgrade' },
+  { id: 6, path: '/trade/condition', label: 'Condition' },
+  { id: 7, path: '/trade/summary', label: 'Summary' },
+  { id: 8, path: '/trade/details', label: 'Details' },
 ] as const;
 
 function stepFromPath(pathname: string): number {
@@ -46,6 +47,21 @@ function TradeLayoutInner() {
     currentStep <= 1
       ? '/'
       : STEP_PATHS[currentStep - 2]?.path ?? '/trade/type';
+
+  const breadcrumbItems = isConfirmation
+    ? [
+        { label: 'Home', to: '/' },
+        { label: 'Trade-in', to: '/trade/type' },
+        { label: 'Confirmation' },
+      ]
+    : [
+        { label: 'Home', to: '/' },
+        { label: 'Trade-in', to: '/trade/type' },
+        ...STEP_PATHS.filter((s) => s.id <= currentStep).map((s) => ({
+          label: s.label,
+          to: s.id < currentStep ? s.path : undefined,
+        })),
+      ];
 
   return (
     <div
@@ -73,6 +89,9 @@ function TradeLayoutInner() {
 
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 md:px-10 pt-6 sm:pt-10 z-10 relative">
         <header className="mb-6 sm:mb-8">
+          <div className="mb-3">
+            <FlowBreadcrumb items={breadcrumbItems} />
+          </div>
           <div className="mb-4">
             <PageBackButton
               isLight={theme === 'light'}

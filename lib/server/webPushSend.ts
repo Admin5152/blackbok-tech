@@ -30,9 +30,11 @@ export function configureWebPushFromEnv(env = process.env): {
   const subject = (env.VAPID_SUBJECT || 'mailto:admin@blackboxghana.com').trim();
 
   if (!publicKey || !privateKey) {
-    throw new Error(
-      'Missing VAPID keys. Set VITE_VAPID_PUBLIC_KEY (or VAPID_PUBLIC_KEY) and VAPID_PRIVATE_KEY.',
+    const err = new Error(
+      'Push is not configured. Set VITE_VAPID_PUBLIC_KEY (or VAPID_PUBLIC_KEY) and VAPID_PRIVATE_KEY in .env, then restart the server.',
     );
+    (err as Error & { code?: string }).code = 'PUSH_NOT_CONFIGURED';
+    throw err;
   }
 
   webpush.setVapidDetails(subject, publicKey, privateKey);
@@ -43,7 +45,11 @@ export function createServiceSupabase(env = process.env) {
   const url = (env.SUPABASE_URL || env.VITE_SUPABASE_URL || '').trim();
   const serviceKey = (env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
   if (!url || !serviceKey) {
-    throw new Error('Missing SUPABASE_URL (or VITE_SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY.');
+    const err = new Error(
+      'Push needs SUPABASE_SERVICE_ROLE_KEY (and SUPABASE_URL or VITE_SUPABASE_URL) in .env. The anon key alone cannot send push.',
+    );
+    (err as Error & { code?: string }).code = 'PUSH_NOT_CONFIGURED';
+    throw err;
   }
   return createClient(url, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -104,8 +110,11 @@ export async function sendWebPushToUser(
       continue;
     }
     failed += 1;
-    if (result.statusCode === 404 || result.statusCode === 410) {
-      gone.push(row.id);
+    if (result.ok === false) {
+      const statusCode = result.statusCode;
+      if (statusCode === 404 || statusCode === 410) {
+        gone.push(row.id);
+      }
     }
   }
 

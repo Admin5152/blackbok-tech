@@ -77,6 +77,10 @@ import { TradeAdminConfig } from './views/admin/trade/TradeAdminConfig';
 import { TradeAdminQuestionnaire } from './views/admin/trade/TradeAdminQuestionnaire';
 import { TradeAdminAesthetics } from './views/admin/trade/TradeAdminAesthetics';
 import { TradeAdminAudit } from './views/admin/trade/TradeAdminAudit';
+import { AdminPromotionsList } from './views/admin/promotions/AdminPromotionsList';
+import { AdminPromotionDetail } from './views/admin/promotions/AdminPromotionDetail';
+import { AdminPromotionBuilder } from './views/admin/promotions/AdminPromotionBuilder';
+import { PromoVoucherPrint } from './views/admin/promotions/PromoVoucherPrint';
 import { saveReturnTo } from './lib/returnTo';
 import { isTradeV2Enabled } from './lib/tradeFeatureFlags';
 import { ForgotPassword } from './views/ForgotPassword';
@@ -546,13 +550,18 @@ const AdminRouteShell: React.FC = () => {
   const [verified, setVerified] = useState<boolean | null>(null);
   const isTradeAdminPath =
     location.pathname === '/admin/trade' || location.pathname.startsWith('/admin/trade/');
+  const isPromotionsAdminPath =
+    location.pathname === '/admin/promotions' ||
+    location.pathname.startsWith('/admin/promotions/');
   const initialSection =
     isTradeAdminPath
       ? ('trades' as const)
-      : location.pathname === '/admin/products' ||
-          location.pathname.startsWith('/admin/products/')
-        ? ('products' as const)
-        : undefined;
+      : isPromotionsAdminPath
+        ? ('promotions' as const)
+        : location.pathname === '/admin/products' ||
+            location.pathname.startsWith('/admin/products/')
+          ? ('products' as const)
+          : undefined;
 
   useEffect(() => {
     if (!authReady) {
@@ -717,6 +726,37 @@ const adminTradeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/admin/trade',
   component: AdminRouteShell,
+});
+
+/** Promotions Admin — list / builder / detail / print under Admin chrome. */
+const adminPromotionsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/admin/promotions',
+  component: AdminRouteShell,
+});
+
+const adminPromotionsIndexRoute = createRoute({
+  getParentRoute: () => adminPromotionsRoute,
+  path: '/',
+  component: AdminPromotionsList,
+});
+
+const adminPromotionsNewRoute = createRoute({
+  getParentRoute: () => adminPromotionsRoute,
+  path: '/new',
+  component: AdminPromotionBuilder,
+});
+
+const adminPromotionDetailRoute = createRoute({
+  getParentRoute: () => adminPromotionsRoute,
+  path: '/$promoId',
+  component: AdminPromotionDetail,
+});
+
+const adminPromotionPrintRoute = createRoute({
+  getParentRoute: () => adminPromotionsRoute,
+  path: '/$promoId/print',
+  component: PromoVoucherPrint,
 });
 
 const adminTradeIndexRoute = createRoute({
@@ -991,6 +1031,12 @@ const routeTree = rootRoute.addChildren([
   resetPasswordRoute,
   adminRoute,
   adminProductsRoute,
+  adminPromotionsRoute.addChildren([
+    adminPromotionsIndexRoute,
+    adminPromotionsNewRoute,
+    adminPromotionPrintRoute,
+    adminPromotionDetailRoute,
+  ]),
   adminTradeRoute.addChildren([
     adminTradeIndexRoute,
     adminTradeDevicesRoute,
@@ -1080,6 +1126,8 @@ function RootComponent() {
     location.pathname === '/admin' ||
     location.pathname === '/admin/products' ||
     location.pathname.startsWith('/admin/products/') ||
+    location.pathname === '/admin/promotions' ||
+    location.pathname.startsWith('/admin/promotions/') ||
     location.pathname === '/admin/trade' ||
     location.pathname.startsWith('/admin/trade/');
   const isForgotPasswordRoute = location.pathname === '/forgot-password';

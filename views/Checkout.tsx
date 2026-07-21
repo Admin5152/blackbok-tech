@@ -19,15 +19,29 @@ import { formatCurrency } from '../lib/utils';
 import { clearCartItems, updateProfilePhone } from '../lib/api';
 import { friendlyError } from '../lib/friendlyErrors';
 import { OrderCompletePopup } from '../components/OrderCompletePopup';
-import { CouponInput } from '../components/checkout/CouponInput';
-import type { AppliedCoupon } from '../hooks/useCoupons';
+import {
+  PromoCodeInput,
+  type AppliedPromoQuote,
+} from '../components/checkout/PromoCodeInput';
 import { useCheckout, type CheckoutCartItem } from '../hooks/useCheckout';
 import { buildProductOptionsForRpc } from '../lib/orderItemOptions';
 import { requestLifecycleEmail } from '../lib/clientNotifyEmail';
 import { DELIVERY_ENABLED, DEFAULT_SHIPPING_METHOD } from '../lib/fulfillmentConfig';
 import { saveReturnTo } from '../lib/returnTo';
 import { saveCheckoutDraft, takeCheckoutDraft } from '../lib/checkoutDraft';
-
+import {
+  clearPersistedPromoCode,
+  loadPersistedPromoCode,
+} from '../lib/promoCart';
+import {
+  fetchCampuses,
+  fetchOrderChargeTotalGhs,
+  formatGHS,
+  pesewasToGhs,
+  promoReserve,
+  promoSetOrderCampus,
+} from '../lib/promotions';
+import { supabase, getSupabaseAnonKey } from '../lib/supabase';
 // ============================================================
 // Constants — kept at the top so they're easy to audit / extend.
 // ============================================================
@@ -137,8 +151,8 @@ export const Checkout: React.FC = () => {
   const [showOrderComplete, setShowOrderComplete] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
 
-  // --- Pricing ---
-  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
+  // --- Pricing (discount from promo_quote only — never computed locally) ---
+  const [appliedPromo, setAppliedPromo] = useState<AppliedPromoQuote | null>(null);
   const subtotal = useMemo(
     () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
     [cart],
@@ -147,13 +161,13 @@ export const Checkout: React.FC = () => {
     if (shippingMethod === 'pickup') return 0;
     return subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST_DELIVERY_FLAT;
   }, [shippingMethod, subtotal]);
-  const discount = Math.min(appliedCoupon?.discountAmount ?? 0, subtotal);
-  const total = Math.max(0, subtotal + shippingCost - discount);
+  const discountGhs = appliedPromo ? pesewasToGhs(appliedPromo.discount_pesewas) : 0;
+  const total = Math.max(0, subtotal + shippingCost - discountGhs);
 
-  // Drop the coupon if the cart empties out mid-flow.
+  // Drop the promo if the cart empties out mid-flow.
   useEffect(() => {
-    if (cart.length === 0 && appliedCoupon) setAppliedCoupon(null);
-  }, [cart.length, appliedCoupon]);
+    if (cart.length === 0 && appliedPromo) setAppliedPromo(null);
+  }, [cart.length, appliedPromo]);
 
   // Pickup forces cash-on-pickup — keep paymentMethod in sync.
   useEffect(() => {
@@ -300,7 +314,7 @@ export const Checkout: React.FC = () => {
               .filter(Boolean)
               .join(', ');
 
-      const result = await rpcPlaceOrder(items, appliedCoupon, {
+      const result = await rpcPlaceOrder(items, null, {
         shipping_address: shippingAddress,
         shipping_method: shippingMethod,
         shipping_cost: shippingCost,
@@ -310,6 +324,61 @@ export const Checkout: React.FC = () => {
         customer_phone: phone || null,
         notes: null,
       });
+
+      // Checkout init: attach campus (scope) then promo_reserve once.
+      // Charge total always comes from the server after reserve.
+      const promoCode = loadPersistedPromoCode() || appliedPromo?.code || null;
+      let chargeTotalGhs =
+        typeof result.total === 'number' ? result.total : total;
+
+      try {
+        const campuses = await fetchCampuses(true);
+        const campusId = campuses[0]?.id;
+        if (campusId) {
+          await promoSetOrderCampus(result.order_id, campusId);
+        }
+
+        // promo_reserve exactly once per checkout — never from the cart page.
+        const reserved = await promoReserve({
+          order_id: result.order_id,
+          code: promoCode,
+        });
+        if (promoCode && !reserved.ok) {
+          // Server message verbatim — do not paraphrase.
+          notify(reserved.message, 'error');
+        }
+        chargeTotalGhs = await fetchOrderChargeTotalGhs(result.order_id);
+      } catch (promoErr: unknown) {
+        console.warn('promo_reserve failed:', promoErr);
+        const msg =
+          promoErr instanceof Error && promoErr.message
+            ? promoErr.message
+            : null;
+        if (msg && promoCode) notify(msg, 'error');
+      }
+
+      // In-person path: apply reserved stock (Paystack webhook does this for card/MoMo).
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData.session?.access_token;
+        if (accessToken) {
+          const origin =
+            typeof window !== 'undefined' ? window.location.origin : '';
+          await fetch(`${origin}/api/promo/apply-in-person`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${accessToken}`,
+              apikey: getSupabaseAnonKey(),
+            },
+            body: JSON.stringify({ order_id: result.order_id }),
+          });
+        }
+      } catch (applyErr) {
+        console.warn('promo_apply (in-person) failed:', applyErr);
+      }
+
+      clearPersistedPromoCode();
 
       // Clear cart (server + client).
       try {
@@ -322,8 +391,7 @@ export const Checkout: React.FC = () => {
 
       void refreshProducts();
 
-      const serverTotal =
-        typeof result.total === 'number' ? result.total : total;
+      const serverTotal = chargeTotalGhs;
       const nowIso = new Date().toISOString();
       const newOrder: Order = {
         id: result.order_id,
@@ -506,9 +574,9 @@ export const Checkout: React.FC = () => {
               </div>
 
               <div className="border-t border-black/10 dark:border-white/10 pt-4 mb-4">
-                <CouponInput
-                  orderTotal={subtotal}
-                  onCouponApplied={setAppliedCoupon}
+                <PromoCodeInput
+                  cart={cart}
+                  onAppliedChange={setAppliedPromo}
                   theme={theme}
                 />
               </div>
@@ -518,10 +586,10 @@ export const Checkout: React.FC = () => {
                   <span>Subtotal</span>
                   <span>{formatCurrency(subtotal)}</span>
                 </div>
-                {discount > 0 && appliedCoupon && (
+                {appliedPromo && appliedPromo.discount_pesewas > 0 && (
                   <div className="flex justify-between text-sm text-emerald-400">
-                    <span>Discount ({appliedCoupon.code})</span>
-                    <span>−{formatCurrency(discount)}</span>
+                    <span className="truncate pr-2">{appliedPromo.name}</span>
+                    <span className="shrink-0">−{formatGHS(appliedPromo.discount_pesewas)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm">

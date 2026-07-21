@@ -1,9 +1,11 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import { QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import './global.css';
 import { ensureHashRoute } from './lib/hashRouteBootstrap';
 import { consumeAuthRedirect } from './lib/consumeAuthRedirect';
+import { queryClient } from './lib/queryClient';
 
 ensureHashRoute();
 
@@ -35,7 +37,9 @@ async function boot() {
   const root = createRoot(rootElement);
   root.render(
     <React.StrictMode>
-      <App />
+      <QueryClientProvider client={queryClient}>
+        <App />
+      </QueryClientProvider>
     </React.StrictMode>,
   );
 }
