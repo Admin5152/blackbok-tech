@@ -373,10 +373,10 @@ export const Cart: React.FC<CartProps> = ({
                 </div>
 
                 <div className="flex justify-between items-center text-xs sm:text-sm">
-                  <span className="font-bold opacity-50 uppercase tracking-widest">Shipping</span>
+                  <span className="font-bold opacity-50 uppercase tracking-widest">Pickup</span>
                   {shipping === 0 ? (
                     <span className="text-[10px] sm:text-xs uppercase font-black tracking-[0.2em] text-[#CDA032] bg-[#CDA032]/10 px-3 py-1 rounded-full">
-  Free Pickup
+  Free · Store only
                     </span>
                   ) : (
                     <span className="font-black tracking-tight">{formatCurrency(shipping)}</span>

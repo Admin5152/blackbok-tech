@@ -25,19 +25,23 @@ export const FAQ: React.FC<FAQProps> = ({ theme: themeProp }) => {
 
     const faqs: FaqCategory[] = [
         {
-            category: "Orders & Shipping",
+            category: "Orders & Pickup",
             items: [
                 {
-                    question: "How long does delivery take?",
-                    answer: "Delivery within Kumasi takes 1-2 business days. Nationwide delivery outside Kumasi typically takes 3-5 business days via Courier services."
+                    question: "How do I get my order?",
+                    answer: "BlackBox is store pickup only for now. After you place an order, pick it up at our KNUST Campus branch — usually within 24 hours of confirmation. We will notify you when it is ready."
                 },
                 {
                     question: "Can I track my order?",
-                    answer: "Yes, once your order is dispatched, you will receive a tracking link in your profile's Orders page that provides real-time updates."
+                    answer: "Yes. Track status from your profile Orders page. For pickup orders you will see when it is being prepared and when it is ready at the store."
+                },
+                {
+                    question: "Do you offer delivery?",
+                    answer: "Not yet. All shop orders are free store pickup at BlackBox HQ (KNUST Campus, Kumasi). Delivery may come later."
                 },
                 {
                     question: "Do you offer in-store pickup?",
-                    answer: "Absolutely. During checkout, you can select 'Pickup' and retrieve your device at our KNUST campus branch at your convenience."
+                    answer: "Yes — that is how all shop orders work right now. Collect your device at our KNUST campus branch after checkout."
                 }
             ]
         },

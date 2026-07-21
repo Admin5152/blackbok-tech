@@ -27,6 +27,7 @@ import { useCheckout, type CheckoutCartItem } from '../hooks/useCheckout';
 import { buildProductOptionsForRpc } from '../lib/orderItemOptions';
 import { normalizeCanonicalRole } from '../lib/roles';
 import { requestLifecycleEmail } from '../lib/clientNotifyEmail';
+import { DELIVERY_ENABLED, DEFAULT_SHIPPING_METHOD } from '../lib/fulfillmentConfig';
 
 // ============================================================
 // Constants — kept at the top so they're easy to audit / extend.
@@ -275,7 +276,13 @@ export const Checkout: React.FC = () => {
   const [step, setStep] = useState<1 | 2>(1);
 
   // --- Shipping fields ---
-  const [shippingMethod, setShippingMethod] = useState<ShippingMethod>('pickup');
+  const [shippingMethod, setShippingMethod] = useState<ShippingMethod>(DEFAULT_SHIPPING_METHOD);
+
+  useEffect(() => {
+    if (!DELIVERY_ENABLED && shippingMethod !== 'pickup') {
+      setShippingMethod('pickup');
+    }
+  }, [shippingMethod]);
   const [form, setForm] = useState({
     phone: user?.phone || '',
     address: user?.address || '',
@@ -547,7 +554,7 @@ export const Checkout: React.FC = () => {
               <span className={`w-6 h-6 rounded-full flex items-center justify-center border ${step === 1 ? 'border-[#B38B21] bg-[#B38B21]/10' : 'border-black/20 dark:border-white/20'}`}>
                 {step > 1 ? <Check className="w-3 h-3" /> : '1'}
               </span>
-              <span className="font-bold uppercase tracking-widest">Shipping</span>
+              <span className="font-bold uppercase tracking-widest">Pickup</span>
             </div>
             <span className="w-8 h-px bg-black/15 dark:bg-white/20" />
             <div className={`flex items-center gap-2 ${step === 2 ? 'text-[#B38B21]' : 'text-black/40 dark:text-white/40'}`}>
@@ -565,7 +572,10 @@ export const Checkout: React.FC = () => {
             {step === 1 && (
               <ShippingStep
                 shippingMethod={shippingMethod}
-                onShippingMethodChange={setShippingMethod}
+                onShippingMethodChange={(m) => {
+                  if (!DELIVERY_ENABLED && m === 'delivery') return;
+                  setShippingMethod(m);
+                }}
                 form={form}
                 onFormChange={setForm}
                 errors={step1Errors}
@@ -627,8 +637,8 @@ export const Checkout: React.FC = () => {
                   </div>
                 )}
                 <div className="flex justify-between text-sm">
-                  <span>Shipping</span>
-                  <span>{shippingCost === 0 ? 'Free' : formatCurrency(shippingCost)}</span>
+                  <span>Pickup</span>
+                  <span>{shippingCost === 0 ? 'Free · Store' : formatCurrency(shippingCost)}</span>
                 </div>
                 <div className="flex justify-between font-bold text-lg pt-2 border-t border-black/10 dark:border-white/10">
                   <span>Total</span>
@@ -684,18 +694,18 @@ const ShippingStep: React.FC<ShippingStepProps> = ({
   errors,
   onContinue,
 }) => {
-  const isDelivery = shippingMethod === 'delivery';
+  const isDelivery = DELIVERY_ENABLED && shippingMethod === 'delivery';
 
   return (
     <div className="space-y-6">
       {/* Shipping method selector */}
       <div className="bg-neutral-100/90 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl p-6">
         <h2 className="text-xl font-bold flex items-center gap-2 mb-4">
-          <Truck className="w-5 h-5 text-[#B38B21]" />
+          <Store className="w-5 h-5 text-[#B38B21]" />
           How would you like to receive your order?
         </h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className={`grid grid-cols-1 gap-3 ${DELIVERY_ENABLED ? 'sm:grid-cols-2' : ''}`}>
           <button
             type="button"
             onClick={() => onShippingMethodChange('pickup')}
@@ -709,29 +719,38 @@ const ShippingStep: React.FC<ShippingStepProps> = ({
               <Store className="w-5 h-5 text-[#B38B21]" />
               <div>
                 <p className="font-bold">Pick up from store</p>
-                <p className="text-xs text-black/60 dark:text-white/60">Free · Ready in 24h</p>
+                <p className="text-xs text-black/60 dark:text-white/60">Free · Ready in 24h · KNUST Campus</p>
               </div>
             </div>
           </button>
 
-          <button
-            type="button"
-            onClick={() => onShippingMethodChange('delivery')}
-            className={`text-left p-4 rounded-xl border transition-all ${
-              isDelivery
-                ? 'border-[#B38B21] bg-[#B38B21]/10'
-                : 'border-black/10 dark:border-white/10 hover:border-black/25 dark:hover:border-white/30'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <Truck className="w-5 h-5 text-[#B38B21]" />
-              <div>
-                <p className="font-bold">Deliver</p>
-                <p className="text-xs text-black/60 dark:text-white/60">From GH₵50 · Free over GH₵5,000</p>
+          {/* Delivery kept for future launch — hidden while DELIVERY_ENABLED is false */}
+          {DELIVERY_ENABLED && (
+            <button
+              type="button"
+              onClick={() => onShippingMethodChange('delivery')}
+              className={`text-left p-4 rounded-xl border transition-all ${
+                isDelivery
+                  ? 'border-[#B38B21] bg-[#B38B21]/10'
+                  : 'border-black/10 dark:border-white/10 hover:border-black/25 dark:hover:border-white/30'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Truck className="w-5 h-5 text-[#B38B21]" />
+                <div>
+                  <p className="font-bold">Deliver</p>
+                  <p className="text-xs text-black/60 dark:text-white/60">From GH₵50 · Free over GH₵5,000</p>
+                </div>
               </div>
-            </div>
-          </button>
+            </button>
+          )}
         </div>
+
+        {!DELIVERY_ENABLED && (
+          <p className="mt-3 text-xs text-black/55 dark:text-white/50">
+            Store pickup only for now — we do not offer delivery yet.
+          </p>
+        )}
       </div>
 
       {/* Pickup card */}
@@ -1107,7 +1126,7 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
           onClick={onBack}
           className="px-6 py-3 border border-black/10 dark:border-white/10 rounded-lg font-bold hover:bg-neutral-200/90 dark:hover:bg-white/10 transition-colors"
         >
-          Back to Shipping
+          Back to Pickup
         </button>
         <button
           type="button"
