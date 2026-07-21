@@ -1,6 +1,8 @@
 import type { Plugin } from 'vite';
 import { loadEnv } from 'vite';
 import {
+  formatServerError,
+  pushApiErrorStatus,
   resolveUserIdFromBearer,
   sendWebPushToUser,
 } from './lib/server/webPushSend';
@@ -94,7 +96,9 @@ export function webPushTestPlugin(mode: string): Plugin {
           if (result.sent === 0) {
             sendJson(400, {
               error:
-                'No push subscriptions for this account. Enable browser push first.',
+                result.failed > 0
+                  ? 'Push delivery failed for all subscriptions. Try turning notifications off and on again.'
+                  : 'No push subscriptions for this account. Enable browser push first.',
               sent: 0,
               failed: result.failed,
             });
@@ -103,17 +107,14 @@ export function webPushTestPlugin(mode: string): Plugin {
 
           sendJson(200, result);
         } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
+          const message = formatServerError(err);
+          const status = pushApiErrorStatus(err);
           const code =
             err && typeof err === 'object' && 'code' in err
               ? String((err as { code?: string }).code || '')
               : '';
           console.error('[web-push-test]', message);
-          if (code === 'PUSH_NOT_CONFIGURED' || /VAPID|SERVICE_ROLE|not configured/i.test(message)) {
-            sendJson(503, { error: message, code: 'PUSH_NOT_CONFIGURED' });
-            return;
-          }
-          sendJson(500, { error: message });
+          sendJson(status, { error: message, ...(code ? { code } : {}) });
         }
       });
     },

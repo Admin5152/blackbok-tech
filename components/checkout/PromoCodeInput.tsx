@@ -9,10 +9,13 @@ import {
   type PromoQuoteItem,
 } from '../../lib/promotions';
 import {
-  cartToPromoQuoteItems,
+  buildCheckoutPromoItems,
   loadPersistedPromoCode,
   persistPromoCode,
+  type PromoStorageKey,
+  PROMO_STORAGE_KEYS,
 } from '../../lib/promoCart';
+import { promoFriendlyMessage, promoRpcErrorMessage } from '../../lib/promoErrors';
 import type { CartItem } from '../../types';
 
 export type AppliedPromoQuote = {
@@ -23,12 +26,17 @@ export type AppliedPromoQuote = {
 };
 
 interface PromoCodeInputProps {
-  cart: CartItem[];
-  /** Fires whenever the applied quote changes (including clear / reject). */
+  /** Pre-built quote lines (repair, trade-in top-up, or custom). */
+  items?: PromoQuoteItem[];
+  /** Product cart — merged with shippingGhs when items is omitted. */
+  cart?: CartItem[];
+  /** Delivery fee in GHS — included in quote when using cart mode. */
+  shippingGhs?: number;
+  storageKey?: PromoStorageKey;
   onAppliedChange: (applied: AppliedPromoQuote | null) => void;
   theme?: 'light' | 'dark';
-  /** Compact layout for cart summary. */
   compact?: boolean;
+  label?: string;
 }
 
 /**
@@ -36,15 +44,19 @@ interface PromoCodeInputProps {
  * Rejection copy is always the server `message` — never paraphrased.
  */
 export const PromoCodeInput: React.FC<PromoCodeInputProps> = ({
-  cart,
+  items: itemsProp,
+  cart = [],
+  shippingGhs = 0,
+  storageKey = PROMO_STORAGE_KEYS.checkout,
   onAppliedChange,
   theme = 'dark',
   compact = false,
+  label = 'Promo code',
 }) => {
   const isLight = theme === 'light';
-  const [draft, setDraft] = useState(() => loadPersistedPromoCode());
+  const [draft, setDraft] = useState(() => loadPersistedPromoCode(storageKey));
   const [activeCode, setActiveCode] = useState<string | null>(() => {
-    const saved = loadPersistedPromoCode();
+    const saved = loadPersistedPromoCode(storageKey);
     return saved || null;
   });
   const [loading, setLoading] = useState(false);
@@ -59,10 +71,12 @@ export const PromoCodeInput: React.FC<PromoCodeInputProps> = ({
     return m;
   }, [productCategories]);
 
-  const items: PromoQuoteItem[] = useMemo(
-    () => cartToPromoQuoteItems(cart, categoryIdByName),
-    [cart, categoryIdByName],
-  );
+  const items: PromoQuoteItem[] = useMemo(() => {
+    if (itemsProp) return itemsProp;
+    return buildCheckoutPromoItems(cart, shippingGhs, categoryIdByName);
+  }, [itemsProp, cart, shippingGhs, categoryIdByName]);
+
+  const hasEligibleItems = items.length > 0;
 
   const applyQuoteResult = useCallback(
     (code: string | null, result: Awaited<ReturnType<typeof promoQuote>>) => {
@@ -83,17 +97,19 @@ export const PromoCodeInput: React.FC<PromoCodeInputProps> = ({
       setApplied(null);
       onAppliedChange(null);
 
-      // Prefer the typed-code failure message; else the soft evaluate message.
       const rejection: PromoEvaluateResult | null =
         result.code_result && result.code_result.ok === false
           ? result.code_result
           : winner && winner.ok === false
             ? winner
             : null;
-      if (code && rejection?.message) {
-        setServerMessage(rejection.message);
+      if (code && rejection) {
+        setServerMessage(promoFriendlyMessage(rejection));
       } else if (code && !winner) {
-        setServerMessage(result.code_result?.message ?? 'This code is not valid.');
+        setServerMessage(
+          promoFriendlyMessage(result.code_result) ||
+            'We could not find that code. Check the spelling and try again.',
+        );
       } else {
         setServerMessage(null);
       }
@@ -101,9 +117,8 @@ export const PromoCodeInput: React.FC<PromoCodeInputProps> = ({
     [onAppliedChange],
   );
 
-  // Re-quote whenever the cart changes (and when a code is active).
   useEffect(() => {
-    if (items.length === 0) {
+    if (!hasEligibleItems) {
       setApplied(null);
       onAppliedChange(null);
       setServerMessage(null);
@@ -124,12 +139,9 @@ export const PromoCodeInput: React.FC<PromoCodeInputProps> = ({
         if (!cancelled) {
           setApplied(null);
           onAppliedChange(null);
-          // Network / RPC transport errors — not evaluate soft-fail copy.
-          const message =
-            err instanceof Error && err.message
-              ? err.message
-              : 'This code is not valid.';
-          setServerMessage(activeCode ? message : null);
+          setServerMessage(
+            activeCode ? promoRpcErrorMessage(err) : null,
+          );
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -139,18 +151,22 @@ export const PromoCodeInput: React.FC<PromoCodeInputProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [items, activeCode, profileCampusId, applyQuoteResult, onAppliedChange]);
+  }, [items, activeCode, profileCampusId, applyQuoteResult, onAppliedChange, hasEligibleItems]);
 
   const handleApply = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault();
     const trimmed = draft.trim().toUpperCase();
-    if (!trimmed || loading) return;
-    persistPromoCode(trimmed);
+    if (!trimmed) {
+      setServerMessage('Enter a promo code.');
+      return;
+    }
+    if (loading || !hasEligibleItems) return;
+    persistPromoCode(trimmed, storageKey);
     setActiveCode(trimmed);
   };
 
   const handleRemove = (): void => {
-    persistPromoCode(null);
+    persistPromoCode(null, storageKey);
     setDraft('');
     setActiveCode(null);
     setApplied(null);
@@ -219,12 +235,12 @@ export const PromoCodeInput: React.FC<PromoCodeInputProps> = ({
     <form onSubmit={handleApply} className={compact ? 'space-y-2' : 'space-y-2'}>
       {!compact && (
         <label
-          htmlFor="promo-code"
+          htmlFor={`promo-code-${storageKey}`}
           className={`block text-[10px] font-medium uppercase tracking-[0.25em] ${
             isLight ? 'text-black/50' : 'text-white/50'
           }`}
         >
-          Promo code
+          {label}
         </label>
       )}
       <div
@@ -237,19 +253,19 @@ export const PromoCodeInput: React.FC<PromoCodeInputProps> = ({
         {compact ? (
           <>
             <input
-              id="promo-code"
+              id={`promo-code-${storageKey}`}
               type="text"
               value={draft}
               onChange={(e) => setDraft(e.target.value.toUpperCase())}
               placeholder="PROMO CODE"
-              disabled={loading || cart.length === 0}
+              disabled={loading || !hasEligibleItems}
               autoComplete="off"
               spellCheck={false}
               className="flex-1 bg-transparent px-4 py-2 text-xs sm:text-sm focus:outline-none uppercase font-medium tracking-widest text-black dark:text-white placeholder:text-black/40 dark:placeholder:text-white/40"
             />
             <button
               type="submit"
-              disabled={loading || draft.trim().length === 0 || cart.length === 0}
+              disabled={loading || draft.trim().length === 0 || !hasEligibleItems}
               className="px-6 py-2.5 bg-black text-white dark:bg-white dark:text-black rounded-full text-[10px] font-medium uppercase tracking-[0.2em] hover:bg-[#CDA032] hover:text-black dark:hover:bg-[#CDA032] transition-all hover:scale-105 active:scale-95 shadow-md disabled:opacity-50"
             >
               {loading ? '…' : 'Apply'}
@@ -271,12 +287,12 @@ export const PromoCodeInput: React.FC<PromoCodeInputProps> = ({
                 }`}
               />
               <input
-                id="promo-code"
+                id={`promo-code-${storageKey}`}
                 type="text"
                 value={draft}
                 onChange={(e) => setDraft(e.target.value.toUpperCase())}
                 placeholder="Enter code"
-                disabled={loading || cart.length === 0}
+                disabled={loading || !hasEligibleItems}
                 autoComplete="off"
                 spellCheck={false}
                 className={`w-full bg-transparent pl-9 pr-3 py-3 text-sm outline-none uppercase tracking-wider ${
@@ -288,9 +304,9 @@ export const PromoCodeInput: React.FC<PromoCodeInputProps> = ({
             </div>
             <button
               type="submit"
-              disabled={loading || draft.trim().length === 0 || cart.length === 0}
+              disabled={loading || draft.trim().length === 0 || !hasEligibleItems}
               className={`inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg text-[11px] font-medium uppercase tracking-widest transition-colors min-w-[90px] ${
-                loading || draft.trim().length === 0 || cart.length === 0
+                loading || draft.trim().length === 0 || !hasEligibleItems
                   ? isLight
                     ? 'bg-black/10 text-black/40 cursor-not-allowed'
                     : 'bg-white/10 text-white/30 cursor-not-allowed'

@@ -313,6 +313,7 @@ export const AdminPromotionBuilder: React.FC = () => {
       if (alsoPublish) {
         try {
           await promoPublish(result.promotion_id);
+          notify('Published — codes are now active.', 'success');
         } catch (pubErr) {
           notify(promoRpcErrorMessage(pubErr), 'error');
           void navigate({
@@ -362,7 +363,7 @@ export const AdminPromotionBuilder: React.FC = () => {
   if (aboveReview && reviewThreshold != null) {
     warningBlocks.push({
       tone: 'accent',
-      copy: `Above the ${formatGHS(reviewThreshold)} review threshold. Needs super admin to publish.`,
+      copy: `Above the ${formatGHS(reviewThreshold)} review threshold. It will still publish, but is logged for review.`,
     });
   }
   if (warningBlocks.length === 0) {

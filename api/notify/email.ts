@@ -82,11 +82,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const result = await deliverNotificationChannels(payload, process.env);
-    if (result.email.error && !result.email.skipped) {
+
+    const emailFailed = Boolean(result.email.error) && !result.email.skipped;
+    const pushDelivered = (result.push.sent ?? 0) > 0;
+    const pushSkipped = Boolean(result.push.skipped);
+
+    // Webhook 500 only when nothing was delivered (email failed and push did not send).
+    if (emailFailed && !pushDelivered && !pushSkipped) {
       res.status(500).json({ ok: false, ...result });
       return;
     }
-    res.status(200).json({ ok: true, ...result });
+
+    res.status(200).json({
+      ok: true,
+      partial: emailFailed || Boolean(result.push.error),
+      ...result,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[api/notify/email]', message);

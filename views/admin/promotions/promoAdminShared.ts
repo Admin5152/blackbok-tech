@@ -165,32 +165,7 @@ export function statusBadgeClass(
 }
 
 /** Strip PostgREST / Postgres wrappers so UI shows the RAISE message. */
-export function promoRpcErrorMessage(err: unknown): string {
-  const raw =
-    err instanceof Error
-      ? err.message
-      : typeof err === 'string'
-        ? err
-        : err && typeof err === 'object' && 'message' in err
-          ? String((err as { message: unknown }).message)
-          : 'Something went wrong.';
-
-  let msg = raw.trim();
-  // Common PostgREST shapes: "PGRST301: …", "ERROR: …", "PostgresException: …"
-  msg = msg.replace(/^PostgrestException:\s*/i, '');
-  msg = msg.replace(/^PostgresException:\s*/i, '');
-  msg = msg.replace(/^ERROR:\s*/i, '');
-  msg = msg.replace(/^PGRST\d+:\s*/i, '');
-  msg = msg.replace(/^22P02:\s*/i, '');
-  msg = msg.replace(/^42501:\s*/i, '');
-  msg = msg.replace(/^P0002:\s*/i, '');
-  msg = msg.replace(/^22023:\s*/i, '');
-  // "new row violates…" style — keep short
-  if (/violates|duplicate key|foreign key|relation |column /i.test(msg) && msg.length > 120) {
-    return 'Could not complete that action. Please try again.';
-  }
-  return msg || 'Something went wrong.';
-}
+export { promoRpcErrorMessage } from '../../../lib/promoErrors';
 
 export function buildPromoWhatsAppText(args: {
   code: string;

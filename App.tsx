@@ -107,6 +107,13 @@ import { generateId } from './lib/utils';
 import { COMPARE_MAX_ITEMS } from './lib/compareProducts';
 import { getProduct } from './lib/api';
 import { SessionTimeoutProvider } from './components/SessionTimeoutProvider';
+import {
+  clearLastActivityMs,
+  isIdleSessionExpired,
+  readLastActivityMs,
+  writeLastActivityMs,
+} from './lib/sessionIdle';
+import { SESSION_EXPIRED_REASON } from './lib/sessionIdleConfig';
 
 const STORAGE_KEYS = {
   PRODUCTS: 'bb_v4_products',
@@ -1235,6 +1242,22 @@ function RootComponent() {
 
           const validateUserSession = async () => {
             try {
+              if (isIdleSessionExpired()) {
+                console.log('Session idle expired (7+ days), signing out');
+                try {
+                  await AuthService.signOut();
+                } catch {
+                  /* proceed with local cleanup */
+                }
+                localStorage.removeItem(STORAGE_KEYS.USER);
+                clearLastActivityMs();
+                if (!cancelled) setUser(null);
+                if (!cancelled && !window.location.hash.includes('/auth')) {
+                  window.location.replace(`/#/auth?reason=${SESSION_EXPIRED_REASON}`);
+                }
+                return;
+              }
+
               const currentUser = await AuthService.getCurrentUser();
               console.log('Current Supabase user:', currentUser);
 
@@ -1242,6 +1265,9 @@ function RootComponent() {
 
               if (currentUser && currentUser.id === parsedUser!.id) {
                 console.log('User session is valid, restoring user');
+                if (readLastActivityMs() == null) {
+                  writeLastActivityMs(Date.now());
+                }
                 setUser({
                   ...parsedUser!,
                   id: currentUser.id,

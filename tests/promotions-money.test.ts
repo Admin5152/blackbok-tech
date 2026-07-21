@@ -9,7 +9,8 @@ import {
   pesewasToGhs,
   PESEWAS_PER_CEDI,
 } from '../lib/promotions';
-import { cartToPromoQuoteItems } from '../lib/promoCart';
+import { cartToPromoQuoteItems, buildCheckoutPromoItems, deliveryPromoItem, repairPromoItems, tradeTopUpPromoItems } from '../lib/promoCart';
+import { promoFriendlyMessage } from '../lib/promoErrors';
 import type { CartItem } from '../types';
 
 /** Same clamp rules as public.promo_compute_discount (integer pesewas). */
@@ -112,5 +113,48 @@ describe('cartToPromoQuoteItems', () => {
     expect(items[0].category_id).toBe('cat-uuid-1');
     expect(items[0].unit_price_pesewas).toBe(1000);
     expect(items[0].qty).toBe(2);
+  });
+
+  it('adds delivery line for checkout quotes', () => {
+    const cart = [
+      { id: 'p1', product_id: 'p1', name: 'Phone', price: 100, quantity: 1 },
+    ] as CartItem[];
+    const items = buildCheckoutPromoItems(cart, 50);
+    expect(items).toHaveLength(2);
+    expect(items[1].kind).toBe('delivery');
+    expect(items[1].unit_price_pesewas).toBe(5000);
+  });
+
+  it('builds repair and trade-in quote lines', () => {
+    expect(repairPromoItems(150)[0]).toEqual({
+      kind: 'repair',
+      unit_price_pesewas: 15000,
+      qty: 1,
+    });
+    expect(tradeTopUpPromoItems(80)[0]).toEqual({
+      kind: 'tradein_topup',
+      unit_price_pesewas: 8000,
+      qty: 1,
+    });
+    expect(deliveryPromoItem(0)).toBeNull();
+  });
+});
+
+describe('promoFriendlyMessage', () => {
+  it('uses min order hint with formatted GHS', () => {
+    expect(
+      promoFriendlyMessage({
+        ok: false,
+        reason: 'min_order_not_met',
+        message: 'ignored',
+        min_order_pesewas: 30000,
+      }),
+    ).toMatch(/300\.00/);
+  });
+
+  it('falls back for unknown codes', () => {
+    expect(
+      promoFriendlyMessage({ ok: false, reason: 'not_found', message: 'This code is not valid.' }),
+    ).toMatch(/couldn't find that code/i);
   });
 });

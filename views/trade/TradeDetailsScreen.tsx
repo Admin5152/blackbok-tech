@@ -9,7 +9,7 @@
  * Field errors show inline next to the input with a clear reason (not “something went wrong”).
  * IMEI / serial are confirmed at BlackBox — not collected online.
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Info, Mail, MapPin, Phone, User } from 'lucide-react';
 import { useTradeFlow } from '../../lib/tradeFlowContext';
@@ -19,6 +19,16 @@ import { requestLifecycleEmail } from '../../lib/clientNotifyEmail';
 import { saveReturnTo } from '../../lib/returnTo';
 import { TRADE_COPY } from '../../lib/tradeCopy';
 import { tradeFriendlyError } from '../../lib/tradeErrors';
+import { computeTradeBalanceDisplay } from '../../lib/tradeBalanceDisplay';
+import { PromoCodeInput, type AppliedPromoQuote } from '../../components/checkout/PromoCodeInput';
+import {
+  clearPersistedPromoCode,
+  loadPersistedPromoCode,
+  PROMO_STORAGE_KEYS,
+  tradeTopUpPromoItems,
+} from '../../lib/promoCart';
+import { formatGHS, promoReserveTrade } from '../../lib/promotions';
+import { promoFriendlyMessage } from '../../lib/promoErrors';
 
 const AUTH_RETURN = '/trade/details';
 const DETAILS_DRAFT_KEY = 'trade_v2_details_draft';
@@ -116,6 +126,23 @@ export function TradeDetailsScreen() {
   const [storeLocation, setStoreLocation] = useState<string>(TRADE_COPY.details.storeLocation);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldKey, string>>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [appliedTradePromo, setAppliedTradePromo] = useState<AppliedPromoQuote | null>(null);
+
+  const tradeBalance = useMemo(() => {
+    if (!state.lastEstimate || !state.targetLock) return null;
+    return computeTradeBalanceDisplay({
+      estimate: state.lastEstimate.estimate,
+      target: state.targetLock,
+    });
+  }, [state.lastEstimate, state.targetLock]);
+
+  const tradePromoItems = useMemo(
+    () =>
+      tradeBalance?.kind === 'top_up' && tradeBalance.amount > 0
+        ? tradeTopUpPromoItems(tradeBalance.amount)
+        : [],
+    [tradeBalance],
+  );
 
   useEffect(() => {
     getTradeConfigValue('store_location', TRADE_COPY.details.storeLocation)
@@ -227,6 +254,27 @@ export function TradeDetailsScreen() {
         quizAnswers: state.quizAnswers,
         editLog: state.editLog,
       });
+
+      const promoCode =
+        loadPersistedPromoCode(PROMO_STORAGE_KEYS.trade) || appliedTradePromo?.code;
+      const topUp = result.topUpAmount ?? 0;
+      if (promoCode && topUp > 0) {
+        try {
+          const reserved = await promoReserveTrade({
+            trade_id: result.id,
+            code: promoCode,
+          });
+          if (!reserved.ok) {
+            notify(promoFriendlyMessage(reserved), 'error');
+          }
+        } catch (promoErr: unknown) {
+          const msg =
+            promoErr instanceof Error && promoErr.message ? promoErr.message : null;
+          if (msg) notify(msg, 'error');
+        }
+        clearPersistedPromoCode(PROMO_STORAGE_KEYS.trade);
+      }
+
       clearDraft();
       dispatch({ type: 'SET_SUBMITTED_TRADE', result });
       void requestLifecycleEmail('trade_submitted', {
@@ -259,6 +307,8 @@ export function TradeDetailsScreen() {
     state.quizAnswers,
     state.editLog,
     dispatch,
+    appliedTradePromo?.code,
+    notify,
   ]);
 
   useEffect(() => {
@@ -423,6 +473,35 @@ export function TradeDetailsScreen() {
           <p className="text-[11px] opacity-50 truncate">{storeLocation}</p>
         </div>
       </div>
+
+      {tradeBalance?.kind === 'top_up' && tradeBalance.amount > 0 && (
+        <div className="rounded-xl border border-[var(--bb-border)] bg-[var(--bb-surface)] p-4 space-y-3">
+          <div className="flex justify-between items-center text-sm">
+            <span className="opacity-70">Top-up before promo</span>
+            <span className="font-bold">{formatGHS(Math.round(tradeBalance.amount * 100))}</span>
+          </div>
+          <PromoCodeInput
+            items={tradePromoItems}
+            storageKey={PROMO_STORAGE_KEYS.trade}
+            onAppliedChange={setAppliedTradePromo}
+            theme={theme}
+            label="Trade-in promo code"
+          />
+          {appliedTradePromo && (
+            <div className="flex justify-between items-center text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+              <span>You pay at BlackBox</span>
+              <span>
+                {formatGHS(
+                  Math.max(
+                    0,
+                    Math.round(tradeBalance.amount * 100) - appliedTradePromo.discount_pesewas,
+                  ),
+                )}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       <div>
         <label

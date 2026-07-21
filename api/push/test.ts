@@ -4,6 +4,8 @@
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import {
+  formatServerError,
+  pushApiErrorStatus,
   resolveUserIdFromBearer,
   sendWebPushToUser,
 } from '../../lib/server/webPushSend';
@@ -47,7 +49,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (result.sent === 0) {
       res.status(400).json({
-        error: 'No push subscriptions for this account. Enable browser push first.',
+        error:
+          result.failed > 0
+            ? 'Push delivery failed for all subscriptions. Try turning notifications off and on again.'
+            : 'No push subscriptions for this account. Enable browser push first.',
         ...result,
       });
       return;
@@ -55,17 +60,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     res.status(200).json(result);
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = formatServerError(err);
+    const status = pushApiErrorStatus(err);
+    console.error('[api/push/test]', message);
     const code =
       err && typeof err === 'object' && 'code' in err
         ? String((err as { code?: string }).code || '')
-        : '';
-    console.error('[api/push/test]', message);
-    // Misconfiguration is not a server crash — return 503 with a clear fix.
-    if (code === 'PUSH_NOT_CONFIGURED' || /VAPID|SERVICE_ROLE|not configured/i.test(message)) {
-      res.status(503).json({ error: message, code: 'PUSH_NOT_CONFIGURED' });
-      return;
-    }
-    res.status(500).json({ error: message });
+        : undefined;
+    res.status(status).json({
+      error: message,
+      ...(code ? { code } : {}),
+    });
   }
 }

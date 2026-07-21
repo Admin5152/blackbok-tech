@@ -48,6 +48,15 @@ import { saveResumeAfterAuth, peekRestorePayload, clearRestorePayload } from '..
 import { saveReturnTo } from '../lib/returnTo';
 import { PageBackButton } from '../components/PageBackButton';
 import { FlowBreadcrumb } from '../components/FlowBreadcrumb';
+import { PromoCodeInput, type AppliedPromoQuote } from '../components/checkout/PromoCodeInput';
+import {
+  clearPersistedPromoCode,
+  loadPersistedPromoCode,
+  PROMO_STORAGE_KEYS,
+  repairPromoItems,
+} from '../lib/promoCart';
+import { formatGHS, promoReserveRepair } from '../lib/promotions';
+import { promoFriendlyMessage } from '../lib/promoErrors';
 import { BrandLogo } from '../components/BrandLogo';
 import { getBrandsForDeviceType } from '../data/deviceBrands';
 
@@ -60,6 +69,7 @@ export const Repair: React.FC = () => {
   const [bookingPhase, setBookingPhase] = useState<1 | 2 | 3>(1); // step 3: schedule → contact → device access
   const [transitionKey, setTransitionKey] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [appliedRepairPromo, setAppliedRepairPromo] = useState<AppliedPromoQuote | null>(null);
   const [selectedIssueKeys, setSelectedIssueKeys] = useState<Set<RepairIssueKey>>(new Set());
   const [selectedSeries, setSelectedSeries] = useState<string>('');
   const [formData, setFormData] = useState({
@@ -301,10 +311,29 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
         agrees_to_terms: formData.agreesToTerms,
         client_signature: effectiveSignature || undefined,
         estimated_cost:
-          deviceFields.pricing_mode === PRICING_MODE.APPLE_MATRIX && matrixAmount > 0
-            ? matrixAmount
+          deviceFields.pricing_mode === PRICING_MODE.APPLE_MATRIX && repairPayableGhs > 0
+            ? repairPayableGhs
             : undefined,
       });
+
+      const promoCode =
+        loadPersistedPromoCode(PROMO_STORAGE_KEYS.repair) || appliedRepairPromo?.code;
+      if (promoCode && repairPayableGhs > 0) {
+        try {
+          const reserved = await promoReserveRepair({
+            repair_id: created.id,
+            code: promoCode,
+          });
+          if (!reserved.ok) {
+            notify(promoFriendlyMessage(reserved), 'error');
+          }
+        } catch (promoErr: unknown) {
+          const msg =
+            promoErr instanceof Error && promoErr.message ? promoErr.message : null;
+          if (msg) notify(msg, 'error');
+        }
+        clearPersistedPromoCode(PROMO_STORAGE_KEYS.repair);
+      }
       const newRepair: RepairRequest = {
         ...created,
         issue: issueText,
@@ -507,6 +536,23 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
 
   const selectedTimeSlot = getRepairTimeSlot(formData.timeSlot);
   const selectedUrgency = getRepairUrgencyLevel(formData.urgency);
+
+  const repairPayableGhs = useMemo(() => {
+    if (!usesApplePricing) return 0;
+    let total = getTotalRepairCost();
+    if (formData.urgency !== 'standard') total += selectedUrgency?.price ?? 0;
+    return total;
+  }, [
+    usesApplePricing,
+    getTotalRepairCost,
+    formData.urgency,
+    selectedUrgency?.price,
+  ]);
+
+  const repairPromoQuoteItems = useMemo(
+    () => repairPromoItems(repairPayableGhs),
+    [repairPayableGhs],
+  );
 
   const pendingRepairEstimate = repairs.find((r) => r.status === 'Estimate Sent');
 
@@ -1512,8 +1558,29 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                           )}
                           <div className="pt-4 mt-4 border-t border-[var(--bb-border)] flex justify-between items-end">
                             <span className="text-base font-black">Total Estimate</span>
-                            <span className="text-3xl font-black text-[#CDA032]">{getEstimatedCost()}</span>
+                            <span className="text-3xl font-black text-[#CDA032]">
+                              {appliedRepairPromo
+                                ? formatGHS(
+                                    Math.max(
+                                      0,
+                                      Math.round(repairPayableGhs * 100) -
+                                        appliedRepairPromo.discount_pesewas,
+                                    ),
+                                  )
+                                : getEstimatedCost()}
+                            </span>
                           </div>
+                          {repairPayableGhs > 0 && (
+                            <div className="pt-4">
+                              <PromoCodeInput
+                                items={repairPromoQuoteItems}
+                                storageKey={PROMO_STORAGE_KEYS.repair}
+                                onAppliedChange={setAppliedRepairPromo}
+                                theme={theme}
+                                label="Repair promo code"
+                              />
+                            </div>
+                          )}
                         </>
                       ) : (
                         <>

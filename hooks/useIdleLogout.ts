@@ -4,6 +4,12 @@ import { useAppContext } from '../App';
 import { getSupabaseClient, isSupabaseConfigured } from '../lib/supabase';
 import { sanitizeReturnTo, saveReturnTo } from '../lib/returnTo';
 import {
+  readLastActivityMs,
+  writeLastActivityMs,
+  clearLastActivityMs,
+  isIdleSessionExpired,
+} from '../lib/sessionIdle';
+import {
   IDLE_TIMEOUT_MS,
   ACTIVITY_THROTTLE_MS,
   IDLE_CHECK_INTERVAL_MS,
@@ -27,35 +33,6 @@ const ACTIVITY_EVENTS = [
   'touchstart',
   'click',
 ] as const;
-
-function readStoredLastActivity(): number {
-  if (typeof window === 'undefined') return Date.now();
-  try {
-    const raw = localStorage.getItem(SESSION_IDLE_STORAGE_KEY);
-    const parsed = raw ? Number(raw) : NaN;
-    return Number.isFinite(parsed) ? parsed : Date.now();
-  } catch {
-    return Date.now();
-  }
-}
-
-function writeStoredLastActivity(timestamp: number): void {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(SESSION_IDLE_STORAGE_KEY, String(timestamp));
-  } catch {
-    /* storage unavailable */
-  }
-}
-
-function clearStoredLastActivity(): void {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.removeItem(SESSION_IDLE_STORAGE_KEY);
-  } catch {
-    /* ignore */
-  }
-}
 
 function clearForceLogoutFlag(): void {
   if (typeof window === 'undefined') return;
@@ -89,11 +66,11 @@ function buildReturnToFromLocation(pathname: string, search: unknown): string {
 }
 
 /**
- * Strict 12-minute *visible* idle logout with cross-tab activity sync.
+ * 7-day wall-clock idle logout with cross-tab activity sync.
  *
- * Timing guarantee: logout fires when visible idle time reaches IDLE_TIMEOUT_MS
- * (± IDLE_CHECK_INTERVAL_MS poll tolerance), regardless of Supabase JWT refresh.
- * Time spent with the tab minimized/hidden does not count toward idle.
+ * Logout fires when `Date.now() - lastActivity >= IDLE_TIMEOUT_MS`, including
+ * time while the PWA/browser tab is closed or in the background. On resume,
+ * an immediate check signs the user out if the window was exceeded.
  *
  * Mount once at the authenticated app root via `SessionTimeoutProvider`.
  */
@@ -103,7 +80,6 @@ export function useIdleLogout(): void {
 
   const lastActivityRef = useRef<number>(Date.now());
   const lastLocalResetRef = useRef<number>(0);
-  const hiddenSinceRef = useRef<number | null>(null);
   const loggingOutRef = useRef(false);
   const tabIdRef = useRef<string>(
     typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -161,7 +137,7 @@ export function useIdleLogout(): void {
         }
       }
 
-      clearStoredLastActivity();
+      clearLastActivityMs();
       navigateTo(buildAuthRedirect(safeReturn));
     },
     [getReturnTo, navigateTo, setUser],
@@ -182,7 +158,7 @@ export function useIdleLogout(): void {
       }
 
       lastActivityRef.current = timestamp;
-      writeStoredLastActivity(timestamp);
+      writeLastActivityMs(timestamp);
 
       if (fromLocal) {
         try {
@@ -204,14 +180,13 @@ export function useIdleLogout(): void {
 
   const checkIdle = useCallback(() => {
     if (!isAuthenticated || loggingOutRef.current) return;
-    // Minimize / background: pause the idle clock — do not sign out.
-    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
-      return;
-    }
     if (Date.now() - lastActivityRef.current >= IDLE_TIMEOUT_MS) {
       void performIdleSignOutRef.current();
     }
   }, [isAuthenticated]);
+
+  const checkIdleRef = useRef(checkIdle);
+  checkIdleRef.current = checkIdle;
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -224,34 +199,29 @@ export function useIdleLogout(): void {
     loggingOutRef.current = false;
 
     const now = Date.now();
-    const stored = readStoredLastActivity();
-    lastActivityRef.current = Math.max(stored, now);
+    const stored = readLastActivityMs();
+
+    if (isIdleSessionExpired(now)) {
+      void performIdleSignOutRef.current();
+      return;
+    }
+
+    lastActivityRef.current = stored ?? now;
     lastLocalResetRef.current = 0;
-    hiddenSinceRef.current =
-      document.visibilityState === 'hidden' ? now : null;
-    writeStoredLastActivity(lastActivityRef.current);
+    if (stored == null) {
+      writeLastActivityMs(now);
+    }
 
     const onLocalActivity = () => {
-      if (document.visibilityState === 'hidden') return;
       recordActivityRef.current(Date.now(), true);
     };
 
-    const onVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        // Freeze the idle clock while minimized / in background.
-        hiddenSinceRef.current = Date.now();
-        return;
+    const onResume = () => {
+      const latest = readLastActivityMs();
+      if (latest != null) {
+        lastActivityRef.current = latest;
       }
-      // Visible again: credit paused time so minimize does not burn the window.
-      if (hiddenSinceRef.current != null) {
-        const pausedMs = Math.max(0, Date.now() - hiddenSinceRef.current);
-        hiddenSinceRef.current = null;
-        if (pausedMs > 0) {
-          const adjusted = lastActivityRef.current + pausedMs;
-          lastActivityRef.current = adjusted;
-          writeStoredLastActivity(adjusted);
-        }
-      }
+      checkIdleRef.current();
     };
 
     const onStorage = (event: StorageEvent) => {
@@ -283,7 +253,9 @@ export function useIdleLogout(): void {
     for (const eventName of ACTIVITY_EVENTS) {
       window.addEventListener(eventName, onLocalActivity, { passive: true });
     }
-    document.addEventListener('visibilitychange', onVisibilityChange);
+    document.addEventListener('visibilitychange', onResume);
+    window.addEventListener('focus', onResume);
+    window.addEventListener('pageshow', onResume);
     window.addEventListener('storage', onStorage);
 
     if (isSupabaseConfigured()) {
@@ -293,7 +265,7 @@ export function useIdleLogout(): void {
           clearForceLogoutFlag();
           const ts = Date.now();
           lastActivityRef.current = ts;
-          writeStoredLastActivity(ts);
+          writeLastActivityMs(ts);
           return;
         }
 
@@ -304,7 +276,7 @@ export function useIdleLogout(): void {
           if (sessionStorage.getItem(MANUAL_SIGNOUT_FLAG)) {
             sessionStorage.removeItem(MANUAL_SIGNOUT_FLAG);
             setUser(null);
-            clearStoredLastActivity();
+            clearLastActivityMs();
             clearForceLogoutFlag();
             return;
           }
@@ -326,7 +298,7 @@ export function useIdleLogout(): void {
         } catch {
           /* ignore */
         }
-        clearStoredLastActivity();
+        clearLastActivityMs();
 
         if (idleFlag && location.pathname !== '/auth') {
           loggingOutRef.current = true;
@@ -337,7 +309,8 @@ export function useIdleLogout(): void {
       authUnsubRef.current = () => sub.subscription.unsubscribe();
     }
 
-    checkIntervalRef.current = setInterval(checkIdle, IDLE_CHECK_INTERVAL_MS);
+    checkIdleRef.current();
+    checkIntervalRef.current = setInterval(() => checkIdleRef.current(), IDLE_CHECK_INTERVAL_MS);
 
     return () => {
       if (checkIntervalRef.current) {
@@ -347,12 +320,14 @@ export function useIdleLogout(): void {
       for (const eventName of ACTIVITY_EVENTS) {
         window.removeEventListener(eventName, onLocalActivity);
       }
-      document.removeEventListener('visibilitychange', onVisibilityChange);
+      document.removeEventListener('visibilitychange', onResume);
+      window.removeEventListener('focus', onResume);
+      window.removeEventListener('pageshow', onResume);
       window.removeEventListener('storage', onStorage);
       channel?.close();
       channelRef.current = null;
       authUnsubRef.current?.();
       authUnsubRef.current = null;
     };
-  }, [checkIdle, getReturnTo, isAuthenticated, location.pathname, navigateTo, setUser]);
+  }, [getReturnTo, isAuthenticated, location.pathname, navigateTo, setUser]);
 }

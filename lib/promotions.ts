@@ -819,6 +819,30 @@ export async function promoReserve(args: PromoReserveArgs): Promise<PromoReserve
   return parseReserveResult(data);
 }
 
+export async function promoReserveRepair(args: {
+  repair_id: string;
+  code?: string | null;
+}): Promise<PromoReserveResult> {
+  const { data, error } = await supabase.rpc('promo_reserve_repair', {
+    p_repair_id: args.repair_id,
+    p_code: args.code ?? null,
+  });
+  throwOnError(error);
+  return parseReserveResult(data);
+}
+
+export async function promoReserveTrade(args: {
+  trade_id: string;
+  code?: string | null;
+}): Promise<PromoReserveResult> {
+  const { data, error } = await supabase.rpc('promo_reserve_trade', {
+    p_trade_id: args.trade_id,
+    p_code: args.code ?? null,
+  });
+  throwOnError(error);
+  return parseReserveResult(data);
+}
+
 /**
  * Copy the caller's profiles.campus_id onto the order when unset.
  * The campus_id argument is ignored by the database (never trusted from client).

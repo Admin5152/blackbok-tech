@@ -200,13 +200,26 @@ export async function requestTestWebPush(payload?: {
     }),
   });
 
-  const data = (await res.json().catch(() => ({}))) as {
-    error?: string;
-    sent?: number;
-    failed?: number;
-  };
+  const raw = await res.text();
+  let data: { error?: string; code?: string; sent?: number; failed?: number } = {};
+  try {
+    data = raw ? (JSON.parse(raw) as typeof data) : {};
+  } catch {
+    throw new Error(
+      res.status === 404
+        ? 'Push API not found. Use npm run dev locally, or deploy with Vercel serverless functions.'
+        : `Push server returned an invalid response (${res.status}). Check VAPID keys and SUPABASE_SERVICE_ROLE_KEY on the server.`,
+    );
+  }
+
   if (!res.ok) {
-    throw new Error(data.error || `Test push failed (${res.status})`);
+    const msg = data.error || `Test push failed (${res.status})`;
+    if (data.code === 'PUSH_NOT_CONFIGURED' || res.status === 503) {
+      throw new Error(
+        `${msg} Add VITE_VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, and SUPABASE_SERVICE_ROLE_KEY to your deployment environment.`,
+      );
+    }
+    throw new Error(msg);
   }
   return { sent: data.sent ?? 0, failed: data.failed ?? 0 };
 }

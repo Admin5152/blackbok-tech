@@ -174,7 +174,7 @@ export const AdminPromotionDetail: React.FC = () => {
     try {
       await publishMut.mutateAsync(promo.id);
       await refetch();
-      notify('Published.', 'success');
+      notify('Published — codes are now active at checkout, repair, and trade-in.', 'success');
     } catch (err) {
       notify(promoRpcErrorMessage(err), 'error');
     }

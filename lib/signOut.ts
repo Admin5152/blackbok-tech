@@ -1,6 +1,7 @@
 import AuthService from './auth';
 import type { User } from '../interface/interface';
 import { MANUAL_SIGNOUT_FLAG } from './sessionIdleConfig';
+import { clearLastActivityMs } from './sessionIdle';
 
 // Sign Out Handler
 export const handleSignOut = async (
@@ -22,6 +23,7 @@ export const handleSignOut = async (
     if (result.success) {
       console.log('Sign out successful, clearing user state');
       
+      clearLastActivityMs();
       // Clear local user state
       setUser(null);
       
@@ -42,6 +44,7 @@ export const handleSignOut = async (
       
       // Still clear local state even on error
       console.log('Clearing user state despite error');
+      clearLastActivityMs();
       setUser(null);
       navigateTo('home');
     }
@@ -49,6 +52,7 @@ export const handleSignOut = async (
     console.error('Sign out handler error:', error);
     
     // Always clear local state on error
+    clearLastActivityMs();
     setUser(null);
     navigateTo('home');
     
@@ -66,6 +70,7 @@ export const quickSignOut = (
   console.log('Performing quick sign out (emergency)');
   
   // Immediately clear local state without API call
+  clearLastActivityMs();
   setUser(null);
   navigateTo('home');
 };

@@ -33,6 +33,7 @@ import {
   clearPersistedPromoCode,
   loadPersistedPromoCode,
 } from '../lib/promoCart';
+import { promoFriendlyMessage, promoRpcErrorMessage } from '../lib/promoErrors';
 import {
   fetchOrderChargeTotalGhs,
   formatGHS,
@@ -339,8 +340,7 @@ export const Checkout: React.FC = () => {
           code: promoCode,
         });
         if (promoCode && !reserved.ok) {
-          // Server message verbatim — do not paraphrase.
-          notify(reserved.message, 'error');
+          notify(promoFriendlyMessage(reserved), 'error');
         }
         chargeTotalGhs = await fetchOrderChargeTotalGhs(result.order_id);
       } catch (promoErr: unknown) {
@@ -349,7 +349,7 @@ export const Checkout: React.FC = () => {
           promoErr instanceof Error && promoErr.message
             ? promoErr.message
             : null;
-        if (msg && promoCode) notify(msg, 'error');
+        if (msg && promoCode) notify(promoRpcErrorMessage(promoErr), 'error');
       }
 
       // In-person path: apply reserved stock (Paystack webhook does this for card/MoMo).
@@ -571,6 +571,7 @@ export const Checkout: React.FC = () => {
               <div className="border-t border-black/10 dark:border-white/10 pt-4 mb-4">
                 <PromoCodeInput
                   cart={cart}
+                  shippingGhs={shippingCost}
                   onAppliedChange={setAppliedPromo}
                   theme={theme}
                 />
