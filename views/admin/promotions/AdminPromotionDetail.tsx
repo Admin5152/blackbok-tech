@@ -32,12 +32,15 @@ import {
   deriveCodeStatus,
   downloadPromoCodesCsv,
   effectiveCodeExpiry,
+  formatCodeUsage,
   formatPromoDate,
   hairlineCard,
+  appliesToLabel,
   promoRpcErrorMessage,
   promoStatusTone,
   promoValueLabel,
   statusBadgeClass,
+  type CodeDerivedStatus,
 } from './promoAdminShared';
 import { sharePromoCodeOnWhatsApp } from './PromoVoucherPrint';
 
@@ -52,6 +55,7 @@ export const AdminPromotionDetail: React.FC = () => {
 
   const [tab, setTab] = useState<TabId>('overview');
   const [codeQuery, setCodeQuery] = useState('');
+  const [codeStatusFilter, setCodeStatusFilter] = useState<'all' | CodeDerivedStatus>('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkExpiry, setBulkExpiry] = useState('');
   const [editingExpiryId, setEditingExpiryId] = useState<string | null>(null);
@@ -76,9 +80,12 @@ export const AdminPromotionDetail: React.FC = () => {
 
   const filteredCodes = useMemo(() => {
     const q = codeQuery.trim().toUpperCase();
-    if (!q) return codes;
-    return codes.filter((c) => c.code.includes(q));
-  }, [codes, codeQuery]);
+    return codes.filter((c) => {
+      if (q && !c.code.includes(q)) return false;
+      if (codeStatusFilter === 'all' || !promo) return true;
+      return deriveCodeStatus(c, promo.ends_at) === codeStatusFilter;
+    });
+  }, [codes, codeQuery, codeStatusFilter, promo]);
 
   const unusedCount = useMemo(() => {
     if (!promo) return 0;
@@ -115,6 +122,15 @@ export const AdminPromotionDetail: React.FC = () => {
       else next.add(id);
       return next;
     });
+  };
+
+  const copyCode = async (code: string) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      notify('Code copied', 'success');
+    } catch {
+      notify('Could not copy code', 'error');
+    }
   };
 
   const warnExpiryAfterCampaign = (expiresAtIso: string): boolean => {
@@ -371,6 +387,23 @@ export const AdminPromotionDetail: React.FC = () => {
             </button>
           </div>
 
+          <div className="flex flex-wrap gap-2">
+            {(['all', 'unused', 'redeemed', 'expired'] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setCodeStatusFilter(s)}
+                className={`rounded-xl px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
+                  codeStatusFilter === s
+                    ? 'border-2 border-[#B38B21] p-[calc(0.375rem-1px)]'
+                    : `border-[0.5px] ${isLight ? 'border-black/10' : 'border-white/10'} p-1.5`
+                } ${fg}`}
+              >
+                {s === 'all' ? 'All' : s}
+              </button>
+            ))}
+          </div>
+
           {selectedIds.size > 0 && (
             <div className={`flex flex-wrap items-center gap-2 ${hairlineCard(isLight)} p-3`}>
               <span className={`text-[13px] ${muted}`}>{selectedIds.size} selected</span>
@@ -419,9 +452,18 @@ export const AdminPromotionDetail: React.FC = () => {
                   <span className={statusBadgeClass(codeStatusTone(status), isLight)}>
                     {status}
                   </span>
-                  <span className={`text-[13px] ${muted} ml-auto`}>
+                  <span className={`text-[13px] ${muted}`}>{formatCodeUsage(code)}</span>
+                  <span className={`text-[13px] ${muted}`}>
                     {formatPromoDate(expiryIso)}
                   </span>
+                  <button
+                    type="button"
+                    aria-label={`Copy ${code.code}`}
+                    onClick={() => void copyCode(code.code)}
+                    className={`p-1.5 rounded-lg ${muted} hover:text-[#B38B21]`}
+                  >
+                    <Copy size={14} />
+                  </button>
                   <button
                     type="button"
                     aria-label="Edit expiry"
@@ -543,6 +585,12 @@ export const AdminPromotionDetail: React.FC = () => {
               {promo.max_redemptions_per_user == null
                 ? 'Unbounded'
                 : promo.max_redemptions_per_user}
+            </p>
+          </div>
+          <div>
+            <p className={`text-[13px] font-medium ${fg}`}>Applies to</p>
+            <p className={`text-[13px] mt-1 ${muted}`}>
+              {appliesToLabel(promo.applies_to)}
             </p>
           </div>
           <div>

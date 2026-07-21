@@ -172,6 +172,24 @@ export interface PromotionCode {
   created_at: string;
 }
 
+/** Promotion fields joined onto a code row for the global codes registry. */
+export type PromotionCodeCampaign = Pick<
+  Promotion,
+  | 'id'
+  | 'name'
+  | 'status'
+  | 'ends_at'
+  | 'min_order_pesewas'
+  | 'discount_type'
+  | 'percent_off'
+  | 'amount_off_pesewas'
+  | 'applies_to'
+>;
+
+export interface PromotionCodeWithPromo extends PromotionCode {
+  promotion: PromotionCodeCampaign;
+}
+
 export interface PromotionCampus {
   promotion_id: string;
   campus_id: string;
@@ -540,6 +558,32 @@ function parsePromotionCode(row: Record<string, unknown>): PromotionCode {
   };
 }
 
+function parsePromotionCodeCampaign(row: Record<string, unknown>): PromotionCodeCampaign {
+  return {
+    id: requireString(row.id, 'id'),
+    name: requireString(row.name, 'name'),
+    status: requireString(row.status, 'status') as PromoStatus,
+    ends_at: row.ends_at === null ? null : asString(row.ends_at),
+    min_order_pesewas: requireNumber(row.min_order_pesewas, 'min_order_pesewas'),
+    discount_type: requireString(row.discount_type, 'discount_type') as PromoDiscountType,
+    percent_off: row.percent_off === null ? null : asNumber(row.percent_off),
+    amount_off_pesewas:
+      row.amount_off_pesewas === null ? null : asNumber(row.amount_off_pesewas),
+    applies_to: requireString(row.applies_to, 'applies_to') as PromoAppliesTo,
+  };
+}
+
+function parsePromotionCodeWithPromo(row: Record<string, unknown>): PromotionCodeWithPromo {
+  const nested = row.promotions;
+  if (!isRecord(nested)) {
+    throw new Error('Invalid promotion_codes row: missing promotions join');
+  }
+  return {
+    ...parsePromotionCode(row),
+    promotion: parsePromotionCodeCampaign(nested),
+  };
+}
+
 function parseRedemption(row: Record<string, unknown>): PromotionRedemption {
   return {
     id: requireString(row.id, 'id'),
@@ -691,6 +735,31 @@ export async function fetchPromotionCodes(promotionId: string): Promise<Promotio
     .order('created_at', { ascending: true });
   throwOnError(error);
   return rowsFromUnknown(data).map(parsePromotionCode);
+}
+
+/** All codes across campaigns — admin RLS on promotion_codes + promotions. */
+export async function fetchAllPromotionCodes(): Promise<PromotionCodeWithPromo[]> {
+  const { data, error } = await supabase
+    .from('promotion_codes')
+    .select(
+      `
+      *,
+      promotions (
+        id,
+        name,
+        status,
+        ends_at,
+        min_order_pesewas,
+        discount_type,
+        percent_off,
+        amount_off_pesewas,
+        applies_to
+      )
+    `,
+    )
+    .order('created_at', { ascending: false });
+  throwOnError(error);
+  return rowsFromUnknown(data).map(parsePromotionCodeWithPromo);
 }
 
 export async function fetchPromotionCampuses(
@@ -887,6 +956,7 @@ export const promoQueryKeys = {
     [...promoQueryKeys.all, 'list', filters ?? {}] as const,
   detail: (id: string) => [...promoQueryKeys.all, 'detail', id] as const,
   codes: (promotionId: string) => [...promoQueryKeys.all, 'codes', promotionId] as const,
+  allCodes: () => [...promoQueryKeys.all, 'all-codes'] as const,
   campusesForPromo: (promotionId: string) =>
     [...promoQueryKeys.all, 'promo-campuses', promotionId] as const,
   redemptions: (promotionId: string) =>
@@ -1012,6 +1082,16 @@ export function usePromotionCodes(
     queryKey: promoQueryKeys.codes(promotionId ?? ''),
     queryFn: () => fetchPromotionCodes(promotionId!),
     enabled: Boolean(promotionId),
+    ...options,
+  });
+}
+
+export function useAllPromotionCodes(
+  options?: Omit<UseQueryOptions<PromotionCodeWithPromo[], Error>, 'queryKey' | 'queryFn'>,
+) {
+  return useQuery({
+    queryKey: promoQueryKeys.allCodes(),
+    queryFn: fetchAllPromotionCodes,
     ...options,
   });
 }

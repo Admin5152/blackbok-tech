@@ -2,6 +2,7 @@
  * Shared helpers for admin promotions UI (status badges, code status, value labels).
  */
 import type {
+  PromoAppliesTo,
   PromoStatus,
   Promotion,
   PromotionCode,
@@ -9,6 +10,57 @@ import type {
 import { formatGHS } from '../../../lib/promotions';
 
 export type CodeDerivedStatus = 'unused' | 'redeemed' | 'expired';
+
+/** Human label for promo_applies_to (order = whole cart). */
+export function appliesToLabel(appliesTo: PromoAppliesTo): string {
+  switch (appliesTo) {
+    case 'order':
+      return 'Everything';
+    case 'product':
+      return 'Specific products';
+    case 'category':
+      return 'Product categories';
+    case 'delivery':
+      return 'Delivery';
+    case 'repair':
+      return 'Repair';
+    case 'tradein_topup':
+      return 'Trade-in top-up';
+    default:
+      return appliesTo;
+  }
+}
+
+/** Short hint shown under Applies to chips in the builder. */
+export function appliesToHint(appliesTo: PromoAppliesTo): string {
+  switch (appliesTo) {
+    case 'order':
+      return 'Whole cart — products, delivery, repairs, and trade-in top-ups.';
+    case 'product':
+      return 'Only the products you pick below.';
+    case 'category':
+      return 'Only items in the categories you pick below.';
+    case 'delivery':
+      return 'Delivery fee only.';
+    case 'repair':
+      return 'Repair line items only.';
+    case 'tradein_topup':
+      return 'Trade-in top-up line items only.';
+    default:
+      return '';
+  }
+}
+
+/** times_redeemed / max_redemptions for admin tables. */
+export function formatCodeUsage(
+  code: Pick<PromotionCode, 'times_redeemed' | 'max_redemptions'>,
+): string {
+  const used = code.times_redeemed;
+  if (code.max_redemptions == null || code.max_redemptions <= 0) {
+    return used > 0 ? `${used} uses` : '0 uses';
+  }
+  return `${used} / ${code.max_redemptions}`;
+}
 
 export function promoValueLabel(p: Pick<Promotion, 'discount_type' | 'percent_off' | 'amount_off_pesewas'>): string {
   if (p.discount_type === 'percentage') {
@@ -164,13 +216,14 @@ export function downloadPromoCodesCsv(
   deriveStatus: (c: PromotionCode) => CodeDerivedStatus,
   filename: string,
 ): void {
-  const header = 'code,status,expiry,batch_label';
+  const header = 'code,status,usage,expiry,batch_label';
   const rows = codes.map((c) => {
     const status = deriveStatus(c);
+    const usage = formatCodeUsage(c);
     const expiry = c.expires_at ? new Date(c.expires_at).toISOString() : '';
     const batch = c.batch_label ?? '';
     const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
-    return [esc(c.code), esc(status), esc(expiry), esc(batch)].join(',');
+    return [esc(c.code), esc(status), esc(usage), esc(expiry), esc(batch)].join(',');
   });
   const blob = new Blob([[header, ...rows].join('\n')], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);

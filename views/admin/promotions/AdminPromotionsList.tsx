@@ -3,7 +3,7 @@
  */
 import React, { useMemo, useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { Plus, Tag } from 'lucide-react';
+import { Plus, Tag, Ticket } from 'lucide-react';
 import { useAppContext } from '../../../lib/appContext';
 import {
   formatGHS,
@@ -73,14 +73,27 @@ export const AdminPromotionsList: React.FC = () => {
             Campaigns, codes, and spend
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void navigate({ to: '/admin/promotions/new' as any })}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-[#B38B21] px-3.5 py-2 text-xs font-medium text-black hover:brightness-110"
-        >
-          <Plus size={14} />
-          New promotion
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            to="/admin/promotions/codes"
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-medium ${
+              isLight
+                ? 'border-black/10 hover:bg-black/5 text-black'
+                : 'border-white/10 hover:bg-white/5 text-white'
+            }`}
+          >
+            <Ticket size={14} />
+            All codes
+          </Link>
+          <button
+            type="button"
+            onClick={() => void navigate({ to: '/admin/promotions/new' as any })}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-[#B38B21] px-3.5 py-2 text-xs font-medium text-black hover:brightness-110"
+          >
+            <Plus size={14} />
+            New promotion
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">

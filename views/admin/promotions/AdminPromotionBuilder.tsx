@@ -23,15 +23,15 @@ import {
   type PromoDiscountType,
   type PromoUsagePreset,
 } from '../../../lib/promotions';
-import { hairlineCard, promoRpcErrorMessage } from './promoAdminShared';
+import { hairlineCard, appliesToHint, promoRpcErrorMessage } from './promoAdminShared';
 
 const APPLIES_OPTIONS: { id: PromoAppliesTo; label: string }[] = [
-  { id: 'order', label: 'order' },
-  { id: 'product', label: 'product' },
-  { id: 'category', label: 'category' },
-  { id: 'delivery', label: 'delivery' },
-  { id: 'repair', label: 'repair' },
-  { id: 'tradein_topup', label: 'trade-in top-up' },
+  { id: 'order', label: 'Everything' },
+  { id: 'product', label: 'Specific products' },
+  { id: 'category', label: 'Product categories' },
+  { id: 'delivery', label: 'Delivery' },
+  { id: 'repair', label: 'Repair' },
+  { id: 'tradein_topup', label: 'Trade-in top-up' },
 ];
 
 const PRESET_CARDS: {
@@ -556,6 +556,7 @@ export const AdminPromotionBuilder: React.FC = () => {
               </button>
             ))}
           </div>
+          <p className={`text-[13px] ${muted}`}>{appliesToHint(appliesTo)}</p>
           {(appliesTo === 'product' || appliesTo === 'category') && (
             <div className="space-y-2">
               {appliesTo === 'product' ? (
@@ -786,6 +787,10 @@ export const AdminPromotionBuilder: React.FC = () => {
           <div className={`rounded-[12px] px-3 py-3 ${isLight ? 'bg-black/[0.03]' : 'bg-white/[0.04]'}`}>
             <p className={`text-[13px] ${muted}`}>Biggest discount on a single order</p>
             <p className={`text-[24px] font-medium mt-1 ${fg}`}>{biggestPct}%</p>
+            <p className={`text-[11px] leading-snug mt-2 ${muted}`}>
+              How much of the minimum order one use can take off. Example: GHS 50 off with a
+              GHS 300 minimum ≈ 17%.
+            </p>
           </div>
         </div>
 

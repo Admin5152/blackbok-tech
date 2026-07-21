@@ -80,6 +80,7 @@ import { TradeAdminAudit } from './views/admin/trade/TradeAdminAudit';
 import { AdminPromotionsList } from './views/admin/promotions/AdminPromotionsList';
 import { AdminPromotionDetail } from './views/admin/promotions/AdminPromotionDetail';
 import { AdminPromotionBuilder } from './views/admin/promotions/AdminPromotionBuilder';
+import { AdminPromoCodesRegistry } from './views/admin/promotions/AdminPromoCodesRegistry';
 import { PromoVoucherPrint } from './views/admin/promotions/PromoVoucherPrint';
 import { saveReturnTo } from './lib/returnTo';
 import { isTradeV2Enabled } from './lib/tradeFeatureFlags';
@@ -747,6 +748,12 @@ const adminPromotionsNewRoute = createRoute({
   component: AdminPromotionBuilder,
 });
 
+const adminPromotionsCodesRoute = createRoute({
+  getParentRoute: () => adminPromotionsRoute,
+  path: '/codes',
+  component: AdminPromoCodesRegistry,
+});
+
 const adminPromotionDetailRoute = createRoute({
   getParentRoute: () => adminPromotionsRoute,
   path: '/$promoId',
@@ -1034,6 +1041,7 @@ const routeTree = rootRoute.addChildren([
   adminPromotionsRoute.addChildren([
     adminPromotionsIndexRoute,
     adminPromotionsNewRoute,
+    adminPromotionsCodesRoute,
     adminPromotionPrintRoute,
     adminPromotionDetailRoute,
   ]),
@@ -1646,9 +1654,18 @@ function RootComponent() {
   };
 
   const toggleCompare = (productId: string) => {
-    setCompareIds(prev => {
-      if (prev.includes(productId)) return prev.filter(id => id !== productId);
-      if (prev.length >= COMPARE_MAX_ITEMS) { notify(`Comparison limit reached (${COMPARE_MAX_ITEMS})`, 'error'); return prev; }
+    setCompareIds((prev) => {
+      if (prev.includes(productId)) {
+        const product = products.find((p) => p.id === productId);
+        notify(product ? `${product.name} removed from compare` : 'Removed from compare', 'info');
+        return prev.filter((id) => id !== productId);
+      }
+      if (prev.length >= COMPARE_MAX_ITEMS) {
+        notify(`Comparison limit reached (${COMPARE_MAX_ITEMS})`, 'error');
+        return prev;
+      }
+      const product = products.find((p) => p.id === productId);
+      notify(product ? `${product.name} added to compare` : 'Added to compare', 'success');
       return [...prev, productId];
     });
   };
