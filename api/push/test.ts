@@ -56,7 +56,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(200).json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    const code =
+      err && typeof err === 'object' && 'code' in err
+        ? String((err as { code?: string }).code || '')
+        : '';
     console.error('[api/push/test]', message);
+    // Misconfiguration is not a server crash — return 503 with a clear fix.
+    if (code === 'PUSH_NOT_CONFIGURED' || /VAPID|SERVICE_ROLE|not configured/i.test(message)) {
+      res.status(503).json({ error: message, code: 'PUSH_NOT_CONFIGURED' });
+      return;
+    }
     res.status(500).json({ error: message });
   }
 }

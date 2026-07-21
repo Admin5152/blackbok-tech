@@ -47,6 +47,7 @@ import { requestLifecycleEmail } from '../lib/clientNotifyEmail';
 import { saveResumeAfterAuth, peekRestorePayload, clearRestorePayload } from '../lib/resumeAfterAuth';
 import { saveReturnTo } from '../lib/returnTo';
 import { PageBackButton } from '../components/PageBackButton';
+import { FlowBreadcrumb } from '../components/FlowBreadcrumb';
 import { BrandLogo } from '../components/BrandLogo';
 import { getBrandsForDeviceType } from '../data/deviceBrands';
 
@@ -537,6 +538,25 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
 
         {/* Header */}
         <header className="mb-10 sm:mb-16 reveal-on-scroll">
+          <div className="mb-3">
+            <FlowBreadcrumb
+              items={[
+                { label: 'Home', to: '/' },
+                { label: 'Repair', to: '/repair' },
+                ...(formData.deviceType
+                  ? [
+                      {
+                        label:
+                          deviceTypes.find((d) => d.id === formData.deviceType)?.label ||
+                          formData.deviceType,
+                      },
+                    ]
+                  : []),
+                ...(formData.brand ? [{ label: formData.brand }] : []),
+                ...(formData.model ? [{ label: formData.model }] : []),
+              ]}
+            />
+          </div>
           <div className="mb-6">
             <PageBackButton isLight={theme === 'light'} fallbackTo="/" />
           </div>

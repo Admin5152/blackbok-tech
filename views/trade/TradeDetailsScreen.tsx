@@ -230,7 +230,7 @@ export function TradeDetailsScreen() {
       clearDraft();
       dispatch({ type: 'SET_SUBMITTED_TRADE', result });
       void requestLifecycleEmail('trade_submitted', {
-        displayId: result.display_id || result.id,
+        displayId: result.displayId || result.id,
         referenceId: result.id,
       });
       void navigate({ to: '/trade/confirmation' });

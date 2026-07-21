@@ -10,6 +10,7 @@ import {
   mergeVariantSkuFallback,
   normalizeOrderItemOptions,
 } from '../lib/orderItemOptions';
+import { PosReceiptDocument } from '../components/invoice/PosReceiptDocument';
 import { InvoiceDocument } from '../components/invoice/InvoiceDocument';
 
 export const Receipt: React.FC = () => {
@@ -252,7 +253,34 @@ export const Receipt: React.FC = () => {
     );
   }
 
-  return (
+  // Admin / POS mini-printer layout by default (?format=letter for full invoice).
+  const usePos =
+    typeof window === 'undefined' ||
+    new URLSearchParams(window.location.search).get('format') !== 'letter';
+
+  return usePos ? (
+    <PosReceiptDocument
+      kindLabel="Sales receipt"
+      invoiceId={order.id}
+      displayId={order.display_id}
+      customerName={invoiceModel.billToName}
+      customerLines={invoiceModel.billToLines}
+      dateLabel={invoiceModel.invoiceDate}
+      items={invoiceModel.items.map((item) => ({
+        name: item.name,
+        qty: item.qty,
+        rate: item.rate,
+        description: item.description,
+      }))}
+      subTotal={invoiceModel.totals.subTotal}
+      shipping={invoiceModel.totals.shipping}
+      total={invoiceModel.totals.total}
+      paymentLabel={invoiceModel.terms}
+      notes={invoiceModel.notes}
+      onBack={() => navigate({ to: '/profile' })}
+      onPrint={handleDownload}
+    />
+  ) : (
     <InvoiceDocument
       invoiceId={order.id}
       displayId={order.display_id}

@@ -23,8 +23,8 @@ export const REPAIR_TIME_SLOTS: RepairTimeSlot[] = [
 
 export const REPAIR_URGENCY_LEVELS: RepairUrgencyLevel[] = [
   { id: 'standard', label: 'Standard', desc: '2–3 days', price: 0 },
-  { id: 'express', label: 'Express', desc: '24 hours', price: 50 },
-  { id: 'emergency', label: 'Emergency', desc: 'Same day', price: 150 },
+  { id: 'express', label: 'Express', desc: '24 hours', price: 100 },
+  { id: 'emergency', label: 'Emergency', desc: 'Same day', price: 2000 },
 ];
 
 export function getRepairTimeSlot(id: string): RepairTimeSlot | undefined {

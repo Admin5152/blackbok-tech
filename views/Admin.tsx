@@ -27,10 +27,11 @@ import { TradeAdminShell } from './admin/trade/TradeAdminShell';
 // AdminTrades retired — Trade Admin lives at /admin/trade (embedded via TradeAdminShell).
 import {
   Home, Users, Package, ShoppingCart, RefreshCcw,
-  Wrench, LogOut, Menu, X, Shield, Store, RotateCcw,
+  Wrench, LogOut, Menu, X, Shield, Store, RotateCcw, Tag,
 } from 'lucide-react';
+import { AdminPromotionsShell } from './admin/promotions/AdminPromotionsShell';
 
-export type AdminSection = 'overview' | 'inbox' | 'orders' | 'customers' | 'products' | 'trades' | 'returns' | 'repairs' | 'users';
+export type AdminSection = 'overview' | 'inbox' | 'orders' | 'customers' | 'products' | 'trades' | 'returns' | 'repairs' | 'users' | 'promotions';
 
 interface AdminProps {
   user?: any;
@@ -46,6 +47,7 @@ const NAV_ITEMS: { id: AdminSection; label: string; icon: any; adminOnly?: boole
   { id: 'orders', label: 'Orders', icon: ShoppingCart },
   { id: 'customers', label: 'Customers', icon: Users },
   { id: 'products', label: 'Shop', icon: Package },
+  { id: 'promotions', label: 'Promotions', icon: Tag },
   { id: 'trades', label: 'Trade-Ins', icon: RefreshCcw },
   { id: 'returns', label: 'Returns', icon: RotateCcw },
   { id: 'repairs', label: 'Repairs', icon: Wrench },
@@ -58,6 +60,7 @@ const SECTION_TITLES: Record<AdminSection, string> = {
   orders: 'Order Management',
   customers: 'Customer Directory',
   products: 'Product Catalogue',
+  promotions: 'Promotions',
   trades: 'Trade-In Requests',
   returns: 'Return Requests',
   repairs: 'Repair Requests',
@@ -151,6 +154,8 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
       void routerNavigate({ to: '/admin/products' as any });
     } else if (s === 'trades') {
       void routerNavigate({ to: '/admin/trade' as any });
+    } else if (s === 'promotions') {
+      void routerNavigate({ to: '/admin/promotions' as any });
     } else {
       void routerNavigate({ to: '/admin' as any });
     }
@@ -211,6 +216,8 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
                   void routerNavigate({ to: '/admin/products' as any });
                 } else if (item.id === 'trades') {
                   void routerNavigate({ to: '/admin/trade' as any });
+                } else if (item.id === 'promotions') {
+                  void routerNavigate({ to: '/admin/promotions' as any });
                 } else {
                   void routerNavigate({ to: '/admin' as any });
                 }
@@ -280,7 +287,7 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
           </button>
           <div className="min-w-0 flex-1">
             <h1 className={`text-base font-black italic uppercase tracking-tight truncate ${isLight ? 'text-black' : 'text-white'}`}>
-              {section === 'trades' ? 'Trade Admin' : SECTION_TITLES[section]}
+              {section === 'trades' ? 'Trade Admin' : section === 'promotions' ? 'Promotions' : SECTION_TITLES[section]}
             </h1>
             <p className={`text-[9px] font-black uppercase tracking-widest truncate ${isLight ? 'text-black/50' : 'text-white/55'}`}>
               {section === 'trades'
@@ -338,6 +345,7 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
           {section === 'customers' && <AdminCustomers />}
           {section === 'products' && <AdminProducts canEdit={canEditOps} theme={theme} />}
           {section === 'trades' && <TradeAdminShell />}
+          {section === 'promotions' && <AdminPromotionsShell />}
           {section === 'returns' && <AdminReturns canEdit={canEditOps} />}
           {section === 'repairs' && <AdminRepairs canEdit={canEditRepairQueue} />}
           {section === 'users' && canEditRoles && (
