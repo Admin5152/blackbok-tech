@@ -33,19 +33,27 @@ function createServiceClient(env = process.env) {
 async function resolveUserEmail(
   userId: string,
   env = process.env,
+  overrideEmail?: string | null,
 ): Promise<string | null> {
-  const supabase = createServiceClient(env);
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('email')
-    .eq('id', userId)
-    .maybeSingle();
-  const fromProfile = (profile?.email || '').trim();
-  if (fromProfile) return fromProfile;
+  const fromOverride = (overrideEmail || '').trim();
+  if (fromOverride) return fromOverride;
 
-  const { data: authData, error } = await supabase.auth.admin.getUserById(userId);
-  if (error) return null;
-  return (authData.user?.email || '').trim() || null;
+  try {
+    const supabase = createServiceClient(env);
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('id', userId)
+      .maybeSingle();
+    const fromProfile = (profile?.email || '').trim();
+    if (fromProfile) return fromProfile;
+
+    const { data: authData, error } = await supabase.auth.admin.getUserById(userId);
+    if (error) return null;
+    return (authData.user?.email || '').trim() || null;
+  } catch {
+    return null;
+  }
 }
 
 function ctaForPayload(
@@ -92,7 +100,7 @@ export function shouldNotifyAdmin(payload: Pick<NotifyEmailPayload, 'type' | 'ti
 export async function sendNotificationEmails(
   payload: NotifyEmailPayload,
   env = process.env,
-  opts?: { force?: boolean },
+  opts?: { force?: boolean; customerEmail?: string | null },
 ): Promise<{ customer?: string; admin?: string; skipped?: string }> {
   if (!opts?.force && isClientHandledCreateTitle(payload.title)) {
     return { skipped: 'client_handles_create' };
@@ -110,7 +118,11 @@ export async function sendNotificationEmails(
   const text = plainFromHtml(html);
   const out: { customer?: string; admin?: string } = {};
 
-  const customerEmail = await resolveUserEmail(payload.user_id, env);
+  const customerEmail = await resolveUserEmail(
+    payload.user_id,
+    env,
+    opts?.customerEmail,
+  );
   if (customerEmail) {
     const sent = await sendEmail(
       { to: customerEmail, subject: title, html, text },
@@ -146,6 +158,14 @@ export async function sendNotificationEmails(
     }
   }
 
+  if (!out.customer && !out.admin) {
+    throw new Error(
+      customerEmail
+        ? 'Email send produced no message ids.'
+        : 'No customer email resolved (pass session email or set SUPABASE_SERVICE_ROLE_KEY).',
+    );
+  }
+
   return out;
 }
 
@@ -161,6 +181,7 @@ export async function sendDirectLifecycleEmail(
     displayId?: string | null;
     referenceId?: string | null;
     extraBody?: string;
+    customerEmail?: string | null;
   },
   env = process.env,
 ): Promise<{ customer?: string; admin?: string }> {
@@ -196,7 +217,7 @@ export async function sendDirectLifecycleEmail(
       reference_id: opts.referenceId ? String(opts.referenceId) : null,
     },
     env,
-    { force: true },
+    { force: true, customerEmail: opts.customerEmail },
   );
 }
 

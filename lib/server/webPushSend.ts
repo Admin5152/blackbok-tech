@@ -120,6 +120,14 @@ export async function resolveUserIdFromBearer(
   accessToken: string,
   env = process.env,
 ): Promise<string | null> {
+  const user = await resolveUserFromBearer(accessToken, env);
+  return user?.id ?? null;
+}
+
+export async function resolveUserFromBearer(
+  accessToken: string,
+  env = process.env,
+): Promise<{ id: string; email: string | null } | null> {
   const url = (env.SUPABASE_URL || env.VITE_SUPABASE_URL || '').trim();
   const anon = (env.VITE_SUPABASE_ANON_KEY || env.SUPABASE_ANON_KEY || '').trim();
   if (!url || !anon) return null;
@@ -129,5 +137,8 @@ export async function resolveUserIdFromBearer(
   });
   const { data, error } = await supabase.auth.getUser(accessToken);
   if (error || !data.user) return null;
-  return data.user.id;
+  return {
+    id: data.user.id,
+    email: (data.user.email || '').trim() || null,
+  };
 }

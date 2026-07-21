@@ -17,7 +17,7 @@ export type FanoutResult = {
 export async function deliverNotificationChannels(
   payload: NotifyEmailPayload,
   env = process.env,
-  opts?: { force?: boolean },
+  opts?: { force?: boolean; customerEmail?: string | null },
 ): Promise<FanoutResult> {
   const email: FanoutResult['email'] = {};
   const push: FanoutResult['push'] = {};
@@ -45,6 +45,7 @@ export async function sendDirectLifecycleNotify(
     displayId?: string | null;
     referenceId?: string | null;
     extraBody?: string;
+    customerEmail?: string | null;
   },
   env = process.env,
 ): Promise<FanoutResult> {
@@ -80,6 +81,6 @@ export async function sendDirectLifecycleNotify(
       reference_id: opts.referenceId ? String(opts.referenceId) : null,
     },
     env,
-    { force: true },
+    { force: true, customerEmail: opts.customerEmail },
   );
 }

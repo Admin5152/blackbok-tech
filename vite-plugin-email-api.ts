@@ -1,6 +1,6 @@
 import type { Plugin } from 'vite';
 import { loadEnv } from 'vite';
-import { resolveUserIdFromBearer } from './lib/server/webPushSend';
+import { resolveUserFromBearer } from './lib/server/webPushSend';
 import { sendContactConfirmationToCustomer } from './lib/server/notifyEmail';
 import {
   deliverNotificationChannels,
@@ -99,8 +99,8 @@ export function emailApiPlugin(mode: string): Plugin {
               sendJson(res, 401, { error: 'Missing Authorization Bearer token' });
               return;
             }
-            const userId = await resolveUserIdFromBearer(token, merged);
-            if (!userId) {
+            const user = await resolveUserFromBearer(token, merged);
+            if (!user?.id) {
               sendJson(res, 401, { error: 'Invalid session' });
               return;
             }
@@ -117,15 +117,23 @@ export function emailApiPlugin(mode: string): Plugin {
             const result = await sendDirectLifecycleNotify(
               event,
               {
-                userId,
+                userId: user.id,
                 displayId: body.displayId ? String(body.displayId) : null,
                 referenceId: body.referenceId ? String(body.referenceId) : null,
                 extraBody: body.extraBody ? String(body.extraBody) : undefined,
+                customerEmail: user.email,
               },
               merged,
             );
-            const hardFail = Boolean(result.email.error && result.push.error);
-            sendJson(res, hardFail ? 500 : 200, { ok: !hardFail, ...result });
+            if (result.email.error || result.email.skipped) {
+              sendJson(res, 500, {
+                ok: false,
+                error: result.email.error || result.email.skipped || 'Email not sent',
+                ...result,
+              });
+              return;
+            }
+            sendJson(res, 200, { ok: true, ...result });
             return;
           }
 

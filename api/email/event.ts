@@ -3,18 +3,11 @@
  * POST /api/email/event
  * Authorization: Bearer <supabase access token>
  *
- * Body: {
- *   event: 'order_placed'|'trade_submitted'|'repair_submitted',
- *   displayId?: string,
- *   referenceId?: string,
- *   extraBody?: string
- * }
- *
- * Sends customer email + admin alert + web push.
- * Status-change fan-out comes from the notifications webhook.
+ * Uses the session user's email for Resend (does not require service_role
+ * for create emails). Status updates still use the notifications webhook.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { resolveUserIdFromBearer } from '../../lib/server/webPushSend';
+import { resolveUserFromBearer } from '../../lib/server/webPushSend';
 import { sendDirectLifecycleNotify } from '../../lib/server/notifyFanout';
 import type { DirectEmailEvent } from '../../lib/server/notifyEmail';
 
@@ -42,8 +35,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    const userId = await resolveUserIdFromBearer(token, process.env);
-    if (!userId) {
+    const user = await resolveUserFromBearer(token, process.env);
+    if (!user?.id) {
       res.status(401).json({ error: 'Invalid session' });
       return;
     }
@@ -58,16 +51,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const result = await sendDirectLifecycleNotify(
       event,
       {
-        userId,
+        userId: user.id,
         displayId: body.displayId ? String(body.displayId) : null,
         referenceId: body.referenceId ? String(body.referenceId) : null,
         extraBody: body.extraBody ? String(body.extraBody) : undefined,
+        customerEmail: user.email,
       },
       process.env,
     );
 
-    const hardFail = Boolean(result.email.error && result.push.error);
-    res.status(hardFail ? 500 : 200).json({ ok: !hardFail, ...result });
+    // Create path: email must succeed. Push is best-effort (may skip if not enabled).
+    if (result.email.error || result.email.skipped) {
+      res.status(500).json({
+        ok: false,
+        error: result.email.error || result.email.skipped || 'Email not sent',
+        ...result,
+      });
+      return;
+    }
+
+    res.status(200).json({ ok: true, ...result });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[api/email/event]', message);
