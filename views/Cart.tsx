@@ -219,7 +219,7 @@ export const Cart: React.FC<CartProps> = ({
                       <img
                         src={item.image}
                         alt={item.name}
-                        className="bb-product-card-img group-hover:scale-105 transition-transform duration-500 ease-out"
+                        className="bb-product-card-img"
                       />
                     </div>
 

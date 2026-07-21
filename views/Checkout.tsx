@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   Truck,
@@ -11,25 +11,22 @@ import {
   Check,
   Lock,
   LogIn,
-  UserPlus,
-  Eye,
-  EyeOff,
 } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import { useAppContext } from '../App';
-import { CartItem, Order, User } from '../types';
+import { CartItem, Order } from '../types';
 import { formatCurrency } from '../lib/utils';
 import { clearCartItems, updateProfilePhone } from '../lib/api';
 import { friendlyError } from '../lib/friendlyErrors';
-import AuthService from '../lib/auth';
 import { OrderCompletePopup } from '../components/OrderCompletePopup';
 import { CouponInput } from '../components/checkout/CouponInput';
 import type { AppliedCoupon } from '../hooks/useCoupons';
 import { useCheckout, type CheckoutCartItem } from '../hooks/useCheckout';
 import { buildProductOptionsForRpc } from '../lib/orderItemOptions';
-import { normalizeCanonicalRole } from '../lib/roles';
 import { requestLifecycleEmail } from '../lib/clientNotifyEmail';
 import { DELIVERY_ENABLED, DEFAULT_SHIPPING_METHOD } from '../lib/fulfillmentConfig';
+import { saveReturnTo } from '../lib/returnTo';
+import { saveCheckoutDraft, takeCheckoutDraft } from '../lib/checkoutDraft';
 
 // ============================================================
 // Constants — kept at the top so they're easy to audit / extend.
@@ -91,205 +88,16 @@ function isValidDigitalAddress(value: string): boolean {
 }
 
 // ============================================================
-// Inline auth form (CHK-07, CHK-08)
-//
-// Rendered in Step 2 when the user is not signed in. Keeps the
-// cart and form state alive instead of forcing a redirect to /auth.
-// ============================================================
-interface InlineAuthFormProps {
-  onAuthenticated: (user: User) => void;
-  notify: (msg: string, type?: 'success' | 'error' | 'info') => void;
-}
-
-const InlineAuthForm: React.FC<InlineAuthFormProps> = ({ onAuthenticated, notify }) => {
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
-  const [form, setForm] = useState({ name: '', email: '', password: '' });
-  const [busy, setBusy] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    try {
-      if (mode === 'login') {
-        const res = await AuthService.signIn({
-          email: form.email,
-          password: form.password,
-        });
-        if (!res.user) {
-          notify(res.error || 'Sign in failed. Check your email and password.', 'error');
-          return;
-        }
-        const user: User = {
-          id: res.user.id,
-          name: res.user.name || 'User',
-          email: res.user.email,
-          role: normalizeCanonicalRole((res.user as { role?: string }).role),
-        };
-        onAuthenticated(user);
-        notify(`Welcome back, ${user.name}!`, 'success');
-      } else {
-        const res = await AuthService.signUp({
-          name: form.name,
-          email: form.email,
-          password: form.password,
-        });
-        if (!res.user) {
-          notify(AuthService.formatSignUpError(res.error) || 'Sign up failed.', 'error');
-          return;
-        }
-        // After sign up Supabase usually requires email confirmation
-        // before signInWithPassword works. We still try — if it
-        // succeeds we proceed; otherwise we ask the user to confirm
-        // their email and retry.
-        const loginRes = await AuthService.signIn({
-          email: form.email,
-          password: form.password,
-        });
-        if (!loginRes.user) {
-          notify('Account created. Please confirm your email and sign in to continue.', 'success');
-          setMode('login');
-          return;
-        }
-        const user: User = {
-          id: loginRes.user.id,
-          name: loginRes.user.name || form.name || 'User',
-          email: loginRes.user.email,
-          role: normalizeCanonicalRole((loginRes.user as { role?: string }).role),
-        };
-        onAuthenticated(user);
-        notify(`Account created. Welcome, ${user.name}!`, 'success');
-      }
-    } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message : undefined;
-      notify(AuthService.formatAuthError(msg, mode === 'login' ? 'login' : 'signup'), 'error');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="bg-neutral-100/90 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl p-6 space-y-5">
-      <div className="flex items-center gap-2">
-        <Lock className="w-5 h-5 text-[#B38B21]" />
-        <h2 className="text-xl font-bold">
-          {mode === 'login' ? 'Sign in to continue' : 'Create an account'}
-        </h2>
-      </div>
-      <p className="text-sm text-black/60 dark:text-white/60">
-        You need a registered BlackBox account to place an order. New or deleted accounts: use Create an account first, then sign in.
-      </p>
-
-      <form onSubmit={submit} className="space-y-4">
-        {mode === 'signup' && (
-          <div>
-            <label className="block text-sm font-medium mb-2">Full Name</label>
-            <input
-              type="text"
-              required
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="w-full bg-neutral-100 dark:bg-black/50 border border-black/15 dark:border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none text-black placeholder:text-black/45 dark:text-white dark:placeholder:text-white/35"
-              placeholder="Jane Doe"
-            />
-          </div>
-        )}
-        <div>
-          <label className="block text-sm font-medium mb-2">Email</label>
-          <input
-            type="email"
-            required
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            className="w-full bg-neutral-100 dark:bg-black/50 border border-black/15 dark:border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none text-black placeholder:text-black/45 dark:text-white dark:placeholder:text-white/35"
-            placeholder="you@example.com"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-2">Password</label>
-          <div className="relative">
-            <input
-              type={showPassword ? 'text' : 'password'}
-              required
-              minLength={6}
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-              disabled={busy}
-              className="w-full bg-neutral-100 dark:bg-black/50 border border-black/15 dark:border-white/20 rounded-lg px-4 py-3 pr-12 focus:border-[#B38B21] outline-none text-black placeholder:text-black/45 dark:text-white dark:placeholder:text-white/35 disabled:opacity-50"
-              placeholder="At least 6 characters"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              disabled={busy}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B38B21] transition-colors disabled:opacity-50"
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
-            >
-              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
-          </div>
-        </div>
-
-        <button
-          type="submit"
-          disabled={busy}
-          className="w-full py-3 bg-[#B38B21] text-black rounded-lg font-bold hover:bg-[#D4AF37] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-        >
-          {mode === 'login' ? (
-            <>
-              <LogIn className="w-4 h-4" />
-              {busy ? 'Signing in…' : 'Sign in & continue'}
-            </>
-          ) : (
-            <>
-              <UserPlus className="w-4 h-4" />
-              {busy ? 'Creating account…' : 'Create account & continue'}
-            </>
-          )}
-        </button>
-      </form>
-
-      <div className="text-center text-sm text-black/65 dark:text-white/70">
-        {mode === 'login' ? (
-          <>
-            New here?{' '}
-            <button
-              type="button"
-              onClick={() => setMode('signup')}
-              className="text-[#B38B21] underline-offset-2 hover:underline"
-            >
-              Create an account
-            </button>
-          </>
-        ) : (
-          <>
-            Already have an account?{' '}
-            <button
-              type="button"
-              onClick={() => setMode('login')}
-              className="text-[#B38B21] underline-offset-2 hover:underline"
-            >
-              Sign in
-            </button>
-          </>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// ============================================================
 // Main Checkout view
 // ============================================================
 export const Checkout: React.FC = () => {
-  const { user, cart, setCart, orders, setOrders, notify, setUser, theme, refreshProducts } = useAppContext();
+  const { user, cart, setCart, orders, setOrders, notify, theme, refreshProducts } = useAppContext();
   const navigate = useNavigate();
   const { placeOrder: rpcPlaceOrder, loading: checkoutLoading } = useCheckout();
 
   // --- Step state ---
   const [step, setStep] = useState<1 | 2>(1);
+  const draftRestoredRef = useRef(false);
 
   // --- Shipping fields ---
   const [shippingMethod, setShippingMethod] = useState<ShippingMethod>(DEFAULT_SHIPPING_METHOD);
@@ -373,10 +181,58 @@ export const Checkout: React.FC = () => {
 
   const canContinueFromStep1 = Object.keys(step1Errors).length === 0;
 
+  const persistAndGoToLogin = () => {
+    saveCheckoutDraft({
+      step: 2,
+      shippingMethod,
+      form,
+      paymentMethod,
+    });
+    saveReturnTo('/checkout');
+    notify('Sign in to place your order — we’ll bring you right back.', 'info');
+    navigate({
+      to: '/auth',
+      search: { returnTo: '/checkout' } as any,
+    });
+  };
+
+  // Restore address / payment step after returning from /auth.
+  useEffect(() => {
+    if (draftRestoredRef.current) return;
+    const draft = takeCheckoutDraft();
+    if (!draft) {
+      draftRestoredRef.current = true;
+      return;
+    }
+    draftRestoredRef.current = true;
+    setShippingMethod(
+      draft.shippingMethod === 'delivery' && DELIVERY_ENABLED ? 'delivery' : 'pickup',
+    );
+    setForm({
+      phone: draft.form?.phone || '',
+      address: draft.form?.address || '',
+      city: draft.form?.city || '',
+      region: draft.form?.region || '',
+      digitalAddress: draft.form?.digitalAddress || '',
+    });
+    if (
+      draft.paymentMethod === 'pickup_cash' ||
+      draft.paymentMethod === 'card' ||
+      draft.paymentMethod === 'mobile_money'
+    ) {
+      setPaymentMethod(draft.paymentMethod);
+    }
+    setStep(draft.step === 2 ? 2 : 1);
+  }, []);
+
   const goToStep2 = () => {
     if (!canContinueFromStep1) {
       const firstErr = Object.values(step1Errors)[0];
       notify(firstErr || 'Please complete your shipping information.', 'error');
+      return;
+    }
+    if (!user) {
+      persistAndGoToLogin();
       return;
     }
     setStep(2);
@@ -390,7 +246,7 @@ export const Checkout: React.FC = () => {
       return;
     }
     if (!user) {
-      notify('Please sign in to place an order.', 'error');
+      persistAndGoToLogin();
       return;
     }
     if (!canContinueFromStep1) {
@@ -600,7 +456,23 @@ export const Checkout: React.FC = () => {
             )}
 
             {step === 2 && !user && (
-              <InlineAuthForm onAuthenticated={setUser} notify={notify} />
+              <div className="bg-neutral-100/90 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl p-6 space-y-5">
+                <div className="flex items-center gap-2">
+                  <Lock className="w-5 h-5 text-[#B38B21]" />
+                  <h2 className="text-xl font-bold">Sign in to continue</h2>
+                </div>
+                <p className="text-sm text-black/60 dark:text-white/60">
+                  You need a BlackBox account to place an order. Sign in on the login page — your checkout progress is saved and we&apos;ll bring you back here.
+                </p>
+                <button
+                  type="button"
+                  onClick={persistAndGoToLogin}
+                  className="w-full py-3 bg-[#B38B21] text-black rounded-lg font-bold hover:bg-[#D4AF37] transition-colors flex items-center justify-center gap-2"
+                >
+                  <LogIn className="w-4 h-4" />
+                  Go to sign in
+                </button>
+              </div>
             )}
 
             {step === 2 && user && (

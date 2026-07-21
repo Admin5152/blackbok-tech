@@ -1041,7 +1041,7 @@ export const Home: React.FC<HomeProps> = ({
                         className={`min-w-[45%] h-28 rounded-2xl overflow-hidden relative group/mini cursor-pointer ${theme === 'light' ? 'bg-gray-100 border border-black/10' : 'bg-[#050505] border border-white/10'} ${homeMiniCardHover}`}
                       >
                         <div className="bb-product-card-media bb-product-card-media--mini">
-                          <img src={p.image} alt={p.name} className="bb-product-card-img group-hover/mini:scale-105 transition-transform duration-700" />
+                          <img src={p.image} alt={p.name} className="bb-product-card-img" />
                         </div>
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/mini:opacity-100 transition-opacity flex items-center justify-center">
                           <Eye size={12} className="text-white" />

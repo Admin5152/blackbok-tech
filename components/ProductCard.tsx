@@ -188,7 +188,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </div>
 
         <div
-          className={`flex flex-col gap-1 ${isCompact ? 'p-2' : 'p-2.5'} ${isLight ? 'bg-white' : 'bg-black'}`}
+          className={`flex flex-col gap-1.5 ${isCompact ? 'p-2.5' : 'p-3'} ${isLight ? 'bg-white' : 'bg-black'}`}
         >
           <div className="space-y-1 min-w-0">
             <p

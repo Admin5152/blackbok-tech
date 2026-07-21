@@ -1,5 +1,8 @@
 import { getLenis } from './lenisScroll';
 
+/** Visible auto-advance duration so users notice the carousel moving. */
+export const HOME_RAIL_SCROLL_MS = 1400;
+
 /** Read current page scroll Y (Lenis or window). */
 function readPageScrollY(): number {
   try {
@@ -29,33 +32,63 @@ function restorePageScrollY(y: number): void {
   }
 }
 
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+/** Track in-flight rail animations so we don't stack intervals mid-scroll. */
+const railAnimating = new WeakMap<HTMLElement, number>();
+
 /**
  * Horizontally scroll a home product rail to an item without moving the page.
- * Disables snap briefly so proximity snap cannot pull the document.
+ * Uses a timed animation (~1.4s for autoplay) so the motion is noticeable.
  */
 function scrollRailToItem(
   rail: HTMLElement,
   item: HTMLElement,
-  behavior: ScrollBehavior = 'smooth',
+  durationMs: number,
 ): void {
   const pageY = readPageScrollY();
   const railRect = rail.getBoundingClientRect();
   const itemRect = item.getBoundingClientRect();
-  const left = itemRect.left - railRect.left + rail.scrollLeft;
+  const targetLeft = itemRect.left - railRect.left + rail.scrollLeft;
+  const startLeft = rail.scrollLeft;
+  const delta = targetLeft - startLeft;
+  if (Math.abs(delta) < 1) return;
 
   const prevSnap = rail.style.scrollSnapType;
   rail.style.scrollSnapType = 'none';
 
-  rail.scrollTo({ left, behavior });
+  const existing = railAnimating.get(rail);
+  if (existing) cancelAnimationFrame(existing);
 
-  const restore = () => restorePageScrollY(pageY);
-  restore();
-  requestAnimationFrame(() => {
-    restore();
+  if (durationMs <= 0) {
+    rail.scrollLeft = targetLeft;
+    restorePageScrollY(pageY);
     rail.style.scrollSnapType = prevSnap;
-    // One more restore after snap re-enables (snap can still nudge once).
-    requestAnimationFrame(restore);
-  });
+    return;
+  }
+
+  const start = performance.now();
+
+  const tick = (now: number) => {
+    const t = Math.min(1, (now - start) / durationMs);
+    rail.scrollLeft = startLeft + delta * easeInOutCubic(t);
+    restorePageScrollY(pageY);
+
+    if (t < 1) {
+      railAnimating.set(rail, requestAnimationFrame(tick));
+      return;
+    }
+
+    rail.scrollLeft = targetLeft;
+    restorePageScrollY(pageY);
+    rail.style.scrollSnapType = prevSnap;
+    railAnimating.delete(rail);
+    requestAnimationFrame(() => restorePageScrollY(pageY));
+  };
+
+  railAnimating.set(rail, requestAnimationFrame(tick));
 }
 
 function activeRailItemIndex(rail: HTMLElement, items: NodeListOf<HTMLElement>): number {
@@ -74,6 +107,12 @@ function activeRailItemIndex(rail: HTMLElement, items: NodeListOf<HTMLElement>):
     }
   });
   return activeIndex;
+}
+
+/** True while an animated rail scroll is in progress. */
+export function isHomeRailAnimating(railId: string): boolean {
+  const rail = document.getElementById(railId);
+  return Boolean(rail && railAnimating.has(rail));
 }
 
 /** Scroll a home horizontal product rail by one snap card (smooth, snap-aligned). */
@@ -95,16 +134,17 @@ export function scrollHomeRail(railId: string, direction: 'prev' | 'next'): void
       ? Math.min(activeIndex + 1, items.length - 1)
       : Math.max(activeIndex - 1, 0);
 
-  scrollRailToItem(rail, items[nextIndex], 'smooth');
+  // Manual arrows: a bit snappier than autoplay (~0.9s).
+  scrollRailToItem(rail, items[nextIndex], 900);
 }
 
 /**
- * Auto-carousel step: advances one card, then loops to the start when at the end.
- * Uses instant horizontal scroll so smooth + snap cannot yank the page.
+ * Auto-carousel step: advances one card (~1.4s), then loops to the start when at the end.
  */
 export function scrollHomeRailLoop(railId: string, direction: 'prev' | 'next' = 'next'): void {
   const rail = document.getElementById(railId);
   if (!rail) return;
+  if (railAnimating.has(rail)) return;
 
   const items = rail.querySelectorAll<HTMLElement>('[data-home-rail-item]');
   if (items.length <= 1) return;
@@ -118,6 +158,5 @@ export function scrollHomeRailLoop(railId: string, direction: 'prev' | 'next' = 
     nextIndex = activeIndex <= 0 ? items.length - 1 : activeIndex - 1;
   }
 
-  // Instant: autoplay must never run a multi-hundred-ms smooth scroll under the user.
-  scrollRailToItem(rail, items[nextIndex], 'auto');
+  scrollRailToItem(rail, items[nextIndex], HOME_RAIL_SCROLL_MS);
 }

@@ -1,8 +1,11 @@
 import { useEffect } from 'react';
-import { scrollHomeRailLoop } from '../lib/homeCarouselScroll';
+import { isHomeRailAnimating, scrollHomeRailLoop } from '../lib/homeCarouselScroll';
 
-/** Default auto-advance cadence for Feature picks / phones / laptops. */
-export const HOME_RAIL_AUTO_MS = 2800;
+/**
+ * Auto-advance cadence: long enough for a ~1.4s slide plus a short pause
+ * so users can notice the move before the next card.
+ */
+export const HOME_RAIL_AUTO_MS = 4200;
 
 /**
  * Auto-advance homepage product rails (phones / laptops / highlights).
@@ -47,9 +50,8 @@ export function useAutoHomeRails(
         const onPointerLeave = () => resume();
         const onFocusIn = () => pause();
         const onFocusOut = () => resume();
-        // Shorter pause so auto keeps moving after a quick swipe.
-        const onScroll = () => pause(3500);
-        const onTouchStart = () => pause(3500);
+        const onScroll = () => pause(4000);
+        const onTouchStart = () => pause(4000);
 
         rail.addEventListener('mouseenter', onPointerEnter);
         rail.addEventListener('mouseleave', onPointerLeave);
@@ -86,6 +88,7 @@ export function useAutoHomeRails(
 
       const tick = window.setInterval(() => {
         if (paused || !inView || document.visibilityState === 'hidden') return;
+        if (isHomeRailAnimating(railId)) return;
         scrollHomeRailLoop(railId, 'next');
       }, intervalMs);
 
