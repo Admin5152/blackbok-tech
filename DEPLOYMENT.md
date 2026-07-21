@@ -102,6 +102,7 @@ cp -r dist/* /var/www/html/
 **Authentication fails**
 - Check Supabase URL and keys
 - Verify redirect URLs in Supabase settings
+- Set **Email OTP expiration** to `900` (15 minutes) under Authentication → Email — this covers confirm + reset links
 - Check RLS policies
 
 **Build errors**

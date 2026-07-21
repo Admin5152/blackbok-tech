@@ -2034,11 +2034,18 @@ html {
   overflow: hidden;
 }
 
+.bb-mobile-nav__item-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.15rem;
+}
+
 .bb-mobile-nav__item-main {
   display: flex;
   align-items: center;
   gap: 0.65rem;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   padding: 0.55rem 0.65rem;
   border: 0;
   background: transparent;
@@ -2060,6 +2067,24 @@ html {
 
 .bb-mobile-nav--dark .bb-mobile-nav__item--active .bb-mobile-nav__item-main {
   color: var(--bb-nav-gold);
+}
+
+.bb-mobile-nav__item-expand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.5rem;
+  border: 0;
+  background: transparent;
+  color: var(--bb-nav-muted);
+  cursor: pointer;
+  border-radius: 0.85rem;
+  transition: background 0.2s;
+}
+
+.bb-mobile-nav__item-expand:hover {
+  background: var(--bb-nav-icon-bg);
 }
 
 .bb-mobile-nav__item-icon {

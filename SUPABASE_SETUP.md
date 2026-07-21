@@ -9,10 +9,15 @@
 4. Run the seed data: `/database/seed.sql`
 
 ### 2. Authentication Configuration
-1. Navigate to **Authentication** → **Settings**
+1. Navigate to **Authentication** → **Providers** → **Email**
 2. Ensure **Email/Password** is enabled
-3. Set site URL: `http://localhost:5173` (default Vite) or whatever `npm run dev` prints (e.g. `http://localhost:3001`)
-4. Configure redirect URLs as needed
+3. Set **Email OTP expiration** to **900** seconds (**15 minutes**).  
+   This single setting controls how long **all** auth email links last:
+   signup confirmation, password recovery/reset, magic link, invite, and email-change.
+4. Set **Site URL** to your live origin (e.g. `https://blackboxghana.com`) and add the same origin under **Redirect URLs** (include `/?type=recovery` and `/?type=email_confirm` if you list exact paths).
+5. For local dev, also allow `http://localhost:5173` (or whatever `npm run dev` prints)
+
+**Dashboard path:** Authentication → Sign In / Providers → Email → Email OTP expiration = `900`
 
 ### 3. Row Level Security
 The schema includes RLS policies that:

@@ -30,7 +30,8 @@ export type MobileNavSubItem =
     };
 
 export type MobileNavItem = {
-  path: string;
+  /** Primary destination when the row is tapped (even if sub-items exist). */
+  path?: string;
   label: string;
   icon: React.ComponentType<{ size?: number; className?: string }>;
   badge?: number;
@@ -187,7 +188,7 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
 
         <nav className="bb-mobile-nav__scroll" aria-label="Site sections">
           {items.map((item) => {
-            const active = pathname === item.path;
+            const active = Boolean(item.path) && pathname === item.path;
             const hasSubItems = Boolean(item.subItems?.length);
             const isSubmenuOpen = activeSubmenu === item.label;
             const section = sectionLabelFor(item.label);
@@ -195,39 +196,52 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
             return (
               <React.Fragment key={item.label}>
                 {section && <p className="bb-mobile-nav__section-label">{section}</p>}
-                <div className={`bb-mobile-nav__item ${active && !hasSubItems ? 'bb-mobile-nav__item--active' : ''}`}>
-                  <button
-                    type="button"
-                    className="bb-mobile-nav__item-main"
-                    onClick={() => {
-                      if (hasSubItems) {
-                        setActiveSubmenu(isSubmenuOpen ? null : item.label);
-                        return;
-                      }
-                      goTo(item.path);
-                    }}
-                    aria-label={item.ariaLabel ?? item.label}
-                    aria-expanded={hasSubItems ? isSubmenuOpen : undefined}
-                  >
-                    <span className="bb-mobile-nav__item-icon" aria-hidden>
-                      <item.icon size={18} />
-                    </span>
-                    <span className="bb-mobile-nav__item-label">{item.label}</span>
-                    {item.badge != null && item.badge > 0 && (
-                      item.label === 'Cart' ? (
-                        <span className="bb-mobile-nav__item-count">{item.badge > 99 ? '99+' : item.badge}</span>
-                      ) : (
-                        <NavUnreadBadge count={item.badge} title="New activity" />
-                      )
-                    )}
+                <div className={`bb-mobile-nav__item ${active ? 'bb-mobile-nav__item--active' : ''}`}>
+                  <div className="bb-mobile-nav__item-row">
+                    <button
+                      type="button"
+                      className="bb-mobile-nav__item-main"
+                      onClick={() => {
+                        // Parent row always goes to the section home when a path exists
+                        // (Home → /, Trades → /trade, etc.). Chevron expands extras.
+                        if (item.path) {
+                          goTo(item.path);
+                          return;
+                        }
+                        if (hasSubItems) {
+                          setActiveSubmenu(isSubmenuOpen ? null : item.label);
+                        }
+                      }}
+                      aria-label={item.ariaLabel ?? item.label}
+                    >
+                      <span className="bb-mobile-nav__item-icon" aria-hidden>
+                        <item.icon size={18} />
+                      </span>
+                      <span className="bb-mobile-nav__item-label">{item.label}</span>
+                      {item.badge != null && item.badge > 0 && (
+                        item.label === 'Cart' ? (
+                          <span className="bb-mobile-nav__item-count">{item.badge > 99 ? '99+' : item.badge}</span>
+                        ) : (
+                          <NavUnreadBadge count={item.badge} title="New activity" />
+                        )
+                      )}
+                    </button>
                     {hasSubItems && (
-                      <ChevronDown
-                        size={16}
-                        className={`bb-mobile-nav__item-chevron ${isSubmenuOpen ? 'bb-mobile-nav__item-chevron--open' : ''}`}
-                        aria-hidden
-                      />
+                      <button
+                        type="button"
+                        className="bb-mobile-nav__item-expand"
+                        onClick={() => setActiveSubmenu(isSubmenuOpen ? null : item.label)}
+                        aria-label={`${isSubmenuOpen ? 'Hide' : 'Show'} ${item.label} links`}
+                        aria-expanded={isSubmenuOpen}
+                      >
+                        <ChevronDown
+                          size={16}
+                          className={`bb-mobile-nav__item-chevron ${isSubmenuOpen ? 'bb-mobile-nav__item-chevron--open' : ''}`}
+                          aria-hidden
+                        />
+                      </button>
                     )}
-                  </button>
+                  </div>
 
                   {hasSubItems && (
                     <div className={`bb-mobile-nav__sub ${isSubmenuOpen ? 'bb-mobile-nav__sub--open' : ''}`}>

@@ -179,6 +179,7 @@ export const Navbar: React.FC<{
             label: 'Home',
             icon: HomeIcon,
             subItems: [
+              { path: '/', label: 'Home', icon: HomeIcon },
               { path: '/about', label: 'About BlackBox', icon: Info },
               { path: '/policies', label: 'Policies & FAQ', icon: Scale },
             ],

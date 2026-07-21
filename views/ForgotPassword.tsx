@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Mail, ArrowLeft } from 'lucide-react';
 import AuthService from '../lib/auth';
 import { useAppContext } from '../App';
+import { AUTH_EMAIL_LINK_EXPIRY_MINUTES } from '../lib/authEmailExpiry';
 
 export const ForgotPassword: React.FC = () => {
   const { theme, notify, navigateTo } = useAppContext();
@@ -56,6 +57,7 @@ export const ForgotPassword: React.FC = () => {
         </h1>
         <p className={`mt-2 text-sm ${cardMuted}`}>
           Enter your account email and we will send you a password reset link.
+          The link expires in about {AUTH_EMAIL_LINK_EXPIRY_MINUTES} minutes — use it promptly.
         </p>
 
         {isSubmitted ? (
