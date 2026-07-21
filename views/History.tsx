@@ -259,7 +259,7 @@ export const History: React.FC = () => {
                                             to={`/receipt/${order.id}` as any}
                                             className="px-4 py-2 rounded-xl bg-[#CDA032]/10 text-[#CDA032] border border-[#CDA032]/20 text-[9px] font-black uppercase tracking-widest hover:bg-[#CDA032]/20 transition-colors whitespace-nowrap"
                                         >
-                                            View Receipt
+                                            View Invoice
                                         </Link>
                                         {canCancelOrder(order) && notify && (
                                             <CancelRequestButton

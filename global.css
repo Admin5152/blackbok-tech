@@ -1687,22 +1687,26 @@ html {
   scrollbar-width: none !important;
 }
 
-/* Receipt: compact print / PDF (route /receipt/:id) */
+/* Invoice / printable docs (route /receipt/:id) */
 @media print {
   @page {
-    margin: 0.35in;
+    margin: 0.4in;
     size: auto;
   }
-  .receipt-print-root {
+  .receipt-print-root,
+  .invoice-print-root {
     box-shadow: none !important;
   }
-  .receipt-print-root table {
+  .receipt-print-root table,
+  .invoice-print-root table {
     page-break-inside: auto;
   }
-  .receipt-print-root thead {
+  .receipt-print-root thead,
+  .invoice-print-root thead {
     display: table-header-group;
   }
-  .receipt-print-root tr {
+  .receipt-print-root tr,
+  .invoice-print-root tr {
     break-inside: avoid;
     page-break-inside: avoid;
   }

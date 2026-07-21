@@ -1,7 +1,7 @@
 import { getLenis } from './lenisScroll';
 
-/** Visible auto-advance duration so users notice the carousel moving. */
-export const HOME_RAIL_SCROLL_MS = 1400;
+/** Visible auto-advance duration so users notice the carousel moving (~1.1s). */
+export const HOME_RAIL_SCROLL_MS = 1100;
 
 /** Read current page scroll Y (Lenis or window). */
 function readPageScrollY(): number {
@@ -134,8 +134,8 @@ export function scrollHomeRail(railId: string, direction: 'prev' | 'next'): void
       ? Math.min(activeIndex + 1, items.length - 1)
       : Math.max(activeIndex - 1, 0);
 
-  // Manual arrows: a bit snappier than autoplay (~0.9s).
-  scrollRailToItem(rail, items[nextIndex], 900);
+  // Manual arrows: roughly the same pace as autoplay.
+  scrollRailToItem(rail, items[nextIndex], 1000);
 }
 
 /**

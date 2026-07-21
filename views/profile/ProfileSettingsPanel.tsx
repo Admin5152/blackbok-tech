@@ -61,7 +61,7 @@ export const ProfileSettingsPanel: React.FC<ProfileSettingsPanelProps> = ({
         <div className="flex flex-col gap-4 py-4 border-b border-white/5">
           <div className="space-y-1">
             <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${isLight ? 'text-gray-500' : 'opacity-30'}`}>Display name</p>
-            <p className={`text-xs ${isLight ? 'text-gray-600' : 'text-white/50'}`}>Shown on orders, receipts, and your profile.</p>
+            <p className={`text-xs ${isLight ? 'text-gray-600' : 'text-white/50'}`}>Shown on orders, invoices, and your profile.</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
             <input

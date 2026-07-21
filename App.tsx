@@ -1087,7 +1087,7 @@ function RootComponent() {
   const isConfirmationRoute = location.pathname === '/confirmation';
   const isEmailConfirmRoute = location.pathname === '/emailconfirm';
   const isStandaloneRoute = isAdminRoute || isForgotPasswordRoute || isResetPasswordRoute || isConfirmationRoute || isEmailConfirmRoute;
-  /** Order / trade / repair receipt pages — no site chrome; minimal wordmark footer only. */
+  /** Order / trade / repair invoice pages — no site chrome; minimal wordmark footer only. */
   const isReceiptRoute = location.pathname.startsWith('/receipt/');
 
   // Memoized so the context value identity is stable and admin views

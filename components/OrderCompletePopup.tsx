@@ -12,7 +12,7 @@ interface OrderCompletePopupProps {
 export const OrderCompletePopup: React.FC<OrderCompletePopupProps> = ({ order, onClose }) => {
   const navigate = useNavigate();
 
-  const handleViewReceipt = () => {
+  const handleViewInvoice = () => {
     onClose();
     navigate({ to: `/receipt/${order.id}` as any });
   };
@@ -109,10 +109,10 @@ export const OrderCompletePopup: React.FC<OrderCompletePopupProps> = ({ order, o
         {/* Action Buttons */}
         <div className="flex gap-3 relative z-10">
           <button
-            onClick={handleViewReceipt}
+            onClick={handleViewInvoice}
             className="flex-1 py-3 bg-[#B38B21] text-black rounded-xl text-sm font-black uppercase tracking-wider transition-all hover:scale-105 flex items-center justify-center gap-2"
           >
-            View Receipt
+            View Invoice
             <ArrowRight size={16} />
           </button>
           <button

@@ -522,7 +522,7 @@ export const Profile: React.FC<ProfileProps> = ({
                 <div className="space-y-2">
                   <h3 className={`text-4xl font-black italic tracking-tighter uppercase ${isLight ? 'text-black' : 'text-white'}`}>Purchases & <span className="text-[#B38B21]">History</span></h3>
                   <p className={`text-xs font-bold uppercase tracking-[0.2em] ${isLight ? 'text-gray-400' : 'text-white/40'}`}>
-                    All orders, trade-ins, and repairs — receipts, tracking, and refund requests for eligible delivered orders
+                    All orders, trade-ins, and repairs — invoices, tracking, and refund requests for eligible delivered orders
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3 shrink-0">
@@ -667,7 +667,7 @@ export const Profile: React.FC<ProfileProps> = ({
                             to={receiptTo as any}
                             className="text-[9px] font-black uppercase tracking-widest text-[#B38B21] border-b border-[#B38B21]/20 hover:border-[#B38B21] transition-all"
                           >
-                            Download receipt
+                            Download invoice
                           </Link>
                           <Link
                             to={trackTo as any}
@@ -769,7 +769,7 @@ export const Profile: React.FC<ProfileProps> = ({
                               to={`/receipt/${order.id}` as any}
                               className="text-[9px] font-black uppercase tracking-widest text-[#B38B21] hover:underline inline-flex items-center gap-1"
                             >
-                              Receipt <ChevronRight size={12} />
+                              Invoice <ChevronRight size={12} />
                             </Link>
                             <Link
                               to={`/tracking/order/${order.id}` as any}
