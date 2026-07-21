@@ -1,8 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Eye, EyeOff, Lock } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, Check, Eye, EyeOff, Lock, X } from 'lucide-react';
 import { useAppContext } from '../App';
 import AuthService from '../lib/auth';
 import { consumeAuthRedirect, urlLooksLikePasswordRecovery } from '../lib/consumeAuthRedirect';
+import {
+  evaluatePasswordRequirements,
+  firstMissingPasswordRequirement,
+  passwordRequirementsMet,
+} from '../lib/passwordRequirements';
 import { getSupabaseClient, isSupabaseConfigured } from '../lib/supabase';
 
 export const ResetPassword: React.FC = () => {
@@ -15,12 +20,20 @@ export const ResetPassword: React.FC = () => {
   const [sessionReady, setSessionReady] = useState(false);
   const [sessionChecking, setSessionChecking] = useState(true);
   const [sessionError, setSessionError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [touched, setTouched] = useState(false);
 
   const isDark = theme === 'dark';
   const cardText = isDark ? 'text-white' : 'text-black';
   const cardMuted = isDark ? 'text-white/50' : 'text-black/50';
   const inputBg = isDark ? 'bg-white/5 focus:bg-white/10' : 'bg-[#F5F5F5] focus:bg-white';
   const inputPh = isDark ? 'placeholder:text-white/25' : 'placeholder:text-black/25';
+
+  const requirements = useMemo(
+    () => evaluatePasswordRequirements(password, confirmPassword),
+    [password, confirmPassword],
+  );
+  const allMet = passwordRequirementsMet(password, confirmPassword);
 
   useEffect(() => {
     let cancelled = false;
@@ -38,13 +51,11 @@ export const ResetPassword: React.FC = () => {
       }
 
       try {
-        // Re-consume in case boot raced or the user landed directly on this route.
         await consumeAuthRedirect();
 
         const client = getSupabaseClient();
         let { data } = await client.auth.getSession();
 
-        // Brief retry — detectSessionInUrl / exchange can finish a tick late.
         if (!data.session && urlLooksLikePasswordRecovery()) {
           await new Promise((r) => setTimeout(r, 250));
           ({ data } = await client.auth.getSession());
@@ -81,23 +92,23 @@ export const ResetPassword: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setTouched(true);
+    setFormError(null);
 
     if (!sessionReady) {
-      notify(
+      const msg =
         sessionError ||
-          'This reset link expired or was already used. Request a new link from Forgot password.',
-        'error',
-      );
+        'This reset link expired or was already used. Request a new link from Forgot password.';
+      setFormError(msg);
+      notify(msg, 'error');
       return;
     }
 
-    if (password.length < 6) {
-      notify('Password must be at least 6 characters.', 'error');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      notify('Passwords do not match.', 'error');
+    const missing = firstMissingPasswordRequirement(password, confirmPassword);
+    if (missing) {
+      const msg = `Still needed: ${missing}.`;
+      setFormError(msg);
+      notify(msg, 'error');
       return;
     }
 
@@ -106,7 +117,10 @@ export const ResetPassword: React.FC = () => {
     setIsLoading(false);
 
     if (!result.success) {
-      notify(AuthService.formatPasswordError(result.error) || 'Failed to reset password.', 'error');
+      const msg =
+        AuthService.formatPasswordError(result.error) || 'Failed to reset password.';
+      setFormError(msg);
+      notify(msg, 'error');
       return;
     }
 
@@ -130,7 +144,7 @@ export const ResetPassword: React.FC = () => {
           Reset Password
         </h1>
         <p className={`mt-2 text-sm ${cardMuted}`}>
-          Enter a new password for your account.
+          Enter a new password for your account. Meet every requirement below.
         </p>
 
         {sessionChecking ? (
@@ -147,7 +161,7 @@ export const ResetPassword: React.FC = () => {
             </button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="mt-6 space-y-5">
+          <form onSubmit={handleSubmit} className="mt-6 space-y-5" noValidate>
             <div className="space-y-2">
               <label htmlFor="new-password" className={`text-xs font-bold uppercase tracking-wider ${cardMuted} block`}>
                 New Password
@@ -159,7 +173,11 @@ export const ResetPassword: React.FC = () => {
                   type={showPassword ? 'text' : 'password'}
                   required
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setTouched(true);
+                    setFormError(null);
+                  }}
                   autoComplete="new-password"
                   disabled={isLoading}
                   className={`w-full ${inputBg} rounded-xl pl-11 pr-12 py-3 text-sm font-medium outline-none focus:border-[#CDA032] focus:ring-2 focus:ring-[#CDA032]/20 transition-all ${inputPh} ${cardText} disabled:opacity-50`}
@@ -188,7 +206,11 @@ export const ResetPassword: React.FC = () => {
                   type={showConfirmPassword ? 'text' : 'password'}
                   required
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    setTouched(true);
+                    setFormError(null);
+                  }}
                   autoComplete="new-password"
                   disabled={isLoading}
                   className={`w-full ${inputBg} rounded-xl pl-11 pr-12 py-3 text-sm font-medium outline-none focus:border-[#CDA032] focus:ring-2 focus:ring-[#CDA032]/20 transition-all ${inputPh} ${cardText} disabled:opacity-50`}
@@ -206,9 +228,73 @@ export const ResetPassword: React.FC = () => {
               </div>
             </div>
 
+            <ul
+              className={`rounded-xl border p-3 space-y-2 ${
+                isDark ? 'border-white/10 bg-white/[0.03]' : 'border-black/10 bg-black/[0.02]'
+              }`}
+              aria-label="Password requirements"
+            >
+              {requirements.map((req) => {
+                const showState = touched || password.length > 0 || confirmPassword.length > 0;
+                const ok = req.met;
+                return (
+                  <li
+                    key={req.id}
+                    className={`flex items-center gap-2 text-xs font-medium ${
+                      !showState
+                        ? cardMuted
+                        : ok
+                          ? isDark
+                            ? 'text-emerald-400'
+                            : 'text-emerald-700'
+                          : isDark
+                            ? 'text-red-300'
+                            : 'text-red-700'
+                    }`}
+                  >
+                    <span
+                      className={`inline-flex h-4 w-4 items-center justify-center rounded-full ${
+                        !showState
+                          ? isDark
+                            ? 'bg-white/10'
+                            : 'bg-black/10'
+                          : ok
+                            ? 'bg-emerald-500/20'
+                            : 'bg-red-500/15'
+                      }`}
+                      aria-hidden
+                    >
+                      {showState ? (
+                        ok ? (
+                          <Check size={10} strokeWidth={3} />
+                        ) : (
+                          <X size={10} strokeWidth={3} />
+                        )
+                      ) : null}
+                    </span>
+                    <span>
+                      {req.label}
+                      {showState && !ok ? ' — still needed' : ''}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+
+            {formError && (
+              <p
+                role="alert"
+                className={`text-sm rounded-xl px-3 py-2 ${
+                  isDark ? 'bg-red-500/15 text-red-300' : 'bg-red-50 text-red-800'
+                }`}
+              >
+                {formError}
+              </p>
+            )}
+
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || (touched && !allMet)}
               className="w-full py-3.5 bg-[#CDA032] text-black font-black rounded-xl text-xs uppercase tracking-[0.15em] shadow-lg hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? 'Updating...' : 'Update Password'}

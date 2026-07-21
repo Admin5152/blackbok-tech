@@ -13,6 +13,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { deliverNotificationChannels } from '../../lib/server/notifyFanout';
 import type { NotifyEmailPayload } from '../../lib/server/notifyEmail';
+import { parseRequestBody } from '../../lib/server/parseRequestBody';
 
 function readSecret(req: VercelRequest): string {
   const h = req.headers['x-bb-webhook-secret'];
@@ -23,12 +24,21 @@ function readSecret(req: VercelRequest): string {
 }
 
 function extractPayload(body: unknown): NotifyEmailPayload | null {
-  if (!body || typeof body !== 'object') return null;
-  const root = body as Record<string, unknown>;
-  const record =
-    (root.record as Record<string, unknown> | undefined) ||
-    ((root as { data?: { record?: Record<string, unknown> } }).data?.record) ||
-    root;
+  const root = parseRequestBody(body);
+  const nested =
+    root.record && typeof root.record === 'object' && !Array.isArray(root.record)
+      ? (root.record as Record<string, unknown>)
+      : null;
+  const dataObj =
+    root.data && typeof root.data === 'object' && !Array.isArray(root.data)
+      ? (root.data as Record<string, unknown>)
+      : null;
+  const dataRecord =
+    dataObj?.record && typeof dataObj.record === 'object' && !Array.isArray(dataObj.record)
+      ? (dataObj.record as Record<string, unknown>)
+      : null;
+
+  const record = nested || dataRecord || root;
 
   const user_id = String(record.user_id || '').trim();
   const title = String(record.title || '').trim();
@@ -72,8 +82,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const result = await deliverNotificationChannels(payload, process.env);
-    const hardFail = Boolean(result.email.error && result.push.error);
-    res.status(hardFail ? 500 : 200).json({ ok: !hardFail, ...result });
+    if (result.email.error && !result.email.skipped) {
+      res.status(500).json({ ok: false, ...result });
+      return;
+    }
+    res.status(200).json({ ok: true, ...result });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[api/notify/email]', message);

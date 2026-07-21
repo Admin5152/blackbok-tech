@@ -1,12 +1,11 @@
 -- ============================================================
 -- Fan-out webhook: notifications INSERT → Resend + Web Push
--- Use this if you cannot find Database → Webhooks in the UI.
+-- Production values for blackboxghana.com
 --
 -- BEFORE RUNNING:
--- 1) Replace YOUR_WEBHOOK_SECRET with the same value as
---    EMAIL_WEBHOOK_SECRET on Vercel / .env
--- 2) Confirm the URL is your live site (or change it)
--- 3) Run: Database → Extensions → enable "pg_net" (if not already)
+-- 1) Enable extension "pg_net" (Database → Extensions) if needed
+-- 2) Confirm EMAIL_WEBHOOK_SECRET on Vercel matches v_secret below
+-- 3) Set SUPABASE_SERVICE_ROLE_KEY on Vercel (required for status emails)
 -- ============================================================
 BEGIN;
 
@@ -19,9 +18,8 @@ SECURITY DEFINER
 SET search_path = public, extensions, net
 AS $$
 DECLARE
-  -- ⚠️ Change these two values to match production
   v_url    TEXT := 'https://blackboxghana.com/api/notify/email';
-  v_secret TEXT := 'YOUR_WEBHOOK_SECRET';
+  v_secret TEXT := 's2L740AQv6CPGeoJhw3yE4JwypAoIXKrW4YkF85h';
 BEGIN
   PERFORM net.http_post(
     url := v_url,
@@ -35,7 +33,7 @@ BEGIN
       'schema', TG_TABLE_SCHEMA,
       'record', to_jsonb(NEW)
     ),
-    timeout_milliseconds := 5000
+    timeout_milliseconds := 8000
   );
   RETURN NEW;
 END;

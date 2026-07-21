@@ -10,6 +10,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { resolveUserFromBearer } from '../../lib/server/webPushSend';
 import { sendDirectLifecycleNotify } from '../../lib/server/notifyFanout';
 import type { DirectEmailEvent } from '../../lib/server/notifyEmail';
+import { parseRequestBody } from '../../lib/server/parseRequestBody';
 
 const ALLOWED: DirectEmailEvent[] = [
   'order_placed',
@@ -37,14 +38,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const user = await resolveUserFromBearer(token, process.env);
     if (!user?.id) {
-      res.status(401).json({ error: 'Invalid session' });
+      res.status(401).json({
+        error:
+          'Invalid session (check SUPABASE_URL + VITE_SUPABASE_ANON_KEY / SUPABASE_ANON_KEY on the server).',
+      });
       return;
     }
 
-    const body = (typeof req.body === 'object' && req.body) || {};
+    const body = parseRequestBody(req.body);
     const event = String(body.event || '').trim() as DirectEmailEvent;
     if (!ALLOWED.includes(event)) {
-      res.status(400).json({ error: 'Invalid event' });
+      res.status(400).json({ error: 'Invalid event', got: event || null });
+      return;
+    }
+
+    // Prefer JWT email; allow matching body email as backup (some sessions omit email).
+    const bodyEmail = String(body.customerEmail || '').trim().toLowerCase();
+    const jwtEmail = (user.email || '').trim().toLowerCase();
+    let customerEmail = user.email;
+    if (!customerEmail && bodyEmail) {
+      customerEmail = bodyEmail;
+    } else if (bodyEmail && jwtEmail && bodyEmail === jwtEmail) {
+      customerEmail = bodyEmail;
+    }
+
+    if (!customerEmail) {
+      res.status(400).json({
+        error: 'No email on this account — cannot send confirmation.',
+      });
       return;
     }
 
@@ -55,7 +76,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         displayId: body.displayId ? String(body.displayId) : null,
         referenceId: body.referenceId ? String(body.referenceId) : null,
         extraBody: body.extraBody ? String(body.extraBody) : undefined,
-        customerEmail: user.email,
+        customerEmail,
       },
       process.env,
     );

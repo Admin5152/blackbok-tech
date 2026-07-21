@@ -34,6 +34,7 @@ async function resolveUserEmail(
   userId: string,
   env = process.env,
   overrideEmail?: string | null,
+  hint?: { type?: string; referenceId?: string | null },
 ): Promise<string | null> {
   const fromOverride = (overrideEmail || '').trim();
   if (fromOverride) return fromOverride;
@@ -49,9 +50,45 @@ async function resolveUserEmail(
     if (fromProfile) return fromProfile;
 
     const { data: authData, error } = await supabase.auth.admin.getUserById(userId);
-    if (error) return null;
-    return (authData.user?.email || '').trim() || null;
-  } catch {
+    if (!error) {
+      const fromAuth = (authData.user?.email || '').trim();
+      if (fromAuth) return fromAuth;
+    }
+
+    // Fallback: contact email stored on the order / trade / repair row.
+    const ref = (hint?.referenceId || '').trim();
+    const kind = String(hint?.type || '').toLowerCase();
+    if (ref) {
+      if (kind === 'order') {
+        const { data } = await supabase
+          .from('orders')
+          .select('customer_email')
+          .eq('id', ref)
+          .maybeSingle();
+        const e = (data?.customer_email || '').trim();
+        if (e) return e;
+      } else if (kind === 'trade') {
+        const { data } = await supabase
+          .from('trade_in_requests')
+          .select('contact_email, user_email')
+          .eq('id', ref)
+          .maybeSingle();
+        const e = (data?.contact_email || data?.user_email || '').trim();
+        if (e) return e;
+      } else if (kind === 'repair') {
+        const { data } = await supabase
+          .from('repair_requests')
+          .select('contact_email')
+          .eq('id', ref)
+          .maybeSingle();
+        const e = (data?.contact_email || '').trim();
+        if (e) return e;
+      }
+    }
+
+    return null;
+  } catch (err) {
+    console.error('[notifyEmail] resolveUserEmail failed:', err);
     return null;
   }
 }
@@ -122,6 +159,7 @@ export async function sendNotificationEmails(
     payload.user_id,
     env,
     opts?.customerEmail,
+    { type: payload.type, referenceId: payload.reference_id },
   );
   if (customerEmail) {
     const sent = await sendEmail(

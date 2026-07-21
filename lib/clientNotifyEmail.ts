@@ -1,6 +1,7 @@
 /**
- * Browser helper — best-effort lifecycle email + in-app notification after create.
- * Failures are logged only; never block checkout / trade / repair UX.
+ * Browser helper — lifecycle email + in-app notification after create.
+ * Create emails go to /api/email/event (session email → Resend).
+ * Status emails go through the DB webhook → /api/notify/email.
  */
 import { getSupabaseClient, isSupabaseConfigured } from './supabase';
 
@@ -32,6 +33,12 @@ const EVENT_COPY: Record<
       `We received your repair request ${ref}.${extra ? ` ${extra}` : ''}`,
   },
 };
+
+function apiUrl(path: string): string {
+  if (typeof window === 'undefined') return path;
+  const origin = window.location.origin.replace(/\/$/, '');
+  return `${origin}${path.startsWith('/') ? path : `/${path}`}`;
+}
 
 /** Ensure an in-app bell row exists even if DB triggers were not migrated yet. */
 async function ensureInAppNotification(
@@ -69,6 +76,39 @@ async function ensureInAppNotification(
   }
 }
 
+async function postLifecycleEmail(
+  event: ClientEmailEvent,
+  accessToken: string,
+  customerEmail: string | null,
+  opts?: {
+    displayId?: string | null;
+    referenceId?: string | null;
+    extraBody?: string;
+  },
+): Promise<{ ok: boolean; error?: string }> {
+  const res = await fetch(apiUrl('/api/email/event'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      event,
+      displayId: opts?.displayId ?? null,
+      referenceId: opts?.referenceId ?? null,
+      extraBody: opts?.extraBody,
+      customerEmail: customerEmail || undefined,
+    }),
+  });
+
+  const data = (await res.json().catch(() => ({}))) as { error?: string; ok?: boolean };
+  if (!res.ok) {
+    return { ok: false, error: data.error || `HTTP ${res.status}` };
+  }
+  return { ok: true };
+}
+
 export async function requestLifecycleEmail(
   event: ClientEmailEvent,
   opts?: {
@@ -82,31 +122,43 @@ export async function requestLifecycleEmail(
     const {
       data: { session },
     } = await getSupabaseClient().auth.getSession();
-    if (!session?.access_token) return;
-
-    // In-app first so the bell updates even if Resend/API is down.
-    await ensureInAppNotification(event, opts);
-
-    const res = await fetch('/api/email/event', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({
-        event,
-        displayId: opts?.displayId ?? null,
-        referenceId: opts?.referenceId ?? null,
-        extraBody: opts?.extraBody,
-      }),
-    });
-
-    if (!res.ok) {
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
-      console.warn('[requestLifecycleEmail]', data.error || res.status);
+    if (!session?.access_token) {
+      console.warn('[requestLifecycleEmail] No session — email skipped');
+      return;
     }
+
+    const customerEmail = (session.user?.email || '').trim() || null;
+
+    // Email first (Resend). Retry once — Vercel cold starts can flake.
+    let result = await postLifecycleEmail(
+      event,
+      session.access_token,
+      customerEmail,
+      opts,
+    );
+    if (!result.ok) {
+      await new Promise((r) => setTimeout(r, 600));
+      result = await postLifecycleEmail(
+        event,
+        session.access_token,
+        customerEmail,
+        opts,
+      );
+    }
+
+    if (!result.ok) {
+      console.warn('[requestLifecycleEmail]', result.error);
+    }
+
+    // Bell row even if email failed (webhook may still fan out status later).
+    await ensureInAppNotification(event, opts);
   } catch (err) {
     console.warn('[requestLifecycleEmail]', err);
+    try {
+      await ensureInAppNotification(event, opts);
+    } catch {
+      /* ignore */
+    }
   }
 }
 
@@ -122,11 +174,15 @@ export async function sendContactCustomerConfirmation(fields: {
   message: string;
 }): Promise<void> {
   try {
-    await fetch('/api/contact', {
+    const res = await fetch(apiUrl('/api/contact'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(fields),
     });
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      console.warn('[sendContactCustomerConfirmation]', data.error || res.status);
+    }
   } catch (err) {
     console.warn('[sendContactCustomerConfirmation]', err);
   }

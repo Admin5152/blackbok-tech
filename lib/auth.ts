@@ -192,6 +192,9 @@ class AuthService {
     if (/same password|should be different/i.test(m)) {
       return 'Choose a new password that is different from your old one.';
     }
+    if (/password should be at least|weak password|least one character|password is too weak/i.test(m)) {
+      return 'Password is too weak. Use at least 6 characters with a letter and a number.';
+    }
     return m;
   }
 

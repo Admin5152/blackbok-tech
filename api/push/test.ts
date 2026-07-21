@@ -7,6 +7,7 @@ import {
   resolveUserIdFromBearer,
   sendWebPushToUser,
 } from '../../lib/server/webPushSend';
+import { parseRequestBody } from '../../lib/server/parseRequestBody';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') {
@@ -32,7 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    const body = (typeof req.body === 'object' && req.body) || {};
+    const body = parseRequestBody(req.body);
     const result = await sendWebPushToUser(
       userId,
       {

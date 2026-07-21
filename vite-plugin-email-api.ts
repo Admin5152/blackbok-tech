@@ -168,8 +168,11 @@ export function emailApiPlugin(mode: string): Plugin {
             return;
           }
           const result = await deliverNotificationChannels(payload, merged);
-          const hardFail = Boolean(result.email.error && result.push.error);
-          sendJson(res, hardFail ? 500 : 200, { ok: !hardFail, ...result });
+          if (result.email.error && !result.email.skipped) {
+            sendJson(res, 500, { ok: false, ...result });
+            return;
+          }
+          sendJson(res, 200, { ok: true, ...result });
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           console.error('[email-api]', url, message);

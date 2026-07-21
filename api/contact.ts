@@ -4,7 +4,8 @@
  * POST /api/contact
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { sendContactConfirmationToCustomer } from '../../lib/server/notifyEmail';
+import { sendContactConfirmationToCustomer } from '../lib/server/notifyEmail';
+import { parseRequestBody } from '../lib/server/parseRequestBody';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') {
@@ -17,7 +18,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const body = (typeof req.body === 'object' && req.body) || {};
+    const body = parseRequestBody(req.body);
     const name = String(body.name || '').trim();
     const email = String(body.email || '').trim();
     const subject = String(body.subject || '').trim();

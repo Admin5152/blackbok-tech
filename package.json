@@ -12,6 +12,7 @@
     "generate:vapid": "node scripts/generate-vapid-keys.mjs",
     "test:push": "node --env-file=.env scripts/send-web-push-test.mjs",
     "test:email": "node --env-file=.env scripts/send-email-test.mjs",
+    "sync:webhook-secret": "node --env-file=.env scripts/sync-webhook-secret.mjs",
     "test:engine": "node scripts/engine-matrix.mjs",
     "test:rls": "node scripts/rls-trade-tests.mjs",
     "test:trade": "node scripts/engine-matrix.mjs && node scripts/rls-trade-tests.mjs",
