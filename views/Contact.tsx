@@ -256,7 +256,7 @@ export const Contact: React.FC = () => {
               </div>
               <div>
                 <h4 className={`font-bold text-[13px] mb-0.5 ${isLight ? 'text-black' : 'text-white'}`}>Store Location</h4>
-                <p className={`text-[12px] ${isLight ? 'text-black/60' : 'text-white/60'}`}>Tech Hub, KNUST, Kumasi</p>
+                <p className={`text-[12px] ${isLight ? 'text-black/60' : 'text-white/60'}`}>Guess Hostel, KNUST</p>
               </div>
             </div>
 
@@ -269,16 +269,16 @@ export const Contact: React.FC = () => {
               <div className={`space-y-3 text-[13px] ${isLight ? 'text-[#555]' : 'text-white/80'}`}>
                 <div className="flex justify-between">
                   <span className="opacity-70">Monday - Friday</span>
-                  <span className={`font-semibold ${isLight ? 'text-black' : 'text-white'}`}>9:00 AM - 6:00 PM</span>
+                  <span className={`font-semibold ${isLight ? 'text-black' : 'text-white'}`}>9:00 AM - 7:30 PM</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="opacity-70">Saturday</span>
-                  <span className={`font-semibold ${isLight ? 'text-black' : 'text-white'}`}>10:00 AM - 4:00 PM</span>
+                  <span className={`font-semibold ${isLight ? 'text-black' : 'text-white'}`}>10:00 AM - 7:30 PM</span>
                 </div>
-                <div className="flex justify-between">
+                {/* <div className="flex justify-between">
                   <span className="opacity-70">Sunday</span>
                   <span className={`font-semibold ${isLight ? 'text-black' : 'text-white'}`}>Closed</span>
-                </div>
+                </div> */}
               </div>
               <div
                 className={`mt-5 pt-4 border-t text-[11px] flex gap-2 ${isLight ? 'border-[#CDA032]/20' : 'border-[#CDA032]/20'}`}

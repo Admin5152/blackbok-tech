@@ -272,7 +272,17 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
 
                         <div className={`bb-theme-transition overflow-hidden rounded-[1.75rem] border reveal-on-scroll reveal-delay-2 ${isLight ? 'border-black/[0.06] bg-[#f5f5f7]' : 'border-white/[0.08] bg-black'}`}>
                             <div className="relative aspect-[4/3] min-h-[18rem]">
-                                <img key={theme} src="/BlackRun.jpeg" alt="BlackBox team at work" className="h-full w-full object-cover" loading="eager" decoding="async" />
+                                <video
+                                    className="h-full w-full object-cover"
+                                    src="/videos/blackboxaboutvid.mp4"
+                                    poster="/BlackRun.jpeg"
+                                    autoPlay
+                                    muted
+                                    loop
+                                    playsInline
+                                    preload="metadata"
+                                    aria-label="BlackBox team at work"
+                                />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent" />
                                 <div className="absolute bottom-0 left-0 right-0 p-6 text-white sm:p-8">
                                     <p className="text-[10px] font-black uppercase tracking-[0.35em] text-[#D4AF37]">Our Promise</p>
