@@ -1528,6 +1528,9 @@ export function mapRepairFromDb(r: any): RepairRequest {
     issue: r.issue_description || r.issue_type || '',
     date: r.created_at,
     imageUrl: Array.isArray(r.image_urls) ? r.image_urls[0] : '',
+    image_urls: Array.isArray(r.image_urls)
+      ? r.image_urls.filter((u: unknown): u is string => typeof u === 'string' && u.length > 0)
+      : [],
     estimated_cost: costFinite ? costNum : undefined,
     estimatedCost: costFinite ? formatCurrency(costNum) : '',
     aiDiagnosis: r.ai_diagnosis,

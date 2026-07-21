@@ -19,15 +19,21 @@ export const RepairStorageImage: React.FC<Props> = ({
   expiresIn = 3600,
 }) => {
   const [src, setSrc] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     if (!stored) {
       setSrc(null);
+      setFailed(false);
       return;
     }
     let cancelled = false;
+    setFailed(false);
+    setSrc(null);
     getSignedRepairImageUrl(stored, expiresIn).then((u) => {
-      if (!cancelled) setSrc(u);
+      if (cancelled) return;
+      if (u) setSrc(u);
+      else setFailed(true);
     });
     return () => {
       cancelled = true;
@@ -35,6 +41,16 @@ export const RepairStorageImage: React.FC<Props> = ({
   }, [stored, expiresIn]);
 
   if (!stored) return null;
+
+  if (failed) {
+    return (
+      <div
+        className={`flex items-center justify-center rounded-xl bg-white/5 text-[10px] text-white/40 px-2 text-center ${className}`}
+      >
+        Photo unavailable
+      </div>
+    );
+  }
 
   if (!src) {
     return (

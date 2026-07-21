@@ -15,6 +15,7 @@ import {
   promoCreateBatch,
   promoPublish,
   useCampuses,
+  useProductCategories,
   usePromoDenominations,
   usePromoPresetLimits,
   usePromoSettings,
@@ -42,7 +43,7 @@ const PRESET_CARDS: {
   { id: 'personal', title: 'Personal code', second: 'One account, reusable' },
   { id: 'public_once', title: 'Public, once per customer', second: 'Shareable, 1 use each' },
   { id: 'public_open', title: 'Public, unlimited', second: 'No caps at all' },
-  { id: 'batch', title: 'Bulk voucher batch', second: 'N unique single use codes' },
+  { id: 'batch', title: 'Bulk voucher batch', second: 'N unique single-use codes' },
   { id: 'first_n', title: 'First N customers', second: 'Stops after N redemptions' },
 ];
 
@@ -56,6 +57,7 @@ export const AdminPromotionBuilder: React.FC = () => {
   const { data: denominations = [] } = usePromoDenominations(true);
   const { data: settings } = usePromoSettings();
   const { data: campuses = [] } = useCampuses(true);
+  const { data: productCategories = [] } = useProductCategories();
 
   const [name, setName] = useState('');
   const [mode, setMode] = useState<ChipMode>('cash');
@@ -70,6 +72,7 @@ export const AdminPromotionBuilder: React.FC = () => {
   const [productOptions, setProductOptions] = useState<
     { id: string; name: string }[]
   >([]);
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [scopeGlobal, setScopeGlobal] = useState(true);
   const [campusIds, setCampusIds] = useState<string[]>([]);
   const [startsAt, setStartsAt] = useState(() => new Date().toISOString().slice(0, 16));
@@ -138,10 +141,10 @@ export const AdminPromotionBuilder: React.FC = () => {
   const cashPesewas = ghsToPesewas(Number(cashGhs) || 0);
   const matchingFixed = fixedDens.find((d) => d.value_pesewas === cashPesewas);
   const isPresetCash = Boolean(matchingFixed);
-  const multiple = settings?.fixed_min_order_multiple ?? 6;
+  const multiple = settings?.fixed_min_order_multiple;
   const floorPesewas =
-    mode === 'cash' && cashPesewas > 0
-      ? Math.ceil(cashPesewas * multiple)
+    mode === 'cash' && cashPesewas > 0 && multiple != null
+      ? Math.ceil(cashPesewas * Number(multiple))
       : 0;
   const minOrderPesewas = ghsToPesewas(Number(minOrderGhs) || 0);
   const maxDiscountPesewas = ghsToPesewas(Number(maxDiscountGhs) || 0);
@@ -158,14 +161,16 @@ export const AdminPromotionBuilder: React.FC = () => {
       ? Math.round((unitDiscountPesewas / minOrderPesewas) * 100)
       : 0;
 
-  const reviewThreshold = settings?.liability_review_pesewas ?? 1_000_000;
-
-  const belowFloor = mode === 'cash' && minOrderPesewas < floorPesewas && floorPesewas > 0;
+  const reviewThreshold = settings?.liability_review_pesewas ?? null;
+  const belowFloor =
+    mode === 'cash' && floorPesewas > 0 && minOrderPesewas < floorPesewas;
   const noBudget = promoMax == null;
   const noPerAccount = perUser == null;
   const highPct = biggestPct > 25;
   const aboveReview =
-    totalCostPesewas == null || totalCostPesewas > reviewThreshold;
+    reviewThreshold != null &&
+    totalCostPesewas != null &&
+    totalCostPesewas > reviewThreshold;
 
   const muted = isLight ? 'text-black/50' : 'text-white/50';
   const fg = isLight ? 'text-black' : 'text-white';
@@ -177,9 +182,24 @@ export const AdminPromotionBuilder: React.FC = () => {
   const chipIdle = `border-[0.5px] ${isLight ? 'border-black/10' : 'border-white/10'} p-2`;
 
   const floorHelper =
-    mode === 'cash'
+    mode === 'cash' && multiple != null
       ? `Floor for a ${formatGHS(cashPesewas || 0)} discount is ${formatGHS(floorPesewas)} (${multiple}x).`
-      : 'No floor required for percentage discounts.';
+      : mode === 'cash'
+        ? 'Floor loads from promo settings.'
+        : 'No floor required for percentage discounts.';
+
+  const filteredCategories = useMemo(() => {
+    const q = categoryFilter.trim().toLowerCase();
+    if (!q) return productCategories;
+    return productCategories.filter((c) => c.name.toLowerCase().includes(q));
+  }, [productCategories, categoryFilter]);
+
+  useEffect(() => {
+    setTargetIds([]);
+    setTargetSearch('');
+    setCategoryFilter('');
+    setProductOptions([]);
+  }, [appliesTo]);
 
   const searchProducts = async (q: string) => {
     setTargetSearch(q);
@@ -336,13 +356,13 @@ export const AdminPromotionBuilder: React.FC = () => {
   if (highPct) {
     warningBlocks.push({
       tone: 'warning',
-      copy: `Worst case gives ${biggestPct}% off. Check the margin on low value baskets.`,
+      copy: `Gives ${biggestPct}% off. Check the margin on low-value baskets.`,
     });
   }
-  if (aboveReview) {
+  if (aboveReview && reviewThreshold != null) {
     warningBlocks.push({
       tone: 'accent',
-      copy: 'Above the GHS 10,000 review threshold. Needs super admin to publish.',
+      copy: `Above the ${formatGHS(reviewThreshold)} review threshold. Needs super admin to publish.`,
     });
   }
   if (warningBlocks.length === 0) {
@@ -538,31 +558,63 @@ export const AdminPromotionBuilder: React.FC = () => {
           </div>
           {(appliesTo === 'product' || appliesTo === 'category') && (
             <div className="space-y-2">
-              <input
-                value={targetSearch}
-                onChange={(e) => void searchProducts(e.target.value)}
-                placeholder={
-                  appliesTo === 'product' ? 'Search products' : 'Search by product to pick id'
-                }
-                className={inputCls}
-              />
-              <ul className="space-y-1">
-                {productOptions.map((p) => (
-                  <li key={p.id}>
-                    <button
-                      type="button"
-                      className={`text-xs ${muted} hover:text-[#B38B21]`}
-                      onClick={() =>
-                        setTargetIds((ids) =>
-                          ids.includes(p.id) ? ids : [...ids, p.id],
-                        )
-                      }
-                    >
-                      + {p.name}
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              {appliesTo === 'product' ? (
+                <>
+                  <input
+                    value={targetSearch}
+                    onChange={(e) => void searchProducts(e.target.value)}
+                    placeholder="Search products"
+                    className={inputCls}
+                  />
+                  <ul className="space-y-1">
+                    {productOptions.map((p) => (
+                      <li key={p.id}>
+                        <button
+                          type="button"
+                          className={`text-xs ${muted} hover:text-[#B38B21]`}
+                          onClick={() =>
+                            setTargetIds((ids) =>
+                              ids.includes(p.id) ? ids : [...ids, p.id],
+                            )
+                          }
+                        >
+                          + {p.name}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <>
+                  <input
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                    placeholder="Filter categories"
+                    className={inputCls}
+                  />
+                  <ul className="space-y-1 max-h-40 overflow-y-auto">
+                    {filteredCategories.map((c) => {
+                      const on = targetIds.includes(c.id);
+                      return (
+                        <li key={c.id}>
+                          <button
+                            type="button"
+                            className={`text-xs ${on ? 'text-[#B38B21]' : muted} hover:text-[#B38B21]`}
+                            onClick={() =>
+                              setTargetIds((ids) =>
+                                on ? ids.filter((x) => x !== c.id) : [...ids, c.id],
+                              )
+                            }
+                          >
+                            {on ? '✓ ' : '+ '}
+                            {c.name}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </>
+              )}
               {targetIds.length > 0 && (
                 <p className={`text-[12px] ${muted}`}>
                   Targets: {targetIds.length} selected

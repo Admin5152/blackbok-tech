@@ -93,7 +93,7 @@ export const Repair: React.FC = () => {
     photos: [] as string[],
     urgency: 'standard',
     fulfillmentMethod: 'Headquarters' as 'Headquarters' | 'Pickup',
-    diagnosticFee: 'waived' as 'waived' | 'accepted',
+    diagnosticFee: 'pending' as 'pending' | 'accepted' | 'waived',
     diagnosticFeeAmount: '',
     repairApproval: 'quote' as 'authorize' | 'quote',
     repairApprovalLimit: '',
@@ -255,7 +255,7 @@ Accessories: ${accessoriesList || 'None'}
 Device Password: ${formData.devicePassword || 'None provided'}
 
 [Authorization & Terms]
-Diagnostic Fee: ${formData.diagnosticFee === 'accepted' ? 'Accepted (GHC ' + formData.diagnosticFeeAmount + ')' : 'Waived'}
+Diagnostic Fee: Set by BlackBox staff after intake
 Repair Cost Auth: ${formData.repairApproval === 'authorize' ? 'Authorized up to GHC ' + formData.repairApprovalLimit : 'Require Quote'}
 Data Backup: ${formData.dataBackup === 'requests' ? 'Client Requests Backup' : 'Client acknowledges data loss'}
 Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Yes' : 'No'})
@@ -1574,16 +1574,12 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                 <div className="space-y-6 pt-6">
                   <h3 className="text-xl font-bold tracking-tight">Diagnostic &amp; Repair Authorization</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-[var(--bb-surface)] border border-[var(--bb-border)] p-6 rounded-3xl shadow-lg">
-                    {/* Diagnostic Fee */}
+                    {/* Diagnostic fee — admin-only; customer cannot waive */}
                     <div className="space-y-3">
                       <h4 className="text-[10px] font-black uppercase tracking-widest opacity-60">Diagnostic Fee</h4>
-                      <div className="flex bg-[var(--bb-surface-2)] border border-[var(--bb-border)] rounded-xl p-1 relative h-12">
-                        <button onClick={() => setFormData({ ...formData, diagnosticFee: 'waived' })} className={`flex-1 text-xs font-bold rounded-lg transition-all ${formData.diagnosticFee === 'waived' ? 'bg-[#CDA032]/20 text-[#CDA032] shadow ring-1 ring-[#CDA032]' : 'opacity-60 hover:opacity-100'}`}>Waived</button>
-                        <button onClick={() => setFormData({ ...formData, diagnosticFee: 'accepted' })} className={`flex-1 text-xs font-bold rounded-lg transition-all ${formData.diagnosticFee === 'accepted' ? 'bg-[#CDA032]/20 text-[#CDA032] shadow ring-1 ring-[#CDA032]' : 'opacity-60 hover:opacity-100'}`}>Accepted</button>
-                      </div>
-                      {formData.diagnosticFee === 'accepted' && (
-                        <input placeholder="Diagnostic Amount (GHC)" value={formData.diagnosticFeeAmount} onChange={e => setFormData({ ...formData, diagnosticFeeAmount: e.target.value })} className="w-full border border-[#CDA032]/50 rounded-lg px-4 py-2 text-sm bg-[var(--bb-surface-2)] outline-none animate-in fade-in" />
-                      )}
+                      <p className="text-sm opacity-70 leading-relaxed">
+                        Diagnostic fee is set by BlackBox staff after they review your device. You cannot waive it here.
+                      </p>
                     </div>
 
                     {/* Repair Costs Approval */}

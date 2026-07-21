@@ -34,12 +34,11 @@ import {
   loadPersistedPromoCode,
 } from '../lib/promoCart';
 import {
-  fetchCampuses,
   fetchOrderChargeTotalGhs,
   formatGHS,
   pesewasToGhs,
+  promoAttachOrderCampus,
   promoReserve,
-  promoSetOrderCampus,
 } from '../lib/promotions';
 import { supabase, getSupabaseAnonKey } from '../lib/supabase';
 // ============================================================
@@ -325,18 +324,14 @@ export const Checkout: React.FC = () => {
         notes: null,
       });
 
-      // Checkout init: attach campus (scope) then promo_reserve once.
+      // Checkout init: attach profile campus (server-side) then promo_reserve once.
       // Charge total always comes from the server after reserve.
       const promoCode = loadPersistedPromoCode() || appliedPromo?.code || null;
       let chargeTotalGhs =
         typeof result.total === 'number' ? result.total : total;
 
       try {
-        const campuses = await fetchCampuses(true);
-        const campusId = campuses[0]?.id;
-        if (campusId) {
-          await promoSetOrderCampus(result.order_id, campusId);
-        }
+        await promoAttachOrderCampus(result.order_id);
 
         // promo_reserve exactly once per checkout — never from the cart page.
         const reserved = await promoReserve({

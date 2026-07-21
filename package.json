@@ -16,7 +16,8 @@
     "test:engine": "node scripts/engine-matrix.mjs",
     "test:rls": "node scripts/rls-trade-tests.mjs",
     "test:trade": "node scripts/engine-matrix.mjs && node scripts/rls-trade-tests.mjs",
-    "test:engine:vitest": "vitest run tests/trade-engine-matrix.test.ts"
+    "test:engine:vitest": "vitest run tests/trade-engine-matrix.test.ts",
+    "test:promo": "vitest run tests/promotions-money.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.95.3",

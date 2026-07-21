@@ -3,7 +3,8 @@ import { Tag, Check, X, Loader2 } from 'lucide-react';
 import {
   formatGHS,
   promoQuote,
-  useCampuses,
+  useProductCategories,
+  useProfileCampusId,
   type PromoEvaluateResult,
   type PromoQuoteItem,
 } from '../../lib/promotions';
@@ -50,10 +51,18 @@ export const PromoCodeInput: React.FC<PromoCodeInputProps> = ({
   const [serverMessage, setServerMessage] = useState<string | null>(null);
   const [applied, setApplied] = useState<AppliedPromoQuote | null>(null);
 
-  const { data: campuses } = useCampuses(true);
-  const campusId = campuses?.[0]?.id ?? null;
+  const { data: profileCampusId = null } = useProfileCampusId();
+  const { data: productCategories = [] } = useProductCategories();
+  const categoryIdByName = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of productCategories) m.set(c.name, c.id);
+    return m;
+  }, [productCategories]);
 
-  const items: PromoQuoteItem[] = useMemo(() => cartToPromoQuoteItems(cart), [cart]);
+  const items: PromoQuoteItem[] = useMemo(
+    () => cartToPromoQuoteItems(cart, categoryIdByName),
+    [cart, categoryIdByName],
+  );
 
   const applyQuoteResult = useCallback(
     (code: string | null, result: Awaited<ReturnType<typeof promoQuote>>) => {
@@ -108,7 +117,7 @@ export const PromoCodeInput: React.FC<PromoCodeInputProps> = ({
         const result = await promoQuote({
           items,
           code: activeCode,
-          campus_id: campusId,
+          campus_id: profileCampusId,
         });
         if (!cancelled) applyQuoteResult(activeCode, result);
       } catch (err: unknown) {
@@ -130,7 +139,7 @@ export const PromoCodeInput: React.FC<PromoCodeInputProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [items, activeCode, campusId, applyQuoteResult, onAppliedChange]);
+  }, [items, activeCode, profileCampusId, applyQuoteResult, onAppliedChange]);
 
   const handleApply = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault();

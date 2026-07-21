@@ -465,21 +465,74 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
                                 </div>
                             )}
 
-                            {sel.imageUrl && (
+                            {((sel.image_urls && sel.image_urls.length > 0) || sel.imageUrl) && (
                                 <div>
-                                    <p className="text-[9px] text-white/30 uppercase tracking-widest mb-1">Device Photo</p>
-                                    <RepairStorageImage
-                                        stored={sel.imageUrl}
-                                        alt=""
-                                        className="w-full max-h-40 object-cover rounded-xl bg-white/5"
-                                        expiresIn={7200}
-                                    />
+                                    <p className="text-[9px] text-white/30 uppercase tracking-widest mb-1">Device photos</p>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {(sel.image_urls && sel.image_urls.length > 0
+                                          ? sel.image_urls
+                                          : [sel.imageUrl as string]
+                                        ).map((stored, i) => (
+                                          <RepairStorageImage
+                                            key={`${stored}-${i}`}
+                                            stored={stored}
+                                            alt={`Repair photo ${i + 1}`}
+                                            className="w-full max-h-40 object-cover rounded-xl bg-white/5"
+                                            expiresIn={7200}
+                                          />
+                                        ))}
+                                    </div>
                                 </div>
                             )}
                         </div>
 
                         {canEdit && (
                             <div className="border-t border-white/5 pt-4 space-y-4">
+                                <div>
+                                    <p className="text-[9px] text-white/30 uppercase tracking-widest mb-2">Diagnostic fee</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        <button
+                                            type="button"
+                                            disabled={saving}
+                                            onClick={() => patchRepair(sel.id, { diagnostic_fee: 'accepted' })}
+                                            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${
+                                                sel.diagnostic_fee === 'accepted'
+                                                    ? 'bg-[#B38B21] text-black'
+                                                    : 'bg-white/5 text-white/40 hover:text-white border border-white/10'
+                                            }`}
+                                        >
+                                            Charge
+                                        </button>
+                                        <button
+                                            type="button"
+                                            disabled={saving}
+                                            onClick={() => patchRepair(sel.id, { diagnostic_fee: 'waived' })}
+                                            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${
+                                                sel.diagnostic_fee === 'waived'
+                                                    ? 'bg-[#B38B21] text-black'
+                                                    : 'bg-white/5 text-white/40 hover:text-white border border-white/10'
+                                            }`}
+                                        >
+                                            Waive
+                                        </button>
+                                        <button
+                                            type="button"
+                                            disabled={saving}
+                                            onClick={() => patchRepair(sel.id, { diagnostic_fee: 'pending' })}
+                                            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${
+                                                !sel.diagnostic_fee || sel.diagnostic_fee === 'pending'
+                                                    ? 'bg-[#B38B21] text-black'
+                                                    : 'bg-white/5 text-white/40 hover:text-white border border-white/10'
+                                            }`}
+                                        >
+                                            Pending
+                                        </button>
+                                    </div>
+                                    <p className="text-[10px] text-white/40 mt-1.5">
+                                        Current: {sel.diagnostic_fee || 'pending'}
+                                    </p>
+                                </div>
+
                                 <div>
                                     <p className="text-[9px] text-white/30 uppercase tracking-widest mb-2">Quick status</p>
                                     <div className="flex flex-wrap gap-2">

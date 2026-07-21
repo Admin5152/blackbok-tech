@@ -620,6 +620,39 @@ export async function fetchCampuses(activeOnly = true): Promise<Campus[]> {
   return rowsFromUnknown(data).map(parseCampus);
 }
 
+export interface ProductCategoryRow {
+  id: string;
+  name: string;
+}
+
+export async function fetchProductCategories(): Promise<ProductCategoryRow[]> {
+  const { data, error } = await supabase
+    .from('product_categories')
+    .select('id, name')
+    .order('name', { ascending: true });
+  throwOnError(error);
+  return rowsFromUnknown(data).map((row) => ({
+    id: requireString(row.id, 'id'),
+    name: requireString(row.name, 'name'),
+  }));
+}
+
+/** Verified campus on the signed-in profile — never invented client-side. */
+export async function fetchProfileCampusId(): Promise<string | null> {
+  const { data: auth } = await supabase.auth.getUser();
+  const uid = auth.user?.id;
+  if (!uid) return null;
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('campus_id')
+    .eq('id', uid)
+    .maybeSingle();
+  throwOnError(error);
+  if (!isRecord(data)) return null;
+  const id = asString(data.campus_id);
+  return id || null;
+}
+
 export async function fetchPromotions(filters?: {
   status?: PromoStatus | PromoStatus[];
   scope_type?: PromoScopeType;
@@ -717,16 +750,24 @@ export async function promoReserve(args: PromoReserveArgs): Promise<PromoReserve
   return parseReserveResult(data);
 }
 
-/** Attach campus to own order before promo_reserve (server-side scope). */
-export async function promoSetOrderCampus(
-  orderId: string,
-  campusId: string,
-): Promise<void> {
+/**
+ * Copy the caller's profiles.campus_id onto the order when unset.
+ * The campus_id argument is ignored by the database (never trusted from client).
+ */
+export async function promoAttachOrderCampus(orderId: string): Promise<void> {
   const { error } = await supabase.rpc('promo_set_order_campus', {
     p_order_id: orderId,
-    p_campus_id: campusId,
+    p_campus_id: null,
   });
   throwOnError(error);
+}
+
+/** @deprecated Use promoAttachOrderCampus — campus is never taken from the client. */
+export async function promoSetOrderCampus(
+  orderId: string,
+  _campusId?: string | null,
+): Promise<void> {
+  await promoAttachOrderCampus(orderId);
 }
 
 /** Read the post-reserve order total the client must charge (GHS). */
@@ -840,6 +881,8 @@ export const promoQueryKeys = {
   settings: () => [...promoQueryKeys.all, 'settings'] as const,
   campuses: (activeOnly: boolean) =>
     [...promoQueryKeys.all, 'campuses', activeOnly] as const,
+  productCategories: () => [...promoQueryKeys.all, 'product-categories'] as const,
+  profileCampus: () => [...promoQueryKeys.all, 'profile-campus'] as const,
   list: (filters?: { status?: PromoStatus | PromoStatus[]; scope_type?: PromoScopeType }) =>
     [...promoQueryKeys.all, 'list', filters ?? {}] as const,
   detail: (id: string) => [...promoQueryKeys.all, 'detail', id] as const,
@@ -889,6 +932,26 @@ export function useCampuses(
   return useQuery({
     queryKey: promoQueryKeys.campuses(activeOnly),
     queryFn: () => fetchCampuses(activeOnly),
+    ...options,
+  });
+}
+
+export function useProductCategories(
+  options?: Omit<UseQueryOptions<ProductCategoryRow[], Error>, 'queryKey' | 'queryFn'>,
+) {
+  return useQuery({
+    queryKey: promoQueryKeys.productCategories(),
+    queryFn: () => fetchProductCategories(),
+    ...options,
+  });
+}
+
+export function useProfileCampusId(
+  options?: Omit<UseQueryOptions<string | null, Error>, 'queryKey' | 'queryFn'>,
+) {
+  return useQuery({
+    queryKey: promoQueryKeys.profileCampus(),
+    queryFn: () => fetchProfileCampusId(),
     ...options,
   });
 }
