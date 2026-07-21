@@ -24,6 +24,9 @@ dist-ssr
 *.sln
 *.sw?
 .env
+.env.*
+!.env.template
+database/migrations/LOCAL_ONLY_*.sql
 
 # This project uses bun.lock; npm-generated lockfiles should not be committed
 package-lock.json
