@@ -122,3 +122,21 @@ export function productMatchesStoreCategories(
   const normalized = normalizeProductCategory(p.category);
   return selectedCategories.some((sel) => normalizeProductCategory(sel) === normalized);
 }
+
+/** Storefront “new” flag — prefers `is_new`, falls back to legacy `new`. */
+export function productIsNew(p: Product): boolean {
+  if (p.is_new != null) return Boolean(p.is_new);
+  if (p.new != null) return Boolean(p.new);
+  return false;
+}
+
+export type StoreNewFilter = 'new' | 'used';
+
+export function productMatchesStoreNewFilter(
+  p: Product,
+  filter: StoreNewFilter | undefined | null,
+): boolean {
+  if (!filter) return true;
+  const isNew = productIsNew(p);
+  return filter === 'new' ? isNew : !isNew;
+}

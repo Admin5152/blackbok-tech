@@ -368,10 +368,14 @@ export const AdminProductForm: React.FC<Props> = ({
 
   const handleUploadImage = async (file: File | null) => {
     if (!file) return;
-    await handleUploadFiles([file]);
+    // Details-tab button is "Replace photo" — always promote to main storefront image.
+    await handleUploadFiles([file], { asMain: true });
   };
 
-  const handleUploadFiles = async (files: FileList | File[] | null) => {
+  const handleUploadFiles = async (
+    files: FileList | File[] | null,
+    opts?: { asMain?: boolean },
+  ) => {
     if (!files || (files as FileList).length === 0) return;
     const list = Array.from(files as FileList).filter((f) => f.type.startsWith('image/'));
     if (list.length === 0) {
@@ -382,10 +386,12 @@ export const AdminProductForm: React.FC<Props> = ({
     setImgBusy(true);
     setImgError('');
     const productId = draft.id;
+    const asMain = Boolean(opts?.asMain);
     const added: ProductImage[] = [];
 
     try {
-      for (const file of list) {
+      for (let i = 0; i < list.length; i++) {
+        const file = list[i];
         let toUpload = file;
         try {
           toUpload = await compressImage(file, 1600, 0.85);
@@ -395,8 +401,10 @@ export const AdminProductForm: React.FC<Props> = ({
         const url = await uploadImage(toUpload, 'product-images');
         if (!url) throw new Error('Upload returned no URL');
 
-        const sortOrder = (draft.images?.length || 0) + added.length;
-        const isPrimary = sortOrder === 0;
+        const galleryLen = (draft.images?.length || 0) + added.length;
+        // Replace/Upload photo → primary. Gallery multi-add → primary only if gallery empty.
+        const isPrimary = asMain ? i === 0 : galleryLen === 0;
+        const sortOrder = asMain && i === 0 ? 0 : galleryLen;
 
         if (productId) {
           try {
@@ -405,13 +413,21 @@ export const AdminProductForm: React.FC<Props> = ({
               sort_order: sortOrder,
               is_primary: isPrimary,
             });
-            added.push(row);
+            added.push({ ...row, is_primary: isPrimary || row.is_primary });
+            // Ensure products.image_url matches even if setPrimary was skipped.
+            if (isPrimary) {
+              try {
+                await updateProduct(productId, { image: url, image_url: url });
+              } catch (prodErr) {
+                console.warn('products.image_url update failed after primary upload', prodErr);
+              }
+            }
           } catch (galleryErr) {
             // Storage succeeded but gallery RLS may still block — keep the photo on the product.
             console.warn('product_images insert failed; saving image_url on product', galleryErr);
             if (isPrimary || !draft.image) {
               try {
-                await updateProduct(productId, { image: url });
+                await updateProduct(productId, { image: url, image_url: url });
               } catch (prodErr) {
                 console.warn('products.image_url update failed', prodErr);
               }
@@ -435,12 +451,26 @@ export const AdminProductForm: React.FC<Props> = ({
 
       setDraft((d) => {
         const prev = d.images || [];
+        if (asMain && added.length > 0) {
+          const main = added[0];
+          const images = [
+            ...prev.map((img) => ({ ...img, is_primary: false })),
+            ...added.map((img, idx) => ({ ...img, is_primary: idx === 0 })),
+          ];
+          return {
+            ...d,
+            images,
+            image: main.url,
+            image_url: main.url,
+          };
+        }
         const images = [...prev, ...added];
         const primary = images.find((img) => img.is_primary) || images[0];
         return {
           ...d,
           images,
           image: primary?.url || d.image,
+          image_url: primary?.url || d.image_url,
         };
       });
     } catch (e) {

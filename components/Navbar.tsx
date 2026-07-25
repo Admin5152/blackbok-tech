@@ -190,7 +190,7 @@ export const Navbar: React.FC<{
             icon: ShoppingBag,
             badge: storeUnread.orders,
             subItems: [
-              { path: '/store', label: 'Browse all', icon: Box },
+              { path: '/store', label: 'Browse all', icon: Box, search: { browse: 'all' } },
               { path: '/store', label: 'iPhone', icon: Smartphone, search: { category: 'iPhone' } },
               { path: '/store', label: 'Laptops', icon: Laptop, search: { category: 'Laptop' } },
               { path: '/store', label: 'Accessories', icon: Box, search: { category: 'Accessories' } },
