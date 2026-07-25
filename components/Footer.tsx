@@ -88,7 +88,7 @@ export const Footer: React.FC<FooterProps> = ({ theme }) => {
             {footCol(
               'Shop',
               <>
-                {item('/store', 'Browse all')}
+                {item('/store', 'Browse all', { browse: 'all' })}
                 {item('/store', 'iPhone', { category: 'iPhone' })}
                 {item('/store', 'Laptop', { category: 'Laptop' })}
                 {item('/store', 'Gaming', { category: 'Gaming' })}

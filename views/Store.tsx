@@ -15,6 +15,8 @@ import {
   X,
   Repeat2,
   PanelLeftClose,
+  Sparkles,
+  Package,
 } from 'lucide-react';
 import { PageBackButton } from '../components/PageBackButton';
 import { Product, Category } from '../types';
@@ -30,10 +32,12 @@ import { Pagination } from '../components/Pagination';
 import {
   buildOrderedStoreCategoryKeys,
   countActiveStoreFilters,
-  getProductDiscountValue,
   productMatchesStoreCategories,
+  productMatchesStoreNewFilter,
+  productIsNew,
   productPassesStoreBaseFilters,
   fetchStoreSearchProducts,
+  type StoreNewFilter,
 } from '../lib/storeFilters';
 import type { Theme } from '../App';
 
@@ -53,10 +57,13 @@ interface StoreProps {
   theme?: Theme;
   categoriesFromUrl?: string[];
   searchFromUrl?: string;
+  browseFromUrl?: 'all';
+  conditionFromUrl?: StoreNewFilter;
 }
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   iPhone: <Smartphone size={14} />,
+  iPad: <TabletIcon size={14} />,
   Laptop: <LaptopIcon size={14} />,
   Tablet: <TabletIcon size={14} />,
   Accessories: <Watch size={14} />,
@@ -65,8 +72,31 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   Trades: <Repeat2 size={14} />,
 };
 
+const CATEGORY_ICONS_LG: Record<string, React.ReactNode> = {
+  iPhone: <Smartphone size={28} strokeWidth={1.5} />,
+  iPad: <TabletIcon size={28} strokeWidth={1.5} />,
+  Laptop: <LaptopIcon size={28} strokeWidth={1.5} />,
+  Tablet: <TabletIcon size={28} strokeWidth={1.5} />,
+  Accessories: <Watch size={28} strokeWidth={1.5} />,
+  Gaming: <Gamepad2 size={28} strokeWidth={1.5} />,
+  Audio: <Headphones size={28} strokeWidth={1.5} />,
+  Trades: <Repeat2 size={28} strokeWidth={1.5} />,
+};
+
 function categoryIcon(cat: string): React.ReactNode {
   return CATEGORY_ICONS[cat] ?? <LayoutGrid size={14} />;
+}
+
+function categoryIconLg(cat: string): React.ReactNode {
+  return CATEGORY_ICONS_LG[cat] ?? <LayoutGrid size={28} strokeWidth={1.5} />;
+}
+
+function categoryCoverImage(products: Product[], cat: string): string | null {
+  const match = products.find((p) => {
+    if (normalizeProductCategory(p.category) !== cat) return false;
+    return Boolean(p.image_url || p.image);
+  });
+  return match?.image_url || match?.image || null;
 }
 
 export const Store: React.FC<StoreProps> = ({
@@ -84,6 +114,8 @@ export const Store: React.FC<StoreProps> = ({
   theme,
   categoriesFromUrl,
   searchFromUrl,
+  browseFromUrl,
+  conditionFromUrl,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -103,6 +135,16 @@ export const Store: React.FC<StoreProps> = ({
   const [searchHitIds, setSearchHitIds] = useState<Set<string> | null>(null);
   const navigate = useNavigate();
   const isLight = theme === 'light';
+  const browseAll = browseFromUrl === 'all';
+  const newFilter = conditionFromUrl;
+
+  /** Step 1: category cards. */
+  const showCategoryPicker =
+    selectedCategories.length === 0 && !searchTerm.trim() && !browseAll;
+
+  /** Step 2: new vs used — after category (or browse all), before products. */
+  const showConditionPicker =
+    !showCategoryPicker && !searchTerm.trim() && !newFilter;
 
   useEffect(() => {
     try {
@@ -131,14 +173,28 @@ export const Store: React.FC<StoreProps> = ({
       ...params.getAll('categories'),
       ...(params.get('category') ? [params.get('category')!] : []),
     ];
-    if (rawCategories.length === 0) return;
+    const hasBrowseAll = browseFromUrl === 'all' || params.get('browse') === 'all';
+    const hasQ = Boolean(searchFromUrl?.trim() || params.get('q')?.trim());
+
+    if (rawCategories.length === 0 && !hasBrowseAll && !hasQ) {
+      // Bare /store — category picker; clear leftover filters from prior visits.
+      setSelectedCategories([]);
+      setSearchTerm('');
+      setSearchQuery('');
+      return;
+    }
+
+    if (rawCategories.length === 0) {
+      setSelectedCategories([]);
+      return;
+    }
 
     const normalized = rawCategories
       .flatMap((cat) => String(cat).split(',').map((s) => s.trim()))
       .map((cat) => (cat ? normalizeProductCategory(cat) : null))
       .filter((cat): cat is Category => Boolean(cat));
     setSelectedCategories(Array.from(new Set(normalized)));
-  }, [categoriesFromUrl, setSelectedCategories]);
+  }, [categoriesFromUrl, browseFromUrl, searchFromUrl, setSelectedCategories, setSearchQuery]);
 
   useEffect(() => {
     const raw = searchFromUrl?.trim();
@@ -174,18 +230,87 @@ export const Store: React.FC<StoreProps> = ({
       out.category = String(selectedCategories[0]);
     } else if (selectedCategories.length > 1) {
       out.categories = selectedCategories.join(',');
+    } else if (browseAll && !t) {
+      out.browse = 'all';
     }
+    if (newFilter && !t) out.condition = newFilter;
     return out;
-  }, [searchTerm, selectedCategories]);
+  }, [searchTerm, selectedCategories, browseAll, newFilter]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    // Don't rewrite URL on pickers (keeps /store + category step clean).
+    if (showCategoryPicker || showConditionPicker) return;
     const id = window.setTimeout(() => {
       setSearchQuery(searchTerm.trim());
       navigate({ to: '/store', search: buildStoreSearchParams() as never, replace: true });
     }, 380);
     return () => window.clearTimeout(id);
-  }, [buildStoreSearchParams, navigate, searchTerm, setSearchQuery]);
+  }, [
+    buildStoreSearchParams,
+    navigate,
+    searchTerm,
+    setSearchQuery,
+    showCategoryPicker,
+    showConditionPicker,
+  ]);
+
+  const categoryScopeSearch = useCallback((): Record<string, string> => {
+    if (selectedCategories.length === 1) return { category: String(selectedCategories[0]) };
+    if (selectedCategories.length > 1) return { categories: selectedCategories.join(',') };
+    if (browseAll) return { browse: 'all' };
+    return {};
+  }, [selectedCategories, browseAll]);
+
+  const resetLocalStoreFilters = useCallback(() => {
+    setSearchTerm('');
+    setSearchQuery('');
+    setSearchHitIds(null);
+    setPriceRange({ min: 0, max: STORE_PRICE_SLIDER_MAX });
+    setDesktopMinInput('0');
+    setDesktopMaxInput(String(STORE_PRICE_SLIDER_MAX));
+    setShowPromotionsOnly(false);
+  }, [setSearchQuery]);
+
+  const goToCategoryPicker = useCallback(() => {
+    resetLocalStoreFilters();
+    setSelectedCategories([]);
+    navigate({ to: '/store', search: {} as never, replace: true });
+  }, [navigate, resetLocalStoreFilters, setSelectedCategories]);
+
+  const goToConditionPicker = useCallback(() => {
+    resetLocalStoreFilters();
+    navigate({ to: '/store', search: categoryScopeSearch() as never, replace: true });
+  }, [navigate, resetLocalStoreFilters, categoryScopeSearch]);
+
+  const openCategory = useCallback(
+    (cat: Category) => {
+      // Wipe prior filters (search, price, promo, condition) then apply only this category.
+      resetLocalStoreFilters();
+      setSelectedCategories([cat]);
+      navigate({ to: '/store', search: { category: String(cat) } as never, replace: true });
+    },
+    [navigate, resetLocalStoreFilters, setSelectedCategories],
+  );
+
+  const openBrowseAll = useCallback(() => {
+    resetLocalStoreFilters();
+    setSelectedCategories([]);
+    navigate({ to: '/store', search: { browse: 'all' } as never, replace: true });
+  }, [navigate, resetLocalStoreFilters, setSelectedCategories]);
+
+  const openCondition = useCallback(
+    (condition: StoreNewFilter) => {
+      // Keep category scope; clear other leftover filters when choosing new/used.
+      resetLocalStoreFilters();
+      navigate({
+        to: '/store',
+        search: { ...categoryScopeSearch(), condition } as never,
+        replace: true,
+      });
+    },
+    [navigate, categoryScopeSearch, resetLocalStoreFilters],
+  );
 
   // Hit products GIN index via .textSearch when the user types a query
   useEffect(() => {
@@ -259,16 +384,58 @@ export const Store: React.FC<StoreProps> = ({
     ];
   }, [products, baseFilteredProducts]);
 
+  const categoryPickerCards = useMemo(() => {
+    const ordered = buildOrderedStoreCategoryKeys(products);
+    const countInBucket = (bucket: string) =>
+      products.filter((p) => normalizeProductCategory(p.category) === bucket).length;
+
+    return [
+      {
+        key: 'all',
+        label: 'All products',
+        count: products.length,
+        cover: null as string | null,
+        onSelect: openBrowseAll,
+        icon: <LayoutGrid size={28} strokeWidth={1.5} />,
+      },
+      ...ordered.map((cat) => ({
+        key: `pick-${cat}`,
+        label: cat,
+        count: countInBucket(cat),
+        cover: categoryCoverImage(products, cat),
+        onSelect: () => openCategory(cat as Category),
+        icon: categoryIconLg(cat),
+      })),
+    ];
+  }, [products, openBrowseAll, openCategory]);
+
+  const categoryScopedProducts = useMemo(() => {
+    return products.filter((p) => productMatchesStoreCategories(p, selectedCategories));
+  }, [products, selectedCategories]);
+
+  const conditionCounts = useMemo(() => {
+    let newCount = 0;
+    let usedCount = 0;
+    categoryScopedProducts.forEach((p) => {
+      if (productIsNew(p)) newCount += 1;
+      else usedCount += 1;
+    });
+    return { newCount, usedCount };
+  }, [categoryScopedProducts]);
+
   const filteredProducts = useMemo(() => {
-    const results = baseFilteredProducts.filter((p) =>
-      productMatchesStoreCategories(p, selectedCategories),
+    const results = baseFilteredProducts.filter(
+      (p) =>
+        productMatchesStoreCategories(p, selectedCategories) &&
+        productMatchesStoreNewFilter(p, newFilter),
     );
     return sortProductsStockFirst(results);
-  }, [baseFilteredProducts, selectedCategories]);
+  }, [baseFilteredProducts, selectedCategories, newFilter]);
 
   const storePageResetKey = [
     searchTerm,
     selectedCategories.join(','),
+    newFilter ?? '',
     priceRange.min,
     priceRange.max,
     showPromotionsOnly ? '1' : '0',
@@ -300,23 +467,43 @@ export const Store: React.FC<StoreProps> = ({
   });
 
   const clearAllFilters = () => {
-    setSelectedCategories([]);
     setPriceRange({ min: 0, max: STORE_PRICE_SLIDER_MAX });
     setSearchTerm('');
     setSearchQuery('');
     setShowPromotionsOnly(false);
+    navigate({
+      to: '/store',
+      search: { ...categoryScopeSearch(), ...(newFilter ? { condition: newFilter } : {}) } as never,
+      replace: true,
+    });
   };
 
   const toggleCategory = (cat: Category | 'All') => {
     if (cat === 'All') {
       setSelectedCategories([]);
+      navigate({
+        to: '/store',
+        search: {
+          browse: 'all',
+          ...(newFilter ? { condition: newFilter } : {}),
+        } as never,
+      });
       return;
     }
-    setSelectedCategories(
-      selectedCategories.includes(cat)
-        ? selectedCategories.filter((c) => c !== cat)
-        : [...selectedCategories, cat],
-    );
+    const next = selectedCategories.includes(cat)
+      ? selectedCategories.filter((c) => c !== cat)
+      : [...selectedCategories, cat];
+    setSelectedCategories(next);
+    const scope =
+      next.length === 0
+        ? { browse: 'all' as const }
+        : next.length === 1
+          ? { category: String(next[0]) }
+          : { categories: next.join(',') };
+    navigate({
+      to: '/store',
+      search: { ...scope, ...(newFilter ? { condition: newFilter } : {}) } as never,
+    });
   };
 
   const isCategoryRowActive = (cat: StoreCategoryRow): boolean => {
@@ -360,13 +547,150 @@ export const Store: React.FC<StoreProps> = ({
     ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4'
     : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5';
 
+  if (showCategoryPicker) {
+    return (
+      <div className="bb-store-page">
+        <div className="bb-store-toolbar">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3">
+            <div className="bb-store-toolbar-row flex min-w-0 items-center gap-1.5 sm:gap-2">
+              <PageBackButton isLight={isLight} fallbackTo="/" iconOnly />
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#CDA032]">Shop</p>
+                <h1 className="text-base sm:text-lg font-bold leading-tight truncate">Browse by category</h1>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-10">
+          <p className="mb-6 sm:mb-8 max-w-xl text-sm text-[color:var(--bb-muted)]">
+            Pick a category to see products. You can still search or filter once you are in a section.
+          </p>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+            {categoryPickerCards.map((card) => (
+              <button
+                key={card.key}
+                type="button"
+                onClick={card.onSelect}
+                className="group relative flex min-h-[9.5rem] sm:min-h-[11rem] flex-col overflow-hidden rounded-2xl border border-[var(--bb-border)] bg-[var(--bb-surface)] text-left transition-all duration-300 hover:border-[#CDA032]/50 hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032]/50"
+              >
+                {card.cover ? (
+                  <div className="absolute inset-0">
+                    <img
+                      src={card.cover}
+                      alt=""
+                      className="h-full w-full object-cover opacity-40 transition-transform duration-500 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[var(--bb-bg)] via-[var(--bb-bg)]/70 to-transparent" />
+                  </div>
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#CDA032]/12 via-transparent to-transparent" />
+                )}
+
+                <div className="relative z-[1] flex flex-1 flex-col justify-between p-4 sm:p-5">
+                  <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--bb-border)] bg-[var(--bb-surface-2)] text-[#CDA032] transition-colors group-hover:border-[#CDA032]/40">
+                    {card.icon}
+                  </span>
+                  <div>
+                    <span className="block text-sm sm:text-base font-bold tracking-tight">{card.label}</span>
+                    <span className="mt-0.5 block text-xs text-[color:var(--bb-muted)]">
+                      {card.count} {card.count === 1 ? 'item' : 'items'}
+                    </span>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (showConditionPicker) {
+    const scopeLabel =
+      selectedCategories.length === 1
+        ? String(selectedCategories[0])
+        : selectedCategories.length > 1
+          ? selectedCategories.join(', ')
+          : 'All products';
+
+    const conditionCards = [
+      {
+        key: 'new',
+        label: 'New',
+        description: 'Brand-new devices',
+        count: conditionCounts.newCount,
+        icon: <Sparkles size={28} strokeWidth={1.5} />,
+        onSelect: () => openCondition('new'),
+      },
+      {
+        key: 'used',
+        label: 'Used',
+        description: 'Pre-owned & refurbished',
+        count: conditionCounts.usedCount,
+        icon: <Package size={28} strokeWidth={1.5} />,
+        onSelect: () => openCondition('used'),
+      },
+    ] as const;
+
+    return (
+      <div className="bb-store-page">
+        <div className="bb-store-toolbar">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3">
+            <div className="bb-store-toolbar-row flex min-w-0 items-center gap-1.5 sm:gap-2">
+              <PageBackButton isLight={isLight} fallbackTo="/store" iconOnly onClick={goToCategoryPicker} />
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#CDA032]">
+                  {scopeLabel}
+                </p>
+                <h1 className="text-base sm:text-lg font-bold leading-tight truncate">New or used?</h1>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-10">
+          <p className="mb-6 sm:mb-8 max-w-xl text-sm text-[color:var(--bb-muted)]">
+            Choose condition to see matching {scopeLabel.toLowerCase() === 'all products' ? 'products' : scopeLabel} inventory.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 max-w-3xl">
+            {conditionCards.map((card) => (
+              <button
+                key={card.key}
+                type="button"
+                onClick={card.onSelect}
+                className="group relative flex min-h-[10rem] sm:min-h-[12rem] flex-col overflow-hidden rounded-2xl border border-[var(--bb-border)] bg-[var(--bb-surface)] text-left transition-all duration-300 hover:border-[#CDA032]/50 hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032]/50"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-[#CDA032]/12 via-transparent to-transparent" />
+                <div className="relative z-[1] flex flex-1 flex-col justify-between p-5 sm:p-6">
+                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--bb-border)] bg-[var(--bb-surface-2)] text-[#CDA032] transition-colors group-hover:border-[#CDA032]/40">
+                    {card.icon}
+                  </span>
+                  <div>
+                    <span className="block text-lg sm:text-xl font-bold tracking-tight">{card.label}</span>
+                    <span className="mt-1 block text-sm text-[color:var(--bb-muted)]">{card.description}</span>
+                    <span className="mt-2 block text-xs font-medium text-[color:var(--bb-muted)]">
+                      {card.count} {card.count === 1 ? 'item' : 'items'}
+                    </span>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bb-store-page">
       <div className="bb-store-toolbar">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3">
           <div className="flex min-w-0 flex-col gap-2">
             <div className="bb-store-toolbar-row flex min-w-0 items-center gap-1.5 sm:gap-2">
-              <PageBackButton isLight={isLight} fallbackTo="/" iconOnly />
+              <PageBackButton isLight={isLight} fallbackTo="/store" iconOnly onClick={goToConditionPicker} />
 
               <div className="bb-store-search-wrap relative min-w-0">
                 <Search
@@ -499,10 +823,30 @@ export const Store: React.FC<StoreProps> = ({
           )}
 
           <div data-store-products className="flex-1 min-w-0 w-full">
-            <p className="mb-4 text-sm text-[color:var(--bb-muted)]">
-              {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'}
-              {showPromotionsOnly ? ' on sale' : ''}
-            </p>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm text-[color:var(--bb-muted)]">
+                {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'}
+                {selectedCategories.length === 1 ? ` in ${selectedCategories[0]}` : ''}
+                {newFilter === 'new' ? ' · New' : newFilter === 'used' ? ' · Used' : ''}
+                {showPromotionsOnly ? ' on sale' : ''}
+              </p>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={goToConditionPicker}
+                  className="text-xs font-bold uppercase tracking-wider text-[#CDA032] hover:underline"
+                >
+                  New / Used
+                </button>
+                <button
+                  type="button"
+                  onClick={goToCategoryPicker}
+                  className="text-xs font-bold uppercase tracking-wider text-[#CDA032] hover:underline"
+                >
+                  All categories
+                </button>
+              </div>
+            </div>
 
             {filteredProducts.length > 0 && viewMode === 'grid' && (
               <div className={`bb-store-product-grid grid gap-2 sm:gap-2.5 lg:gap-2.5 ${gridCols}`}>
@@ -563,10 +907,10 @@ export const Store: React.FC<StoreProps> = ({
                 </p>
                 <button
                   type="button"
-                  onClick={clearAllFilters}
+                  onClick={goToConditionPicker}
                   className="px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider border border-[#CDA032]/40 text-[#CDA032] hover:bg-[#CDA032]/10 transition-colors"
                 >
-                  Clear filters
+                  Change new / used
                 </button>
               </div>
             )}

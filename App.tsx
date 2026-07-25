@@ -217,7 +217,12 @@ const indexRoute = createRoute({
 const storeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/store',
-  validateSearch: (search: Record<string, unknown>): { categories?: string[]; q?: string } => {
+  validateSearch: (search: Record<string, unknown>): {
+    categories?: string[];
+    q?: string;
+    browse?: 'all';
+    condition?: 'new' | 'used';
+  } => {
     let categories: string[] | undefined;
     
     if (search.categories) {
@@ -237,13 +242,27 @@ const storeRoute = createRoute({
       const trimmed = search.q.trim();
       if (trimmed) q = trimmed.slice(0, 200);
     }
+
+    const browse = search.browse === 'all' ? ('all' as const) : undefined;
+    const condition =
+      search.condition === 'new' || search.condition === 'used'
+        ? search.condition
+        : undefined;
     
-    return { categories, q };
+    return { categories, q, browse, condition };
   },
   component: () => {
     const context = useAppContext();
-    const { categories, q } = storeRoute.useSearch();
-    return <Store {...context} categoriesFromUrl={categories} searchFromUrl={q} />;
+    const { categories, q, browse, condition } = storeRoute.useSearch();
+    return (
+      <Store
+        {...context}
+        categoriesFromUrl={categories}
+        searchFromUrl={q}
+        browseFromUrl={browse}
+        conditionFromUrl={condition}
+      />
+    );
   },
 });
 
@@ -1931,8 +1950,7 @@ function RootComponent() {
                                 } else if (sub === 'Schedule Repair') {
                                   navigateTo('repair');
                                 } else {
-                                  setSelectedCategories([sub as any]);
-                                  navigateTo('store');
+                                  navigateTo('/store', { search: { category: sub } });
                                 }
                                 setIsMobileMenuOpen(false);
                               }}
