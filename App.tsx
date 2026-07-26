@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useRef, useContext } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useContext, useMemo } from 'react';
 import {
   createRootRoute,
   createRoute,
@@ -300,6 +300,22 @@ const productDetailRoute = createRoute({
         .finally(() => setLoading(false));
     }, [productId, localProduct]);
 
+    // Stable related picks — must run before early returns (Rules of Hooks).
+    const relatedProducts = useMemo(() => {
+      if (!product) return [];
+      const pool = products
+        .filter((p: Product) => p.category === product.category && p.id !== product.id)
+        .filter((p, index, self) => index === self.findIndex((t) => t.id === p.id));
+      const scored = pool.map((p) => {
+        let h = 0;
+        const key = `${product.id}:${p.id}`;
+        for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+        return { p, h };
+      });
+      scored.sort((a, b) => a.h - b.h);
+      return scored.map((x) => x.p).slice(0, 4);
+    }, [products, product]);
+
     if (loading) {
       return (
         <div className="min-h-screen bg-black text-white flex items-center justify-center">
@@ -318,11 +334,7 @@ const productDetailRoute = createRoute({
     return (
       <ProductDetail
         product={product}
-        relatedProducts={products
-          .filter((p: Product) => p.category === product.category && p.id !== product.id)
-          .filter((p, index, self) => index === self.findIndex((t) => t.id === p.id))
-          .sort(() => Math.random() - 0.5)
-          .slice(0, 4)}
+        relatedProducts={relatedProducts}
         addToCart={context.addToCart}
         isWishlisted={context.wishlist.includes(product.id)}
         onToggleWishlist={context.toggleWishlist}

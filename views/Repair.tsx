@@ -97,7 +97,7 @@ export const Repair: React.FC = () => {
     timeSlot: '',
     name: user?.name || '',
     email: user?.email || '',
-    phone: '',
+    phone: user?.phone || '',
     address: '',
     devicePassword: '',
     photos: [] as string[],
@@ -258,6 +258,12 @@ Description: ${formData.description || 'N/A'}
 When Started: ${formData.whenStarted || 'N/A'}
 Previously Repaired: ${formData.previouslyRepaired === 'yes' ? formData.previousRepairDetails : 'No'}
 
+[Contact]
+Name: ${formData.name || user.name || 'N/A'}
+Phone: ${formData.phone || user.phone || 'N/A'}
+Email: ${formData.email || user.email || 'N/A'}
+Address: ${formData.address || 'N/A'}
+
 [Device Condition]
 Serial/IMEI: ${formData.serialImei || 'N/A'}
 Physical Description: ${formData.physicalDescription || 'N/A'}
@@ -284,11 +290,15 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
       return;
     }
 
+    const contactName = (formData.name || user.name || '').trim();
+    const contactPhone = (formData.phone || user.phone || '').trim();
+    const contactEmail = (formData.email || user.email || '').trim();
+
     setSubmitting(true);
     try {
       const created = await createRepairRequest({
         user_id: user.id,
-        user_name: formData.name || user.name,
+        user_name: contactName || user.name,
         device_brand: formData.brand,
         device_model: formData.model,
         device_type: deviceFields.device_type,
@@ -302,9 +312,9 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
         fulfillment_method: formData.fulfillmentMethod,
         preferred_date: formData.date || undefined,
         preferred_time: getRepairTimeSlot(formData.timeSlot)?.time || undefined,
-        contact_name: formData.name || user.name,
-        contact_phone: formData.phone || undefined,
-        contact_email: formData.email || user.email || undefined,
+        contact_name: contactName || undefined,
+        contact_phone: contactPhone || undefined,
+        contact_email: contactEmail || undefined,
         repair_approval: formData.repairApproval,
         data_backup: formData.dataBackup,
         diagnostic_fee: formData.diagnosticFee,

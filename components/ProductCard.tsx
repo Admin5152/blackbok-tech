@@ -5,7 +5,7 @@
  * discount badge, condition badge, color dots (max 5 +n), stock state,
  * Trade-in eligible pill when trade_model is set. No client joins.
  */
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
 import { Link } from '@tanstack/react-router';
 import { ShoppingCart, Heart, Eye, Scale } from 'lucide-react';
 import { Product } from '../types';
@@ -58,6 +58,39 @@ function stockLabel(total: number): { kind: 'in' | 'low' | 'out'; text: string }
   return { kind: 'in', text: 'In stock' };
 }
 
+/**
+ * Mobile Safari often treats the first tap as `:hover` on `.group` (quick-view
+ * overlay), so wishlist/compare need a second tap. Run the action on pointer
+ * up for touch, and ignore the synthetic click that follows.
+ */
+function useInstantTap(action: () => void) {
+  const touchedRef = useRef(false);
+  return {
+    onPointerDown: (e: React.PointerEvent) => {
+      e.stopPropagation();
+    },
+    onPointerUp: (e: React.PointerEvent) => {
+      if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
+      e.preventDefault();
+      e.stopPropagation();
+      touchedRef.current = true;
+      action();
+      window.setTimeout(() => {
+        touchedRef.current = false;
+      }, 500);
+    },
+    onClick: (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (touchedRef.current) {
+        touchedRef.current = false;
+        return;
+      }
+      action();
+    },
+  };
+}
+
 export const ProductCard: React.FC<ProductCardProps> = ({
   product,
   onQuickView,
@@ -94,16 +127,27 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     return priceFrom;
   }, [priceFrom, product.discount]);
 
+  const wishlistTap = useInstantTap(() => onToggleWishlist(product.id));
+  const compareTap = useInstantTap(() => onToggleCompare(product.id));
+  const quickViewTap = useInstantTap(() => onQuickView(product));
+  const addTap = useInstantTap(() => {
+    if (totalStock <= 0) {
+      window.alert('This item is out of stock.');
+      return;
+    }
+    onAddToCart(product, {}, 1);
+  });
+
   return (
     <div
-      className={`group overflow-hidden rounded-xl transition-all duration-300 flex flex-col h-full cursor-pointer relative border ${
+      className={`group overflow-hidden rounded-xl transition-all duration-300 flex flex-col h-full cursor-pointer relative border isolate ${
         isCompact ? 'max-sm:rounded-lg' : ''
       } ${
         isCompared
           ? 'border-[#CDA032] shadow-[0_0_0_1px_rgba(205,160,50,0.35)]'
           : isLight
-            ? 'border-black/12 bg-white hover:border-[#CDA032]/35 shadow-lg'
-            : 'border-white/15 bg-black hover:border-white/25 shadow-2xl'
+            ? 'border-black/12 bg-white [@media(hover:hover)]:hover:border-[#CDA032]/35 shadow-lg'
+            : 'border-white/15 bg-black [@media(hover:hover)]:hover:border-white/25 shadow-2xl'
       }`}
     >
       <div className={`absolute top-2 left-2 z-20 flex flex-col gap-1 ${isCompact ? 'top-1.5 left-1.5 max-sm:top-1 max-sm:left-1' : ''}`}>
@@ -127,39 +171,35 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         )}
       </div>
 
-      <div className={`absolute top-2 right-2 z-30 flex flex-col gap-1.5 ${isCompact ? 'top-1.5 right-1.5 gap-1 max-sm:top-1 max-sm:right-1' : ''}`}>
+      <div
+        className={`absolute top-2 right-2 z-40 flex flex-col gap-1.5 pointer-events-auto ${
+          isCompact ? 'top-1.5 right-1.5 gap-1 max-sm:top-1 max-sm:right-1' : ''
+        }`}
+      >
         <button
           type="button"
-          className={`transition-all rounded-full border hover:bg-[#CDA032] hover:text-black hover:border-[#CDA032] ${
-            isCompact ? 'p-1.5' : 'p-2'
+          className={`bb-product-card-action transition-all rounded-full border [@media(hover:hover)]:hover:bg-[#CDA032] [@media(hover:hover)]:hover:text-black [@media(hover:hover)]:hover:border-[#CDA032] ${
+            isCompact ? 'p-2 sm:p-1.5' : 'p-2.5 sm:p-2'
           } ${
             isLight
               ? 'border-black/10 bg-white/85 text-black/50'
               : 'border-white/15 bg-black/55 text-white/70 backdrop-blur-md'
           } ${isWishlisted ? 'text-[#CDA032] border-[#CDA032]/45' : ''} ${TW_DARK_BTN_DEPTH}`}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onToggleWishlist(product.id);
-          }}
+          {...wishlistTap}
           aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
         >
           <Heart size={13} strokeWidth={2.25} className={isWishlisted ? 'fill-[#CDA032]' : ''} />
         </button>
         <button
           type="button"
-          className={`transition-all rounded-full border hover:bg-[#CDA032] hover:text-black hover:border-[#CDA032] ${
-            isCompact ? 'p-1.5' : 'p-2'
+          className={`bb-product-card-action transition-all rounded-full border [@media(hover:hover)]:hover:bg-[#CDA032] [@media(hover:hover)]:hover:text-black [@media(hover:hover)]:hover:border-[#CDA032] ${
+            isCompact ? 'p-2 sm:p-1.5' : 'p-2.5 sm:p-2'
           } ${
             isLight
               ? 'border-black/10 bg-white/85 text-black/50'
               : 'border-white/15 bg-black/55 text-white/70 backdrop-blur-md'
           } ${isCompared ? 'text-[#CDA032] border-[#CDA032]/45' : ''} ${TW_DARK_BTN_DEPTH}`}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onToggleCompare(product.id);
-          }}
+          {...compareTap}
           aria-label={isCompared ? 'Remove from compare' : 'Add to compare'}
         >
           <Scale size={13} strokeWidth={2.25} />
@@ -174,15 +214,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             className="bb-product-card-img"
           />
 
-          <div className="absolute inset-0 bg-black/65 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center px-4">
+          {/* Hover-only: on touch, first tap must not "activate hover" and swallow the click */}
+          <div className="absolute inset-0 bg-black/65 opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center px-4 pointer-events-none [@media(hover:hover)]:group-hover:pointer-events-auto">
             <button
               type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onQuickView(product);
-              }}
-              className="w-full max-w-[11rem] py-2.5 px-3 bg-white text-black text-[8px] font-black uppercase tracking-[0.28em] rounded-full shadow-xl flex items-center justify-center gap-2 hover:bg-white/95"
+              {...quickViewTap}
+              className="bb-product-card-action w-full max-w-[11rem] py-2.5 px-3 bg-white text-black text-[8px] font-black uppercase tracking-[0.28em] rounded-full shadow-xl flex items-center justify-center gap-2 [@media(hover:hover)]:hover:bg-white/95"
             >
               <Eye size={12} strokeWidth={2.5} /> QUICK VIEW
             </button>
@@ -201,7 +238,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               {product.brand || product.category}
             </p>
             <h3
-              className={`font-bold leading-snug line-clamp-2 group-hover:text-[#CDA032] transition-colors ${
+              className={`font-bold leading-snug line-clamp-2 [@media(hover:hover)]:group-hover:text-[#CDA032] transition-colors ${
                 isCompact ? 'text-[11px]' : 'text-xs'
               } ${isLight ? 'text-black' : 'text-white'}`}
             >
@@ -279,21 +316,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
             <button
               type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                // Card has no SKU resolution — open PDP for variant pick, or add base if no stock block
-                if (totalStock <= 0) {
-                  window.alert('This item is out of stock.');
-                  return;
-                }
-                onAddToCart(product, {}, 1);
-              }}
+              {...addTap}
               disabled={totalStock <= 0}
               title={totalStock <= 0 ? 'Out of stock' : 'Add to cart'}
               aria-label={totalStock <= 0 ? 'Out of stock' : 'Add to cart'}
-              className={`shrink-0 bg-[#CDA032] hover:bg-[#c29a28] text-black rounded-full font-bold transition-all flex items-center justify-center shadow-md active:scale-[0.96] disabled:opacity-40 disabled:pointer-events-none ${
-                isCompact ? 'h-8 w-8 md:h-7 md:w-7' : 'h-9 w-9'
+              className={`bb-product-card-action shrink-0 bg-[#CDA032] [@media(hover:hover)]:hover:bg-[#c29a28] text-black rounded-full font-bold transition-all flex items-center justify-center shadow-md active:scale-[0.96] disabled:opacity-40 disabled:pointer-events-none ${
+                isCompact ? 'h-9 w-9 md:h-7 md:w-7' : 'h-10 w-10 sm:h-9 sm:w-9'
               } ${TW_DARK_GOLD_BTN_DEPTH}`}
             >
               <ShoppingCart size={isCompact ? 14 : 15} strokeWidth={2.25} />
