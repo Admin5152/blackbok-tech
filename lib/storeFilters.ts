@@ -4,11 +4,11 @@ import { normalizeProductCategory } from './api';
 export const STORE_PRICE_SLIDER_MAX = 15000;
 export const STORE_PRICE_SLIDER_STEP = 100;
 
+/** Canonical storefront buckets — always shown on browse / filters (0 items OK). */
 export const STORE_PREFERRED_CATEGORIES = [
   'iPhone',
   'iPad',
   'Laptop',
-  'Tablet',
   'Gaming',
   'Audio',
   'Accessories',
@@ -83,8 +83,10 @@ export function buildOrderedStoreCategoryKeys(products: Product[]): string[] {
   products.forEach((p) => {
     catalogKeys[normalizeProductCategory(p.category)] = true;
   });
-  // Always expose iPad filter (empty until stocked) — acceptance
-  catalogKeys['iPad'] = true;
+  // Always expose every preferred bucket (empty until stocked)
+  STORE_PREFERRED_CATEGORIES.forEach((cat) => {
+    catalogKeys[cat] = true;
+  });
 
   const remaining = new Set(Object.keys(catalogKeys));
   const ordered: string[] = [];
@@ -130,13 +132,13 @@ export function productIsNew(p: Product): boolean {
   return false;
 }
 
-export type StoreNewFilter = 'new' | 'used';
+export type StoreNewFilter = 'new' | 'used' | 'all';
 
 export function productMatchesStoreNewFilter(
   p: Product,
   filter: StoreNewFilter | undefined | null,
 ): boolean {
-  if (!filter) return true;
+  if (!filter || filter === 'all') return true;
   const isNew = productIsNew(p);
   return filter === 'new' ? isNew : !isNew;
 }

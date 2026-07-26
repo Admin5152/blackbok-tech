@@ -221,7 +221,7 @@ const storeRoute = createRoute({
     categories?: string[];
     q?: string;
     browse?: 'all';
-    condition?: 'new' | 'used';
+    condition?: 'new' | 'used' | 'all';
   } => {
     let categories: string[] | undefined;
     
@@ -245,7 +245,7 @@ const storeRoute = createRoute({
 
     const browse = search.browse === 'all' ? ('all' as const) : undefined;
     const condition =
-      search.condition === 'new' || search.condition === 'used'
+      search.condition === 'new' || search.condition === 'used' || search.condition === 'all'
         ? search.condition
         : undefined;
     
