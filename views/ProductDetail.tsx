@@ -108,7 +108,12 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
   }, [availableStock]);
 
   const scrollTo = (ref: React.RefObject<HTMLElement | null>) => {
-    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const el = ref.current;
+    if (!el) return;
+    // Sticky PDP tabs (~top-20) + site nav — land below them, not on related picks.
+    const stickyOffset = 112;
+    const top = el.getBoundingClientRect().top + window.scrollY - stickyOffset;
+    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
   };
 
   const handleOptionChange = (variantName: string, option: string) => {
@@ -415,7 +420,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             )}
 
             {/* Overview — after buy box so options + CTA stay above the fold */}
-            <div ref={overviewRef as any} className="pt-1">
+            <div ref={overviewRef as any} className="pt-1 scroll-mt-28">
               <h2 className="text-sm font-black uppercase tracking-[0.35em] text-[#B38B21] mb-3">Overview</h2>
               {product.description ? (
                 <p className={`leading-relaxed max-w-xl text-base sm:text-lg font-medium ${isLight ? 'text-black/80' : 'text-white/80'}`}>
@@ -514,37 +519,41 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               </div>
             </div>
 
-            {/* Specs (anchor for navigation) */}
-            <div ref={specsRef as any} className={`pt-8 border-t ${isLight ? 'border-black/10' : 'border-white/10'}`}>
-              <h2 className="text-sm font-black uppercase tracking-[0.35em] text-[#B38B21] mb-6">Specifications</h2>
-              {product.specs && product.specs.length > 0 ? (
-                <ul className="space-y-4">
-                  {product.specs.map((s, i) => (
-                    <li
-                      key={i}
-                      className={`flex items-start gap-4 p-4 rounded-2xl border ${
-                        isLight ? 'bg-white border-black/10' : 'bg-white/5 border-white/10'
-                      }`}
-                    >
-                      <span className="mt-1 w-2 h-2 rounded-full bg-[#B38B21] shadow-[0_0_8px_rgba(179,139,33,0.5)] shrink-0" />
-                      <span
-                        className={`text-sm leading-relaxed font-bold tracking-wide ${
-                          isLight ? 'text-black/85' : 'text-white/90'
-                        }`}
-                      >
-                        {s}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className={`italic text-sm ${isLight ? 'text-black/45' : 'text-white/40'}`}>
-                  No specifications have been added for this product yet.
-                </p>
-              )}
-            </div>
-
           </div>
+        </div>
+
+        {/* Specs — full-width section above related picks so the Specs tab
+            does not scroll into the "Shop picks" list on mobile. */}
+        <div
+          ref={specsRef as any}
+          className={`mt-14 md:mt-16 pt-10 border-t scroll-mt-28 ${isLight ? 'border-black/10' : 'border-white/10'}`}
+        >
+          <h2 className="text-sm font-black uppercase tracking-[0.35em] text-[#B38B21] mb-6">Specifications</h2>
+          {product.specs && product.specs.length > 0 ? (
+            <ul className="space-y-4 max-w-3xl">
+              {product.specs.map((s, i) => (
+                <li
+                  key={i}
+                  className={`flex items-start gap-4 p-4 rounded-2xl border ${
+                    isLight ? 'bg-white border-black/10' : 'bg-white/5 border-white/10'
+                  }`}
+                >
+                  <span className="mt-1 w-2 h-2 rounded-full bg-[#B38B21] shadow-[0_0_8px_rgba(179,139,33,0.5)] shrink-0" />
+                  <span
+                    className={`text-sm leading-relaxed font-bold tracking-wide ${
+                      isLight ? 'text-black/85' : 'text-white/90'
+                    }`}
+                  >
+                    {s}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className={`italic text-sm ${isLight ? 'text-black/45' : 'text-white/40'}`}>
+              No specifications have been added for this product yet.
+            </p>
+          )}
         </div>
 
         {/* Related items — belt-and-suspenders filter: even though
@@ -556,7 +565,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
           const visibleRelated = relatedProducts.filter(p => p.id !== product.id).slice(0, 4);
           if (visibleRelated.length === 0) return null;
           return (
-          <div className={`mt-20 border-t pt-16 ${isLight ? 'border-black/10' : 'border-white/10'}`}>
+          <div className={`mt-16 md:mt-20 border-t pt-16 ${isLight ? 'border-black/10' : 'border-white/10'}`}>
             <div className="flex items-end justify-between mb-10 px-2">
               <div>
                 <h2 className={`text-3xl md:text-4xl font-black italic tracking-tighter uppercase ${isLight ? 'text-black' : 'text-white'}`}>
@@ -576,18 +585,22 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8 pb-10">
               {visibleRelated.map((item) => (
-                <div
+                <button
                   key={item.id}
-                  onClick={() => navigateTo('product', item.id)}
-                  className={`group cursor-pointer rounded-[2rem] border transition-all duration-500 overflow-hidden ${isLight ? 'bg-white border-black/5 hover:border-black' : 'bg-white/5 border-white/5 hover:border-[#B38B21]/40 hover:bg-white/[0.08] shadow-2xl'}`}
+                  type="button"
+                  onClick={() => {
+                    window.scrollTo(0, 0);
+                    navigateTo('product', item.id);
+                  }}
+                  className={`group text-left cursor-pointer rounded-[2rem] border transition-all duration-500 overflow-hidden ${isLight ? 'bg-white border-black/5 hover:border-black' : 'bg-white/5 border-white/5 hover:border-[#B38B21]/40 hover:bg-white/[0.08] shadow-2xl'}`}
                 >
                   <div className="aspect-square overflow-hidden relative">
                     <img
-                      src={item.image}
+                      src={item.image || item.image_url || ''}
                       alt={item.name}
                       className="w-full h-full object-cover group-hover:scale-110 transition duration-700"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-6">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-6 pointer-events-none">
                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white">View Details ›</p>
                     </div>
                   </div>
@@ -596,12 +609,12 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                     <h3 className="font-bold text-sm tracking-tight truncate">{item.name}</h3>
                     <div className="flex items-center justify-between pt-2">
                       <p className="text-[#B38B21] font-black italic text-lg">{formatGhs(item.price)}</p>
-                      <button className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all ${isLight ? 'border-black/5 text-black hover:bg-black hover:text-white' : 'border-white/10 text-white/40 hover:border-[#B38B21] hover:text-[#B38B21]'}`}>
+                      <span className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all ${isLight ? 'border-black/5 text-black' : 'border-white/10 text-white/40'}`}>
                         <Plus size={14} />
-                      </button>
+                      </span>
                     </div>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
 

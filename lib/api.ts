@@ -1575,7 +1575,11 @@ export function mapRepairFromDb(r: any): RepairRequest {
   return {
     ...r,
     userId: r.user_id,
-    userName: r.user_name || '',
+    userName: r.user_name || r.contact_name || '',
+    user_name: r.user_name || r.contact_name || '',
+    contact_name: r.contact_name || r.user_name || '',
+    contact_phone: r.contact_phone || '',
+    contact_email: r.contact_email || '',
     device_type: r.device_type ?? undefined,
     pricing_mode: r.pricing_mode ?? undefined,
     status: uiStatus,

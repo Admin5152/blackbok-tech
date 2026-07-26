@@ -177,8 +177,13 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
         const matchQ = !ql
             || (r.device || '').toLowerCase().includes(ql)
             || (r.userName || '').toLowerCase().includes(ql)
+            || (r.user_name || '').toLowerCase().includes(ql)
+            || (r.contact_name || '').toLowerCase().includes(ql)
+            || (r.contact_phone || '').toLowerCase().includes(ql)
+            || (r.contact_email || '').toLowerCase().includes(ql)
             || (r.issue || '').toLowerCase().includes(ql)
-            || (r.issue_type || '').toLowerCase().includes(ql);
+            || (r.issue_type || '').toLowerCase().includes(ql)
+            || String(r.display_id || '').toLowerCase().includes(ql);
         const matchS = statusF === 'All' || toDbRepairStatus(r.status) === statusF;
         const matchP =
             pricingF === 'all'
@@ -186,6 +191,13 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
             || (pricingF === 'diagnostic_quote' && !r.pricing_mode);
         return matchQ && matchS && matchP;
     });
+
+    const repairCustomerName = (r: RepairRequest) =>
+        r.contact_name || r.userName || r.user_name || '—';
+    const repairCustomerPhone = (r: RepairRequest) =>
+        r.contact_phone?.trim() || '';
+    const repairCustomerEmail = (r: RepairRequest) =>
+        r.contact_email?.trim() || '';
 
     const repairRevenue = repairs
         .filter((r) => toDbRepairStatus(r.status) === 'completed')
@@ -305,6 +317,7 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
                         <tr>
                             <Th>Device</Th>
                             <Th>Customer</Th>
+                            <Th>Phone</Th>
                             <Th>Issue</Th>
                             <Th>Estimate</Th>
                             <Th>Pricing</Th>
@@ -320,7 +333,22 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
                                     <p className="text-xs font-black text-white">{r.device}</p>
                                 </Td>
                                 <Td>
-                                    <p className="text-xs font-black text-white">{r.userName || '—'}</p>
+                                    <p className="text-xs font-black text-white">{repairCustomerName(r)}</p>
+                                    {repairCustomerEmail(r) ? (
+                                        <p className="text-[10px] text-white/30 mt-0.5 truncate max-w-[160px]">{repairCustomerEmail(r)}</p>
+                                    ) : null}
+                                </Td>
+                                <Td>
+                                    {repairCustomerPhone(r) ? (
+                                        <a
+                                            href={`tel:${repairCustomerPhone(r)}`}
+                                            className="text-xs font-bold text-[#B38B21] hover:text-[#D4AF37] whitespace-nowrap"
+                                        >
+                                            {repairCustomerPhone(r)}
+                                        </a>
+                                    ) : (
+                                        <p className="text-xs text-white/30">—</p>
+                                    )}
                                 </Td>
                                 <Td>
                                     <p className="text-xs text-white/50 max-w-[180px] truncate">{r.issue || '—'}</p>
@@ -372,7 +400,7 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
                             </div>
                             <div>
                                 <h3 className="text-base font-black text-white">{sel.device}</h3>
-                                <p className="text-[10px] text-white/30">{sel.userName}</p>
+                                <p className="text-[10px] text-white/30">{repairCustomerName(sel)}</p>
                                 {(sel as any).display_id && (
                                     <p className="text-[9px] text-[#B38B21] font-black uppercase tracking-widest mt-0.5">{(sel as any).display_id}</p>
                                 )}
@@ -384,8 +412,36 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
 
                         <div className="space-y-2 mb-4">
                             <div className="bg-black/40 rounded-xl p-3">
+                                <p className="text-[9px] text-white/30 uppercase tracking-widest mb-2">Customer contact</p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    {[
+                                        ['Name', repairCustomerName(sel)],
+                                        ['Phone', repairCustomerPhone(sel) || '—'],
+                                        ['Email', repairCustomerEmail(sel) || '—'],
+                                        ['Fulfillment', sel.fulfillment_method || sel.fulfillmentMethod || '—'],
+                                        ['Preferred date', sel.preferred_date || '—'],
+                                        ['Preferred time', sel.preferred_time || '—'],
+                                        ['Urgency', sel.urgency || '—'],
+                                    ].map(([k, v]) => (
+                                        <div key={k} className="bg-black/30 rounded-lg p-2.5">
+                                            <p className="text-[9px] text-white/30 uppercase tracking-widest mb-0.5">{k}</p>
+                                            <p className="text-xs font-bold text-white break-words">{v}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                                {repairCustomerPhone(sel) ? (
+                                    <a
+                                        href={`tel:${repairCustomerPhone(sel)}`}
+                                        className="inline-flex mt-3 text-[10px] font-black uppercase tracking-wider text-[#B38B21] hover:text-[#D4AF37]"
+                                    >
+                                        Call {repairCustomerPhone(sel)}
+                                    </a>
+                                ) : null}
+                            </div>
+
+                            <div className="bg-black/40 rounded-xl p-3">
                                 <p className="text-[9px] text-white/30 uppercase tracking-widest mb-1">Issue Description</p>
-                                <p className="text-xs text-white leading-relaxed">{sel.issue || '—'}</p>
+                                <p className="text-xs text-white leading-relaxed whitespace-pre-wrap">{sel.issue || '—'}</p>
                             </div>
                             {sel.aiDiagnosis && (
                                 <div className="bg-white/5 rounded-xl p-3">

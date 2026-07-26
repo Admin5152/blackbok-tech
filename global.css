@@ -1443,6 +1443,13 @@ html[data-theme='light'] .bb-home-rail-product-card__media {
   transform-origin: 28% 45%;
 }
 
+/* One-tap wishlist / compare / cart on touch (avoid sticky-hover swallow) */
+.bb-product-card-action {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
 .bb-product-card-media--store .bb-product-card-img,
 .bb-product-card-media--store-list .bb-product-card-img,
 .bb-product-card-media--cart .bb-product-card-img {
