@@ -826,10 +826,15 @@ export const AdminProductForm: React.FC<Props> = ({
                   <input
                     type="number"
                     min={0}
+                    max={100}
                     value={draft.discount ?? ''}
                     onChange={(e) => setDraft({ ...draft, discount: parseFloat(e.target.value) || 0 })}
                     className={s.input}
+                    placeholder="e.g. 20"
                   />
+                  <p className={`text-[10px] mt-1 ${s.muted}`}>
+                    Used for sale price and Deal of the Day (e.g. 20 = 20% off).
+                  </p>
                 </div>
                 <div>
                   <label className={s.label}>Rating (0–5)</label>
@@ -1185,6 +1190,41 @@ export const AdminProductForm: React.FC<Props> = ({
                   />
                   <span className={`text-sm font-bold ${s.title}`}>Feature on homepage</span>
                 </label>
+                <label className={`flex items-center gap-3 cursor-pointer rounded-xl border px-4 py-3 ${isLight ? 'border-orange-200 bg-orange-50' : 'border-orange-500/30 bg-orange-500/10'}`}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(draft.is_deal_of_the_day ?? draft.isDealOfTheDay)}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        is_deal_of_the_day: e.target.checked,
+                        isDealOfTheDay: e.target.checked,
+                      })
+                    }
+                    className="accent-[#CDA032] w-4 h-4"
+                  />
+                  <span className={`text-sm font-bold ${s.title}`}>🔥 Deal of the Day</span>
+                </label>
+                <div>
+                  <label className={s.label}>Promo text</label>
+                  <input
+                    type="text"
+                    value={draft.promo_text ?? draft.promoText ?? ''}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        promo_text: e.target.value,
+                        promoText: e.target.value,
+                      })
+                    }
+                    className={s.input}
+                    placeholder='e.g. "Limited Time Offer"'
+                    maxLength={120}
+                  />
+                  <p className={`text-[10px] mt-1 ${s.muted}`}>
+                    Shown on Deal of the Day cards when enabled.
+                  </p>
+                </div>
               </div>
             </div>
           )}

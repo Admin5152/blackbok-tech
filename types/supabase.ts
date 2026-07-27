@@ -387,6 +387,8 @@ export interface Database {
           brand: string | null;
           description: string | null;
           category: string | null;
+          /** Optional brand/type storefront tag (from products.subcategory). */
+          subcategory?: string | null;
           condition: string | null;
           currency: string;
           status: string | null;
@@ -396,6 +398,8 @@ export interface Database {
           review_count: number | null;
           is_new: boolean | null;
           featured: boolean | null;
+          is_deal_of_the_day?: boolean | null;
+          promo_text?: string | null;
           colors: string[] | null;
           storage: string[] | null;
           ram: string[] | null;

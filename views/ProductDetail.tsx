@@ -244,9 +244,14 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               theme={theme}
             />
 
-            {product.discount && (
+            {product.discount != null && product.discount > 0 && (
               <div className="absolute top-6 left-6 z-10 bg-[#B38B21] text-black px-4 py-1 rounded-full text-sm font-bold shadow-lg pointer-events-none">
-                -{product.discount}%
+                -{product.discount}% OFF
+              </div>
+            )}
+            {(product.is_deal_of_the_day || product.isDealOfTheDay) && (
+              <div className="absolute top-6 right-6 z-10 bg-gradient-to-r from-orange-600 to-amber-500 text-white px-4 py-1 rounded-full text-sm font-bold shadow-lg pointer-events-none">
+                🔥 Deal of the Day
               </div>
             )}
           </div>
@@ -261,6 +266,12 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               <h1 className={`text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-[1.1] ${isLight ? 'text-black' : 'text-white'}`}>
                 {product.name}
               </h1>
+              {(product.is_deal_of_the_day || product.isDealOfTheDay) &&
+                (product.promo_text || product.promoText) && (
+                <p className={`text-sm font-semibold ${isLight ? 'text-orange-700' : 'text-orange-300'}`}>
+                  {product.promo_text || product.promoText}
+                </p>
+              )}
             </div>
 
             {/* Price — effective price for selected SKU (fn_variant_effective_price) */}

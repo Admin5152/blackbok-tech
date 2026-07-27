@@ -29,6 +29,7 @@ export function mapProductPageRow(row: ProductPageRow): Product {
     brand: row.brand ?? undefined,
     slug: row.slug ?? undefined,
     category: normalizeProductCategory(row.category),
+    subcategory: (row as ProductPageRow & { subcategory?: string | null }).subcategory ?? undefined,
     description: row.description ?? '',
     price: priceFrom,
     price_from: priceFrom,
@@ -49,6 +50,16 @@ export function mapProductPageRow(row: ProductPageRow): Product {
     status: row.status ?? undefined,
     trade_model: row.trade_model ?? undefined,
     featured: Boolean(row.featured),
+    is_deal_of_the_day: Boolean(
+      (row as ProductPageRow & { is_deal_of_the_day?: boolean | null }).is_deal_of_the_day,
+    ),
+    isDealOfTheDay: Boolean(
+      (row as ProductPageRow & { is_deal_of_the_day?: boolean | null }).is_deal_of_the_day,
+    ),
+    promo_text:
+      (row as ProductPageRow & { promo_text?: string | null }).promo_text ?? null,
+    promoText:
+      (row as ProductPageRow & { promo_text?: string | null }).promo_text ?? null,
     is_new: isNew,
     new: isNew,
     rating: row.rating != null ? Number(row.rating) : undefined,
@@ -71,6 +82,18 @@ export async function getCatalogFromView(opts?: {
   if (opts?.category) query = query.eq('category', opts.category);
 
   const { data, error } = await query;
+  if (error) throw error;
+  return (data || []).map((r) => mapProductPageRow(r as ProductPageRow));
+}
+
+/** Active products flagged as Deal of the Day (homepage rail). */
+export async function getDealOfTheDayFromView(): Promise<Product[]> {
+  const { data, error } = await supabase
+    .from('v_product_page')
+    .select('*')
+    .eq('status', 'active')
+    .eq('is_deal_of_the_day', true);
+
   if (error) throw error;
   return (data || []).map((r) => mapProductPageRow(r as ProductPageRow));
 }

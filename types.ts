@@ -47,6 +47,8 @@ export interface Product {
   sku?: string;
   slug?: string;
   category: Category;
+  /** Optional brand/type tag for store subcategory filtering (DB `products.subcategory`). */
+  subcategory?: string | null;
   description: string;
   /** Display / cart unit price — typically price_from or selected variant effective price */
   price: number;
@@ -55,6 +57,16 @@ export interface Product {
   /** From v_product_page — max effective variant price */
   price_to?: number;
   discount?: number;
+  /**
+   * When true, product appears in homepage 🔥 Deal of the Day.
+   * Discount % uses existing `discount`; price is calculated client-side.
+   */
+  is_deal_of_the_day?: boolean;
+  /** Alias for forms / older code */
+  isDealOfTheDay?: boolean;
+  /** Marketing line under deal badge (e.g. Limited Time Offer) */
+  promo_text?: string | null;
+  promoText?: string | null;
   stock: number;
   /** From v_product_page.total_stock */
   total_stock?: number;

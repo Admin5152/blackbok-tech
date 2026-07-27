@@ -46,6 +46,7 @@ const EMPTY: ProductDraft = {
     name: '', price: 0, category: 'iPhone', description: '', image: '',
     stock: 10, rating: 4.5, discount: undefined, new: false,
     colors: [], storage: [], ram: [], specs: [], sim_types: [], featured: false,
+    is_deal_of_the_day: false, promo_text: '',
     brand: 'Apple', condition: 'new', status: 'active', trade_model: null,
     currency: 'GHS',
     images: [], specifications: {}, specificationsJson: '{}',
@@ -342,6 +343,8 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                 ram: derived?.ram ?? draft.ram,
                 specs: draft.specs,
                 featured: Boolean(draft.featured),
+                is_deal_of_the_day: Boolean(draft.is_deal_of_the_day ?? draft.isDealOfTheDay),
+                promo_text: draft.promo_text ?? draft.promoText ?? null,
                 specifications: draft.specifications ?? {},
             };
 

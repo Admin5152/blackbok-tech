@@ -30,6 +30,8 @@ export interface Product {
   condition: string;
   status: string;
   featured: boolean;
+  is_deal_of_the_day: boolean;
+  promo_text: string | null;
   is_new: boolean;
   discount: number;
   rating: number;
@@ -48,7 +50,8 @@ export interface UseProductsResult {
 const PRODUCT_SELECT = `
   id, name, model, sku, brand, description, specifications, category,
   image_url, price, stock, sim_type, ram_capacity, storage_capacity,
-  colors, condition, status, featured, is_new, discount, rating,
+  colors, condition, status, featured, is_deal_of_the_day, promo_text,
+  is_new, discount, rating,
   review_count, created_at, updated_at,
   product_images ( id, url, alt_text, sort_order, is_primary )
 `;
@@ -90,6 +93,8 @@ function normalizeProduct(row: Record<string, unknown>): Product {
     condition: String(row.condition ?? ''),
     status: String(row.status ?? ''),
     featured: Boolean(row.featured),
+    is_deal_of_the_day: Boolean(row.is_deal_of_the_day),
+    promo_text: (row.promo_text as string | null | undefined) ?? null,
     is_new: Boolean(row.is_new),
     discount: Number(row.discount ?? 0),
     rating: Number(row.rating ?? 0),

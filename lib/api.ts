@@ -55,18 +55,62 @@ export function normalizeProductCategory(category?: string | null): string {
 
   // Order matters: more specific matches first.
   if (value.includes('iphone')) return 'iPhone';
+  if (
+    value.includes('android') ||
+    value.includes('pixel') ||
+    value.includes('galaxy') ||
+    (value.includes('samsung') && (value.includes('phone') || value.includes('mobile')))
+  ) {
+    return 'Android phones';
+  }
   // Prefer "iPad" label for storefront filters (Tablet kept as alias)
   if (value.includes('ipad')) return 'iPad';
   if (value.includes('tablet')) return 'iPad';
-  if (value.includes('laptop') || value.includes('notebook') || value.includes('macbook') || value.includes('computer')) {
-    return 'Laptop';
+  if (value.includes('macbook')) return 'MacBooks';
+  // Legacy "Laptop" / "Laptops" / notebooks (non-Mac)
+  if (value.includes('laptop') || value.includes('notebook') || value.includes('computer')) {
+    return 'Laptops';
   }
   if (value.includes('phone') || value.includes('mobile') || value.includes('smartphone')) {
+    if (
+      value.includes('samsung') ||
+      value.includes('xiaomi') ||
+      value.includes('tecno') ||
+      value.includes('infinix') ||
+      value.includes('huawei') ||
+      value.includes('oppo') ||
+      value.includes('google')
+    ) {
+      return 'Android phones';
+    }
     return 'iPhone';
   }
   if (value.includes('gam') || value.includes('console')) return 'Gaming';
-  if (value.includes('audio') || value.includes('headphone') || value.includes('earbud') || value.includes('speaker')) {
-    return 'Audio';
+  // Speakers before generic audio/headphones
+  if (
+    value.includes('speaker') ||
+    value.includes('homepod') ||
+    value.includes('home pod') ||
+    value.includes('soundbar') ||
+    value.includes('sound bar')
+  ) {
+    return 'Speakers';
+  }
+  if (
+    value.includes('headphone') ||
+    value.includes('earbud') ||
+    value.includes('airpod') ||
+    value.includes('earpod') ||
+    value.includes('earphone') ||
+    value.includes('headset') ||
+    value === 'headphones'
+  ) {
+    return 'Headphones';
+  }
+  // Legacy "Audio" bucket → Headphones (most common)
+  if (value.includes('audio')) return 'Headphones';
+  if (value.includes('watch') || value.includes('smartwatch') || value.includes('smart watch')) {
+    return 'Smart watches';
   }
   if (value.includes('accessor') || value.includes('case') || value.includes('wearable') || value.includes('charger') || value.includes('cable')) {
     return 'Accessories';
@@ -277,6 +321,11 @@ export const createProduct = async (product: Partial<Product>) => {
     is_new: Boolean(product.new ?? product.is_new),
     stock: product.stock != null ? Number(product.stock) : 0,
     featured: Boolean(product.featured),
+    is_deal_of_the_day: Boolean(product.is_deal_of_the_day ?? product.isDealOfTheDay),
+    promo_text:
+      product.promo_text !== undefined || product.promoText !== undefined
+        ? (product.promo_text ?? product.promoText ?? null)
+        : undefined,
     colors: toStringArray((product as Product).colors),
     storage: toStringArray((product as Product).storage),
     ram: toStringArray((product as Product).ram),
@@ -321,6 +370,14 @@ export const updateProduct = async (id: string, updates: Partial<Product>) => {
       : undefined,
     stock: updates.stock !== undefined && updates.stock !== null ? Number(updates.stock) : undefined,
     featured: updates.featured !== undefined ? Boolean(updates.featured) : undefined,
+    is_deal_of_the_day:
+      updates.is_deal_of_the_day !== undefined || updates.isDealOfTheDay !== undefined
+        ? Boolean(updates.is_deal_of_the_day ?? updates.isDealOfTheDay)
+        : undefined,
+    promo_text:
+      updates.promo_text !== undefined || updates.promoText !== undefined
+        ? (updates.promo_text ?? updates.promoText ?? null)
+        : undefined,
     colors: toStringArray((updates as Product).colors),
     storage: toStringArray((updates as Product).storage),
     ram: toStringArray((updates as Product).ram),
@@ -876,6 +933,10 @@ export function mapProductFromDb(p: any): Product {
     new: isNew,
     is_new: isNew,
     featured: Boolean(p.featured),
+    is_deal_of_the_day: Boolean(p.is_deal_of_the_day ?? p.isDealOfTheDay),
+    isDealOfTheDay: Boolean(p.is_deal_of_the_day ?? p.isDealOfTheDay),
+    promo_text: p.promo_text ?? p.promoText ?? null,
+    promoText: p.promo_text ?? p.promoText ?? null,
     reviewCount: p.review_count,
     variants: p.product_variants ?? p.variants,
     images: normalizeProductImages(p.product_images ?? p.images),
@@ -889,6 +950,7 @@ export function mapProductFromDb(p: any): Product {
     condition: normalizeProductCondition(p.condition) ?? undefined,
     status: p.status ?? undefined,
     brand: p.brand ?? undefined,
+    subcategory: p.subcategory ?? undefined,
     discount: p.discount != null && p.discount !== '' ? Number(p.discount) : undefined,
     rating: p.rating != null && p.rating !== '' ? Number(p.rating) : undefined,
     colors: coerceTextArray(p.colors),

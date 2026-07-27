@@ -9,6 +9,12 @@ import { Product, Category } from '../types';
 import { HERO_COLLAGE_FILENAMES, getImagesForTheme } from '../data/heroImages';
 import { formatCurrency, TW_DARK_BTN_DEPTH, TW_DARK_GOLD_BTN_DEPTH } from '../lib/utils';
 import { normalizeProductCategory } from '../lib/api';
+import {
+  getDealDiscountPercentage,
+  getDealDiscountedPrice,
+  getDealPromoText,
+  isDealOfTheDayProduct,
+} from '../lib/dealOfTheDay';
 import { scrollHomeRail } from '../lib/homeCarouselScroll';
 import { useHomeRailScroll } from '../hooks/useHomeRailScroll';
 import { useAutoHomeRails } from '../hooks/useAutoHomeRails';
@@ -71,7 +77,7 @@ export const Home: React.FC<HomeProps> = ({
 
   const heroSlideCount = heroImageFilenames.length;
 
-  useAutoHomeRails(['featured-products-slider', 'phones-slider', 'laptop-slider']);
+  useAutoHomeRails(['deal-of-the-day-slider', 'phones-slider', 'laptop-slider']);
 
   useEffect(() => {
     setHeroSlide(0);
@@ -125,9 +131,15 @@ export const Home: React.FC<HomeProps> = ({
     [homeProducts]
   );
 
-  const featuredSliderProducts = useMemo(
-    () => featuredProducts.slice(0, 12),
-    [featuredProducts],
+  /** Homepage Deal of the Day rail — only products flagged in admin. */
+  const dealOfTheDayProducts = useMemo(
+    () => homeProducts.filter((p) => isDealOfTheDayProduct(p)),
+    [homeProducts],
+  );
+
+  const dealSliderProducts = useMemo(
+    () => dealOfTheDayProducts.slice(0, 12),
+    [dealOfTheDayProducts],
   );
 
   const sortFeaturedFirst = (items: Product[]) => {
@@ -155,10 +167,10 @@ export const Home: React.FC<HomeProps> = ({
   );
 
   useHomeRailScroll(
-    `${featuredSliderProducts.length}-${phoneSliderProducts.length}-${laptopSliderProducts.length}`,
+    `${dealSliderProducts.length}-${phoneSliderProducts.length}-${laptopSliderProducts.length}`,
   );
 
-  const featuredLeadProduct = featuredSliderProducts[0] ?? null;
+  const dealLeadProduct = dealSliderProducts[0] ?? null;
   const phoneLeadProduct = phoneSliderProducts[0] ?? null;
   const laptopLeadProduct = laptopSliderProducts[0] ?? null;
 
@@ -367,29 +379,32 @@ export const Home: React.FC<HomeProps> = ({
         </div>
       </section>
 
-      {/* Shop highlights — horizontal scroll + quick view */}
-      <section className={`section-connector py-6 md:py-10 overflow-hidden ${isDark ? 'bg-gradient-to-b from-[#050508] via-[#0a0a12] to-[#050508]' : 'bg-white'}`}>
+      {/* Deal of the Day — horizontal scroll + quick view */}
+      <section className={`section-connector py-6 md:py-10 overflow-hidden ${isDark ? 'bg-gradient-to-b from-[#120a05] via-[#1a0f08] to-[#050508]' : 'bg-gradient-to-b from-orange-50 via-amber-50/80 to-white'}`}>
         <div className="max-w-screen-2xl mx-auto">
           <div className="mb-6 flex flex-col gap-4 px-4 sm:flex-row sm:items-center sm:justify-between md:px-8 reveal-on-scroll">
             <div className="min-w-0">
               <h2 className={`text-3xl font-heading font-bold tracking-wider md:text-4xl ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
-                Shop highlights
+                🔥 Deal of the Day 🔥
               </h2>
+              <p className={`mt-1 text-sm ${theme === 'dark' ? 'text-orange-200/70' : 'text-orange-900/60'}`}>
+                Limited-time savings — mark products in admin to show them here.
+              </p>
             </div>
             <div className="flex items-center justify-end gap-3 shrink-0">
               <button
                 type="button"
-                onClick={() => scrollHomeRail('featured-products-slider', 'prev')}
-                className={`w-12 h-12 rounded-full border flex items-center justify-center backdrop-blur-sm ${theme === 'dark' ? 'border-white/15 bg-white/[0.04] text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-black/20 text-black hover:bg-black hover:text-white'} ${homeScrollArrowHover} ${TW_DARK_BTN_DEPTH}`}
-                aria-label="Scroll shop highlights left"
+                onClick={() => scrollHomeRail('deal-of-the-day-slider', 'prev')}
+                className={`w-12 h-12 rounded-full border flex items-center justify-center backdrop-blur-sm ${theme === 'dark' ? 'border-orange-400/30 bg-orange-500/10 text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-orange-300 text-black hover:bg-orange-600 hover:text-white'} ${homeScrollArrowHover} ${TW_DARK_BTN_DEPTH}`}
+                aria-label="Scroll Deal of the Day left"
               >
                 <ChevronLeft size={24} />
               </button>
               <button
                 type="button"
-                onClick={() => scrollHomeRail('featured-products-slider', 'next')}
-                className={`w-12 h-12 rounded-full border flex items-center justify-center backdrop-blur-sm ${theme === 'dark' ? 'border-white/15 bg-white/[0.04] text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-black/20 text-black hover:bg-black hover:text-white'} ${homeScrollArrowHover} ${TW_DARK_BTN_DEPTH}`}
-                aria-label="Scroll shop highlights right"
+                onClick={() => scrollHomeRail('deal-of-the-day-slider', 'next')}
+                className={`w-12 h-12 rounded-full border flex items-center justify-center backdrop-blur-sm ${theme === 'dark' ? 'border-orange-400/30 bg-orange-500/10 text-white hover:bg-[#D4AF37] hover:text-black hover:border-[#D4AF37]/50' : 'border-orange-300 text-black hover:bg-orange-600 hover:text-white'} ${homeScrollArrowHover} ${TW_DARK_BTN_DEPTH}`}
+                aria-label="Scroll Deal of the Day right"
               >
                 <ChevronRight size={24} />
               </button>
@@ -397,32 +412,47 @@ export const Home: React.FC<HomeProps> = ({
           </div>
 
           <div
-            id="featured-products-slider"
+            id="deal-of-the-day-slider"
             data-lenis-prevent
             className="bb-home-rail flex items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar px-4 md:px-8 pb-8"
             style={{ scrollPaddingLeft: 'max(1rem, env(safe-area-inset-left))' }}
           >
             <div
               data-home-rail-item
-              className={`bb-home-rail-promo-card group w-[300px] md:w-[400px] h-[400px] md:h-[500px] rounded-[2rem] flex-shrink-0 relative overflow-hidden shadow-sm border border-black/5 dark:border-white/5 ring-1 ring-inset ${theme === 'dark' ? 'ring-white/[0.06]' : 'ring-black/[0.06]'} ${homePromoCardHover}`}
+              className={`bb-home-rail-promo-card group w-[300px] md:w-[400px] h-[400px] md:h-[500px] rounded-[2rem] flex-shrink-0 relative overflow-hidden shadow-sm border border-orange-500/30 dark:border-orange-400/25 ring-1 ring-inset ring-orange-500/20 ${homePromoCardHover}`}
             >
-              {featuredLeadProduct ? (
+              {dealLeadProduct ? (
                 <Link
                   to="/product/$productId"
-                  params={{ productId: featuredLeadProduct.id } as any}
+                  params={{ productId: dealLeadProduct.id } as any}
                   className="absolute inset-0 z-10"
-                  aria-label={`View ${featuredLeadProduct.name}`}
+                  aria-label={`View ${dealLeadProduct.name}`}
                 >
-                  <img src={featuredLeadProduct.image} alt="" className="bb-home-rail-promo-card__img" loading="lazy" decoding="async" />
+                  <img src={dealLeadProduct.image} alt="" className="bb-home-rail-promo-card__img" loading="lazy" decoding="async" />
                   <div className="bb-home-rail-promo-card__scrim" aria-hidden />
                   <div className="bb-home-rail-promo-card__content">
-                    <h2 className="text-3xl md:text-5xl font-bold tracking-tight drop-shadow-sm">Featured picks</h2>
+                    <p className="mb-2 text-[10px] font-black uppercase tracking-[0.28em] text-orange-300">
+                      🔥 Deal of the Day
+                    </p>
+                    <h2 className="text-3xl md:text-5xl font-bold tracking-tight drop-shadow-sm">Today&apos;s deals</h2>
                     <p className="mt-3 max-w-[20rem] text-sm leading-relaxed text-white/75 line-clamp-2">
-                      {featuredLeadProduct.name}
+                      {getDealPromoText(dealLeadProduct) || dealLeadProduct.name}
                     </p>
-                    <p className="mt-2 text-lg font-black text-[#CDA032]">
-                      {formatCurrency(featuredLeadProduct.price)}
-                    </p>
+                    <div className="mt-2 flex flex-wrap items-baseline gap-2">
+                      {getDealDiscountPercentage(dealLeadProduct) > 0 && (
+                        <span className="rounded-md bg-[#CDA032] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-black">
+                          -{getDealDiscountPercentage(dealLeadProduct)}% OFF
+                        </span>
+                      )}
+                      <p className="text-lg font-black text-orange-300">
+                        {formatCurrency(getDealDiscountedPrice(dealLeadProduct))}
+                      </p>
+                      {getDealDiscountPercentage(dealLeadProduct) > 0 && (
+                        <p className="text-sm line-through text-white/45">
+                          {formatCurrency(dealLeadProduct.price)}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </Link>
               ) : (
@@ -430,26 +460,41 @@ export const Home: React.FC<HomeProps> = ({
                   <img src="/iPhone.jpeg" alt="" className="bb-home-rail-promo-card__img" loading="lazy" decoding="async" />
                   <div className="bb-home-rail-promo-card__scrim" aria-hidden />
                   <div className="bb-home-rail-promo-card__content">
-                    <h2 className="text-3xl md:text-5xl font-bold tracking-tight drop-shadow-sm">Featured picks</h2>
+                    <h2 className="text-3xl md:text-5xl font-bold tracking-tight drop-shadow-sm">🔥 Deal of the Day</h2>
                     <p className="mt-3 max-w-[20rem] text-sm leading-relaxed text-white/75">
-                      Star products in admin to show them here.
+                      Enable Deal of the Day on products in admin to showcase them here.
                     </p>
                   </div>
                 </Link>
               )}
             </div>
 
-            {featuredSliderProducts.map((p) => (
+            {dealSliderProducts.map((p) => {
+              const pct = getDealDiscountPercentage(p);
+              const salePrice = getDealDiscountedPrice(p);
+              const promo = getDealPromoText(p);
+              return (
               <Link
                 key={p.id}
                 to="/product/$productId"
                 params={{ productId: p.id } as any}
                 data-home-rail-item
-                className={`w-[260px] md:w-[300px] h-[360px] md:h-[420px] rounded-[2rem] flex-shrink-0 flex flex-col group cursor-pointer overflow-hidden relative shadow-lg ${theme === 'dark' ? 'bg-[#14141c] border border-white/[0.07] shadow-[0_20px_48px_-14px_rgba(0,0,0,0.6)]' : 'bg-[#ffffff] border border-black/[0.08]'} ${homeProductCardHover}`}
+                className={`w-[260px] md:w-[300px] h-[360px] md:h-[420px] rounded-[2rem] flex-shrink-0 flex flex-col group cursor-pointer overflow-hidden relative shadow-lg border border-orange-500/35 ${theme === 'dark' ? 'bg-[#1a100c] shadow-[0_20px_48px_-14px_rgba(0,0,0,0.6)]' : 'bg-[#fffaf5] border-orange-200'} ${homeProductCardHover}`}
               >
                 <div className="pointer-events-none absolute inset-0 z-10">
-                  <div className={`absolute bottom-2 left-2 w-12 h-12 border-b-2 border-l-2 rounded-bl-[1.5rem] transition-colors ${theme === 'dark' ? 'border-white/20' : 'border-[#B38B21]/40'}`} />
-                  <div className={`absolute bottom-2 right-2 w-12 h-12 border-b-2 border-r-2 rounded-br-[1.5rem] transition-colors ${theme === 'dark' ? 'border-white/20' : 'border-[#B38B21]/40'}`} />
+                  <div className="absolute bottom-2 left-2 w-12 h-12 border-b-2 border-l-2 rounded-bl-[1.5rem] transition-colors border-orange-400/50" />
+                  <div className="absolute bottom-2 right-2 w-12 h-12 border-b-2 border-r-2 rounded-br-[1.5rem] transition-colors border-orange-400/50" />
+                </div>
+
+                <div className="absolute top-3 left-3 z-20 flex flex-col gap-1 pointer-events-none">
+                  <span className="rounded-md bg-gradient-to-r from-orange-600 to-amber-500 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest text-white shadow-lg">
+                    🔥 Deal of the Day
+                  </span>
+                  {pct > 0 && (
+                    <span className="rounded-md bg-[#CDA032] px-2 py-0.5 text-[8px] font-black uppercase tracking-widest text-black shadow-lg italic">
+                      -{pct}% OFF
+                    </span>
+                  )}
                 </div>
 
                 <div className="bb-home-rail-product-card__media">
@@ -475,17 +520,29 @@ export const Home: React.FC<HomeProps> = ({
                   <Eye size={18} strokeWidth={2.25} />
                 </button>
 
-                <div className={`bb-home-rail-product-card__footer bg-gradient-to-t ${theme === 'dark' ? 'from-[#050508]/95 via-[#050508]/55 to-transparent' : 'from-white via-white/85 to-transparent'}`}>
+                <div className={`bb-home-rail-product-card__footer bg-gradient-to-t ${theme === 'dark' ? 'from-[#120a05]/95 via-[#120a05]/55 to-transparent' : 'from-white via-white/85 to-transparent'}`}>
                   <h3 className={`bb-home-rail-product-card__title font-black uppercase italic tracking-wider text-sm leading-tight mb-1 line-clamp-2 drop-shadow-sm ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                     {p.name}
                   </h3>
+                  {promo ? (
+                    <p className={`text-[10px] font-semibold line-clamp-1 mb-1 ${theme === 'dark' ? 'text-orange-300' : 'text-orange-700'}`}>
+                      {promo}
+                    </p>
+                  ) : null}
 
                   <div className="flex items-end justify-between mt-2">
                     <div>
                       <span className={`text-[9px] mb-0.5 block uppercase tracking-widest italic ${theme === 'dark' ? 'text-white/60' : 'text-black/60'}`}>{p.category}</span>
-                      <p className="font-black text-xl tracking-tighter text-[#CDA032] drop-shadow-sm">
-                        {formatCurrency(p.price)}
-                      </p>
+                      <div className="flex flex-wrap items-baseline gap-2">
+                        <p className="font-black text-xl tracking-tighter text-orange-400 drop-shadow-sm">
+                          {formatCurrency(salePrice)}
+                        </p>
+                        {pct > 0 && (
+                          <p className={`text-sm line-through ${theme === 'dark' ? 'text-white/40' : 'text-black/40'}`}>
+                            {formatCurrency(p.price)}
+                          </p>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -516,7 +573,8 @@ export const Home: React.FC<HomeProps> = ({
                   </div>
                 </div>
               </Link>
-            ))}
+              );
+            })}
           </div>
 
           <div className="flex justify-center mt-6 px-4 reveal-on-scroll reveal-delay-1">

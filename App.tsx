@@ -38,6 +38,7 @@ import {
   formatSelectedOptionsLabel,
 } from './lib/productOptions';
 import { variantEffectivePrice } from './lib/catalogApi';
+import { getDealDiscountPercentage } from './lib/dealOfTheDay';
 import type { ProductVariant } from './types';
 import { Navbar } from './components/Navbar';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
@@ -220,8 +221,9 @@ const storeRoute = createRoute({
   validateSearch: (search: Record<string, unknown>): {
     categories?: string[];
     q?: string;
-    browse?: 'all';
+    browse?: 'all' | 'deals';
     condition?: 'new' | 'used';
+    subcategory?: string;
   } => {
     let categories: string[] | undefined;
     
@@ -243,17 +245,24 @@ const storeRoute = createRoute({
       if (trimmed) q = trimmed.slice(0, 200);
     }
 
-    const browse = search.browse === 'all' ? ('all' as const) : undefined;
+    const browse =
+      search.browse === 'all' || search.browse === 'deals'
+        ? (search.browse as 'all' | 'deals')
+        : undefined;
     const condition =
       search.condition === 'new' || search.condition === 'used'
         ? search.condition
         : undefined;
+    const subcategory =
+      typeof search.subcategory === 'string' && search.subcategory.trim()
+        ? search.subcategory.trim().slice(0, 80)
+        : undefined;
     
-    return { categories, q, browse, condition };
+    return { categories, q, browse, condition, subcategory };
   },
   component: () => {
     const context = useAppContext();
-    const { categories, q, browse, condition } = storeRoute.useSearch();
+    const { categories, q, browse, condition, subcategory } = storeRoute.useSearch();
     return (
       <Store
         {...context}
@@ -261,6 +270,7 @@ const storeRoute = createRoute({
         searchFromUrl={q}
         browseFromUrl={browse}
         conditionFromUrl={condition}
+        subcategoryFromUrl={subcategory}
       />
     );
   },
@@ -1621,7 +1631,12 @@ function RootComponent() {
     // Checkout/orders need the selected SKU id + fn_variant_effective_price amount.
     const variantId = findVariantIdForOptions(product, resolvedOptions);
     const variantRow = findVariantRowForOptions(product, resolvedOptions) as ProductVariant | null;
-    const unitPrice = variantEffectivePrice(product, variantRow);
+    const listPrice = variantEffectivePrice(product, variantRow);
+    const discountPct = getDealDiscountPercentage(product);
+    const unitPrice =
+      discountPct > 0
+        ? Math.round(listPrice * (1 - discountPct / 100) * 100) / 100
+        : listPrice;
     const configLine = formatSelectedOptionsLabel(resolvedOptions);
 
     const prev = cartRef.current;

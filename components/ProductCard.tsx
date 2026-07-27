@@ -10,6 +10,12 @@ import { Link } from '@tanstack/react-router';
 import { ShoppingCart, Heart, Eye, Scale } from 'lucide-react';
 import { Product } from '../types';
 import { formatCurrency, TW_DARK_BTN_DEPTH, TW_DARK_GOLD_BTN_DEPTH } from '../lib/utils';
+import {
+  getDealDiscountPercentage,
+  getDealDiscountedPrice,
+  getDealPromoText,
+  isDealOfTheDayProduct,
+} from '../lib/dealOfTheDay';
 import { useAppContext } from '../App';
 import { ProductAvailabilityBadge } from './ProductAvailabilityBadge';
 
@@ -49,7 +55,7 @@ function conditionLabel(condition?: string | null, isNew?: boolean): string | nu
   if (!c || c === 'new') return null;
   if (c.includes('refurb')) return 'Refurbished';
   if (c.includes('pre') || c.includes('used') || c.includes('owned')) return 'Pre-owned';
-  return condition;
+  return condition ?? null;
 }
 
 function stockLabel(total: number): { kind: 'in' | 'low' | 'out'; text: string } {
@@ -119,13 +125,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const visibleColors = colors.slice(0, 5);
   const extraColors = Math.max(0, colors.length - 5);
   const tradeEligible = Boolean(product.trade_model);
+  const isDeal = isDealOfTheDayProduct(product);
+  const discountPct = getDealDiscountPercentage(product);
+  const promoText = getDealPromoText(product);
 
-  const displayPrice = useMemo(() => {
-    if (product.discount && product.discount > 0) {
-      return priceFrom * (1 - product.discount / 100);
-    }
-    return priceFrom;
-  }, [priceFrom, product.discount]);
+  const displayPrice = useMemo(
+    () => getDealDiscountedPrice(product),
+    [product.price, product.price_from, product.discount],
+  );
 
   const wishlistTap = useInstantTap(() => onToggleWishlist(product.id));
   const compareTap = useInstantTap(() => onToggleCompare(product.id));
@@ -145,17 +152,28 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       } ${
         isCompared
           ? 'border-[#CDA032] shadow-[0_0_0_1px_rgba(205,160,50,0.35)]'
-          : isLight
-            ? 'border-black/12 bg-white [@media(hover:hover)]:hover:border-[#CDA032]/35 shadow-lg'
-            : 'border-white/15 bg-black [@media(hover:hover)]:hover:border-white/25 shadow-2xl'
+          : isDeal
+            ? isLight
+              ? 'border-orange-400/70 bg-white shadow-lg shadow-orange-500/10 [@media(hover:hover)]:hover:border-orange-500'
+              : 'border-orange-500/50 bg-black shadow-2xl shadow-orange-500/10 [@media(hover:hover)]:hover:border-orange-400'
+            : isLight
+              ? 'border-black/12 bg-white [@media(hover:hover)]:hover:border-[#CDA032]/35 shadow-lg'
+              : 'border-white/15 bg-black [@media(hover:hover)]:hover:border-white/25 shadow-2xl'
       }`}
     >
       <div className={`absolute top-2 left-2 z-20 flex flex-col gap-1 ${isCompact ? 'top-1.5 left-1.5 max-sm:top-1 max-sm:left-1' : ''}`}>
+        {isDeal && (
+          <span className="bg-gradient-to-r from-orange-600 to-amber-500 text-white text-[7px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest shadow-lg">
+            🔥 Deal of the Day
+          </span>
+        )}
         {product.new && (
           <span className="bg-white text-black text-[7px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest shadow-lg">NEW</span>
         )}
-        {product.discount != null && product.discount > 0 && (
-          <span className="bg-[#CDA032] text-black text-[7px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest shadow-lg italic">-{product.discount}%</span>
+        {discountPct > 0 && (
+          <span className="bg-[#CDA032] text-black text-[7px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest shadow-lg italic">
+            -{discountPct}% OFF
+          </span>
         )}
         {cond && (
           <span className={`text-[7px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest shadow-lg ${
@@ -202,7 +220,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           {...compareTap}
           aria-label={isCompared ? 'Remove from compare' : 'Add to compare'}
         >
-          <Scale size={13} strokeWidth={2.25} />
+          <Scale size={13} strokeWidth={2.25} className={isCompared ? 'fill-[#CDA032]' : ''} />
         </button>
       </div>
 
@@ -244,6 +262,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             >
               {product.name}
             </h3>
+            {isDeal && promoText && (
+              <p
+                className={`font-semibold leading-snug line-clamp-1 ${
+                  isCompact ? 'text-[9px]' : 'text-[10px]'
+                } ${isLight ? 'text-orange-700' : 'text-orange-300'}`}
+              >
+                {promoText}
+              </p>
+            )}
           </div>
 
           {/* Color dots from view.colors[] — display only, max 5 +n */}
@@ -282,10 +309,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                     from
                   </span>
                 )}
-                <span className={`font-black tracking-tight tabular-nums ${isCompact ? 'text-sm' : 'text-base'} ${isLight ? 'text-black' : 'text-white'}`}>
+                <span
+                  className={`font-black tracking-tight tabular-nums ${isCompact ? 'text-sm' : 'text-base'} ${
+                    isDeal && discountPct > 0
+                      ? isLight
+                        ? 'text-orange-700'
+                        : 'text-orange-300'
+                      : isLight
+                        ? 'text-black'
+                        : 'text-white'
+                  }`}
+                >
                   {formatCurrency(displayPrice)}
                 </span>
-                {product.discount != null && product.discount > 0 && (
+                {discountPct > 0 && (
                   <span className={`line-through text-[10px] ${isLight ? 'text-black/40' : 'text-white/35'}`}>
                     {formatCurrency(priceFrom)}
                   </span>

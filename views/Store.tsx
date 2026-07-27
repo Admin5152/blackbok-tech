@@ -17,6 +17,7 @@ import {
   PanelLeftClose,
   Sparkles,
   Package,
+  Flame,
 } from 'lucide-react';
 import { PageBackButton } from '../components/PageBackButton';
 import { Product, Category } from '../types';
@@ -24,6 +25,7 @@ import { ProductCard } from '../components/ProductCard';
 import { StoreFilterPanel, type StoreCategoryRow, STORE_PRICE_SLIDER_MAX } from '../components/StoreFilterPanel';
 import { StoreProductListRow } from '../components/StoreProductListRow';
 import { normalizeProductCategory } from '../lib/api';
+import { isDealOfTheDayProduct } from '../lib/dealOfTheDay';
 import { scanScrollReveal } from '../hooks/useScrollReveal';
 import { sortProductsStockFirst } from '../lib/productOptions';
 import { lockPageScroll } from '../lib/pageScrollLock';
@@ -33,11 +35,17 @@ import {
   buildOrderedStoreCategoryKeys,
   countActiveStoreFilters,
   productMatchesStoreCategories,
-  productMatchesStoreNewFilter,
-  productIsNew,
+  productMatchesStoreSubcategoryFilter,
   productPassesStoreBaseFilters,
   fetchStoreSearchProducts,
+  getCategorySubcategoryOptions,
+  getSubcategoryCount,
+  resolveStoreSubcategoryFilter,
+  encodeStoreSubcategorySearch,
+  subcategoryFilterLabel,
   type StoreNewFilter,
+  type StoreSubcategoryFilter,
+  type SubcategoryOption,
 } from '../lib/storeFilters';
 import type { Theme } from '../App';
 
@@ -57,31 +65,69 @@ interface StoreProps {
   theme?: Theme;
   categoriesFromUrl?: string[];
   searchFromUrl?: string;
-  browseFromUrl?: 'all';
+  browseFromUrl?: 'all' | 'deals';
+  /** @deprecated Prefer subcategoryFromUrl — kept for ?condition=new|used bookmarks */
   conditionFromUrl?: StoreNewFilter;
+  subcategoryFromUrl?: string;
 }
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   iPhone: <Smartphone size={14} />,
+  'Android phones': <Smartphone size={14} />,
   iPad: <TabletIcon size={14} />,
+  MacBooks: <LaptopIcon size={14} />,
+  Laptops: <LaptopIcon size={14} />,
   Laptop: <LaptopIcon size={14} />,
   Tablet: <TabletIcon size={14} />,
+  'Smart watches': <Watch size={14} />,
   Accessories: <Watch size={14} />,
   Gaming: <Gamepad2 size={14} />,
+  Headphones: <Headphones size={14} />,
+  Speakers: <Headphones size={14} />,
   Audio: <Headphones size={14} />,
   Trades: <Repeat2 size={14} />,
 };
 
 const CATEGORY_ICONS_LG: Record<string, React.ReactNode> = {
   iPhone: <Smartphone size={28} strokeWidth={1.5} />,
+  'Android phones': <Smartphone size={28} strokeWidth={1.5} />,
   iPad: <TabletIcon size={28} strokeWidth={1.5} />,
+  MacBooks: <LaptopIcon size={28} strokeWidth={1.5} />,
+  Laptops: <LaptopIcon size={28} strokeWidth={1.5} />,
   Laptop: <LaptopIcon size={28} strokeWidth={1.5} />,
   Tablet: <TabletIcon size={28} strokeWidth={1.5} />,
+  'Smart watches': <Watch size={28} strokeWidth={1.5} />,
   Accessories: <Watch size={28} strokeWidth={1.5} />,
   Gaming: <Gamepad2 size={28} strokeWidth={1.5} />,
+  Headphones: <Headphones size={28} strokeWidth={1.5} />,
+  Speakers: <Headphones size={28} strokeWidth={1.5} />,
   Audio: <Headphones size={28} strokeWidth={1.5} />,
   Trades: <Repeat2 size={28} strokeWidth={1.5} />,
 };
+
+function subcategoryCardIcon(option: SubcategoryOption): React.ReactNode {
+  if (option.kind === 'condition') {
+    return option.value === 'new' ? (
+      <Sparkles size={28} strokeWidth={1.5} />
+    ) : (
+      <Package size={28} strokeWidth={1.5} />
+    );
+  }
+  const v = option.value.toLowerCase();
+  if (v.includes('play') || v.includes('xbox') || v.includes('nintendo') || v.includes('steam')) {
+    return <Gamepad2 size={28} strokeWidth={1.5} />;
+  }
+  if (v.includes('airpod') || v.includes('ear') || v.includes('jbl') || v.includes('sony') || v.includes('home') || v.includes('harman')) {
+    return <Headphones size={28} strokeWidth={1.5} />;
+  }
+  if (v.includes('watch') || v.includes('iwatch')) {
+    return <Watch size={28} strokeWidth={1.5} />;
+  }
+  if (v.includes('pixel') || v.includes('samsung') || v.includes('google')) {
+    return <Smartphone size={28} strokeWidth={1.5} />;
+  }
+  return <LayoutGrid size={28} strokeWidth={1.5} />;
+}
 
 function categoryIcon(cat: string): React.ReactNode {
   return CATEGORY_ICONS[cat] ?? <LayoutGrid size={14} />;
@@ -116,6 +162,7 @@ export const Store: React.FC<StoreProps> = ({
   searchFromUrl,
   browseFromUrl,
   conditionFromUrl,
+  subcategoryFromUrl,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -136,15 +183,39 @@ export const Store: React.FC<StoreProps> = ({
   const navigate = useNavigate();
   const isLight = theme === 'light';
   const browseAll = browseFromUrl === 'all';
-  const newFilter = conditionFromUrl;
+  const browseDeals = browseFromUrl === 'deals';
+  /** Flat product grid (skip category/subcategory pickers). */
+  const browseFlat = browseAll || browseDeals;
+
+  const activeCategory =
+    selectedCategories.length === 1 ? String(selectedCategories[0]) : undefined;
+
+  const subcategoryFilter = useMemo(
+    () =>
+      resolveStoreSubcategoryFilter(activeCategory, subcategoryFromUrl, conditionFromUrl),
+    [activeCategory, subcategoryFromUrl, conditionFromUrl],
+  );
+
+  const subcategoryOptions = useMemo(
+    () => (activeCategory ? getCategorySubcategoryOptions(activeCategory) : []),
+    [activeCategory],
+  );
 
   /** Step 1: category cards. */
   const showCategoryPicker =
-    selectedCategories.length === 0 && !searchTerm.trim() && !browseAll;
+    selectedCategories.length === 0 && !searchTerm.trim() && !browseFlat;
 
-  /** Step 2: new vs used — after category (or browse all), before products. */
-  const showConditionPicker =
-    !showCategoryPicker && !searchTerm.trim() && !newFilter;
+  /**
+   * Step 2: dynamic subcategory picker (condition or brand/type).
+   * Skipped for browse-all / deals, multi-category, search, or categories with no config.
+   */
+  const showSubcategoryPicker =
+    !showCategoryPicker &&
+    !searchTerm.trim() &&
+    !browseFlat &&
+    selectedCategories.length === 1 &&
+    subcategoryOptions.length > 0 &&
+    !subcategoryFilter;
 
   useEffect(() => {
     try {
@@ -173,10 +244,14 @@ export const Store: React.FC<StoreProps> = ({
       ...params.getAll('categories'),
       ...(params.get('category') ? [params.get('category')!] : []),
     ];
-    const hasBrowseAll = browseFromUrl === 'all' || params.get('browse') === 'all';
+    const hasBrowseFlat =
+      browseFromUrl === 'all' ||
+      browseFromUrl === 'deals' ||
+      params.get('browse') === 'all' ||
+      params.get('browse') === 'deals';
     const hasQ = Boolean(searchFromUrl?.trim() || params.get('q')?.trim());
 
-    if (rawCategories.length === 0 && !hasBrowseAll && !hasQ) {
+    if (rawCategories.length === 0 && !hasBrowseFlat && !hasQ) {
       // Bare /store — category picker; clear leftover filters from prior visits.
       setSelectedCategories([]);
       setSearchTerm('');
@@ -230,17 +305,21 @@ export const Store: React.FC<StoreProps> = ({
       out.category = String(selectedCategories[0]);
     } else if (selectedCategories.length > 1) {
       out.categories = selectedCategories.join(',');
+    } else if (browseDeals && !t) {
+      out.browse = 'deals';
     } else if (browseAll && !t) {
       out.browse = 'all';
     }
-    if (newFilter && !t) out.condition = newFilter;
+    if (subcategoryFilter && !t) {
+      Object.assign(out, encodeStoreSubcategorySearch(subcategoryFilter));
+    }
     return out;
-  }, [searchTerm, selectedCategories, browseAll, newFilter]);
+  }, [searchTerm, selectedCategories, browseAll, browseDeals, subcategoryFilter]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    // Don't rewrite URL on pickers (keeps /store + category step clean).
-    if (showCategoryPicker || showConditionPicker) return;
+    // Don't rewrite URL on pickers (keeps /store + category/subcategory steps clean).
+    if (showCategoryPicker || showSubcategoryPicker) return;
     const id = window.setTimeout(() => {
       setSearchQuery(searchTerm.trim());
       navigate({ to: '/store', search: buildStoreSearchParams() as never, replace: true });
@@ -252,15 +331,16 @@ export const Store: React.FC<StoreProps> = ({
     searchTerm,
     setSearchQuery,
     showCategoryPicker,
-    showConditionPicker,
+    showSubcategoryPicker,
   ]);
 
   const categoryScopeSearch = useCallback((): Record<string, string> => {
     if (selectedCategories.length === 1) return { category: String(selectedCategories[0]) };
     if (selectedCategories.length > 1) return { categories: selectedCategories.join(',') };
+    if (browseDeals) return { browse: 'deals' };
     if (browseAll) return { browse: 'all' };
     return {};
-  }, [selectedCategories, browseAll]);
+  }, [selectedCategories, browseAll, browseDeals]);
 
   const resetLocalStoreFilters = useCallback(() => {
     setSearchTerm('');
@@ -278,14 +358,13 @@ export const Store: React.FC<StoreProps> = ({
     navigate({ to: '/store', search: {} as never, replace: true });
   }, [navigate, resetLocalStoreFilters, setSelectedCategories]);
 
-  const goToConditionPicker = useCallback(() => {
+  const goToSubcategoryPicker = useCallback(() => {
     resetLocalStoreFilters();
     navigate({ to: '/store', search: categoryScopeSearch() as never, replace: true });
   }, [navigate, resetLocalStoreFilters, categoryScopeSearch]);
 
   const openCategory = useCallback(
     (cat: Category) => {
-      // Wipe prior filters (search, price, promo, condition) then apply only this category.
       resetLocalStoreFilters();
       setSelectedCategories([cat]);
       navigate({ to: '/store', search: { category: String(cat) } as never, replace: true });
@@ -293,19 +372,21 @@ export const Store: React.FC<StoreProps> = ({
     [navigate, resetLocalStoreFilters, setSelectedCategories],
   );
 
-  const openBrowseAll = useCallback(() => {
+  const openDealOfTheDay = useCallback(() => {
     resetLocalStoreFilters();
     setSelectedCategories([]);
-    navigate({ to: '/store', search: { browse: 'all' } as never, replace: true });
+    navigate({ to: '/store', search: { browse: 'deals' } as never, replace: true });
   }, [navigate, resetLocalStoreFilters, setSelectedCategories]);
 
-  const openCondition = useCallback(
-    (condition: StoreNewFilter) => {
-      // Keep category scope; clear other leftover filters when choosing new/used.
+  const openSubcategory = useCallback(
+    (filter: StoreSubcategoryFilter) => {
       resetLocalStoreFilters();
       navigate({
         to: '/store',
-        search: { ...categoryScopeSearch(), condition } as never,
+        search: {
+          ...categoryScopeSearch(),
+          ...encodeStoreSubcategorySearch(filter),
+        } as never,
         replace: true,
       });
     },
@@ -365,14 +446,15 @@ export const Store: React.FC<StoreProps> = ({
     const ordered = buildOrderedStoreCategoryKeys(products);
     const countInBucket = (bucket: string) =>
       baseFilteredProducts.filter((p) => normalizeProductCategory(p.category) === bucket).length;
+    const dealCount = baseFilteredProducts.filter((p) => isDealOfTheDayProduct(p)).length;
 
     return [
       {
-        key: 'all',
-        label: 'Shop all',
+        key: 'deals',
+        label: '🔥 Deal of the Day',
         value: 'All' as const,
-        icon: <LayoutGrid size={14} />,
-        count: baseFilteredProducts.length,
+        icon: <Flame size={14} />,
+        count: dealCount,
       },
       ...ordered.map((cat) => ({
         key: `cat-${cat}`,
@@ -388,15 +470,16 @@ export const Store: React.FC<StoreProps> = ({
     const ordered = buildOrderedStoreCategoryKeys(products);
     const countInBucket = (bucket: string) =>
       products.filter((p) => normalizeProductCategory(p.category) === bucket).length;
+    const dealProducts = products.filter((p) => isDealOfTheDayProduct(p));
 
     return [
       {
-        key: 'all',
-        label: 'All products',
-        count: products.length,
-        cover: null as string | null,
-        onSelect: openBrowseAll,
-        icon: <LayoutGrid size={28} strokeWidth={1.5} />,
+        key: 'deals',
+        label: '🔥 Deal of the Day',
+        count: dealProducts.length,
+        cover: dealProducts[0]?.image || dealProducts[0]?.image_url || null,
+        onSelect: openDealOfTheDay,
+        icon: <Flame size={28} strokeWidth={1.5} />,
       },
       ...ordered.map((cat) => ({
         key: `pick-${cat}`,
@@ -407,35 +490,33 @@ export const Store: React.FC<StoreProps> = ({
         icon: categoryIconLg(cat),
       })),
     ];
-  }, [products, openBrowseAll, openCategory]);
+  }, [products, openDealOfTheDay, openCategory]);
 
-  const categoryScopedProducts = useMemo(() => {
-    return products.filter((p) => productMatchesStoreCategories(p, selectedCategories));
-  }, [products, selectedCategories]);
-
-  const conditionCounts = useMemo(() => {
-    let newCount = 0;
-    let usedCount = 0;
-    categoryScopedProducts.forEach((p) => {
-      if (productIsNew(p)) newCount += 1;
-      else usedCount += 1;
-    });
-    return { newCount, usedCount };
-  }, [categoryScopedProducts]);
+  const subcategoryCards = useMemo(() => {
+    if (!activeCategory) return [];
+    return subcategoryOptions.map((opt) => ({
+      key: `${opt.kind}-${opt.value}`,
+      option: opt,
+      count: getSubcategoryCount(products, activeCategory, opt),
+      icon: subcategoryCardIcon(opt),
+      onSelect: () => openSubcategory({ kind: opt.kind, value: opt.value }),
+    }));
+  }, [activeCategory, subcategoryOptions, products, openSubcategory]);
 
   const filteredProducts = useMemo(() => {
     const results = baseFilteredProducts.filter(
       (p) =>
         productMatchesStoreCategories(p, selectedCategories) &&
-        productMatchesStoreNewFilter(p, newFilter),
+        productMatchesStoreSubcategoryFilter(p, subcategoryFilter) &&
+        (!browseDeals || isDealOfTheDayProduct(p)),
     );
     return sortProductsStockFirst(results);
-  }, [baseFilteredProducts, selectedCategories, newFilter]);
+  }, [baseFilteredProducts, selectedCategories, subcategoryFilter, browseDeals]);
 
   const storePageResetKey = [
     searchTerm,
     selectedCategories.join(','),
-    newFilter ?? '',
+    subcategoryFilter ? `${subcategoryFilter.kind}:${subcategoryFilter.value}` : '',
     priceRange.min,
     priceRange.max,
     showPromotionsOnly ? '1' : '0',
@@ -473,7 +554,10 @@ export const Store: React.FC<StoreProps> = ({
     setShowPromotionsOnly(false);
     navigate({
       to: '/store',
-      search: { ...categoryScopeSearch(), ...(newFilter ? { condition: newFilter } : {}) } as never,
+      search: {
+        ...categoryScopeSearch(),
+        ...encodeStoreSubcategorySearch(subcategoryFilter),
+      } as never,
       replace: true,
     });
   };
@@ -484,8 +568,8 @@ export const Store: React.FC<StoreProps> = ({
       navigate({
         to: '/store',
         search: {
-          browse: 'all',
-          ...(newFilter ? { condition: newFilter } : {}),
+          browse: 'deals',
+          ...encodeStoreSubcategorySearch(subcategoryFilter),
         } as never,
       });
       return;
@@ -496,18 +580,19 @@ export const Store: React.FC<StoreProps> = ({
     setSelectedCategories(next);
     const scope =
       next.length === 0
-        ? { browse: 'all' as const }
+        ? { browse: 'deals' as const }
         : next.length === 1
           ? { category: String(next[0]) }
           : { categories: next.join(',') };
+    // Changing category clears subcategory — options differ per category.
     navigate({
       to: '/store',
-      search: { ...scope, ...(newFilter ? { condition: newFilter } : {}) } as never,
+      search: { ...scope } as never,
     });
   };
 
   const isCategoryRowActive = (cat: StoreCategoryRow): boolean => {
-    if (cat.value === 'All') return selectedCategories.length === 0;
+    if (cat.value === 'All') return browseDeals;
     return selectedCategories.includes(cat.value);
   };
 
@@ -567,13 +652,17 @@ export const Store: React.FC<StoreProps> = ({
             Pick a category to see products. You can still search or filter once you are in a section.
           </p>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
             {categoryPickerCards.map((card) => (
               <button
                 key={card.key}
                 type="button"
                 onClick={card.onSelect}
-                className="group relative flex min-h-[9.5rem] sm:min-h-[11rem] flex-col overflow-hidden rounded-2xl border border-[var(--bb-border)] bg-[var(--bb-surface)] text-left transition-all duration-300 hover:border-[#CDA032]/50 hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032]/50"
+                className={`group relative flex min-h-[9.5rem] sm:min-h-[11rem] flex-col overflow-hidden rounded-2xl border bg-[var(--bb-surface)] text-left transition-all duration-300 hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032]/50 ${
+                  card.key === 'deals'
+                    ? 'border-orange-400/50 hover:border-orange-500'
+                    : 'border-[var(--bb-border)] hover:border-[#CDA032]/50'
+                }`}
               >
                 {card.cover ? (
                   <div className="absolute inset-0">
@@ -607,32 +696,13 @@ export const Store: React.FC<StoreProps> = ({
     );
   }
 
-  if (showConditionPicker) {
-    const scopeLabel =
-      selectedCategories.length === 1
-        ? String(selectedCategories[0])
-        : selectedCategories.length > 1
-          ? selectedCategories.join(', ')
-          : 'All products';
-
-    const conditionCards = [
-      {
-        key: 'new',
-        label: 'New',
-        description: 'Brand-new devices',
-        count: conditionCounts.newCount,
-        icon: <Sparkles size={28} strokeWidth={1.5} />,
-        onSelect: () => openCondition('new'),
-      },
-      {
-        key: 'used',
-        label: 'Used',
-        description: 'Pre-owned & refurbished',
-        count: conditionCounts.usedCount,
-        icon: <Package size={28} strokeWidth={1.5} />,
-        onSelect: () => openCondition('used'),
-      },
-    ] as const;
+  if (showSubcategoryPicker) {
+    const scopeLabel = activeCategory ?? 'Products';
+    const isConditionStep = subcategoryOptions.every((o) => o.kind === 'condition');
+    const title = isConditionStep ? 'New or used?' : `Choose ${scopeLabel}`;
+    const blurb = isConditionStep
+      ? `Choose condition to see matching ${scopeLabel} inventory.`
+      : `Pick a type to browse ${scopeLabel} products.`;
 
     return (
       <div className="bb-store-page">
@@ -644,19 +714,23 @@ export const Store: React.FC<StoreProps> = ({
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#CDA032]">
                   {scopeLabel}
                 </p>
-                <h1 className="text-base sm:text-lg font-bold leading-tight truncate">New or used?</h1>
+                <h1 className="text-base sm:text-lg font-bold leading-tight truncate">{title}</h1>
               </div>
             </div>
           </div>
         </div>
 
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-10">
-          <p className="mb-6 sm:mb-8 max-w-xl text-sm text-[color:var(--bb-muted)]">
-            Choose condition to see matching {scopeLabel.toLowerCase() === 'all products' ? 'products' : scopeLabel} inventory.
-          </p>
+          <p className="mb-6 sm:mb-8 max-w-xl text-sm text-[color:var(--bb-muted)]">{blurb}</p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 max-w-3xl">
-            {conditionCards.map((card) => (
+          <div
+            className={`grid gap-3 sm:gap-4 ${
+              subcategoryCards.length <= 2
+                ? 'grid-cols-1 sm:grid-cols-2 max-w-3xl'
+                : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 max-w-5xl'
+            }`}
+          >
+            {subcategoryCards.map((card) => (
               <button
                 key={card.key}
                 type="button"
@@ -669,8 +743,12 @@ export const Store: React.FC<StoreProps> = ({
                     {card.icon}
                   </span>
                   <div>
-                    <span className="block text-lg sm:text-xl font-bold tracking-tight">{card.label}</span>
-                    <span className="mt-1 block text-sm text-[color:var(--bb-muted)]">{card.description}</span>
+                    <span className="block text-lg sm:text-xl font-bold tracking-tight">
+                      {card.option.label}
+                    </span>
+                    <span className="mt-1 block text-sm text-[color:var(--bb-muted)]">
+                      {card.option.description}
+                    </span>
                     <span className="mt-2 block text-xs font-medium text-[color:var(--bb-muted)]">
                       {card.count} {card.count === 1 ? 'item' : 'items'}
                     </span>
@@ -684,13 +762,22 @@ export const Store: React.FC<StoreProps> = ({
     );
   }
 
+  const subLabel = subcategoryFilterLabel(subcategoryFilter, activeCategory);
+  const canChangeSubcategory =
+    Boolean(activeCategory) && getCategorySubcategoryOptions(activeCategory!).length > 0;
+
   return (
     <div className="bb-store-page">
       <div className="bb-store-toolbar">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3">
           <div className="flex min-w-0 flex-col gap-2">
             <div className="bb-store-toolbar-row flex min-w-0 items-center gap-1.5 sm:gap-2">
-              <PageBackButton isLight={isLight} fallbackTo="/store" iconOnly onClick={goToConditionPicker} />
+              <PageBackButton
+                isLight={isLight}
+                fallbackTo="/store"
+                iconOnly
+                onClick={canChangeSubcategory ? goToSubcategoryPicker : goToCategoryPicker}
+              />
 
               <div className="bb-store-search-wrap relative min-w-0">
                 <Search
@@ -826,18 +913,24 @@ export const Store: React.FC<StoreProps> = ({
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm text-[color:var(--bb-muted)]">
                 {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'}
-                {selectedCategories.length === 1 ? ` in ${selectedCategories[0]}` : ''}
-                {newFilter === 'new' ? ' · New' : newFilter === 'used' ? ' · Used' : ''}
+                {browseDeals
+                  ? ' · Deal of the Day'
+                  : selectedCategories.length === 1
+                    ? ` in ${selectedCategories[0]}`
+                    : ''}
+                {subLabel ? ` · ${subLabel}` : ''}
                 {showPromotionsOnly ? ' on sale' : ''}
               </p>
               <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={goToConditionPicker}
-                  className="text-xs font-bold uppercase tracking-wider text-[#CDA032] hover:underline"
-                >
-                  New / Used
-                </button>
+                {canChangeSubcategory && (
+                  <button
+                    type="button"
+                    onClick={goToSubcategoryPicker}
+                    className="text-xs font-bold uppercase tracking-wider text-[#CDA032] hover:underline"
+                  >
+                    Change filter
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={goToCategoryPicker}
@@ -907,10 +1000,10 @@ export const Store: React.FC<StoreProps> = ({
                 </p>
                 <button
                   type="button"
-                  onClick={goToConditionPicker}
+                  onClick={canChangeSubcategory ? goToSubcategoryPicker : goToCategoryPicker}
                   className="px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider border border-[#CDA032]/40 text-[#CDA032] hover:bg-[#CDA032]/10 transition-colors"
                 >
-                  Change new / used
+                  {canChangeSubcategory ? 'Change filter' : 'Browse categories'}
                 </button>
               </div>
             )}
