@@ -188,8 +188,7 @@ export const CATEGORY_SUBCATEGORY_CONFIG: Readonly<Record<string, SubcategoryOpt
     { kind: 'condition', value: 'used', label: 'Used', description: 'Pre-owned & refurbished iPhones' },
   ],
   'Android phones': [
-    { kind: 'brand', value: 'GooglePixel', label: 'Google Pixel', description: 'Google Pixel phones' },
-    { kind: 'brand', value: 'Samsung',     label: 'Samsung',      description: 'Samsung Galaxy phones' },
+    { kind: 'condition', value: 'new', label: 'New', description: 'Brand-new Android phones only' },
   ],
   iPad: [
     { kind: 'condition', value: 'new',  label: 'New',  description: 'Brand-new iPad models' },
@@ -219,20 +218,22 @@ export const CATEGORY_SUBCATEGORY_CONFIG: Readonly<Record<string, SubcategoryOpt
     { kind: 'brand', value: 'Nintendo',    label: 'Nintendo',    description: 'Nintendo Switch & more' },
   ],
   Headphones: [
-    { kind: 'brand', value: 'HomePod',      label: 'HomePod',       description: 'Apple HomePod speakers' },
-    { kind: 'brand', value: 'JBL',          label: 'JBL',           description: 'JBL headphones & speakers' },
-    { kind: 'brand', value: 'HarmanKardon', label: 'Harman Kardon', description: 'Harman Kardon speakers' },
+    { kind: 'brand', value: 'AirPods', label: 'AirPods', description: 'Apple AirPods & wireless earbuds' },
+    { kind: 'brand', value: 'JBL',     label: 'JBL',     description: 'JBL headphones & earbuds' },
+    { kind: 'brand', value: 'Sony',    label: 'Sony',    description: 'Sony headphones & earbuds' },
+    { kind: 'brand', value: 'EarPods', label: 'EarPods', description: 'Wired EarPods / earphones' },
   ],
   Speakers: [
     { kind: 'brand', value: 'HomePod',      label: 'HomePod',       description: 'Apple HomePod speakers' },
     { kind: 'brand', value: 'JBL',          label: 'JBL',           description: 'JBL speakers' },
     { kind: 'brand', value: 'HarmanKardon', label: 'Harman Kardon', description: 'Harman Kardon speakers' },
   ],
-  // Legacy alias — old ?category=Audio URLs
+  // Legacy alias — old ?category=Audio URLs → Headphones brands
   Audio: [
-    { kind: 'brand', value: 'HomePod',      label: 'HomePod',       description: 'Apple HomePod speakers' },
-    { kind: 'brand', value: 'JBL',          label: 'JBL',           description: 'JBL headphones & speakers' },
-    { kind: 'brand', value: 'HarmanKardon', label: 'Harman Kardon', description: 'Harman Kardon speakers' },
+    { kind: 'brand', value: 'AirPods', label: 'AirPods', description: 'Apple AirPods & wireless earbuds' },
+    { kind: 'brand', value: 'JBL',     label: 'JBL',     description: 'JBL headphones & earbuds' },
+    { kind: 'brand', value: 'Sony',    label: 'Sony',    description: 'Sony headphones & earbuds' },
+    { kind: 'brand', value: 'EarPods', label: 'EarPods', description: 'Wired EarPods / earphones' },
   ],
   Accessories: [
     { kind: 'brand', value: 'PhoneCases',       label: 'Phone Cases',       description: 'Protective & stylish cases' },
@@ -243,7 +244,151 @@ export const CATEGORY_SUBCATEGORY_CONFIG: Readonly<Record<string, SubcategoryOpt
 
 /** Returns subcategory options for a canonical category, or [] if none configured. */
 export function getCategorySubcategoryOptions(category: string): SubcategoryOption[] {
-  return CATEGORY_SUBCATEGORY_CONFIG[category] ?? [];
+  const normalized = normalizeProductCategory(category);
+  return (
+    CATEGORY_SUBCATEGORY_CONFIG[category] ??
+    CATEGORY_SUBCATEGORY_CONFIG[normalized] ??
+    []
+  );
+}
+
+/** Main categories for admin product create/edit (approved storefront taxonomy). */
+export const ADMIN_MAIN_CATEGORIES = [
+  'iPhone',
+  'Android phones',
+  'iPad',
+  'MacBooks',
+  'Laptops',
+  'Smart watches',
+  'Gaming',
+  'Headphones',
+  'Speakers',
+  'Accessories',
+] as const;
+
+export type AdminMainCategory = (typeof ADMIN_MAIN_CATEGORIES)[number];
+
+const CONDITION_MAIN_CATEGORIES = new Set([
+  'iPhone',
+  'iPad',
+  'MacBooks',
+  'Laptops',
+  'Laptop',
+  'Android phones',
+]);
+
+export function categoryUsesConditionSubcategory(category: string | null | undefined): boolean {
+  if (!category) return false;
+  const n = normalizeProductCategory(category);
+  return CONDITION_MAIN_CATEGORIES.has(category) || CONDITION_MAIN_CATEGORIES.has(n);
+}
+
+/**
+ * Map admin taxonomy selection onto DB fields.
+ * UI "Used" → condition=preowned. Android phones are New-only.
+ */
+export function applyAdminTaxonomyFields(input: {
+  category: string;
+  /** Selected subcategory option value (e.g. new, used, PlayStation, AirPods) */
+  taxonomyValue: string | null | undefined;
+  existingCondition?: string | null;
+}): {
+  category: string;
+  subcategory: string | null;
+  condition: 'new' | 'preowned' | 'refurbished';
+  is_new: boolean;
+  taxonomyLabel: string;
+} {
+  const category = normalizeProductCategory(input.category);
+  const opts = getCategorySubcategoryOptions(category);
+  const raw = String(input.taxonomyValue ?? '').trim();
+  const hit = opts.find(
+    (o) => o.value.toLowerCase() === raw.toLowerCase() || o.label.toLowerCase() === raw.toLowerCase(),
+  );
+
+  if (category === 'Android phones') {
+    return {
+      category,
+      subcategory: null,
+      condition: 'new',
+      is_new: true,
+      taxonomyLabel: hit?.label ?? 'New',
+    };
+  }
+
+  if (categoryUsesConditionSubcategory(category)) {
+    const isUsed = (hit?.value ?? raw).toLowerCase() === 'used';
+    return {
+      category,
+      subcategory: null,
+      condition: isUsed ? 'preowned' : 'new',
+      is_new: !isUsed,
+      taxonomyLabel: isUsed ? 'Used' : 'New',
+    };
+  }
+
+  // Brand / type subcategory
+  const value = hit?.value ?? (raw || null);
+  const label = hit?.label ?? value ?? '—';
+  const existing = String(input.existingCondition ?? 'new').toLowerCase();
+  const condition =
+    existing === 'preowned' || existing === 'refurbished' || existing === 'used'
+      ? (existing === 'used' ? 'preowned' : (existing as 'preowned' | 'refurbished'))
+      : 'new';
+  return {
+    category,
+    subcategory: value,
+    condition,
+    is_new: condition === 'new',
+    taxonomyLabel: label,
+  };
+}
+
+export function validateAdminProductTaxonomy(input: {
+  category: string | null | undefined;
+  taxonomyValue: string | null | undefined;
+}): string | null {
+  const rawCat = String(input.category ?? '').trim();
+  if (!rawCat) return 'Select a main category.';
+  const category = normalizeProductCategory(rawCat);
+  if (!(ADMIN_MAIN_CATEGORIES as readonly string[]).includes(category)) {
+    return `Category “${rawCat}” is not in the approved catalog. Pick a listed main category.`;
+  }
+  const opts = getCategorySubcategoryOptions(category);
+  if (opts.length === 0) return null;
+
+  const raw = String(input.taxonomyValue ?? '').trim();
+  if (!raw) {
+    return categoryUsesConditionSubcategory(category)
+      ? 'Select New or Used for this category.'
+      : 'Select an approved sub-category for this category.';
+  }
+
+  const hit = opts.find(
+    (o) => o.value.toLowerCase() === raw.toLowerCase() || o.label.toLowerCase() === raw.toLowerCase(),
+  );
+  if (!hit) {
+    return `“${raw}” is not an approved sub-category for ${category}.`;
+  }
+
+  if (category === 'Android phones' && hit.value !== 'new') {
+    return 'Android phones only accept New under current catalog rules.';
+  }
+
+  return null;
+}
+
+export function formatProductClassification(input: {
+  name: string;
+  category: string;
+  taxonomyLabel: string;
+}): string {
+  return [
+    `Product Name: ${input.name}`,
+    `Main Category: ${input.category}`,
+    `Sub-category / Tag: ${input.taxonomyLabel}`,
+    'Status: Successfully classified and ready for storefront display.',
+  ].join('\n');
 }
 
 /** Discriminated filter used in URL/state (condition vs brand/type). */

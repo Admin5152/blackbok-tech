@@ -311,6 +311,10 @@ export const createProduct = async (product: Partial<Product>) => {
     image_url: product.image || product.image_url,
     category: product.category,
     brand: product.brand,
+    subcategory:
+      product.subcategory !== undefined
+        ? product.subcategory || null
+        : undefined,
     condition: normalizeProductCondition(product.condition) ?? 'new',
     status: product.status || 'active',
     trade_model: product.trade_model === '' ? null : product.trade_model,
@@ -356,6 +360,10 @@ export const updateProduct = async (id: string, updates: Partial<Product>) => {
     image_url: updates.image || updates.image_url,
     category: updates.category,
     brand: updates.brand,
+    subcategory:
+      updates.subcategory !== undefined
+        ? updates.subcategory || null
+        : undefined,
     condition: updates.condition !== undefined
       ? normalizeProductCondition(updates.condition)
       : undefined,

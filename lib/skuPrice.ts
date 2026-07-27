@@ -25,6 +25,30 @@ export function resolveSkuEffectivePrice(opts: {
 }
 
 /**
+ * When admin changes the product list/base price, scale fixed SKU prices so PDP
+ * (which prefers variant.price over products.price) stays in sync.
+ * Rows without an absolute price keep using base + modifier.
+ */
+export function scaleAbsoluteSkuPrices<T extends { price?: number | null }>(
+  rows: T[],
+  previousBasePrice: number,
+  nextBasePrice: number,
+): T[] {
+  const prev = Number(previousBasePrice);
+  const next = Number(nextBasePrice);
+  if (!(prev > 0) || !(next >= 0) || Math.abs(next - prev) < 0.0001) return rows;
+  const ratio = next / prev;
+  return rows.map((row) => {
+    const abs = row.price != null ? Number(row.price) : NaN;
+    if (!Number.isFinite(abs) || abs <= 0) return row;
+    return {
+      ...row,
+      price: Math.round(abs * ratio * 100) / 100,
+    };
+  });
+}
+
+/**
  * Top-up the customer pays (never negative).
  * upgrade − tradeCredit; when trading into a cheaper phone credit can exceed upgrade → 0 top-up (refund path).
  */

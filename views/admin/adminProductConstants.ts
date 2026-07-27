@@ -3,17 +3,10 @@
  * Refresh can hot-reload the form component without invalidating constant exports.
  */
 import type { Product, ProductImage } from '../../types';
+import { ADMIN_MAIN_CATEGORIES } from '../../lib/storeFilters';
 
-export const PRODUCT_CATEGORIES = [
-  'iPhone',
-  'iPad',
-  'Laptop',
-  'Gaming',
-  'Accessories',
-  'Audio',
-  'Tablet',
-  'Trades',
-] as const;
+/** Approved main categories — same taxonomy as the storefront products page. */
+export const PRODUCT_CATEGORIES = ADMIN_MAIN_CATEGORIES;
 
 export const PRODUCT_CONDITION_OPTIONS = [
   { value: 'new', label: 'New' },
@@ -35,6 +28,11 @@ export type ProductDraft = Partial<Product> & {
   specs?: string[];
   sim_types?: string[];
   featured?: boolean;
+  /**
+   * Admin taxonomy picker value (condition new|used OR brand/type config value).
+   * Synced into `condition` / `is_new` / `subcategory` on save.
+   */
+  taxonomy_value?: string | null;
   /** Local / joined gallery — persisted via product_images helpers. */
   images?: ProductImage[];
   specifications?: Record<string, unknown> | null;

@@ -9,6 +9,7 @@ import { supabase } from './supabase';
 import type { Product, ProductImage, ProductVariant } from '../types';
 import type { ProductPageRow } from '../types/supabase';
 import { normalizeProductCategory, normalizeProductImages, normalizeProductCondition } from './api';
+import { resolveSkuEffectivePrice } from './skuPrice';
 
 /** Map one v_product_page row → UI Product (card-ready; no variants). */
 export function mapProductPageRow(row: ProductPageRow): Product {
@@ -193,21 +194,43 @@ export async function getProductImages(productId: string): Promise<ProductImage[
 export async function getProductForPdp(id: string): Promise<Product | null> {
   const page = await getProductPageRow(id);
   if (!page) return null;
-  const [variants, images] = await Promise.all([
+  const [variants, images, baseRes] = await Promise.all([
     getProductVariants(id),
     getProductImages(id),
+    supabase.from('products').select('price').eq('id', id).maybeSingle(),
   ]);
+  const basePrice = Number(
+    (baseRes.data as { price?: number | null } | null)?.price ?? page.price ?? 0,
+  );
+  const effectivePrices = variants
+    .filter((v) => v.is_active !== false)
+    .map((v) =>
+      resolveSkuEffectivePrice({
+        productPrice: Number.isFinite(basePrice) && basePrice > 0 ? basePrice : page.price,
+        variantPrice: v.price,
+        priceModifier: v.price_modifier,
+      }),
+    )
+    .filter((n) => Number.isFinite(n) && n > 0);
+  const priceFrom = effectivePrices.length
+    ? Math.min(...effectivePrices)
+    : Number.isFinite(basePrice) && basePrice > 0
+      ? basePrice
+      : Number(page.price_from ?? page.price ?? 0);
+  const priceTo = effectivePrices.length ? Math.max(...effectivePrices) : priceFrom;
+  const primaryUrl = images.find((i) => i.is_primary)?.url || page.image || page.image_url;
+
   return {
     ...page,
+    price: Number.isFinite(basePrice) && basePrice > 0 ? basePrice : priceFrom,
+    price_from: priceFrom,
+    price_to: priceTo,
     variants,
     images,
-    // Prefer primary gallery image when present
-    image: images.find((i) => i.is_primary)?.url || page.image || page.image_url,
-    image_url: images.find((i) => i.is_primary)?.url || page.image_url,
+    image: primaryUrl,
+    image_url: primaryUrl || page.image_url,
   };
 }
-
-import { resolveSkuEffectivePrice } from './skuPrice';
 
 /** Effective price for a SKU — mirrors fn_variant_effective_price / resolveSkuEffectivePrice. */
 export function variantEffectivePrice(

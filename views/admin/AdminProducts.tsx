@@ -4,7 +4,7 @@
  * WHY: Staff need catalog CRUD plus ops checks (missing trade_model / SIM)
  * without leaving the admin shell.
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Package, Plus, Edit2, Trash2, AlertTriangle, Box, Star, FileSpreadsheet } from 'lucide-react';
 import { SearchInput, Modal, ModalClose, Td, Th, TableWrapper, EmptyState, PROD_KEY } from './adminUtils';
 import {
@@ -26,14 +26,21 @@ import {
     isIphone14PlusMissingSim,
 } from '../../lib/productSkuMatrix';
 import type { SkuMatrixRow } from '../../lib/productSkuMatrix';
+import { scaleAbsoluteSkuPrices } from '../../lib/skuPrice';
 import { AdminProductForm } from './AdminProductForm';
 import {
   PRODUCT_CATEGORIES,
-  PRODUCT_CONDITIONS,
   PRODUCT_CONDITION_OPTIONS,
   PRODUCT_STATUSES,
   type ProductDraft,
 } from './adminProductConstants';
+import {
+  applyAdminTaxonomyFields,
+  categoryUsesConditionSubcategory,
+  formatProductClassification,
+  getCategorySubcategoryOptions,
+  validateAdminProductTaxonomy,
+} from '../../lib/storeFilters';
 import type { Product } from '../../types';
 import { formatCurrency } from '../../lib/utils';
 import { useAppContext } from '../../lib/appContext';
@@ -44,13 +51,35 @@ type HealthView = 'all' | 'apple_missing_trade' | 'iphone14_missing_sim';
 
 const EMPTY: ProductDraft = {
     name: '', price: 0, category: 'iPhone', description: '', image: '',
-    stock: 10, rating: 4.5, discount: undefined, new: false,
+    stock: 10, rating: 4.5, discount: undefined, new: true, is_new: true,
     colors: [], storage: [], ram: [], specs: [], sim_types: [], featured: false,
     is_deal_of_the_day: false, promo_text: '',
     brand: 'Apple', condition: 'new', status: 'active', trade_model: null,
     currency: 'GHS',
+    subcategory: null,
+    taxonomy_value: 'new',
     images: [], specifications: {}, specificationsJson: '{}',
 };
+
+function resolveTaxonomyValueFromProduct(p: Pick<Product, 'category' | 'condition' | 'subcategory' | 'is_new' | 'new'>): string {
+  const opts = getCategorySubcategoryOptions(String(p.category || 'iPhone'));
+  if (categoryUsesConditionSubcategory(String(p.category || ''))) {
+    const isNew = p.is_new != null ? Boolean(p.is_new) : p.new != null ? Boolean(p.new) : String(p.condition || 'new').toLowerCase() === 'new';
+    const want = isNew ? 'new' : 'used';
+    return opts.some((o) => o.value === want) ? want : (opts[0]?.value ?? 'new');
+  }
+  const sub = String(p.subcategory ?? '').trim();
+  if (sub) {
+    const hit = opts.find(
+      (o) =>
+        o.value.toLowerCase() === sub.toLowerCase() ||
+        o.label.toLowerCase() === sub.toLowerCase() ||
+        o.value.replace(/\s+/g, '').toLowerCase() === sub.replace(/\s+/g, '').toLowerCase(),
+    );
+    if (hit) return hit.value;
+  }
+  return opts[0]?.value ?? '';
+}
 
 /** Letter O in a numeric field often means OCR/typo for digit 0. */
 function hasLetterOInNumeric(raw: string): boolean {
@@ -146,6 +175,8 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
     const [csvPreview, setCsvPreview] = useState<CsvPreviewRow[]>([]);
     const [csvBusy, setCsvBusy] = useState(false);
     const [csvResult, setCsvResult] = useState('');
+    /** Product price when the edit form opened — used to scale fixed SKU prices on save. */
+    const priceEditBaselineRef = useRef<number | null>(null);
 
     const resetSkuState = (p?: Product | ProductDraft) => {
         const colors = p?.colors || [];
@@ -210,6 +241,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
         setDraft({ ...EMPTY });
         setColorIn(''); setStorageIn(''); setRamIn(''); setSimIn(''); setSpecsIn('');
         setSkuRows([]); setSkuMatrixEnabled(false);
+        priceEditBaselineRef.current = null;
         setError(''); setShowForm(true);
     };
     const openEdit = (p: Product) => {
@@ -217,12 +249,14 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
           new Set(parseSkuVariants(p.variants).map((r) => r.sim_type).filter(Boolean)),
         );
         const spec = p.specifications;
+        priceEditBaselineRef.current = Number(p.price) || 0;
         setDraft({
             ...p,
             sim_types: simTypes,
             images: p.images || [],
             specifications: spec ?? {},
             specificationsJson: spec && typeof spec === 'object' ? JSON.stringify(spec, null, 2) : '{}',
+            taxonomy_value: resolveTaxonomyValueFromProduct(p),
         } as ProductDraft);
         setColorIn(''); setStorageIn(''); setRamIn(''); setSimIn(''); setSpecsIn('');
         resetSkuState({ ...p, sim_types: simTypes } as ProductDraft);
@@ -321,6 +355,30 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
         const matrixStock = useMatrix ? totalSkuStock(skuRows) : (draft.stock != null ? Number(draft.stock) : 0);
         const derived = useMatrix ? chipsFromSkuRows(skuRows) : null;
 
+        const taxonomyValue =
+          draft.taxonomy_value ||
+          resolveTaxonomyValueFromProduct({
+            category: draft.category || 'iPhone',
+            condition: draft.condition,
+            subcategory: draft.subcategory,
+            is_new: draft.is_new,
+            new: draft.new,
+          });
+        const taxonomyErr = validateAdminProductTaxonomy({
+          category: draft.category,
+          taxonomyValue,
+        });
+        if (taxonomyErr) {
+          setError(taxonomyErr);
+          setSaving(false);
+          return;
+        }
+        const taxonomy = applyAdminTaxonomyFields({
+          category: draft.category || 'iPhone',
+          taxonomyValue,
+          existingCondition: draft.condition,
+        });
+
         try {
             let productId = draft.id;
             const productPayload = {
@@ -328,16 +386,18 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                 description: draft.description || '',
                 price: priceNum,
                 image: draft.image || '',
-                category: draft.category || 'iPhone',
+                category: taxonomy.category,
                 brand: draft.brand,
-                condition: draft.condition,
+                subcategory: taxonomy.subcategory,
+                condition: taxonomy.condition,
                 status: draft.status || 'active',
                 trade_model: draft.trade_model ?? null,
                 currency: draft.currency || 'GHS',
                 stock: matrixStock,
                 rating: draft.rating != null ? Number(draft.rating) : undefined,
                 discount: draft.discount != null ? Number(draft.discount) : undefined,
-                new: draft.new ?? false,
+                new: taxonomy.is_new,
+                is_new: taxonomy.is_new,
                 colors: derived?.colors ?? draft.colors,
                 storage: derived?.storage ?? draft.storage,
                 ram: derived?.ram ?? draft.ram,
@@ -367,7 +427,12 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
 
             if (productId) {
                 if (useMatrix) {
-                    const variantPayload: SkuVariantInput[] = skuRows.map((r) => ({
+                    const baseline = priceEditBaselineRef.current;
+                    const scaledRows =
+                      baseline != null && Number.isFinite(baseline) && baseline > 0
+                        ? scaleAbsoluteSkuPrices(skuRows, baseline, priceNum)
+                        : skuRows;
+                    const variantPayload: SkuVariantInput[] = scaledRows.map((r) => ({
                         id: r.id,
                         color: r.color || null,
                         storage: r.storage || null,
@@ -410,6 +475,14 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
             setSkuMatrixEnabled(false);
             await load({ silent: true });
             window.dispatchEvent(new CustomEvent('products:refresh'));
+            notify?.(
+              formatProductClassification({
+                name: String(productPayload.name || 'Product'),
+                category: taxonomy.category,
+                taxonomyLabel: taxonomy.taxonomyLabel,
+              }),
+              'success',
+            );
         } catch (e) {
             const msg = friendlyProductActionError(e, 'save');
             if (/stock versions|product setup|Duplicate/i.test(msg)) {

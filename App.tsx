@@ -291,10 +291,12 @@ const productDetailRoute = createRoute({
 
     useEffect(() => {
       if (!productId) return;
+      let cancelled = false;
       setLoading(true);
       setError(null);
       getProduct(productId)
         .then((remoteProduct) => {
+          if (cancelled) return;
           if (remoteProduct) {
             setProduct(remoteProduct);
           } else if (!localProduct) {
@@ -302,13 +304,19 @@ const productDetailRoute = createRoute({
           }
         })
         .catch((err) => {
+          if (cancelled) return;
           console.error('Failed to fetch product:', err);
           if (!localProduct) {
             setError('Item not found');
           }
         })
-        .finally(() => setLoading(false));
-    }, [productId, localProduct]);
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }, [productId, localProduct?.id, localProduct?.price, localProduct?.price_from]);
 
     // Stable related picks — must run before early returns (Rules of Hooks).
     const relatedProducts = useMemo(() => {

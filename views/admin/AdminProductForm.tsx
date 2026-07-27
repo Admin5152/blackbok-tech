@@ -30,12 +30,16 @@ import {
 import { friendlyError } from '../../lib/friendlyErrors';
 import {
   PRODUCT_CATEGORIES,
-  PRODUCT_CONDITIONS,
   PRODUCT_CONDITION_OPTIONS,
   PRODUCT_SIM_OPTIONS,
   PRODUCT_STATUSES,
   type ProductDraft,
 } from './adminProductConstants';
+import {
+  applyAdminTaxonomyFields,
+  categoryUsesConditionSubcategory,
+  getCategorySubcategoryOptions,
+} from '../../lib/storeFilters';
 import { formatSimTypeLabel } from '../../lib/productLabels';
 
 type TabId = 'details' | 'options' | 'images' | 'listing';
@@ -176,6 +180,55 @@ export const AdminProductForm: React.FC<Props> = ({
   const displayStock = skuMatrixEnabled && skuRows.length > 0 ? totalSkuStock(skuRows) : (draft.stock ?? 0);
   const comboCount = skuRows.length;
   const gallery = draft.images || [];
+  const categoryKey = String(draft.category || 'iPhone');
+  const taxonomyOptions = useMemo(
+    () => getCategorySubcategoryOptions(categoryKey),
+    [categoryKey],
+  );
+  const usesConditionTaxonomy = categoryUsesConditionSubcategory(categoryKey);
+  const taxonomySelectValue = useMemo(() => {
+    const raw = String(draft.taxonomy_value ?? '').trim();
+    if (raw && taxonomyOptions.some((o) => o.value === raw)) return raw;
+    if (usesConditionTaxonomy) {
+      const cond = String(draft.condition ?? 'new').toLowerCase();
+      if (cond === 'preowned' || cond === 'refurbished' || cond === 'used') {
+        return taxonomyOptions.some((o) => o.value === 'used') ? 'used' : (taxonomyOptions[0]?.value ?? '');
+      }
+      return taxonomyOptions.some((o) => o.value === 'new') ? 'new' : (taxonomyOptions[0]?.value ?? '');
+    }
+    const sub = String(draft.subcategory ?? '').trim();
+    if (sub) {
+      const hit = taxonomyOptions.find(
+        (o) =>
+          o.value.toLowerCase() === sub.toLowerCase() ||
+          o.label.toLowerCase() === sub.toLowerCase() ||
+          o.value.replace(/\s+/g, '').toLowerCase() === sub.replace(/\s+/g, '').toLowerCase(),
+      );
+      if (hit) return hit.value;
+    }
+    return '';
+  }, [draft.taxonomy_value, draft.condition, draft.subcategory, taxonomyOptions, usesConditionTaxonomy]);
+
+  const applyTaxonomySelection = useCallback(
+    (category: string, taxonomyValue: string) => {
+      const applied = applyAdminTaxonomyFields({
+        category,
+        taxonomyValue,
+        existingCondition: draft.condition,
+      });
+      setDraft((prev) => ({
+        ...prev,
+        category: applied.category,
+        taxonomy_value: taxonomyValue || null,
+        subcategory: applied.subcategory,
+        condition: applied.condition,
+        is_new: applied.is_new,
+        new: applied.is_new,
+      }));
+    },
+    [draft.condition, setDraft],
+  );
+
   const derivedChips = useMemo(
     () => (chipsLocked ? chipsFromSkuRows(skuRows) : null),
     [chipsLocked, skuRows],
@@ -628,10 +681,19 @@ export const AdminProductForm: React.FC<Props> = ({
                   />
                 </div>
                 <div>
-                  <label className={s.label}>Category</label>
+                  <label className={s.label}>Main category *</label>
                   <select
-                    value={draft.category ?? 'iPhone'}
-                    onChange={(e) => setDraft({ ...draft, category: e.target.value as Product['category'] })}
+                    value={
+                      PRODUCT_CATEGORIES.includes(categoryKey as (typeof PRODUCT_CATEGORIES)[number])
+                        ? categoryKey
+                        : PRODUCT_CATEGORIES[0]
+                    }
+                    onChange={(e) => {
+                      const nextCat = e.target.value;
+                      const opts = getCategorySubcategoryOptions(nextCat);
+                      const defaultTax = opts[0]?.value ?? '';
+                      applyTaxonomySelection(nextCat, defaultTax);
+                    }}
                     className={s.input}
                   >
                     {PRODUCT_CATEGORIES.map((c) => (
@@ -641,6 +703,29 @@ export const AdminProductForm: React.FC<Props> = ({
                     ))}
                   </select>
                 </div>
+                {taxonomyOptions.length > 0 && (
+                  <div>
+                    <label className={s.label}>
+                      {usesConditionTaxonomy ? 'Condition *' : 'Sub-category *'}
+                    </label>
+                    <select
+                      value={taxonomySelectValue}
+                      onChange={(e) => applyTaxonomySelection(categoryKey, e.target.value)}
+                      className={s.input}
+                      required
+                    >
+                      <option value="" disabled>
+                        {usesConditionTaxonomy ? 'Select New or Used' : 'Select sub-category'}
+                      </option>
+                      {taxonomyOptions.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                    <p className={`text-[10px] mt-1 ${s.muted}`}>{taxonomyOptions.find((o) => o.value === taxonomySelectValue)?.description}</p>
+                  </div>
+                )}
                 <div>
                   <label className={s.label}>Brand</label>
                   <input
@@ -651,20 +736,31 @@ export const AdminProductForm: React.FC<Props> = ({
                     placeholder="Apple"
                   />
                 </div>
-                <div>
-                  <label className={s.label}>Condition</label>
-                  <select
-                    value={draft.condition ?? 'new'}
-                    onChange={(e) => setDraft({ ...draft, condition: e.target.value })}
-                    className={s.input}
-                  >
-                    {PRODUCT_CONDITION_OPTIONS.map((c) => (
-                      <option key={c.value} value={c.value}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {!usesConditionTaxonomy && (
+                  <div>
+                    <label className={s.label}>Condition</label>
+                    <select
+                      value={draft.condition ?? 'new'}
+                      onChange={(e) => {
+                        const condition = e.target.value;
+                        const isNew = condition === 'new';
+                        setDraft({
+                          ...draft,
+                          condition,
+                          is_new: isNew,
+                          new: isNew,
+                        });
+                      }}
+                      className={s.input}
+                    >
+                      {PRODUCT_CONDITION_OPTIONS.map((c) => (
+                        <option key={c.value} value={c.value}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div>
                   <label className={s.label}>Status</label>
                   <select

@@ -185,7 +185,7 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
                             ? 'border-black/[0.08] bg-white shadow-[0_24px_70px_-36px_rgba(0,0,0,0.38)]'
                             : 'border-white/[0.1] bg-[#0b0b0d] shadow-[0_28px_80px_-30px_rgba(0,0,0,0.9)]'
                     }`}>
-                        <div className={`aspect-[4/3] max-h-[200px] sm:max-h-[240px] overflow-hidden rounded-[1rem] border flex items-center justify-center ${isLight ? 'border-black/[0.06] bg-[#f5f5f7]' : 'border-white/[0.08] bg-black'}`}>
+                        <div className={`aspect-[4/3] max-h-[200px] sm:max-h-[240px] overflow-hidden rounded-[1rem] flex items-center justify-center ${isLight ? 'bg-white' : 'border border-white/[0.08] bg-black'}`}>
                             <img
                                 src="/BlackBox.jpeg"
                                 alt="BlackBox"
@@ -537,7 +537,7 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
                                 </p>
                             </div>
                             <div className="flex justify-center md:justify-end">
-                                <div className={`relative aspect-square w-full max-w-[200px] overflow-hidden rounded-[2rem] border ${isLight ? 'border-black/5 bg-[#f5f5f7]' : 'border-white/10 bg-black'}`}>
+                                <div className={`relative aspect-square w-full max-w-[200px] overflow-hidden rounded-[2rem] ${isLight ? 'bg-white' : 'border border-white/10 bg-black'}`}>
                                     <img
                                         src="/BlackBox.jpeg"
                                         alt="The original BlackBox studio"
