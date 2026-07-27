@@ -15,8 +15,6 @@ import {
   X,
   Repeat2,
   PanelLeftClose,
-  Sparkles,
-  Package,
 } from 'lucide-react';
 import { PageBackButton } from '../components/PageBackButton';
 import { Product, Category } from '../types';
@@ -34,7 +32,6 @@ import {
   countActiveStoreFilters,
   productMatchesStoreCategories,
   productMatchesStoreNewFilter,
-  productIsNew,
   productPassesStoreBaseFilters,
   fetchStoreSearchProducts,
   type StoreNewFilter,
@@ -89,14 +86,6 @@ function categoryIcon(cat: string): React.ReactNode {
 
 function categoryIconLg(cat: string): React.ReactNode {
   return CATEGORY_ICONS_LG[cat] ?? <LayoutGrid size={28} strokeWidth={1.5} />;
-}
-
-function categoryCoverImage(products: Product[], cat: string): string | null {
-  const match = products.find((p) => {
-    if (normalizeProductCategory(p.category) !== cat) return false;
-    return Boolean(p.image_url || p.image);
-  });
-  return match?.image_url || match?.image || null;
 }
 
 export const Store: React.FC<StoreProps> = ({
@@ -386,42 +375,22 @@ export const Store: React.FC<StoreProps> = ({
 
   const categoryPickerCards = useMemo(() => {
     const ordered = buildOrderedStoreCategoryKeys(products);
-    const countInBucket = (bucket: string) =>
-      products.filter((p) => normalizeProductCategory(p.category) === bucket).length;
 
     return [
       {
         key: 'all',
         label: 'All products',
-        count: products.length,
-        cover: null as string | null,
         onSelect: openBrowseAll,
         icon: <LayoutGrid size={28} strokeWidth={1.5} />,
       },
       ...ordered.map((cat) => ({
         key: `pick-${cat}`,
         label: cat,
-        count: countInBucket(cat),
-        cover: categoryCoverImage(products, cat),
         onSelect: () => openCategory(cat as Category),
         icon: categoryIconLg(cat),
       })),
     ];
   }, [products, openBrowseAll, openCategory]);
-
-  const categoryScopedProducts = useMemo(() => {
-    return products.filter((p) => productMatchesStoreCategories(p, selectedCategories));
-  }, [products, selectedCategories]);
-
-  const conditionCounts = useMemo(() => {
-    let newCount = 0;
-    let usedCount = 0;
-    categoryScopedProducts.forEach((p) => {
-      if (productIsNew(p)) newCount += 1;
-      else usedCount += 1;
-    });
-    return { newCount, usedCount };
-  }, [categoryScopedProducts]);
 
   const filteredProducts = useMemo(() => {
     const results = baseFilteredProducts.filter(
@@ -573,30 +542,26 @@ export const Store: React.FC<StoreProps> = ({
                 key={card.key}
                 type="button"
                 onClick={card.onSelect}
-                className="group relative flex min-h-[9.5rem] sm:min-h-[11rem] flex-col overflow-hidden rounded-2xl border border-[var(--bb-border)] bg-[var(--bb-surface)] text-left transition-all duration-300 hover:border-[#CDA032]/50 hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032]/50"
+                className={`group relative flex min-h-[9.5rem] sm:min-h-[11rem] flex-col overflow-hidden rounded-2xl border bg-[var(--bb-surface)] text-left transition-all duration-300 hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032]/50 ${
+                  isLight
+                    ? 'border-[#CDA032]/55 hover:border-[#CDA032]'
+                    : 'border-[var(--bb-border)] hover:border-[#CDA032]/50'
+                }`}
               >
-                {card.cover ? (
-                  <div className="absolute inset-0">
-                    <img
-                      src={card.cover}
-                      alt=""
-                      className="h-full w-full object-cover opacity-40 transition-transform duration-500 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[var(--bb-bg)] via-[var(--bb-bg)]/70 to-transparent" />
-                  </div>
-                ) : (
-                  <div className="absolute inset-0 bg-gradient-to-br from-[#CDA032]/12 via-transparent to-transparent" />
-                )}
+                <div className="absolute inset-0 bg-gradient-to-br from-[#CDA032]/12 via-transparent to-transparent" />
 
                 <div className="relative z-[1] flex flex-1 flex-col justify-between p-4 sm:p-5">
-                  <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--bb-border)] bg-[var(--bb-surface-2)] text-[#CDA032] transition-colors group-hover:border-[#CDA032]/40">
+                  <span
+                    className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border bg-[var(--bb-surface-2)] text-[#CDA032] transition-colors ${
+                      isLight
+                        ? 'border-[#CDA032]/40 group-hover:border-[#CDA032]/70'
+                        : 'border-[var(--bb-border)] group-hover:border-[#CDA032]/40'
+                    }`}
+                  >
                     {card.icon}
                   </span>
                   <div>
                     <span className="block text-sm sm:text-base font-bold tracking-tight">{card.label}</span>
-                    <span className="mt-0.5 block text-xs text-[color:var(--bb-muted)]">
-                      {card.count} {card.count === 1 ? 'item' : 'items'}
-                    </span>
                   </div>
                 </div>
               </button>
@@ -617,19 +582,21 @@ export const Store: React.FC<StoreProps> = ({
 
     const conditionCards = [
       {
+        key: 'all',
+        label: 'All',
+        description: 'New and used devices',
+        onSelect: () => openCondition('all'),
+      },
+      {
         key: 'new',
         label: 'New',
         description: 'Brand-new devices',
-        count: conditionCounts.newCount,
-        icon: <Sparkles size={28} strokeWidth={1.5} />,
         onSelect: () => openCondition('new'),
       },
       {
         key: 'used',
         label: 'Used',
         description: 'Pre-owned & refurbished',
-        count: conditionCounts.usedCount,
-        icon: <Package size={28} strokeWidth={1.5} />,
         onSelect: () => openCondition('used'),
       },
     ] as const;
@@ -655,26 +622,18 @@ export const Store: React.FC<StoreProps> = ({
             Choose condition to see matching {scopeLabel.toLowerCase() === 'all products' ? 'products' : scopeLabel} inventory.
           </p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 max-w-3xl">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 max-w-4xl">
             {conditionCards.map((card) => (
               <button
                 key={card.key}
                 type="button"
                 onClick={card.onSelect}
-                className="group relative flex min-h-[10rem] sm:min-h-[12rem] flex-col overflow-hidden rounded-2xl border border-[var(--bb-border)] bg-[var(--bb-surface)] text-left transition-all duration-300 hover:border-[#CDA032]/50 hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032]/50"
+                className="group relative flex min-h-[8rem] sm:min-h-[10rem] flex-col overflow-hidden rounded-2xl border border-[var(--bb-border)] bg-[var(--bb-surface)] text-left transition-all duration-300 hover:border-[#CDA032]/50 hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032]/50"
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-[#CDA032]/12 via-transparent to-transparent" />
-                <div className="relative z-[1] flex flex-1 flex-col justify-between p-5 sm:p-6">
-                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--bb-border)] bg-[var(--bb-surface-2)] text-[#CDA032] transition-colors group-hover:border-[#CDA032]/40">
-                    {card.icon}
-                  </span>
-                  <div>
-                    <span className="block text-lg sm:text-xl font-bold tracking-tight">{card.label}</span>
-                    <span className="mt-1 block text-sm text-[color:var(--bb-muted)]">{card.description}</span>
-                    <span className="mt-2 block text-xs font-medium text-[color:var(--bb-muted)]">
-                      {card.count} {card.count === 1 ? 'item' : 'items'}
-                    </span>
-                  </div>
+                <div className="relative z-[1] flex flex-1 flex-col justify-end p-5 sm:p-6">
+                  <span className="block text-lg sm:text-xl font-bold tracking-tight">{card.label}</span>
+                  <span className="mt-1 block text-sm text-[color:var(--bb-muted)]">{card.description}</span>
                 </div>
               </button>
             ))}
