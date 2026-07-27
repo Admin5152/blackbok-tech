@@ -542,12 +542,22 @@ export const Store: React.FC<StoreProps> = ({
                 key={card.key}
                 type="button"
                 onClick={card.onSelect}
-                className="group relative flex min-h-[9.5rem] sm:min-h-[11rem] flex-col overflow-hidden rounded-2xl border border-[var(--bb-border)] bg-[var(--bb-surface)] text-left transition-all duration-300 hover:border-[#CDA032]/50 hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032]/50"
+                className={`group relative flex min-h-[9.5rem] sm:min-h-[11rem] flex-col overflow-hidden rounded-2xl border bg-[var(--bb-surface)] text-left transition-all duration-300 hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032]/50 ${
+                  isLight
+                    ? 'border-[#CDA032]/55 hover:border-[#CDA032]'
+                    : 'border-[var(--bb-border)] hover:border-[#CDA032]/50'
+                }`}
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-[#CDA032]/12 via-transparent to-transparent" />
 
                 <div className="relative z-[1] flex flex-1 flex-col justify-between p-4 sm:p-5">
-                  <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--bb-border)] bg-[var(--bb-surface-2)] text-[#CDA032] transition-colors group-hover:border-[#CDA032]/40">
+                  <span
+                    className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border bg-[var(--bb-surface-2)] text-[#CDA032] transition-colors ${
+                      isLight
+                        ? 'border-[#CDA032]/40 group-hover:border-[#CDA032]/70'
+                        : 'border-[var(--bb-border)] group-hover:border-[#CDA032]/40'
+                    }`}
+                  >
                     {card.icon}
                   </span>
                   <div>
