@@ -87,7 +87,7 @@ export async function getCatalogFromView(opts?: {
   return (data || []).map((r) => mapProductPageRow(r as ProductPageRow));
 }
 
-/** Active products flagged as Deal of the Day (homepage rail). */
+/** Active products flagged as Deal of the Day (shop category). */
 export async function getDealOfTheDayFromView(): Promise<Product[]> {
   const { data, error } = await supabase
     .from('v_product_page')

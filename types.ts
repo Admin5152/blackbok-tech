@@ -58,7 +58,7 @@ export interface Product {
   price_to?: number;
   discount?: number;
   /**
-   * When true, product appears in homepage 🔥 Deal of the Day.
+   * When true, product appears in Shop → Deal of the Day.
    * Discount % uses existing `discount`; price is calculated client-side.
    */
   is_deal_of_the_day?: boolean;
