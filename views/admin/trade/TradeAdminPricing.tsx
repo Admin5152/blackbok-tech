@@ -7,6 +7,7 @@
  * - Deductions: model × fault (screen, battery, …) — flat GHS off the base
  *
  * Deep links: /admin/trade/pricing?model=iPhone%2015%20Pro&tab=deductions
+ * Filters: type, model, storage, SIM, active, free-text.
  * Invalidates tradePricingStore on save so the live ticker reflects edits.
  *
  * TODO(D1a): iPhone 15 1TB seed (4650) stays inactive until client confirms —
@@ -15,7 +16,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
-import { Plus, Copy, ArrowRightLeft, Trash2 } from 'lucide-react';
+import { Plus, Copy, ArrowRightLeft, Trash2, Filter, X } from 'lucide-react';
 import {
   cloneBaseValueForSim,
   copyDeductionsFromModel,
@@ -34,17 +35,36 @@ import {
 import { formatGhs } from '../../../lib/money';
 import { simVariantLabel } from '../../../lib/tradeCopy';
 import { TRADE_COMPONENT_KEYS } from '../../../lib/tradeComponentKeys';
-import type { TradeBaseValueRow, TradeDeviceRow, TradeFaultDeductionRow } from '../../../types/supabase';
+import { normalizeTradeModelKey } from '../../../data/tradeInPrices';
+import type {
+  TradeBaseValueRow,
+  TradeDeviceRow,
+  TradeDeviceType,
+  TradeFaultDeductionRow,
+} from '../../../types/supabase';
 import { useAppContext } from '../../../lib/appContext';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 
 type Tab = 'bases' | 'deductions';
+type DeviceTypeFilter = '' | TradeDeviceType;
+type ActiveFilter = '' | 'active' | 'inactive';
 type PendingDelete =
   | { kind: 'base'; row: TradeBaseValueRow }
   | { kind: 'deduction'; row: TradeFaultDeductionRow };
 
 /** Allowed sim_variant codes for trade_base_values (matches product_variants.sim_type). */
 const SIM_OPTIONS = ['ps', 'es', 'single', 'wifi', 'cell_ps', 'cell_es'] as const;
+
+const COMMON_STORAGE_TIERS = ['64GB', '128GB', '256GB', '512GB', '1TB', '2TB'] as const;
+
+const STORAGE_ORDER: Record<string, number> = {
+  '64GB': 1,
+  '128GB': 2,
+  '256GB': 3,
+  '512GB': 4,
+  '1TB': 5,
+  '2TB': 6,
+};
 
 const FAULT_LABELS: Record<string, string> = {
   screen: 'Screen',
@@ -56,13 +76,42 @@ const FAULT_LABELS: Record<string, string> = {
   face_id: 'Face ID / Touch ID',
 };
 
+function sortStorageTiers(tiers: string[]): string[] {
+  return [...tiers].sort(
+    (a, b) => (STORAGE_ORDER[a] ?? 99) - (STORAGE_ORDER[b] ?? 99) || a.localeCompare(b),
+  );
+}
+
+function inferDeviceType(model: string): TradeDeviceType {
+  return model.toLowerCase().includes('ipad') ? 'ipad' : 'iphone';
+}
+
+function modelsEqual(a: string, b: string): boolean {
+  return normalizeTradeModelKey(a).toLowerCase() === normalizeTradeModelKey(b).toLowerCase();
+}
+
+function storageEqual(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
 export const TradeAdminPricing: React.FC = () => {
-  const { notify } = useAppContext();
+  const { notify, theme } = useAppContext();
+  const isLight = theme === 'light';
   const navigate = useNavigate();
   const search = useSearch({ strict: false }) as {
     model?: string;
     tab?: Tab;
+    type?: string;
+    storage?: string;
+    sim?: string;
+    active?: string;
   };
+
+  const initialType: DeviceTypeFilter =
+    search.type === 'iphone' || search.type === 'ipad' ? search.type : '';
+  const initialActive: ActiveFilter =
+    search.active === 'active' || search.active === 'inactive' ? search.active : '';
+
   const [tab, setTab] = useState<Tab>(search.tab === 'deductions' ? 'deductions' : 'bases');
   const [bases, setBases] = useState<TradeBaseValueRow[]>([]);
   const [deducs, setDeducs] = useState<TradeFaultDeductionRow[]>([]);
@@ -70,11 +119,16 @@ export const TradeAdminPricing: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [focusModel, setFocusModel] = useState(search.model ?? '');
+  const [deviceTypeFilter, setDeviceTypeFilter] = useState<DeviceTypeFilter>(initialType);
+  const [storageFilter, setStorageFilter] = useState(search.storage ?? '');
+  const [simFilter, setSimFilter] = useState(search.sim ?? '');
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>(initialActive);
   const [q, setQ] = useState('');
   const [savingId, setSavingId] = useState<string | null>(null);
 
   const [newModel, setNewModel] = useState(search.model ?? '');
   const [newStorage, setNewStorage] = useState('128GB');
+  const [newStorageCustom, setNewStorageCustom] = useState(false);
   const [newSim, setNewSim] = useState<string>('ps');
   const [newBase, setNewBase] = useState('');
   const [adding, setAdding] = useState(false);
@@ -90,14 +144,36 @@ export const TradeAdminPricing: React.FC = () => {
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  const field = isLight
+    ? 'bg-white border-black/15 text-black placeholder:text-black/35 focus:border-[#B38B21]/50 focus:outline-none'
+    : 'bg-black/50 border-white/10 text-white placeholder:text-white/30 focus:border-[#B38B21]/50 focus:outline-none';
+  const panel = isLight ? 'border-black/10 bg-white' : 'border-white/10 bg-black/30';
+  const muted = isLight ? 'text-black/50' : 'text-white/45';
+  const title = isLight ? 'text-black' : 'text-white';
+  const chipActive = 'bg-[#B38B21] text-black border-[#B38B21]';
+  const chipIdle = isLight
+    ? 'bg-black/[0.04] text-black/60 border-black/15 hover:bg-black/[0.08]'
+    : 'bg-white/5 text-white/45 border-white/10 hover:bg-white/10 hover:text-white/70';
+
   const syncSearch = useCallback(
-    (next: { model?: string; tab?: Tab }) => {
+    (next: {
+      model?: string;
+      tab?: Tab;
+      type?: DeviceTypeFilter;
+      storage?: string;
+      sim?: string;
+      active?: ActiveFilter;
+    }) => {
       void navigate({
         to: '/admin/trade/pricing',
         search: {
           model: next.model || undefined,
           tab: next.tab && next.tab !== 'bases' ? next.tab : undefined,
-        } as any,
+          type: next.type || undefined,
+          storage: next.storage || undefined,
+          sim: next.sim || undefined,
+          active: next.active || undefined,
+        } as never,
         replace: true,
       });
     },
@@ -134,15 +210,84 @@ export const TradeAdminPricing: React.FC = () => {
     if (search.tab === 'deductions' || search.tab === 'bases') {
       setTab(search.tab);
     }
-  }, [search.model, search.tab]);
+    if (search.type === 'iphone' || search.type === 'ipad') {
+      setDeviceTypeFilter(search.type);
+    } else if (search.type === undefined) {
+      // keep local if URL cleared intentionally via our sync
+    }
+    if (typeof search.storage === 'string') setStorageFilter(search.storage);
+    if (typeof search.sim === 'string') setSimFilter(search.sim);
+    if (search.active === 'active' || search.active === 'inactive') {
+      setActiveFilter(search.active);
+    }
+  }, [search.model, search.tab, search.type, search.storage, search.sim, search.active]);
+
+  const deviceTypeByModel = useMemo(() => {
+    const map = new Map<string, TradeDeviceType>();
+    for (const d of devices) {
+      map.set(normalizeTradeModelKey(d.model).toLowerCase(), d.device_type);
+    }
+    return map;
+  }, [devices]);
+
+  const resolveDeviceType = useCallback(
+    (model: string): TradeDeviceType => {
+      const key = normalizeTradeModelKey(model).toLowerCase();
+      return deviceTypeByModel.get(key) ?? inferDeviceType(model);
+    },
+    [deviceTypeByModel],
+  );
+
+  const modelMatchesType = useCallback(
+    (model: string, type: DeviceTypeFilter) => {
+      if (!type) return true;
+      return resolveDeviceType(model) === type;
+    },
+    [resolveDeviceType],
+  );
 
   const modelOptions = useMemo(() => {
     const set = new Set<string>();
     for (const d of devices) set.add(d.model);
     for (const r of bases) set.add(r.model);
     for (const r of deducs) set.add(r.model);
-    return [...set].sort();
+    return [...set]
+      .filter((m) => modelMatchesType(m, deviceTypeFilter))
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }, [devices, bases, deducs, deviceTypeFilter, modelMatchesType]);
+
+  const allModelOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const d of devices) set.add(d.model);
+    for (const r of bases) set.add(r.model);
+    for (const r of deducs) set.add(r.model);
+    return [...set].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
   }, [devices, bases, deducs]);
+
+  const storageOptions = useMemo(() => {
+    const set = new Set<string>(COMMON_STORAGE_TIERS);
+    for (const r of bases) {
+      if (deviceTypeFilter && !modelMatchesType(r.model, deviceTypeFilter)) continue;
+      if (focusModel && !modelsEqual(r.model, focusModel)) continue;
+      if (r.storage?.trim()) set.add(r.storage.trim());
+    }
+    return sortStorageTiers([...set]);
+  }, [bases, deviceTypeFilter, focusModel, modelMatchesType]);
+
+  const simOptionsInData = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of bases) {
+      if (deviceTypeFilter && !modelMatchesType(r.model, deviceTypeFilter)) continue;
+      if (focusModel && !modelsEqual(r.model, focusModel)) continue;
+      if (storageFilter && !storageEqual(r.storage, storageFilter)) continue;
+      if (r.sim_variant) set.add(r.sim_variant);
+    }
+    const ordered = SIM_OPTIONS.filter((s) => set.has(s));
+    for (const s of set) {
+      if (!ordered.includes(s as (typeof SIM_OPTIONS)[number])) ordered.push(s as (typeof SIM_OPTIONS)[number]);
+    }
+    return ordered.length > 0 ? ordered : [...SIM_OPTIONS];
+  }, [bases, deviceTypeFilter, focusModel, storageFilter, modelMatchesType]);
 
   const activeDeviceModels = useMemo(
     () => devices.filter((d) => d.is_active).map((d) => d.model).sort(),
@@ -152,37 +297,66 @@ export const TradeAdminPricing: React.FC = () => {
   const marketModel = focusModel || newModel || dedModel;
 
   const ql = q.trim().toLowerCase();
+
   const filteredBases = useMemo(
     () =>
-      bases.filter((r) => {
-        if (focusModel && r.model !== focusModel) return false;
-        if (
-          ql &&
-          !r.model.toLowerCase().includes(ql) &&
-          !r.storage.toLowerCase().includes(ql) &&
-          !r.sim_variant.toLowerCase().includes(ql)
-        ) {
-          return false;
-        }
-        return true;
-      }),
-    [bases, focusModel, ql],
+      bases
+        .filter((r) => {
+          if (deviceTypeFilter && !modelMatchesType(r.model, deviceTypeFilter)) return false;
+          if (focusModel && !modelsEqual(r.model, focusModel)) return false;
+          if (storageFilter && !storageEqual(r.storage, storageFilter)) return false;
+          if (simFilter && String(r.sim_variant).toLowerCase() !== simFilter.toLowerCase()) {
+            return false;
+          }
+          if (activeFilter === 'active' && !r.is_active) return false;
+          if (activeFilter === 'inactive' && r.is_active) return false;
+          if (
+            ql &&
+            !r.model.toLowerCase().includes(ql) &&
+            !r.storage.toLowerCase().includes(ql) &&
+            !String(r.sim_variant).toLowerCase().includes(ql) &&
+            !simVariantLabel(r.sim_variant).toLowerCase().includes(ql)
+          ) {
+            return false;
+          }
+          return true;
+        })
+        .sort((a, b) => {
+          const m = a.model.localeCompare(b.model, undefined, { numeric: true });
+          if (m !== 0) return m;
+          const s =
+            (STORAGE_ORDER[a.storage] ?? 99) - (STORAGE_ORDER[b.storage] ?? 99) ||
+            a.storage.localeCompare(b.storage);
+          if (s !== 0) return s;
+          return String(a.sim_variant).localeCompare(String(b.sim_variant));
+        }),
+    [bases, deviceTypeFilter, focusModel, storageFilter, simFilter, activeFilter, ql, modelMatchesType],
   );
+
   const filteredDeducs = useMemo(
     () =>
-      deducs.filter((r) => {
-        if (focusModel && r.model !== focusModel) return false;
-        if (
-          ql &&
-          !r.model.toLowerCase().includes(ql) &&
-          !r.fault_code.toLowerCase().includes(ql) &&
-          !r.fault_label.toLowerCase().includes(ql)
-        ) {
-          return false;
-        }
-        return true;
-      }),
-    [deducs, focusModel, ql],
+      deducs
+        .filter((r) => {
+          if (deviceTypeFilter && !modelMatchesType(r.model, deviceTypeFilter)) return false;
+          if (focusModel && !modelsEqual(r.model, focusModel)) return false;
+          if (activeFilter === 'active' && !r.is_active) return false;
+          if (activeFilter === 'inactive' && r.is_active) return false;
+          if (
+            ql &&
+            !r.model.toLowerCase().includes(ql) &&
+            !r.fault_code.toLowerCase().includes(ql) &&
+            !r.fault_label.toLowerCase().includes(ql)
+          ) {
+            return false;
+          }
+          return true;
+        })
+        .sort((a, b) => {
+          const m = a.model.localeCompare(b.model, undefined, { numeric: true });
+          if (m !== 0) return m;
+          return (a.fault_label || a.fault_code).localeCompare(b.fault_label || b.fault_code);
+        }),
+    [deducs, deviceTypeFilter, focusModel, activeFilter, ql, modelMatchesType],
   );
 
   /** Models that have Physical SIM priced but no eSIM (or vice versa) for the same storage. */
@@ -190,7 +364,9 @@ export const TradeAdminPricing: React.FC = () => {
     const byKey = new Map<string, Set<string>>();
     for (const r of bases) {
       if (!r.is_active) continue;
-      if (focusModel && r.model !== focusModel) continue;
+      if (deviceTypeFilter && !modelMatchesType(r.model, deviceTypeFilter)) continue;
+      if (focusModel && !modelsEqual(r.model, focusModel)) continue;
+      if (storageFilter && !storageEqual(r.storage, storageFilter)) continue;
       const k = `${r.model}||${r.storage}`;
       const set = byKey.get(k) ?? new Set<string>();
       set.add(String(r.sim_variant || '').toLowerCase());
@@ -208,11 +384,45 @@ export const TradeAdminPricing: React.FC = () => {
       }
     }
     return hints.slice(0, 8);
-  }, [bases, focusModel]);
+  }, [bases, focusModel, deviceTypeFilter, storageFilter, modelMatchesType]);
+
+  const filtersActive = Boolean(
+    deviceTypeFilter || focusModel || storageFilter || simFilter || activeFilter || q.trim(),
+  );
+
+  const pushFilters = (patch: {
+    model?: string;
+    tab?: Tab;
+    type?: DeviceTypeFilter;
+    storage?: string;
+    sim?: string;
+    active?: ActiveFilter;
+  }) => {
+    syncSearch({
+      model: patch.model !== undefined ? patch.model : focusModel,
+      tab: patch.tab !== undefined ? patch.tab : tab,
+      type: patch.type !== undefined ? patch.type : deviceTypeFilter,
+      storage: patch.storage !== undefined ? patch.storage : storageFilter,
+      sim: patch.sim !== undefined ? patch.sim : simFilter,
+      active: patch.active !== undefined ? patch.active : activeFilter,
+    });
+  };
 
   const selectTab = (id: Tab) => {
     setTab(id);
-    syncSearch({ model: focusModel || undefined, tab: id });
+    pushFilters({ tab: id });
+  };
+
+  const selectDeviceType = (type: DeviceTypeFilter) => {
+    setDeviceTypeFilter(type);
+    let nextModel = focusModel;
+    if (focusModel && type && !modelMatchesType(focusModel, type)) {
+      nextModel = '';
+      setFocusModel('');
+    }
+    setStorageFilter('');
+    setSimFilter('');
+    pushFilters({ type, model: nextModel, storage: '', sim: '' });
   };
 
   const selectFocusModel = (model: string) => {
@@ -220,8 +430,45 @@ export const TradeAdminPricing: React.FC = () => {
     if (model) {
       setNewModel(model);
       setDedModel(model);
+      const t = resolveDeviceType(model);
+      if (deviceTypeFilter && deviceTypeFilter !== t) {
+        setDeviceTypeFilter(t);
+      }
     }
-    syncSearch({ model: model || undefined, tab });
+    setStorageFilter('');
+    setSimFilter('');
+    pushFilters({
+      model,
+      storage: '',
+      sim: '',
+      type: model ? resolveDeviceType(model) : deviceTypeFilter,
+    });
+  };
+
+  const selectStorage = (storage: string) => {
+    setStorageFilter(storage);
+    setSimFilter('');
+    pushFilters({ storage, sim: '' });
+  };
+
+  const selectSim = (sim: string) => {
+    setSimFilter(sim);
+    pushFilters({ sim });
+  };
+
+  const selectActive = (active: ActiveFilter) => {
+    setActiveFilter(active);
+    pushFilters({ active });
+  };
+
+  const clearFilters = () => {
+    setDeviceTypeFilter('');
+    setFocusModel('');
+    setStorageFilter('');
+    setSimFilter('');
+    setActiveFilter('');
+    setQ('');
+    syncSearch({ tab, model: '', type: '', storage: '', sim: '', active: '' });
   };
 
   const saveBase = async (
@@ -259,7 +506,7 @@ export const TradeAdminPricing: React.FC = () => {
       notify?.('Model and storage are required.', 'error');
       return;
     }
-    if (!devices.some((d) => d.model === newModel.trim())) {
+    if (!devices.some((d) => modelsEqual(d.model, newModel.trim()))) {
       notify?.(
         'Add this model on the Devices tab first, then set pricing here.',
         'error',
@@ -298,8 +545,8 @@ export const TradeAdminPricing: React.FC = () => {
     if (src.sim_variant === sim) return;
     const exists = bases.some(
       (r) =>
-        r.model === src.model &&
-        r.storage === src.storage &&
+        modelsEqual(r.model, src.model) &&
+        storageEqual(r.storage, src.storage) &&
         r.sim_variant === sim,
     );
     if (exists) {
@@ -395,7 +642,7 @@ export const TradeAdminPricing: React.FC = () => {
       setTab('deductions');
       setFocusModel(marketModel);
       setDedModel(marketModel);
-      syncSearch({ model: marketModel, tab: 'deductions' });
+      pushFilters({ model: marketModel, tab: 'deductions' });
       notify?.(
         `Copied GHS amounts from ${copyFrom}: ${result.inserted} new, ${result.updated} updated. Edit any figure as needed.`,
         'success',
@@ -408,21 +655,38 @@ export const TradeAdminPricing: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="text-center py-16 text-white/30 text-sm">Loading pricing…</div>;
+    return (
+      <div className={`text-center py-16 text-sm ${muted}`}>Loading pricing…</div>
+    );
   }
   if (error) {
     return (
-      <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
+      <div
+        className={`rounded-xl border p-4 text-sm ${
+          isLight
+            ? 'border-red-500/40 bg-red-50 text-red-700'
+            : 'border-red-500/30 bg-red-500/10 text-red-300'
+        }`}
+      >
         {error}
       </div>
     );
   }
 
+  const resultCount = tab === 'bases' ? filteredBases.length : filteredDeducs.length;
+  const totalCount = tab === 'bases' ? bases.length : deducs.length;
+
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-[#B38B21]/25 bg-[#B38B21]/5 p-3 text-[11px] text-white/70 leading-relaxed">
+      <div
+        className={`rounded-xl border p-3 text-[11px] leading-relaxed ${
+          isLight
+            ? 'border-[#B38B21]/30 bg-[#B38B21]/8 text-black/70'
+            : 'border-[#B38B21]/25 bg-[#B38B21]/5 text-white/70'
+        }`}
+      >
         <p className="font-bold text-[#B38B21] text-xs mb-1">Pricing & deductions (GHS figures)</p>
-        Edit <span className="text-white/90 font-semibold">actual cedis amounts</span> per phone —
+        Edit <span className={`font-semibold ${title}`}>actual cedis amounts</span> per phone —
         not percentages. Base value is the trade-in start price; each fault (battery, screen, …)
         is a fixed GHS deduction you set for that model. Customer estimates update as soon as you
         save. Manage listed models on{' '}
@@ -431,105 +695,267 @@ export const TradeAdminPricing: React.FC = () => {
         </Link>
         .
         {activeDeviceModels.length === 0 && (
-          <span className="block mt-1 text-amber-300">
+          <span className={`block mt-1 ${isLight ? 'text-amber-700' : 'text-amber-300'}`}>
             No devices are Listed yet — add or activate models on Devices first.
           </span>
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 justify-between">
-        <div className="flex gap-1">
+      {/* Tabs */}
+      <div className="flex flex-wrap gap-1">
+        {(
+          [
+            ['bases', 'Starting prices'],
+            ['deductions', 'Condition deductions'],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => selectTab(id)}
+            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase border transition-colors ${
+              tab === id ? chipActive : chipIdle
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <div className={`rounded-xl border p-3 sm:p-4 space-y-3 ${panel}`}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 ${muted}`}>
+            <Filter size={12} aria-hidden /> Filter pricing
+          </p>
+          <div className="flex items-center gap-2">
+            <span className={`text-[10px] ${muted}`}>
+              Showing <span className={`font-bold ${title}`}>{resultCount}</span> of {totalCount}
+            </span>
+            {filtersActive && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border ${chipIdle}`}
+              >
+                <X size={11} aria-hidden /> Clear
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-1.5">
           {(
             [
-              ['bases', 'Starting prices'],
-              ['deductions', 'Condition deductions'],
+              ['', 'All devices'],
+              ['iphone', 'iPhone'],
+              ['ipad', 'iPad'],
             ] as const
           ).map(([id, label]) => (
             <button
-              key={id}
+              key={id || 'all'}
               type="button"
-              onClick={() => selectTab(id)}
-              className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase ${
-                tab === id ? 'bg-[#B38B21] text-black' : 'bg-white/5 text-white/40'
+              onClick={() => selectDeviceType(id)}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase border transition-colors ${
+                deviceTypeFilter === id ? chipActive : chipIdle
               }`}
             >
               {label}
             </button>
           ))}
         </div>
-        <div className="flex flex-wrap gap-2 items-center">
-          <select
-            value={focusModel}
-            onChange={(e) => selectFocusModel(e.target.value)}
-            className="bg-black/50 border border-white/10 rounded-xl px-3 py-1.5 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none min-w-[10rem]"
-          >
-            <option value="">All models</option>
-            {modelOptions.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Filter storage / fault…"
-            className="bg-black/50 border border-white/10 rounded-xl px-3 py-1.5 text-white text-xs w-full sm:w-40 focus:border-[#B38B21]/50 focus:outline-none"
-          />
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2">
+          <label className="block min-w-0">
+            <span className={`text-[9px] uppercase tracking-widest block mb-1 ${muted}`}>Model</span>
+            <select
+              value={focusModel}
+              onChange={(e) => selectFocusModel(e.target.value)}
+              className={`w-full rounded-xl px-3 py-2 text-xs border ${field}`}
+            >
+              <option value="">All models</option>
+              {modelOptions.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {tab === 'bases' && (
+            <>
+              <label className="block min-w-0">
+                <span className={`text-[9px] uppercase tracking-widest block mb-1 ${muted}`}>
+                  Storage
+                </span>
+                <select
+                  value={storageFilter}
+                  onChange={(e) => selectStorage(e.target.value)}
+                  className={`w-full rounded-xl px-3 py-2 text-xs border ${field}`}
+                >
+                  <option value="">All storage</option>
+                  {storageOptions.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block min-w-0">
+                <span className={`text-[9px] uppercase tracking-widest block mb-1 ${muted}`}>SIM</span>
+                <select
+                  value={simFilter}
+                  onChange={(e) => selectSim(e.target.value)}
+                  className={`w-full rounded-xl px-3 py-2 text-xs border ${field}`}
+                >
+                  <option value="">All SIM types</option>
+                  {simOptionsInData.map((s) => (
+                    <option key={s} value={s}>
+                      {simVariantLabel(s)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className="block min-w-0">
+            <span className={`text-[9px] uppercase tracking-widest block mb-1 ${muted}`}>Shown</span>
+            <select
+              value={activeFilter}
+              onChange={(e) => selectActive(e.target.value as ActiveFilter)}
+              className={`w-full rounded-xl px-3 py-2 text-xs border ${field}`}
+            >
+              <option value="">All rows</option>
+              <option value="active">Shown only</option>
+              <option value="inactive">Hidden only</option>
+            </select>
+          </label>
+
+          <label className={`block min-w-0 ${tab === 'bases' ? 'sm:col-span-2 xl:col-span-2' : 'sm:col-span-2 xl:col-span-4'}`}>
+            <span className={`text-[9px] uppercase tracking-widest block mb-1 ${muted}`}>Search</span>
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={
+                tab === 'bases'
+                  ? 'Search model, storage, SIM…'
+                  : 'Search model or fault…'
+              }
+              className={`w-full rounded-xl px-3 py-2 text-xs border ${field}`}
+            />
+          </label>
         </div>
       </div>
 
       {tab === 'bases' ? (
         <>
           {simCoverageHints.length > 0 && (
-            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-[11px] text-amber-100 space-y-1">
+            <div
+              className={`rounded-xl border p-3 text-[11px] space-y-1 ${
+                isLight
+                  ? 'border-amber-500/40 bg-amber-50 text-amber-900'
+                  : 'border-amber-500/30 bg-amber-500/10 text-amber-100'
+              }`}
+            >
               <p className="font-bold uppercase tracking-wider text-[10px]">
                 Incomplete SIM coverage
               </p>
-              <p className="text-amber-100/80">
+              <p className={isLight ? 'text-amber-800/80' : 'text-amber-100/80'}>
                 Customers only see storage/SIM options you price. Use “Copy as other SIM” on a row
                 to add the missing variant.
               </p>
-              <ul className="list-disc pl-4 space-y-0.5 text-amber-100/90">
+              <ul className="list-disc pl-4 space-y-0.5">
                 {simCoverageHints.map((h) => (
                   <li key={h}>{h}</li>
                 ))}
               </ul>
             </div>
           )}
-          <div className="rounded-xl border border-[#B38B21]/25 bg-[#B38B21]/5 p-4 space-y-3">
+
+          <div
+            className={`rounded-xl border p-4 space-y-3 ${
+              isLight
+                ? 'border-[#B38B21]/30 bg-[#B38B21]/8'
+                : 'border-[#B38B21]/25 bg-[#B38B21]/5'
+            }`}
+          >
             <p className="text-[10px] font-black uppercase tracking-widest text-[#B38B21]">
               Add base row (model × storage × SIM)
             </p>
-            <p className="text-[11px] text-white/45">
-              Pick a Listed device, then set Physical SIM (<code className="text-white/70">ps</code>)
-              and eSIM (<code className="text-white/70">es</code>) as separate rows when both
+            <p className={`text-[11px] ${muted}`}>
+              Pick a Listed device, then set Physical SIM (<code className={title}>ps</code>)
+              and eSIM (<code className={title}>es</code>) as separate rows when both
               apply — each needs its own base value.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
               <select
                 value={newModel}
                 onChange={(e) => setNewModel(e.target.value)}
-                className="bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none"
+                className={`rounded-xl px-3 py-2 text-xs border ${field}`}
               >
                 <option value="">Select model…</option>
-                {modelOptions.map((m) => (
+                {allModelOptions.map((m) => (
                   <option key={m} value={m}>
                     {m}
-                    {devices.find((d) => d.model === m)?.is_active === false ? ' (hidden)' : ''}
+                    {devices.find((d) => modelsEqual(d.model, m))?.is_active === false
+                      ? ' (hidden)'
+                      : ''}
                   </option>
                 ))}
               </select>
-              <input
-                value={newStorage}
-                onChange={(e) => setNewStorage(e.target.value)}
-                placeholder="Storage (128GB)"
-                className="bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none"
-              />
+
+              {newStorageCustom ? (
+                <div className="flex gap-1">
+                  <input
+                    value={newStorage}
+                    onChange={(e) => setNewStorage(e.target.value)}
+                    placeholder="Custom storage"
+                    className={`flex-1 rounded-xl px-3 py-2 text-xs border ${field}`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewStorageCustom(false);
+                      setNewStorage('128GB');
+                    }}
+                    className={`px-2 rounded-xl text-[10px] font-bold border ${chipIdle}`}
+                    title="Use standard tiers"
+                  >
+                    List
+                  </button>
+                </div>
+              ) : (
+                <select
+                  value={
+                    COMMON_STORAGE_TIERS.includes(newStorage as (typeof COMMON_STORAGE_TIERS)[number])
+                      ? newStorage
+                      : '__custom__'
+                  }
+                  onChange={(e) => {
+                    if (e.target.value === '__custom__') {
+                      setNewStorageCustom(true);
+                      setNewStorage('');
+                      return;
+                    }
+                    setNewStorage(e.target.value);
+                  }}
+                  className={`rounded-xl px-3 py-2 text-xs border ${field}`}
+                >
+                  {COMMON_STORAGE_TIERS.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                  <option value="__custom__">Other…</option>
+                </select>
+              )}
+
               <select
                 value={newSim}
                 onChange={(e) => setNewSim(e.target.value)}
-                className="bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none"
+                className={`rounded-xl px-3 py-2 text-xs border ${field}`}
               >
                 {SIM_OPTIONS.map((s) => (
                   <option key={s} value={s}>
@@ -543,7 +969,7 @@ export const TradeAdminPricing: React.FC = () => {
                 value={newBase}
                 onChange={(e) => setNewBase(e.target.value)}
                 placeholder="Base GHS"
-                className="bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none"
+                className={`rounded-xl px-3 py-2 text-xs border ${field}`}
               />
               <button
                 type="button"
@@ -556,10 +982,16 @@ export const TradeAdminPricing: React.FC = () => {
             </div>
           </div>
 
-          <div className="border border-white/10 rounded-xl overflow-hidden bg-black/30">
+          <div className={`border rounded-xl overflow-hidden ${panel}`}>
             <div className="max-h-[70vh] overflow-auto">
-              <table className="w-full text-left">
-                <thead className="sticky top-0 bg-[#0a0a0a] text-[9px] uppercase tracking-widest text-white/40">
+              <table className="w-full text-left min-w-[640px]">
+                <thead
+                  className={`sticky top-0 text-[9px] uppercase tracking-widest ${
+                    isLight
+                      ? 'bg-[#f5f5f5] text-black/45'
+                      : 'bg-[#0a0a0a] text-white/40'
+                  }`}
+                >
                   <tr>
                     <th className="px-3 py-2">Model</th>
                     <th className="px-3 py-2">Storage</th>
@@ -572,15 +1004,22 @@ export const TradeAdminPricing: React.FC = () => {
                 </thead>
                 <tbody>
                   {filteredBases.map((r) => (
-                    <tr key={r.id} className="border-t border-white/[0.04] hover:bg-white/[0.02]">
-                      <td className="px-3 py-2 text-xs font-bold text-white">{r.model}</td>
-                      <td className="px-3 py-2 text-xs text-white/60">{r.storage}</td>
+                    <tr
+                      key={r.id}
+                      className={`border-t ${
+                        isLight
+                          ? 'border-black/[0.06] hover:bg-black/[0.02]'
+                          : 'border-white/[0.04] hover:bg-white/[0.02]'
+                      }`}
+                    >
+                      <td className={`px-3 py-2 text-xs font-bold ${title}`}>{r.model}</td>
+                      <td className={`px-3 py-2 text-xs ${muted}`}>{r.storage}</td>
                       <td className="px-3 py-2">
                         <select
                           value={r.sim_variant}
                           disabled={savingId === r.id}
                           onChange={(e) => void saveBase(r.id, { sim_variant: e.target.value })}
-                          className="bg-black/50 border border-white/10 rounded-lg px-2 py-1 text-xs text-white max-w-[9rem] focus:border-[#B38B21]/50 focus:outline-none"
+                          className={`rounded-lg px-2 py-1 text-xs border max-w-[9rem] ${field}`}
                           title={simVariantLabel(r.sim_variant)}
                         >
                           {SIM_OPTIONS.map((s) => (
@@ -601,9 +1040,11 @@ export const TradeAdminPricing: React.FC = () => {
                             if (!Number.isFinite(n) || n === r.base_value) return;
                             void saveBase(r.id, { base_value: n });
                           }}
-                          className="w-28 bg-black/50 border border-white/10 rounded-lg px-2 py-1 text-emerald-400 text-xs font-bold focus:border-[#B38B21]/50 focus:outline-none"
+                          className={`w-28 rounded-lg px-2 py-1 text-xs font-bold border text-emerald-600 ${
+                            isLight ? 'bg-white border-black/15' : 'bg-black/50 border-white/10 text-emerald-400'
+                          } focus:border-[#B38B21]/50 focus:outline-none`}
                         />
-                        <span className="ml-2 text-[9px] text-white/25 hidden sm:inline">
+                        <span className={`ml-2 text-[9px] hidden sm:inline ${muted}`}>
                           {formatGhs(r.base_value)}
                         </span>
                       </td>
@@ -626,7 +1067,7 @@ export const TradeAdminPricing: React.FC = () => {
                                 title={`Clone as ${simVariantLabel(s)}`}
                                 disabled={savingId === r.id}
                                 onClick={() => void cloneAsSim(r, s)}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-black uppercase bg-white/5 border border-white/10 text-white/50 hover:text-[#B38B21] hover:border-[#B38B21]/40 disabled:opacity-40"
+                                className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-black uppercase border disabled:opacity-40 ${chipIdle} hover:text-[#B38B21] hover:border-[#B38B21]/40`}
                               >
                                 <Copy size={10} /> {s}
                               </button>
@@ -639,7 +1080,7 @@ export const TradeAdminPricing: React.FC = () => {
                           title="Delete base row"
                           disabled={savingId === r.id}
                           onClick={() => void removeBase(r)}
-                          className="inline-flex items-center justify-center p-1.5 rounded-lg text-red-400/80 hover:bg-red-500/15 hover:text-red-300 disabled:opacity-40"
+                          className="inline-flex items-center justify-center p-1.5 rounded-lg text-red-500/80 hover:bg-red-500/15 hover:text-red-400 disabled:opacity-40"
                         >
                           <Trash2 size={14} aria-hidden />
                           <span className="sr-only">Delete</span>
@@ -650,33 +1091,36 @@ export const TradeAdminPricing: React.FC = () => {
                 </tbody>
               </table>
               {filteredBases.length === 0 && (
-                <p className="p-6 text-center text-white/30 text-sm">No base rows match.</p>
+                <p className={`p-6 text-center text-sm ${muted}`}>
+                  No base rows match these filters.
+                  {filtersActive ? ' Try clearing filters or add a new row above.' : ''}
+                </p>
               )}
             </div>
           </div>
         </>
       ) : (
         <>
-          <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-3">
-            <p className="text-[10px] font-black uppercase tracking-widest text-white/50 flex items-center gap-1.5">
+          <div className={`rounded-xl border p-4 space-y-3 ${panel}`}>
+            <p className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 ${muted}`}>
               <ArrowRightLeft size={12} aria-hidden /> Copy deduction figures from another phone
             </p>
-            <p className="text-[11px] text-white/40">
+            <p className={`text-[11px] ${muted}`}>
               Copies the same GHS amounts (battery, screen, …). Then edit any figure for this model.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 items-end">
               <div>
-                <label className="text-[9px] uppercase tracking-widest text-white/35 block mb-1">
+                <label className={`text-[9px] uppercase tracking-widest block mb-1 ${muted}`}>
                   From
                 </label>
                 <select
                   value={copyFrom}
                   onChange={(e) => setCopyFrom(e.target.value)}
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none"
+                  className={`w-full rounded-xl px-3 py-2 text-xs border ${field}`}
                 >
                   <option value="">Source model…</option>
-                  {modelOptions
-                    .filter((m) => m !== marketModel)
+                  {allModelOptions
+                    .filter((m) => !marketModel || !modelsEqual(m, marketModel))
                     .map((m) => (
                       <option key={m} value={m}>
                         {m}
@@ -685,23 +1129,23 @@ export const TradeAdminPricing: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="text-[9px] uppercase tracking-widest text-white/35 block mb-1">
+                <label className={`text-[9px] uppercase tracking-widest block mb-1 ${muted}`}>
                   To
                 </label>
                 <select
                   value={marketModel}
                   onChange={(e) => selectFocusModel(e.target.value)}
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none"
+                  className={`w-full rounded-xl px-3 py-2 text-xs border ${field}`}
                 >
                   <option value="">Target model…</option>
-                  {modelOptions.map((m) => (
+                  {allModelOptions.map((m) => (
                     <option key={m} value={m}>
                       {m}
                     </option>
                   ))}
                 </select>
               </div>
-              <label className="flex items-center gap-2 text-[11px] text-white/50 px-1 py-2">
+              <label className={`flex items-center gap-2 text-[11px] px-1 py-2 ${muted}`}>
                 <input
                   type="checkbox"
                   checked={copyOverwrite}
@@ -720,21 +1164,21 @@ export const TradeAdminPricing: React.FC = () => {
             </div>
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-3">
-            <p className="text-[10px] font-black uppercase tracking-widest text-white/50">
+          <div className={`rounded-xl border p-4 space-y-3 ${panel}`}>
+            <p className={`text-[10px] font-black uppercase tracking-widest ${muted}`}>
               Add deduction (fixed GHS)
             </p>
-            <p className="text-[11px] text-white/40">
+            <p className={`text-[11px] ${muted}`}>
               Example: Battery −₵400 means ₵400 off that model’s base — not a % of the trade-in.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
               <select
                 value={dedModel}
                 onChange={(e) => setDedModel(e.target.value)}
-                className="bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none"
+                className={`rounded-xl px-3 py-2 text-xs border ${field}`}
               >
                 <option value="">Select model…</option>
-                {modelOptions.map((m) => (
+                {allModelOptions.map((m) => (
                   <option key={m} value={m}>
                     {m}
                   </option>
@@ -743,7 +1187,7 @@ export const TradeAdminPricing: React.FC = () => {
               <select
                 value={dedCode}
                 onChange={(e) => setDedCode(e.target.value)}
-                className="bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none"
+                className={`rounded-xl px-3 py-2 text-xs border ${field}`}
               >
                 {TRADE_COMPONENT_KEYS.map((c) => (
                   <option key={c} value={c}>
@@ -757,7 +1201,7 @@ export const TradeAdminPricing: React.FC = () => {
                 value={dedAmount}
                 onChange={(e) => setDedAmount(e.target.value)}
                 placeholder="Amount GHS (e.g. 400)"
-                className="bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none"
+                className={`rounded-xl px-3 py-2 text-xs border ${field}`}
               />
               <button
                 type="button"
@@ -770,10 +1214,16 @@ export const TradeAdminPricing: React.FC = () => {
             </div>
           </div>
 
-          <div className="border border-white/10 rounded-xl overflow-hidden bg-black/30">
+          <div className={`border rounded-xl overflow-hidden ${panel}`}>
             <div className="max-h-[70vh] overflow-auto">
-              <table className="w-full text-left">
-                <thead className="sticky top-0 bg-[#0a0a0a] text-[9px] uppercase tracking-widest text-white/40">
+              <table className="w-full text-left min-w-[520px]">
+                <thead
+                  className={`sticky top-0 text-[9px] uppercase tracking-widest ${
+                    isLight
+                      ? 'bg-[#f5f5f5] text-black/45'
+                      : 'bg-[#0a0a0a] text-white/40'
+                  }`}
+                >
                   <tr>
                     <th className="px-3 py-2">Model</th>
                     <th className="px-3 py-2">Condition issue</th>
@@ -784,9 +1234,16 @@ export const TradeAdminPricing: React.FC = () => {
                 </thead>
                 <tbody>
                   {filteredDeducs.map((r) => (
-                    <tr key={r.id} className="border-t border-white/[0.04] hover:bg-white/[0.02]">
-                      <td className="px-3 py-2 text-xs font-bold text-white">{r.model}</td>
-                      <td className="px-3 py-2 text-xs text-white/60">
+                    <tr
+                      key={r.id}
+                      className={`border-t ${
+                        isLight
+                          ? 'border-black/[0.06] hover:bg-black/[0.02]'
+                          : 'border-white/[0.04] hover:bg-white/[0.02]'
+                      }`}
+                    >
+                      <td className={`px-3 py-2 text-xs font-bold ${title}`}>{r.model}</td>
+                      <td className={`px-3 py-2 text-xs ${muted}`}>
                         {r.fault_label || r.fault_code}
                       </td>
                       <td className="px-3 py-2">
@@ -800,9 +1257,11 @@ export const TradeAdminPricing: React.FC = () => {
                             if (!Number.isFinite(n) || n === r.deduction) return;
                             void saveDeduc(r.id, { deduction: n });
                           }}
-                          className="w-28 bg-black/50 border border-white/10 rounded-lg px-2 py-1 text-red-400 text-xs font-bold focus:border-[#B38B21]/50 focus:outline-none"
+                          className={`w-28 rounded-lg px-2 py-1 text-xs font-bold border text-red-600 ${
+                            isLight ? 'bg-white border-black/15' : 'bg-black/50 border-white/10 text-red-400'
+                          } focus:border-[#B38B21]/50 focus:outline-none`}
                         />
-                        <span className="ml-2 text-[9px] text-white/25 hidden sm:inline">
+                        <span className={`ml-2 text-[9px] hidden sm:inline ${muted}`}>
                           {formatGhs(r.deduction)}
                         </span>
                       </td>
@@ -820,7 +1279,7 @@ export const TradeAdminPricing: React.FC = () => {
                           title="Delete deduction"
                           disabled={savingId === r.id}
                           onClick={() => void removeDeduction(r)}
-                          className="inline-flex items-center justify-center p-1.5 rounded-lg text-red-400/80 hover:bg-red-500/15 hover:text-red-300 disabled:opacity-40"
+                          className="inline-flex items-center justify-center p-1.5 rounded-lg text-red-500/80 hover:bg-red-500/15 hover:text-red-400 disabled:opacity-40"
                         >
                           <Trash2 size={14} aria-hidden />
                           <span className="sr-only">Delete</span>
@@ -831,7 +1290,10 @@ export const TradeAdminPricing: React.FC = () => {
                 </tbody>
               </table>
               {filteredDeducs.length === 0 && (
-                <p className="p-6 text-center text-white/30 text-sm">No deduction rows match.</p>
+                <p className={`p-6 text-center text-sm ${muted}`}>
+                  No deduction rows match these filters.
+                  {filtersActive ? ' Try clearing filters or add a new row above.' : ''}
+                </p>
               )}
             </div>
           </div>

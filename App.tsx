@@ -837,6 +837,16 @@ const adminTradePricingRoute = createRoute({
       search.tab === 'deductions' || search.tab === 'bases'
         ? (search.tab as 'bases' | 'deductions')
         : undefined,
+    type:
+      search.type === 'iphone' || search.type === 'ipad'
+        ? (search.type as 'iphone' | 'ipad')
+        : undefined,
+    storage: typeof search.storage === 'string' ? search.storage : undefined,
+    sim: typeof search.sim === 'string' ? search.sim : undefined,
+    active:
+      search.active === 'active' || search.active === 'inactive'
+        ? (search.active as 'active' | 'inactive')
+        : undefined,
   }),
   component: TradeAdminPricing,
 });
