@@ -103,11 +103,20 @@ export function TradeSummaryScreen() {
       )}
 
       <div className="rounded-2xl border border-[var(--bb-border)] bg-[var(--bb-surface)] overflow-hidden">
+        <div className="px-4 py-2.5 sm:px-5 border-b border-amber-500/35 bg-amber-500/15" role="status">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-700 dark:text-amber-200">
+            Estimate only
+          </p>
+          <p className="text-[11px] sm:text-xs font-medium leading-snug text-amber-950 dark:text-amber-50 mt-0.5">
+            {TRADE_COPY.summary.estimateIsPreliminary}
+          </p>
+        </div>
+
         <div className="px-4 py-3.5 sm:px-5 border-b border-[var(--bb-border)] bg-black/[0.03] dark:bg-white/[0.03]">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[9px] font-black uppercase tracking-widest text-[#CDA032] mb-0.5">
-                {TRADE_COPY.summary.bannerEyebrow}
+                {TRADE_COPY.summary.yourDevice}
               </p>
               <h3 className="text-lg font-black leading-tight">{lock.model}</h3>
               <p className="text-xs opacity-70 mt-0.5">
@@ -133,30 +142,15 @@ export function TradeSummaryScreen() {
             )}
           </div>
 
-          {!zeroEstimate && (isTopUp || balance.kind === 'refund' || isEven || balance.formulaHint) && (
+          {!zeroEstimate && (isTopUp || balance.kind === 'refund' || isEven) && (
             <p className="text-[10px] opacity-50 mt-2 leading-snug">
               {isTopUp
                 ? TRADE_COPY.summary.topUpPayableAtBlackBox
                 : balance.kind === 'refund'
                   ? TRADE_COPY.summary.balanceRefunded
-                  : isEven
-                    ? TRADE_COPY.summary.headlineEvenHint
-                    : null}
-              {balance.formulaHint ? (
-                <span className="block tabular-nums mt-0.5">{balance.formulaHint}</span>
-              ) : null}
+                  : TRADE_COPY.summary.headlineEvenHint}
             </p>
           )}
-
-          <p
-            className="mt-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-medium leading-snug text-amber-950 dark:text-amber-50"
-            role="status"
-          >
-            <span className="font-black uppercase tracking-wider text-[9px] text-amber-700 dark:text-amber-200 mr-1">
-              Estimate only
-            </span>
-            {TRADE_COPY.summary.estimateIsPreliminary}
-          </p>
         </div>
 
         <div className="px-4 py-3 sm:px-5 space-y-2 text-sm">

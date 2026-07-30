@@ -43,6 +43,92 @@ export interface TargetProductSummary {
   image: string | null;
   /** Whether this product has trade_model set (bridge to trade catalog) */
   hasTradeModel: boolean;
+  /** Shop condition when known (`new` | `preowned` | `refurbished`) */
+  condition?: string | null;
+}
+
+/** One product within a model browse card (new vs pre-owned twins share a group) */
+export interface TargetConditionMember {
+  productId: string;
+  name: string;
+  category: string | null;
+  tradeModel: string | null;
+  condition: string;
+  priceFrom: number;
+  image: string | null;
+  hasTradeModel: boolean;
+}
+
+/** Browse card: one model, optionally multiple condition products */
+export interface TargetModelGroup {
+  key: string;
+  name: string;
+  category: string | null;
+  tradeModel: string | null;
+  priceFrom: number;
+  image: string | null;
+  hasTradeModel: boolean;
+  members: TargetConditionMember[];
+}
+
+const CONDITION_ORDER = ['new', 'preowned', 'refurbished'] as const;
+
+/** Normalize products.condition for grouping / chips */
+export function normalizeProductCondition(raw?: string | null): string {
+  const s = String(raw || '').trim().toLowerCase();
+  if (!s) return 'new';
+  if (s === 'pre-owned' || s === 'pre_owned' || s === 'used' || s === 'preowned') {
+    return 'preowned';
+  }
+  if (s === 'refurb' || s === 'refurbished') return 'refurbished';
+  if (s === 'new') return 'new';
+  return s;
+}
+
+/** Customer-facing New / Pre-owned / Refurbished */
+export function formatTargetConditionLabel(condition: string): string {
+  const c = normalizeProductCondition(condition);
+  if (c === 'new') return 'New';
+  if (c === 'preowned') return 'Pre-owned';
+  if (c === 'refurbished') return 'Refurbished';
+  return c.replace(/_/g, ' ').replace(/\b\w/g, (ch) => ch.toUpperCase());
+}
+
+export function targetModelGroupKey(row: Pick<TradeTargetRow, 'trade_model' | 'name'>): string {
+  const model = String(row.trade_model ?? '').trim();
+  if (model) return `model:${model.toLowerCase()}`;
+  return `name:${String(row.name ?? '').trim().toLowerCase()}`;
+}
+
+function sortConditions(a: string, b: string): number {
+  const ia = CONDITION_ORDER.indexOf(a as (typeof CONDITION_ORDER)[number]);
+  const ib = CONDITION_ORDER.indexOf(b as (typeof CONDITION_ORDER)[number]);
+  if (ia !== -1 || ib !== -1) {
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+  }
+  return a.localeCompare(b);
+}
+
+/** Distinct conditions present in a model group (stable order) */
+export function conditionsInGroup(group: TargetModelGroup): string[] {
+  const set = new Set(group.members.map((m) => m.condition));
+  return Array.from(set).sort(sortConditions);
+}
+
+/** Map a condition member to the product summary used by configure/review */
+export function summaryFromConditionMember(
+  member: TargetConditionMember,
+): TargetProductSummary {
+  return {
+    productId: member.productId,
+    name: member.name,
+    category: member.category,
+    tradeModel: member.tradeModel,
+    priceFrom: member.priceFrom,
+    image: member.image,
+    hasTradeModel: member.hasTradeModel,
+    condition: member.condition,
+  };
 }
 
 /** One card per product_id from in-stock rows */
@@ -60,6 +146,7 @@ export function groupTargetsByProduct(rows: TradeTargetRow[]): TargetProductSumm
         priceFrom: price,
         image: r.display_image ?? r.product_image,
         hasTradeModel: Boolean(r.trade_model),
+        condition: normalizeProductCondition(r.condition),
       });
     } else {
       if (price > 0 && (existing.priceFrom <= 0 || price < existing.priceFrom)) {
@@ -71,6 +158,85 @@ export function groupTargetsByProduct(rows: TradeTargetRow[]): TargetProductSumm
     }
   }
   return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * One browse card per trade_model (fallback: product name).
+ * New + pre-owned twins that share a model appear as one card with multiple members.
+ */
+export function groupTargetsByModel(rows: TradeTargetRow[]): TargetModelGroup[] {
+  const byProduct = groupTargetsByProduct(rows);
+  const map = new Map<string, TargetModelGroup>();
+
+  for (const p of byProduct) {
+    const key = targetModelGroupKey({
+      trade_model: p.tradeModel,
+      name: p.name,
+    });
+    const member: TargetConditionMember = {
+      productId: p.productId,
+      name: p.name,
+      category: p.category,
+      tradeModel: p.tradeModel,
+      condition: normalizeProductCondition(p.condition),
+      priceFrom: p.priceFrom,
+      image: p.image,
+      hasTradeModel: p.hasTradeModel,
+    };
+    const existing = map.get(key);
+    if (!existing) {
+      map.set(key, {
+        key,
+        name: p.tradeModel?.trim() || p.name,
+        category: p.category,
+        tradeModel: p.tradeModel,
+        priceFrom: p.priceFrom,
+        image: p.image,
+        hasTradeModel: p.hasTradeModel,
+        members: [member],
+      });
+    } else {
+      existing.members.push(member);
+      if (
+        p.priceFrom > 0 &&
+        (existing.priceFrom <= 0 || p.priceFrom < existing.priceFrom)
+      ) {
+        existing.priceFrom = p.priceFrom;
+      }
+      if (!existing.image && p.image) existing.image = p.image;
+      if (!existing.category && p.category) existing.category = p.category;
+      if (!existing.tradeModel && p.tradeModel) {
+        existing.tradeModel = p.tradeModel;
+        existing.hasTradeModel = true;
+        existing.name = p.tradeModel.trim() || existing.name;
+      }
+    }
+  }
+
+  for (const g of map.values()) {
+    g.members.sort((a, b) => sortConditions(a.condition, b.condition));
+  }
+
+  return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Prefer staff allowlist order when present (by earliest member product id) */
+export function orderTargetModelGroupsByAllowlist(
+  groups: TargetModelGroup[],
+  allowIds: string[] | null | undefined,
+): TargetModelGroup[] {
+  if (!allowIds?.length) return groups;
+  const rank = new Map(allowIds.map((id, i) => [id, i]));
+  return [...groups].sort((a, b) => {
+    const ra = Math.min(
+      ...a.members.map((m) => rank.get(m.productId) ?? Number.MAX_SAFE_INTEGER),
+    );
+    const rb = Math.min(
+      ...b.members.map((m) => rank.get(m.productId) ?? Number.MAX_SAFE_INTEGER),
+    );
+    if (ra !== rb) return ra - rb;
+    return a.name.localeCompare(b.name);
+  });
 }
 
 function matchesProductStorage(

@@ -371,10 +371,10 @@ export const TradeAdminRequestDetail: React.FC = () => {
         }
         setStockCheck({ variantId: pick, before, after });
         if (before != null && after != null && after === before - 1) {
-          notify?.(`Stock verified: ${before} → ${after} (−1).`, 'success');
+          notify?.(`Stock updated: ${before} → ${after} (one less).`, 'success');
         } else if (before != null && after != null) {
           notify?.(
-            `Completed. Target stock ${before} → ${after} (expected −1). Check trigger if unchanged.`,
+            `Completed. Stock ${before} → ${after} (should drop by 1). Ask a manager if stock didn’t change.`,
             after < before ? 'success' : 'error',
           );
         }
@@ -488,7 +488,7 @@ export const TradeAdminRequestDetail: React.FC = () => {
               )}
               {sel.needs_verification && (
                 <span className="inline-flex items-center gap-1 text-[8px] font-black uppercase text-amber-600 bg-amber-500/15 px-1.5 py-0.5 rounded">
-                  <AlertTriangle size={10} /> Verify
+                  <AlertTriangle size={10} /> Check in store
                 </span>
               )}
               {sel.answers_edited && (
@@ -512,8 +512,8 @@ export const TradeAdminRequestDetail: React.FC = () => {
         <div className="mt-4 grid grid-cols-3 gap-2">
           {[
             ['Estimate', formatGhs(estimateVal)],
-            ['Offer', offerVal != null ? formatGhs(offerVal) : 'TBD'],
-            ['Answers', `${qaRows.length}${verifyCount ? ` · ${verifyCount} verify` : ''}`],
+            ['Offer', offerVal != null ? formatGhs(offerVal) : 'Not set'],
+            ['Answers', `${qaRows.length}${verifyCount ? ` · ${verifyCount} check in store` : ''}`],
           ].map(([k, v]) => (
             <div
               key={k}
@@ -638,7 +638,7 @@ export const TradeAdminRequestDetail: React.FC = () => {
             <div>
               <span className={muted}>Final offer</span>
               <p className="font-bold text-emerald-500">
-                {offerVal != null ? formatGhs(offerVal) : 'TBD'}
+                {offerVal != null ? formatGhs(offerVal) : 'Not set'}
               </p>
             </div>
             {(() => {
@@ -731,7 +731,7 @@ export const TradeAdminRequestDetail: React.FC = () => {
           badge={
             verifyCount > 0 ? (
               <span className="text-[8px] font-black uppercase text-amber-600 bg-amber-500/15 px-1.5 py-0.5 rounded">
-                {verifyCount} verify
+                {verifyCount} check in store
               </span>
             ) : undefined
           }
@@ -752,7 +752,7 @@ export const TradeAdminRequestDetail: React.FC = () => {
                   <p className={`text-xs font-bold mt-1 ${title}`}>
                     → {row.answerText}
                     {row.flagVerify && (
-                      <span className="ml-2 text-[8px] uppercase text-amber-500">verify</span>
+                      <span className="ml-2 text-[8px] uppercase text-amber-500">check in store</span>
                     )}
                   </p>
                   {row.description && (
@@ -954,7 +954,7 @@ export const TradeAdminRequestDetail: React.FC = () => {
                     >
                       <p className="font-bold text-emerald-600">
                         {adj.adjustment_type || 'adjustment'}
-                        {adj.quantity_change != null ? ` · qty ${adj.quantity_change}` : ''}
+                        {adj.quantity_change != null ? ` · quantity ${adj.quantity_change}` : ''}
                       </p>
                       {adj.reason && <p className={`mt-1 ${muted}`}>{adj.reason}</p>}
                       <div className="mt-2 flex flex-wrap gap-2 text-[9px] uppercase tracking-wider">

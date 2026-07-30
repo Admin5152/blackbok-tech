@@ -77,12 +77,12 @@ function buildMonthlyRevenueLast12(
         if (dt) add(dt, o.total || 0);
     });
     repairs.forEach(r => {
-        if ((r.status || '').toLowerCase() !== 'completed') return;
+        if (statusKey(r.status) !== 'completed') return;
         const dt = getValidDate(r.date || r.created_at);
         if (dt) add(dt, parseRepairAmount(r.estimatedCost));
     });
     trades.forEach(t => {
-        if ((t.status || '').toLowerCase() !== 'completed') return;
+        if (statusKey(t.status) !== 'completed') return;
         const dt = getValidDate(t.date || t.created_at);
         if (dt) add(dt, t.finalValue || 0);
     });
@@ -96,6 +96,47 @@ function chartLabelsForYear(): string[] {
         d.setMonth(d.getMonth() - (11 - i));
         return d.toLocaleDateString('en-GH', { month: 'short' });
     });
+}
+
+function statusKey(s?: string | null): string {
+    return String(s || '').trim().toLowerCase();
+}
+
+/** Percent change vs prior period; null when prior is 0 and current is 0. */
+function percentChange(current: number, previous: number): { pct: number; up: boolean } | null {
+    if (!Number.isFinite(current) || !Number.isFinite(previous)) return null;
+    if (previous === 0 && current === 0) return null;
+    if (previous === 0) return { pct: 100, up: current > 0 };
+    const pct = Math.round(((current - previous) / Math.abs(previous)) * 100);
+    return { pct: Math.abs(pct), up: pct >= 0 };
+}
+
+function windowDays(window: '7D' | '1M' | '1Y'): number {
+    return window === '7D' ? 7 : window === '1M' ? 30 : 365;
+}
+
+function inDaysAgo(input: string | undefined, daysAgoStart: number, daysAgoEnd: number): boolean {
+    const dt = getValidDate(input);
+    if (!dt) return false;
+    const now = Date.now();
+    const t = dt.getTime();
+    return t >= now - daysAgoEnd * 86400000 && t < now - daysAgoStart * 86400000;
+}
+
+function sumOrderRevenue(list: Order[]): number {
+    return list.reduce((s, o) => s + (Number(o.total) || 0), 0);
+}
+
+function sumRepairRevenue(list: RepairRequest[]): number {
+    return list
+        .filter((r) => statusKey(r.status) === 'completed')
+        .reduce((s, r) => s + parseRepairAmount(r.estimatedCost), 0);
+}
+
+function sumTradeRevenue(list: TradeRequest[]): number {
+    return list
+        .filter((t) => statusKey(t.status) === 'completed')
+        .reduce((s, t) => s + (Number(t.finalValue) || 0), 0);
 }
 
 interface StatCardProps {
@@ -222,31 +263,58 @@ const QuickActionMenu = ({ onNavigate, isLight }: { onNavigate: (section: Sectio
     );
 };
 
-const AIAnalystCard = ({ isLight }: { isLight: boolean }) => (
+const AIAnalystCard = ({
+    isLight,
+    revenueTrend,
+    topCategory,
+    pendingTrades,
+    activeRepairs,
+    lowStock,
+}: {
+    isLight: boolean;
+    revenueTrend: { pct: number; up: boolean } | null;
+    topCategory: string | null;
+    pendingTrades: number;
+    activeRepairs: number;
+    lowStock: number;
+}) => {
+    const trendLine = revenueTrend
+        ? <>Revenue is trending <span className={`font-black ${revenueTrend.up ? 'text-emerald-400' : 'text-rose-400'}`}>{revenueTrend.up ? '+' : '−'}{revenueTrend.pct}%</span> vs the previous period{topCategory ? <>, led by <span className="font-black text-[#B38B21]">{topCategory}</span></> : ''}.</>
+        : <>Not enough history yet for a revenue trend. Keep logging orders, repairs, and trades.</>;
+
+    const suggestion =
+        pendingTrades > 0
+            ? `Suggested: Review ${pendingTrades} pending trade-in${pendingTrades === 1 ? '' : 's'} in the queue.`
+            : activeRepairs > 0
+                ? `Suggested: Check ${activeRepairs} open repair${activeRepairs === 1 ? '' : 's'} still in progress.`
+                : lowStock > 0
+                    ? `Suggested: Restock ${lowStock} low-stock shop item${lowStock === 1 ? '' : 's'}.`
+                    : 'Operations look steady — no urgent queue alerts right now.';
+
+    return (
     <div className={`border rounded-2xl p-6 relative overflow-hidden group ${isLight ? 'bg-gradient-to-br from-white to-[#FAFAFA] border-[#B38B21]/20 shadow-sm' : 'bg-gradient-to-br from-[#0a0a0a] to-[#0f0c05] border-[#B38B21]/10'}`}>
         <div className="flex items-center gap-3 mb-4 relative z-10">
-            <div className="w-8 h-8 rounded-full bg-[#B38B21]/10 flex items-center justify-center animate-pulse">
+            <div className="w-8 h-8 rounded-full bg-[#B38B21]/10 flex items-center justify-center">
                 <Star size={14} className="text-[#B38B21]" />
             </div>
             <div>
-                <h3 className={`text-xs font-black uppercase tracking-widest ${isLight ? 'text-black' : 'text-white'}`}>Alu Insights Analyst</h3>
-                <p className={`text-[9px] uppercase font-black ${isLight ? 'text-black/50' : 'text-white/50'}`}>AI-Powered Overview</p>
+                <h3 className={`text-xs font-black uppercase tracking-widest ${isLight ? 'text-black' : 'text-white'}`}>Ops snapshot</h3>
+                <p className={`text-[9px] uppercase font-black ${isLight ? 'text-black/50' : 'text-white/50'}`}>From live store data</p>
             </div>
         </div>
         <div className="space-y-4 relative z-10 transition-transform group-hover:translate-x-1 duration-500">
             <p className={`text-[11px] leading-relaxed font-medium bg-[#B38B21]/5 border-l-2 border-[#B38B21] p-3 rounded-r-lg ${isLight ? 'text-black/80' : 'text-white/90'}`}>
-                Revenue is trending <span className="text-emerald-400 font-black">+12% higher</span> than last period, primarily driven by iPhone sales.
-                However, repair turnaround time has increased by <span className="text-amber-400 font-black">4 hours</span>.
+                {trendLine}
             </p>
-            <div className={`flex items-center gap-2 text-[10px] font-bold italic ${isLight ? 'text-black/60' : 'text-white/60'}`}>
-                <AlertTriangle size={12} className="text-amber-500" />
-                Suggested: Redirect diagnostic team to Repair Queue.
+            <div className={`flex items-center gap-2 text-[10px] font-bold ${isLight ? 'text-black/60' : 'text-white/60'}`}>
+                <AlertTriangle size={12} className="text-amber-500 shrink-0" />
+                {suggestion}
             </div>
         </div>
-        {/* Decorative elements */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-[#B38B21]/5 rounded-full blur-[60px] pointer-events-none" />
     </div>
-);
+    );
+};
 
 export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
     const { theme, products: contextProducts } = useAppContext();
@@ -293,26 +361,47 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
         const dt = getValidDate(input);
         if (!dt) return false;
         const now = Date.now();
-        const days = revenueWindow === '7D' ? 7 : revenueWindow === '1M' ? 30 : 365;
+        const days = windowDays(revenueWindow);
         return dt.getTime() >= now - days * 24 * 60 * 60 * 1000;
     };
+
+    const days = windowDays(revenueWindow);
 
     // Combined revenue (window segmented)
     const filteredOrders = orders.filter(o => inSelectedWindow(o.date || o.created_at));
     const filteredRepairs = repairs.filter(r => inSelectedWindow(r.date || r.created_at));
     const filteredTrades = trades.filter(t => inSelectedWindow(t.date || t.created_at));
 
-    const orderRevenue = filteredOrders.reduce((s, o) => s + (o.total || 0), 0);
-    const repairRevenue = filteredRepairs
-        .filter(r => (r.status || '').toLowerCase() === 'completed')
-        .reduce((s, r) => s + parseRepairAmount(r.estimatedCost), 0);
-    const tradeRevenue = filteredTrades
-        .filter(t => (t.status || '').toLowerCase() === 'completed')
-        .reduce((s, t) => s + (t.finalValue || 0), 0);
+    const priorOrders = orders.filter((o) =>
+        inDaysAgo(o.date || o.created_at, days, days * 2),
+    );
+    const priorRepairs = repairs.filter((r) =>
+        inDaysAgo(r.date || r.created_at, days, days * 2),
+    );
+    const priorTrades = trades.filter((t) =>
+        inDaysAgo(t.date || t.created_at, days, days * 2),
+    );
+
+    const orderRevenue = sumOrderRevenue(filteredOrders);
+    const repairRevenue = sumRepairRevenue(filteredRepairs);
+    const tradeRevenue = sumTradeRevenue(filteredTrades);
     const totalRevenue = orderRevenue + repairRevenue + tradeRevenue;
 
-    const pendingTrades = trades.filter(t => t.status === 'Pending').length;
-    const activeRepairs = repairs.filter(r => !['Completed', 'Rejected'].includes(r.status)).length;
+    const priorRevenue =
+        sumOrderRevenue(priorOrders) +
+        sumRepairRevenue(priorRepairs) +
+        sumTradeRevenue(priorTrades);
+
+    const revenueTrend = percentChange(totalRevenue, priorRevenue);
+
+    const pendingTrades = trades.filter((t) => {
+        const s = statusKey(t.status);
+        return s === 'pending' || s === 'submitted' || s.includes('await');
+    }).length;
+    const activeRepairs = repairs.filter((r) => {
+        const s = statusKey(r.status);
+        return s && s !== 'completed' && s !== 'rejected' && s !== 'cancelled' && s !== 'canceled';
+    }).length;
     const lowStock = products.filter(p => (p.stock ?? 0) < 5).length;
     const criticalLowStock = useMemo(() => products.filter(p => (p.stock ?? 0) <= 2).length, [products]);
 
@@ -324,7 +413,34 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
         }).length;
     }, [orders]);
 
+    const priorOrders7d = useMemo(() => {
+        return orders.filter((o) => inDaysAgo(o.date || o.created_at, 7, 14)).length;
+    }, [orders]);
+    const orders7dTrend = percentChange(newOrdersLast7d, priorOrders7d);
+
     const avgOrder = filteredOrders.length ? Math.round(orderRevenue / filteredOrders.length) : 0;
+    const priorAvgOrder = priorOrders.length
+        ? Math.round(sumOrderRevenue(priorOrders) / priorOrders.length)
+        : 0;
+    const avgOrderTrend = percentChange(avgOrder, priorAvgOrder);
+
+    const newCustomersWindow = useMemo(() => {
+        return users.filter((u) => inSelectedWindow(u.created_at || (u as any).date)).length;
+    }, [users, revenueWindow]);
+
+    const priorCustomersWindow = useMemo(() => {
+        return users.filter((u) =>
+            inDaysAgo(u.created_at || (u as any).date, days, days * 2),
+        ).length;
+    }, [users, days]);
+    const customersTrend = percentChange(newCustomersWindow, priorCustomersWindow);
+
+    const avgCatalogRating = useMemo(() => {
+        const rated = products.filter((p) => Number(p.rating) > 0);
+        if (!rated.length) return null;
+        const sum = rated.reduce((s, p) => s + Number(p.rating || 0), 0);
+        return Math.round((sum / rated.length) * 10) / 10;
+    }, [products]);
 
     // PERFORMANCE: Optimized calculations
     const catMap = useMemo(() => {
@@ -332,6 +448,13 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
         products.forEach(p => { map[p.category] = (map[p.category] || 0) + 1; });
         return map;
     }, [products]);
+
+    const topCategory = useMemo(() => {
+        const entries = Object.entries(catMap);
+        if (!entries.length) return null;
+        entries.sort((a, b) => (b[1] as number) - (a[1] as number));
+        return entries[0][0];
+    }, [catMap]);
 
     const donutSegs = useMemo(() =>
         Object.entries(catMap).map(([k, v]) => ({ value: v as number, color: catColors[k] || '#888', label: k })),
@@ -370,10 +493,13 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
             action: 'Review',
             onAction: () => onNavigate('trades')
         });
-        const overdueRepairs = repairs.filter(r => r.status === 'In Repair').length;
+        const overdueRepairs = repairs.filter((r) => {
+            const s = statusKey(r.status);
+            return s === 'in repair' || s === 'in_progress' || s === 'diagnosing';
+        }).length;
         if (overdueRepairs > 0) list.push({
             type: 'warning',
-            message: `${overdueRepairs} repairs have been in progress for over 48 hours`,
+            message: `${overdueRepairs} repairs currently in progress`,
             action: 'Check',
             onAction: () => onNavigate('repairs')
         });
@@ -381,8 +507,8 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
     }, [criticalLowStock, pendingTrades, repairs, onNavigate]);
 
     const revenueSpark7d = useMemo(() => {
-        const completedRepairs = repairs.filter(r => (r.status || '').toLowerCase() === 'completed');
-        const completedTrades = trades.filter(t => (t.status || '').toLowerCase() === 'completed');
+        const completedRepairs = repairs.filter(r => statusKey(r.status) === 'completed');
+        const completedTrades = trades.filter(t => statusKey(t.status) === 'completed');
         const a = buildDailyBuckets(orders as any, (o: Order) => o.total || 0, 7);
         const b = buildDailyBuckets(completedRepairs as any, (r: RepairRequest) => parseRepairAmount(r.estimatedCost), 7);
         const c = buildDailyBuckets(completedTrades as any, (t: TradeRequest) => t.finalValue || 0, 7);
@@ -395,8 +521,8 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
     );
 
     const chartRevenueData = useMemo(() => {
-        const completedRepairs = repairs.filter(r => (r.status || '').toLowerCase() === 'completed');
-        const completedTrades = trades.filter(t => (t.status || '').toLowerCase() === 'completed');
+        const completedRepairs = repairs.filter(r => statusKey(r.status) === 'completed');
+        const completedTrades = trades.filter(t => statusKey(t.status) === 'completed');
         if (revenueWindow === '7D') {
             const a = buildDailyBuckets(orders as any, (o: Order) => o.total || 0, 7);
             const b = buildDailyBuckets(completedRepairs as any, (r: RepairRequest) => parseRepairAmount(r.estimatedCost), 7);
@@ -441,6 +567,12 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
         [users]
     );
 
+    const revenueDelta = totalRevenue - priorRevenue;
+    const customersMonthTrend = useMemo(() => {
+        const thisMonth = users.filter((u) => inDaysAgo(u.created_at || (u as any).date, 0, 30)).length;
+        const lastMonth = users.filter((u) => inDaysAgo(u.created_at || (u as any).date, 30, 60)).length;
+        return percentChange(thisMonth, lastMonth);
+    }, [users]);
 
     const revenueStreams = [
         { label: 'Product Sales', val: orderRevenue, color: '#6366f1', nav: 'orders' as Section },
@@ -456,8 +588,8 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
             ['Repairs Revenue', repairRevenue.toFixed(2)],
             ['Trade-In Revenue', tradeRevenue.toFixed(2)],
             ['Orders Count', String(filteredOrders.length)],
-            ['Completed Repairs Count', String(filteredRepairs.filter(r => (r.status || '').toLowerCase() === 'completed').length)],
-            ['Completed Trades Count', String(filteredTrades.filter(t => (t.status || '').toLowerCase() === 'completed').length)],
+            ['Completed Repairs Count', String(filteredRepairs.filter(r => statusKey(r.status) === 'completed').length)],
+            ['Completed Trades Count', String(filteredTrades.filter(t => statusKey(t.status) === 'completed').length)],
             [],
             ['Stream', 'Revenue', 'Share %'],
             ...revenueStreams.map((r) => [r.label, r.val.toFixed(2), totalRevenue > 0 ? ((r.val / totalRevenue) * 100).toFixed(2) : '0.00']),
@@ -492,10 +624,56 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
                     <h2 className="text-[10px] font-black uppercase tracking-[0.2em]">Business Health</h2>
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <StatCard isLight={isLight} icon={DollarSign} value={formatCurrency(totalRevenue)} label="Total Revenue" trend={12} trendUp={true} spark={revenueSpark7d} iconColor={STATUS_COLORS.info} onClick={() => onNavigate('orders')} />
-                    <StatCard isLight={isLight} icon={ShoppingCart} value={newOrdersLast7d} label="New Orders" trend={8} trendUp={true} spark={ordersSpark7d} iconColor="#6366f1" onClick={() => onNavigate('orders')} />
-                    <StatCard isLight={isLight} icon={Star} value={formatCurrency(Number(avgOrder) || 0)} label="Avg Order Value" trend={3} trendUp={false} iconColor={STATUS_COLORS.info} onClick={() => onNavigate('orders')} />
-                    <StatCard isLight={isLight} icon={Users} value="94%" label="Customer Satisfaction" trend={1} trendUp={true} iconColor={STATUS_COLORS.success} />
+                    <StatCard
+                        isLight={isLight}
+                        icon={DollarSign}
+                        value={formatCurrency(totalRevenue)}
+                        label="Total Revenue"
+                        hint={`${revenueWindow} vs prior period`}
+                        trend={revenueTrend?.pct}
+                        trendUp={revenueTrend?.up}
+                        spark={revenueSpark7d}
+                        iconColor={STATUS_COLORS.info}
+                        onClick={() => onNavigate('orders')}
+                    />
+                    <StatCard
+                        isLight={isLight}
+                        icon={ShoppingCart}
+                        value={newOrdersLast7d}
+                        label="New Orders"
+                        hint="Last 7 days"
+                        trend={orders7dTrend?.pct}
+                        trendUp={orders7dTrend?.up}
+                        spark={ordersSpark7d}
+                        iconColor="#6366f1"
+                        onClick={() => onNavigate('orders')}
+                    />
+                    <StatCard
+                        isLight={isLight}
+                        icon={Star}
+                        value={formatCurrency(Number(avgOrder) || 0)}
+                        label="Avg Order Value"
+                        hint={`${revenueWindow} window`}
+                        trend={avgOrderTrend?.pct}
+                        trendUp={avgOrderTrend?.up}
+                        iconColor={STATUS_COLORS.info}
+                        onClick={() => onNavigate('orders')}
+                    />
+                    <StatCard
+                        isLight={isLight}
+                        icon={Users}
+                        value={users.length}
+                        label="Customers"
+                        hint={
+                            avgCatalogRating != null
+                                ? `Avg shop rating ${avgCatalogRating}★ · ${newCustomersWindow} new in ${revenueWindow}`
+                                : `${newCustomersWindow} new in ${revenueWindow}`
+                        }
+                        trend={customersTrend?.pct}
+                        trendUp={customersTrend?.up}
+                        iconColor={STATUS_COLORS.success}
+                        onClick={() => onNavigate('customers')}
+                    />
                 </div>
                 <div className={`border rounded-2xl p-5 sm:p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 ${isLight ? 'bg-white border-black/5 shadow-sm' : 'bg-[#0a0a0a] border-white/5'}`}>
                     <div className="space-y-2">
@@ -554,7 +732,7 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
                         onClick={() => onNavigate('trades')}
                     />
                     <StatCard isLight={isLight} icon={AlertTriangle} value={lowStock} label="Stock Alerts" hint="Shop items with fewer than 5 in stock" iconColor={lowStock > 0 ? STATUS_COLORS.critical : STATUS_COLORS.success} onClick={() => onNavigate('products')} />
-                    <StatCard isLight={isLight} icon={Package} value={products.length} label="Shop items" hint="Active catalogue products" iconColor="#06b6d4" onClick={() => onNavigate('products')} />
+                    <StatCard isLight={isLight} icon={Package} value={products.length} label="Shop items" hint="Products live in the shop" iconColor="#06b6d4" onClick={() => onNavigate('products')} />
                     <div className={`col-span-2 lg:col-span-1 border rounded-2xl p-5 flex flex-col justify-center gap-1 ${isLight ? 'bg-black/5 border-black/5' : 'bg-white/[0.01] border-white/5'}`}>
                         <p className={`text-[9px] font-black uppercase tracking-[0.2em] ${isLight ? 'text-black/45' : 'text-white/35'}`}>Fulfillment mode</p>
                         <p className={`text-sm font-black ${isLight ? 'text-black' : 'text-white'}`}>Store pickup only</p>
@@ -591,21 +769,36 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <AIAnalystCard isLight={isLight} />
+                        <AIAnalystCard
+                            isLight={isLight}
+                            revenueTrend={revenueTrend}
+                            topCategory={topCategory}
+                            pendingTrades={pendingTrades}
+                            activeRepairs={activeRepairs}
+                            lowStock={lowStock}
+                        />
                         <div className={`border rounded-2xl p-6 flex flex-col justify-between ${isLight ? 'bg-white border-black/5 shadow-sm' : 'bg-[#0a0a0a] border-white/5'}`}>
                             <div className={`flex justify-between items-start mb-4 ${isLight ? 'text-black/50' : 'text-white/50'}`}>
                                 <div>
                                     <h3 className={`text-xs font-black uppercase tracking-widest ${isLight ? 'text-black' : 'text-white'}`}>Customer Growth</h3>
-                                    <p className="text-[10px] mt-1">+12% this month</p>
+                                    <p className="text-[10px] mt-1">
+                                        {customersMonthTrend
+                                            ? `${customersMonthTrend.up ? '+' : '−'}${customersMonthTrend.pct}% vs prior 30 days`
+                                            : `${users.length} accounts total`}
+                                    </p>
                                 </div>
                                 <Users size={14} className="text-[#B38B21]" />
                             </div>
                             <div className="h-16 mb-4">
-                                <Sparkline data={userGrowthByDay} color="#B38B21" />
+                                <Sparkline data={userGrowthByDay.length ? userGrowthByDay : [0]} color="#B38B21" />
                             </div>
                             <div className={`flex justify-between items-end border-t pt-4 ${isLight ? 'border-black/5' : 'border-white/5'}`}>
-                                <span className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-black/50' : 'text-white/50'}`}>Net Profit</span>
-                                <span className="text-lg font-black text-emerald-400">+{formatCurrency(14200)}</span>
+                                <span className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-black/50' : 'text-white/50'}`}>
+                                    {revenueWindow} vs prior
+                                </span>
+                                <span className={`text-lg font-black ${revenueDelta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                    {revenueDelta >= 0 ? '+' : '−'}{formatCurrency(Math.abs(revenueDelta))}
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -644,9 +837,9 @@ export const AdminOverview: React.FC<Props> = ({ onNavigate }) => {
                     <div className={`p-6 border-b flex items-center justify-between ${isLight ? 'border-black/5 bg-black/[0.01]' : 'border-white/5 bg-white/[0.01]'}`}>
                         <h3 className={`text-xs font-black uppercase tracking-widest flex items-center gap-2 ${isLight ? 'text-black' : 'text-white'}`}>
                             <ArrowUpRight size={13} className="text-[#B38B21]" />
-                            Global Activity Stream
+                            Recent activity
                         </h3>
-                        <p className={`text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-black/50' : 'text-white/50'}`}>Real-time Feed</p>
+                        <p className={`text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-black/50' : 'text-white/50'}`}>Latest updates</p>
                     </div>
                     <div className="p-2 space-y-1 overflow-y-auto max-h-[400px]">
                         {globalActivity.map((act, i) => (

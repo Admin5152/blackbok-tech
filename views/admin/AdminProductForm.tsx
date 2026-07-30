@@ -4,7 +4,7 @@
  * WHY: Central staff surface for catalog CRUD; trade_model bridges to
  * trade_devices so PDP trade-in banners resolve correctly.
  */
-import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useRef, useCallback, type Dispatch, type SetStateAction } from 'react';
 import { createPortal } from 'react-dom';
 import { Save, X, Package, ImageIcon, Layers, Tag, Upload, Star } from 'lucide-react';
 import type { Product, ProductImage } from '../../types';
@@ -132,7 +132,7 @@ type Props = {
   skuMatrixEnabled: boolean;
   setSkuMatrixEnabled: (v: boolean) => void;
   skuRows: SkuMatrixRow[];
-  setSkuRows: (rows: SkuMatrixRow[]) => void;
+  setSkuRows: Dispatch<SetStateAction<SkuMatrixRow[]>>;
   saving: boolean;
   error: string;
   onSubmit: () => void;
@@ -386,7 +386,7 @@ export const AdminProductForm: React.FC<Props> = ({
 
   const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
     { id: 'details', label: 'Details', icon: <Package size={12} /> },
-    { id: 'options', label: 'Options & stock versions', icon: <Layers size={12} /> },
+    { id: 'options', label: 'Options & stock', icon: <Layers size={12} /> },
     { id: 'images', label: 'Images', icon: <ImageIcon size={12} /> },
     { id: 'listing', label: 'Listing', icon: <Tag size={12} /> },
   ];
@@ -403,7 +403,7 @@ export const AdminProductForm: React.FC<Props> = ({
       try {
         const parsed: unknown = JSON.parse(raw);
         if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-          setSpecsJsonError('Must be a JSON object, e.g. {"chip":"A18"}');
+          setSpecsJsonError('That text isn’t valid — check commas and quotes');
           return { ...d, specificationsJson: raw };
         }
         setSpecsJsonError('');
@@ -413,7 +413,7 @@ export const AdminProductForm: React.FC<Props> = ({
           specifications: parsed as Record<string, unknown>,
         };
       } catch {
-        setSpecsJsonError('Invalid JSON');
+        setSpecsJsonError('That text isn’t valid — check commas and quotes');
         return { ...d, specificationsJson: raw };
       }
     });
@@ -421,7 +421,7 @@ export const AdminProductForm: React.FC<Props> = ({
 
   const handleUploadImage = async (file: File | null) => {
     if (!file) return;
-    // Details-tab button is "Replace photo" — always promote to main storefront image.
+    // Details-tab button is "Replace photo" — always promote to main shop photo.
     await handleUploadFiles([file], { asMain: true });
   };
 
@@ -788,7 +788,7 @@ export const AdminProductForm: React.FC<Props> = ({
                 </div>
                 {/* Catalog model link: used for upgrade targets + trade-in eligibility */}
                 <div className="sm:col-span-2">
-                  <label className={s.label}>Matching catalog model</label>
+                  <label className={s.label}>Matching trade-in model</label>
                   <input
                     ref={tradeInputRef}
                     type="text"
@@ -840,7 +840,7 @@ export const AdminProductForm: React.FC<Props> = ({
                             setTradeOpen(false);
                           }}
                         >
-                          Clear (not trade-eligible)
+                          Clear — not for trade-in
                         </button>
                         {tradeSearch.trim() &&
                           !tradeDevices.some(
@@ -863,7 +863,7 @@ export const AdminProductForm: React.FC<Props> = ({
                               }}
                             >
                               Use “{tradeSearch.trim()}”
-                              <span className={`ml-2 font-normal ${s.muted}`}>new model</span>
+                              <span className={`ml-2 font-normal ${s.muted}`}>new</span>
                             </button>
                           )}
                         {filteredTradeModels.length === 0 && !tradeSearch.trim() && (
@@ -884,7 +884,7 @@ export const AdminProductForm: React.FC<Props> = ({
                             {d.model}
                             <span className={`ml-2 font-normal ${s.muted}`}>
                               {d.device_type}
-                              {d.is_active === false ? ' · catalog only' : ''}
+                              {d.is_active === false ? ' · on trade list, not shown to customers yet' : ''}
                             </span>
                           </button>
                         ))}
@@ -892,8 +892,8 @@ export const AdminProductForm: React.FC<Props> = ({
                       document.body,
                     )}
                   <p className={`text-[10px] mt-1.5 leading-relaxed ${s.muted}`}>
-                    Links this shop product so it can appear as a trade-into upgrade target. You can
-                    type a new model name if it is not in the list yet.
+                    Links this shop phone so customers can choose it as their upgrade. You can
+                    type a new model name if it isn’t listed yet.
                   </p>
                 </div>
                 {!skuMatrixEnabled && (
@@ -952,7 +952,7 @@ export const AdminProductForm: React.FC<Props> = ({
                   Product photo
                 </label>
                 <p className={`text-[10px] mb-3 leading-relaxed ${s.muted}`}>
-                  Upload a photo from your computer (JPEG, PNG, WebP — up to 10MB). First upload becomes the main storefront image.
+                  Upload a photo from your computer (JPEG, PNG, WebP — up to 10MB). First upload becomes the main shop photo.
                 </p>
                 {imgError && tab === 'details' && (
                   <div className={`mb-3 text-xs rounded-xl px-3 py-2 ${s.errorBox}`}>{imgError}</div>
@@ -999,7 +999,7 @@ export const AdminProductForm: React.FC<Props> = ({
                 <label className={s.label}>Description</label>
                 <textarea
                   rows={4}
-                  placeholder="Product description for the storefront…"
+                  placeholder="Product description for the shop page…"
                   value={draft.description ?? ''}
                   onChange={(e) => setDraft({ ...draft, description: e.target.value })}
                   className={`${s.input} resize-y min-h-[96px]`}
@@ -1012,8 +1012,8 @@ export const AdminProductForm: React.FC<Props> = ({
             <div className="space-y-4">
               <p className={`text-[11px] px-1 ${s.muted}`}>
                 {chipsLocked
-                  ? 'Color / Storage / RAM come from the stock versions below. Edit combinations in the list.'
-                  : 'Define Color, Storage, and RAM choices. Each combination becomes its own version with its own stock.'}
+                  ? 'Options are locked to the generated versions below. Edit price and stock on each row — or rebuild from options.'
+                  : 'Add every Color, Storage, RAM, and SIM option once. Generate versions to auto-build all combinations — then only fill or edit prices and stock.'}
               </p>
               <ChipField
                 label="Colors"
@@ -1025,7 +1025,7 @@ export const AdminProductForm: React.FC<Props> = ({
                 onRemove={(v) => onRemoveChip('colors', v)}
                 styles={s}
                 readOnly={chipsLocked}
-                readOnlyNote="Managed by stock versions"
+                readOnlyNote="Managed by generated versions"
               />
               <ChipField
                 label="Storage"
@@ -1037,7 +1037,7 @@ export const AdminProductForm: React.FC<Props> = ({
                 onRemove={(v) => onRemoveChip('storage', v)}
                 styles={s}
                 readOnly={chipsLocked}
-                readOnlyNote="Managed by stock versions"
+                readOnlyNote="Managed by generated versions"
               />
               <ChipField
                 label="RAM"
@@ -1049,7 +1049,7 @@ export const AdminProductForm: React.FC<Props> = ({
                 onRemove={(v) => onRemoveChip('ram', v)}
                 styles={s}
                 readOnly={chipsLocked}
-                readOnlyNote="Managed by stock versions"
+                readOnlyNote="Managed by generated versions"
               />
               <ChipField
                 label="SIM type (Physical / eSIM / Wi‑Fi / …)"
@@ -1061,7 +1061,7 @@ export const AdminProductForm: React.FC<Props> = ({
                 onRemove={(v) => onRemoveChip('sim_types', v)}
                 styles={s}
                 readOnly={chipsLocked}
-                readOnlyNote="SIM is set per version when stock-per-version is on"
+                readOnlyNote="SIM is set per version when generate-versions is on"
                 formatChip={formatSimTypeLabel}
               />
               {!chipsLocked && (
@@ -1132,7 +1132,7 @@ export const AdminProductForm: React.FC<Props> = ({
           {tab === 'images' && (
             <div className="space-y-4">
               <p className={`text-[11px] px-1 leading-relaxed ${s.muted}`}>
-                Upload photos directly from your device. The primary photo is shown on the storefront.
+                Upload photos directly from your device. The primary photo is shown on the shop page.
                 {!draft.id && ' You can upload before saving — images link to the product when you publish.'}
               </p>
               {displayColors.length > 0 && (
@@ -1250,24 +1250,24 @@ export const AdminProductForm: React.FC<Props> = ({
               />
 
               <div className={s.card}>
-                <label className={s.label}>Extra specifications (advanced)</label>
+                <label className={s.label}>Extra product details</label>
                 <textarea
                   rows={6}
                   value={draft.specificationsJson ?? '{}'}
                   onChange={(e) => applySpecsJson(e.target.value)}
                   className={`${s.input} font-mono text-[11px] resize-y min-h-[120px]`}
-                  placeholder='{"display":"6.1\\"","chip":"A18"}'
+                  placeholder='Example: {"display":"6.1","chip":"A18"}'
                 />
                 {specsJsonError && (
                   <p className="text-[10px] text-red-400 mt-1">{specsJsonError}</p>
                 )}
                 <p className={`text-[10px] mt-1 ${s.muted}`}>
-                  Free-form object stored on products.specifications when the column exists.
+                  Optional extra details for the product page. Ask a manager if you are unsure.
                 </p>
               </div>
 
               <div className={s.card + ' space-y-4'}>
-                <p className={`text-[10px] font-black uppercase tracking-widest ${s.muted}`}>Storefront flags</p>
+                <p className={`text-[10px] font-black uppercase tracking-widest ${s.muted}`}>Shop page options</p>
                 <label className={`flex items-center gap-3 cursor-pointer rounded-xl border px-4 py-3 ${isLight ? 'border-black/10 bg-black/[0.03]' : 'border-white/10 bg-black/30'}`}>
                   <input
                     type="checkbox"

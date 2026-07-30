@@ -150,8 +150,8 @@ export const TradeAdminDevices: React.FC = () => {
       setSeries('');
       notify?.(
         seeded > 0
-          ? `Added ${row.model} with ${seeded} deduction rows. Set base values on Pricing & deductions.`
-          : `Added ${row.model}. Set base values on Pricing & deductions so it appears for customers.`,
+          ? `Added ${row.model} with ${seeded} condition deductions. Set starting prices on Prices & deductions.`
+          : `Added ${row.model}. Set starting prices on Prices & deductions so it appears for customers.`,
         'success',
       );
     } catch (e) {
@@ -222,11 +222,11 @@ export const TradeAdminDevices: React.FC = () => {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-black tracking-tight">Tradable devices</h2>
+          <h2 className="text-xl font-black tracking-tight">Devices we accept</h2>
           <p className="text-xs opacity-60 mt-1 max-w-xl">
             Turn models on/off for the customer trade-in list. Upload a photo per model
             (or link a shop product with the same trade model) so the trade-in picker
-            shows the real device. After adding a device, set base values and fault
+            shows the real device. After adding a device, set starting prices and condition
             deductions on{' '}
             <Link to="/admin/trade/pricing" className="text-[#CDA032] underline font-bold">
               Pricing & deductions
@@ -350,10 +350,10 @@ export const TradeAdminDevices: React.FC = () => {
               <th className="p-3">Model</th>
               <th className="p-3">Type</th>
               <th className="p-3">Series / line</th>
-              <th className="p-3">Biometric</th>
-              <th className="p-3">Sort</th>
+              <th className="p-3">Unlock type</th>
+              <th className="p-3">Display order</th>
               <th className="p-3">On list</th>
-              <th className="p-3">Market pricing</th>
+              <th className="p-3">Priced for trade-in?</th>
               <th className="p-3">Delete</th>
             </tr>
           </thead>
@@ -464,7 +464,7 @@ export const TradeAdminDevices: React.FC = () => {
                         : 'bg-red-500/15 text-red-500'
                     }`}
                   >
-                    {row.is_active ? 'Listed' : 'Hidden'}
+                    {row.is_active ? 'On list' : 'Off list'}
                   </button>
                 </td>
                 <td className="p-3">
@@ -513,10 +513,10 @@ export const TradeAdminDevices: React.FC = () => {
 
       <ConfirmDeleteDialog
         open={pendingDelete != null}
-        title="Delete tradable device?"
+        title="Remove this device from trade-in?"
         message={
           pendingDelete
-            ? `Permanently delete ${pendingDelete.model}? This also deletes its base values, deductions, and aesthetic overrides. Trade request history is kept.`
+            ? `Permanently delete ${pendingDelete.model}? This also deletes its starting prices, condition deductions, and appearance amounts. Trade request history is kept.`
             : ''
         }
         requireTypedDelete

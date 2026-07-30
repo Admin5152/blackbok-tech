@@ -116,6 +116,18 @@ export const Repair: React.FC = () => {
   const repairRestoreDone = useRef(false);
   const prevDeviceSelection = useRef({ deviceType: '', brand: '' });
 
+  // Prefill contact from logged-in profile; keep editable (only fill empty fields).
+  useEffect(() => {
+    if (!user) return;
+    setFormData((prev) => ({
+      ...prev,
+      name: prev.name.trim() ? prev.name : user.name || '',
+      email: prev.email.trim() ? prev.email : user.email || '',
+      phone: prev.phone.trim() ? prev.phone : user.phone || '',
+      address: prev.address.trim() ? prev.address : user.address || '',
+    }));
+  }, [user?.id, user?.name, user?.email, user?.phone, user?.address]);
+
   useEffect(() => {
     if (!user) {
       repairRestoreDone.current = false;

@@ -67,7 +67,7 @@ export function computeTradeBalanceDisplay(opts: {
   const topUp = computeTopUpFromCredit(upgradePrice, tradeCredit);
   const refund = computeRefundFromCredit(upgradePrice, tradeCredit);
   const signed = upgradePrice - tradeCredit;
-  const formulaHint = `Phone you’re trading into GH₵${Math.round(upgradePrice).toLocaleString('en-GH')} − your phone’s value GH₵${Math.round(tradeCredit).toLocaleString('en-GH')}`;
+  const formulaHint = `Upgrade GH₵${Math.round(upgradePrice).toLocaleString('en-GH')} − your phone GH₵${Math.round(tradeCredit).toLocaleString('en-GH')}`;
 
   if (topUp > 0) {
     return {
@@ -76,7 +76,7 @@ export function computeTradeBalanceDisplay(opts: {
       signedDifference: signed,
       tradeCredit,
       upgradePrice,
-      formulaHint: `${formulaHint} = you add GH₵${topUp.toLocaleString('en-GH')}`,
+      formulaHint: `${formulaHint} = add GH₵${topUp.toLocaleString('en-GH')}`,
     };
   }
   if (refund > 0) {
@@ -86,7 +86,7 @@ export function computeTradeBalanceDisplay(opts: {
       signedDifference: signed,
       tradeCredit,
       upgradePrice,
-      formulaHint: `${formulaHint} = you receive GH₵${refund.toLocaleString('en-GH')}`,
+      formulaHint: `${formulaHint} = you get GH₵${refund.toLocaleString('en-GH')}`,
     };
   }
   return {

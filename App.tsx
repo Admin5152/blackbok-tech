@@ -1333,6 +1333,10 @@ function RootComponent() {
                   email: currentUser.email,
                   name: currentUser.name ?? parsedUser!.name,
                   role: normalizeCanonicalRole(currentUser.role ?? parsedUser!.role),
+                  phone: currentUser.phone ?? parsedUser!.phone,
+                  address: currentUser.address ?? parsedUser!.address,
+                  city: currentUser.city ?? parsedUser!.city,
+                  region: currentUser.region ?? parsedUser!.region,
                 });
               } else {
                 console.log('User session is invalid, clearing user');
@@ -1796,7 +1800,19 @@ function RootComponent() {
     setRepairs, setTrades, setWishlist, setCompareIds, addToCart, toggleWishlist, toggleCompare,
     onToggleCompare: toggleCompare,
     updateQuantity, removeFromCart, handleCheckout, notify, navigateTo,
-    onQuickView: (p: Product) => { setQuickViewProduct(p); setIsQuickViewOpen(true); },
+    onQuickView: (p: Product) => {
+      setQuickViewProduct(p);
+      setIsQuickViewOpen(true);
+      // Store cards come from v_product_page without SKU rows — hydrate so
+      // color/storage/RAM prices update in quick-view the same as PDP.
+      void getProduct(p.id)
+        .then((full) => {
+          if (full) setQuickViewProduct(full);
+        })
+        .catch(() => {
+          /* keep card payload */
+        });
+    },
     onAddToCart: (p: Product, options?: Record<string, string>, qty?: number) => addToCart(p, options, qty),
     theme,
     setTheme,

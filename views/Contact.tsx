@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Mail, Phone, MapPin, Send } from 'lucide-react';
 import { useAppContext } from '../App';
 import { INSTAGRAM_URL, mailtoSupport, SUPPORT_EMAIL, SUPPORT_PHONE_TEL, WHATSAPP_DISPLAY, whatsAppUrl } from '../lib/contact';
@@ -31,14 +31,21 @@ function buildContactWhatsAppMessage(fields: {
 }
 
 export const Contact: React.FC = () => {
-  const { theme, notify } = useAppContext();
+  const { theme, notify, user } = useAppContext();
   const isLight = theme === 'light';
 
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
+  const [name, setName] = useState(user?.name || '');
+  const [email, setEmail] = useState(user?.email || '');
+  const [phone, setPhone] = useState(user?.phone || '');
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    if (!user) return;
+    setName((n) => n || user.name || '');
+    setEmail((e) => e || user.email || '');
+    setPhone((p) => p || user.phone || '');
+  }, [user]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,7 +158,7 @@ export const Contact: React.FC = () => {
                     <input
                       type="tel"
                       className={inputBase(isLight)}
-                      placeholder="+233..."
+                      placeholder="Phone (+country code)"
                       value={phone}
                       onChange={e => setPhone(e.target.value)}
                       autoComplete="tel"

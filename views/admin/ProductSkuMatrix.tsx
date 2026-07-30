@@ -125,16 +125,20 @@ export const ProductSkuMatrix: React.FC<Props> = ({
       : 'border-red-500/20 bg-red-500/[0.04] opacity-90';
   };
 
+  const enableAndCreate = () => {
+    handleEnable(true);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl border border-[#B38B21]/30 bg-gradient-to-br from-[#B38B21]/10 to-transparent">
         <div>
           <p className="text-[10px] font-black uppercase tracking-widest text-[#B38B21] flex items-center gap-1.5">
-            <Layers size={12} /> Inventory per selection
+            <Layers size={12} /> Generate versions from options
           </p>
           <p className={`text-[11px] mt-1 max-w-md ${muted}`}>
-            Each row is one sellable version (color × storage × RAM × SIM). Leave the fixed price
-            blank to use the base price plus any adjustment.
+            Add all colors, storage, RAM, and SIM above — then generate every combination. You only
+            need to fill or edit price and stock on each row.
           </p>
         </div>
         <label
@@ -149,21 +153,33 @@ export const ProductSkuMatrix: React.FC<Props> = ({
             onChange={(e) => handleEnable(e.target.checked)}
             className="accent-[#B38B21] w-4 h-4"
           />
-          <span className={`text-xs font-bold ${title}`}>Stock per version</span>
+          <span className={`text-xs font-bold ${title}`}>Generate versions from options</span>
         </label>
       </div>
 
       {!canMatrix && (
         <p className="text-xs text-amber-400/95 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3">
-          Add Color, Storage, RAM, or SIM options above first — then enable stock per version here.
+          Add Color, Storage, RAM, or SIM options above first — then generate versions here.
         </p>
       )}
 
       {canMatrix && !enabled && (
-        <p className={`text-xs px-1 ${muted}`}>
-          Simple mode: one stock number on the Details tab. Enable stock per version for{' '}
-          <strong className={title}>{comboCount}</strong> combination{comboCount === 1 ? '' : 's'}.
-        </p>
+        <div className="space-y-3">
+          <p className={`text-xs px-1 ${muted}`}>
+            Ready to build{' '}
+            <strong className={title}>{comboCount}</strong> version
+            {comboCount === 1 ? '' : 's'} from your options. Or keep simple mode (one stock number on
+            Details).
+          </p>
+          <button
+            type="button"
+            onClick={enableAndCreate}
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#B38B21] text-black text-[11px] font-black uppercase tracking-wide hover:bg-[#D4AF37] transition-colors"
+          >
+            <Layers size={14} />
+            Create {comboCount} version{comboCount === 1 ? '' : 's'}
+          </button>
+        </div>
       )}
 
       {enabled && canMatrix && (
@@ -179,7 +195,7 @@ export const ProductSkuMatrix: React.FC<Props> = ({
             </button>
             <span className={`text-[10px] ${muted}`}>
               {rows.length} version{rows.length === 1 ? '' : 's'} · {inStockRows} in stock ·{' '}
-              <strong className="text-[#B38B21]">{total}</strong> units
+              <strong className="text-[#B38B21]">{total}</strong> units — edit price &amp; stock below
             </span>
           </div>
 
@@ -222,9 +238,9 @@ export const ProductSkuMatrix: React.FC<Props> = ({
                         >
                           {priceLbl.text}
                           {priceLbl.muted ? (
-                            <span className={`font-normal ${muted}`}> (from base price)</span>
+                            <span className={`font-normal ${muted}`}> · uses base price</span>
                           ) : (
-                            <span className={`font-normal ${muted}`}> (fixed price)</span>
+                            <span className={`font-normal ${muted}`}> · your price</span>
                           )}
                         </p>
                       </div>
@@ -240,6 +256,30 @@ export const ProductSkuMatrix: React.FC<Props> = ({
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className={`text-[8px] font-black uppercase block mb-1 ${muted}`}>
+                          Price GH₵
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          placeholder={String(basePrice + (row.price_modifier || 0))}
+                          value={row.price != null && Number.isFinite(row.price) ? row.price : ''}
+                          onChange={(e) => {
+                            const t = e.target.value.trim();
+                            patchRow(i, {
+                              price: t === '' ? null : parseFloat(t) || 0,
+                            });
+                          }}
+                          className={`${inputCls.replace('text-sm font-bold', 'text-xs')} ${
+                            row.price == null ? muted : ''
+                          }`}
+                        />
+                        <p className={`text-[8px] mt-0.5 ${muted}`}>
+                          Leave blank = main price{row.price_modifier ? ` + ${row.price_modifier}` : ''}
+                        </p>
+                      </div>
                       <div>
                         <label className={`text-[8px] font-black uppercase block mb-1 ${muted}`}>
                           Stock *
@@ -273,28 +313,7 @@ export const ProductSkuMatrix: React.FC<Props> = ({
                       </div>
                       <div>
                         <label className={`text-[8px] font-black uppercase block mb-1 ${muted}`}>
-                          Fixed price GH₵
-                        </label>
-                        <input
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          placeholder={String(basePrice + (row.price_modifier || 0))}
-                          value={row.price != null && Number.isFinite(row.price) ? row.price : ''}
-                          onChange={(e) => {
-                            const t = e.target.value.trim();
-                            patchRow(i, {
-                              price: t === '' ? null : parseFloat(t) || 0,
-                            });
-                          }}
-                          className={`${inputCls.replace('text-sm font-bold', 'text-xs')} ${
-                            row.price == null ? muted : ''
-                          }`}
-                        />
-                      </div>
-                      <div>
-                        <label className={`text-[8px] font-black uppercase block mb-1 ${muted}`}>
-                          + Modifier
+                          Price add-on
                         </label>
                         <input
                           type="number"
@@ -320,7 +339,7 @@ export const ProductSkuMatrix: React.FC<Props> = ({
                           />
                           <button
                             type="button"
-                            title="Generate from color-storage-sim"
+                            title="Make code from colour, storage & SIM"
                             onClick={() => patchRow(i, { sku: autoGenerateSku(row) })}
                             className="shrink-0 px-2 py-1.5 rounded-lg text-[9px] font-black uppercase bg-[#B38B21]/15 text-[#B38B21] border border-[#B38B21]/30"
                           >
@@ -355,7 +374,7 @@ export const ProductSkuMatrix: React.FC<Props> = ({
                           ) : null}
                           <input
                             type="url"
-                            placeholder="Or paste image URL"
+                            placeholder="Or paste photo link"
                             value={row.image_url || ''}
                             onChange={(e) => patchRow(i, { image_url: e.target.value })}
                             className={inputCls.replace('text-sm font-bold', 'text-xs')}

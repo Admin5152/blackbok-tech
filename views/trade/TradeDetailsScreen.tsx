@@ -29,6 +29,7 @@ import {
 } from '../../lib/promoCart';
 import { formatGHS, promoReserveTrade } from '../../lib/promotions';
 import { promoFriendlyMessage } from '../../lib/promoErrors';
+import { isValidContactPhone } from '../../lib/phoneMask';
 
 const AUTH_RETURN = '/trade/details';
 const DETAILS_DRAFT_KEY = 'trade_v2_details_draft';
@@ -81,14 +82,6 @@ function goSignIn(
     to: '/auth',
     search: { returnTo: AUTH_RETURN } as any,
   });
-}
-
-/** Ghana mobile: 0XXXXXXXXX (10) or +233 / 233 with 9 subscriber digits. */
-function isValidGhanaPhone(raw: string): boolean {
-  const digits = raw.replace(/\D/g, '');
-  if (/^0[2-5]\d{8}$/.test(digits)) return true;
-  if (/^233[2-5]\d{8}$/.test(digits)) return true;
-  return false;
 }
 
 function isValidOptionalEmail(raw: string): boolean {
@@ -192,7 +185,7 @@ export function TradeDetailsScreen() {
     const next: Partial<Record<FieldKey, string>> = {};
     if (!name.trim()) next.name = TRADE_COPY.details.nameRequired;
     if (!phone.trim()) next.phone = TRADE_COPY.details.phoneRequired;
-    else if (!isValidGhanaPhone(phone)) next.phone = TRADE_COPY.details.phoneInvalid;
+    else if (!isValidContactPhone(phone)) next.phone = TRADE_COPY.details.phoneInvalid;
     if (!isValidOptionalEmail(email)) next.email = TRADE_COPY.details.emailInvalid;
     if (!terms) next.terms = TRADE_COPY.details.termsRequired;
     return next;

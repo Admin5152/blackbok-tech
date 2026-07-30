@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { X, Minus, Plus, ShoppingCart, ShieldCheck, Package } from 'lucide-react';
-import { Product } from '../types';
+import { Product, ProductVariant } from '../types';
 import { formatCurrency } from '../lib/utils';
 import { useAppContext } from '../App';
 import {
@@ -9,7 +9,10 @@ import {
   snapSelectionToInStock,
   toOptionString,
   getAvailableStock,
+  findVariantRowForOptions,
 } from '../lib/productOptions';
+import { variantEffectivePrice } from '../lib/catalogApi';
+import { getDealDiscountPercentage } from '../lib/dealOfTheDay';
 import { ProductAvailabilityBadge } from './ProductAvailabilityBadge';
 import { lockPageScroll } from '../lib/pageScrollLock';
 
@@ -32,6 +35,25 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
     () => (product ? getAvailableStock(product, selectedOptions) : 0),
     [product, selectedOptions],
   );
+
+  const matchedVariant = useMemo(() => {
+    if (!product) return null;
+    return findVariantRowForOptions(product, selectedOptions) as ProductVariant | null;
+  }, [product, selectedOptions]);
+
+  const listPrice = useMemo(() => {
+    if (!product) return 0;
+    return variantEffectivePrice(product, matchedVariant);
+  }, [product, matchedVariant]);
+
+  const unitPrice = useMemo(() => {
+    if (!product) return 0;
+    const pct = getDealDiscountPercentage(product);
+    if (pct > 0) return Math.round(listPrice * (1 - pct / 100) * 100) / 100;
+    return listPrice;
+  }, [product, listPrice]);
+
+  const discountPct = product ? getDealDiscountPercentage(product) : 0;
 
   useEffect(() => {
     setSelectedOptions(product ? defaultSelectedOptionsForProduct(product) : {});
@@ -116,7 +138,12 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
           >
             <div className="pointer-events-none absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.12] md:opacity-10" />
             <img
-              src={product.image || product.image_url || ''}
+              src={
+                matchedVariant?.image_url ||
+                product.image ||
+                product.image_url ||
+                ''
+              }
               alt={product.name}
               className="absolute inset-0 h-full w-full object-cover object-center"
             />
@@ -139,13 +166,15 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
                   {product.name}
                 </h2>
 
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl sm:text-3xl font-black text-[#CDA032]">
-                    {formatCurrency(product.price)}
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <span className="text-2xl sm:text-3xl font-black text-[#CDA032] tabular-nums">
+                    {formatCurrency(unitPrice)}
                   </span>
-                  <span className="text-[10px] font-bold uppercase tracking-widest line-through opacity-30">
-                    {formatCurrency(product.price * 1.2)}
-                  </span>
+                  {discountPct > 0 && listPrice > unitPrice && (
+                    <span className="text-[10px] font-bold uppercase tracking-widest line-through opacity-40 tabular-nums">
+                      {formatCurrency(listPrice)}
+                    </span>
+                  )}
                 </div>
                 {groupedVariants.length > 0 && (
                   <p

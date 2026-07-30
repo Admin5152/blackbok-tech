@@ -111,7 +111,7 @@ export const AdminPromotionDetail: React.FC = () => {
     } else {
       parts.push('Global');
     }
-    parts.push(`min order ${formatGHS(promo.min_order_pesewas)}`);
+    parts.push(`Min spend ${formatGHS(promo.min_order_pesewas)}`);
     return parts.join(' · ');
   }, [promo, codes.length, campusNames]);
 
@@ -216,7 +216,7 @@ export const AdminPromotionDetail: React.FC = () => {
   const tabs: { id: TabId; label: string }[] = [
     { id: 'overview', label: 'Overview' },
     { id: 'codes', label: 'Codes' },
-    { id: 'redemptions', label: 'Redemptions' },
+    { id: 'redemptions', label: 'Uses' },
     { id: 'settings', label: 'Settings' },
   ];
 
@@ -307,9 +307,9 @@ export const AdminPromotionDetail: React.FC = () => {
             {metricTile('Given away', formatGHS(givenAway))}
           </div>
           <div className={`${hairlineCard(isLight)} p-4`}>
-            <p className={`text-[13px] font-medium mb-3 ${fg}`}>Redemptions over time</p>
+            <p className={`text-[13px] font-medium mb-3 ${fg}`}>Uses over time</p>
             {redemptions.length === 0 ? (
-              <p className={`text-[13px] ${muted}`}>No redemptions yet.</p>
+              <p className={`text-[13px] ${muted}`}>No codes used yet.</p>
             ) : (
               <ul className="space-y-2 max-h-56 overflow-y-auto">
                 {redemptions.slice(0, 40).map((r) => (
@@ -383,7 +383,7 @@ export const AdminPromotionDetail: React.FC = () => {
                   : 'border-white/10 hover:bg-white/5'
               } ${fg}`}
             >
-              <Download size={14} /> CSV
+              <Download size={14} /> Spreadsheet
             </button>
           </div>
 
@@ -537,7 +537,7 @@ export const AdminPromotionDetail: React.FC = () => {
               {redemptions.length === 0 && (
                 <tr>
                   <td colSpan={5} className={`px-3 py-6 ${muted}`}>
-                    No redemptions yet.
+                    No codes used yet.
                   </td>
                 </tr>
               )}
@@ -579,11 +579,11 @@ export const AdminPromotionDetail: React.FC = () => {
             <p className={`text-[13px] font-medium ${fg}`}>Caps</p>
             <p className={`text-[13px] mt-1 ${muted}`}>
               Campaign max{' '}
-              {promo.max_redemptions == null ? 'Unbounded' : promo.max_redemptions}
+              {promo.max_redemptions == null ? 'No limit' : promo.max_redemptions}
               {' · '}
               Per account{' '}
               {promo.max_redemptions_per_user == null
-                ? 'Unbounded'
+                ? 'No limit'
                 : promo.max_redemptions_per_user}
             </p>
           </div>

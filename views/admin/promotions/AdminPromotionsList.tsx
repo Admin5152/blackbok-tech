@@ -169,7 +169,7 @@ export const AdminPromotionsList: React.FC = () => {
                     <p className={`text-[13px] mt-1 ${muted}`}>
                       {promoValueLabel(p)}
                       {' · '}
-                      {p.scope_type === 'campus' ? 'Campus' : 'Global'}
+                      {p.scope_type === 'campus' ? 'Selected locations' : 'All locations'}
                       {' · '}
                       Spend {formatGHS(spent)}
                     </p>

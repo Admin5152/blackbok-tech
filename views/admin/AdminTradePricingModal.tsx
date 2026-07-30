@@ -1,5 +1,5 @@
 /**
- * Trade pricing modal — editable base values + fault deductions.
+ * Trade pricing modal — editable starting prices + fault deductions.
  * Prefer /admin/trade/pricing for the full grid; this keeps AdminTrades quick access.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -78,8 +78,7 @@ export const AdminTradePricingModal: React.FC<Props> = ({ open, onClose }) => {
           <DollarSign size={16} className="text-[#B38B21]" /> Trade-in pricing
         </h3>
         <p className="text-[10px] text-white/40 mb-2 leading-relaxed">
-          Inline edits save to <code className="text-white/60">trade_base_values</code> &amp;{' '}
-          <code className="text-white/60">trade_fault_deductions</code> and refresh the live cache.
+          Inline edits save immediately and update customer quotes.
         </p>
         <button
           type="button"
@@ -138,7 +137,7 @@ export const AdminTradePricingModal: React.FC<Props> = ({ open, onClose }) => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <p className="text-[9px] uppercase tracking-widest text-white/50 mb-1">
-                            Base Values
+                            Starting prices
                           </p>
                           <div className="grid grid-cols-1 gap-1">
                             {modelBases.map((b) => (
@@ -180,7 +179,7 @@ export const AdminTradePricingModal: React.FC<Props> = ({ open, onClose }) => {
                         </div>
                         <div>
                           <p className="text-[9px] uppercase tracking-widest text-white/50 mb-1">
-                            Fault Deductions
+                            Condition deductions
                           </p>
                           <div className="grid grid-cols-1 gap-1">
                             {modelDeducs.map((d) => (

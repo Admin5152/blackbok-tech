@@ -27,12 +27,12 @@ export const TradeValuationCard: React.FC<Props> = ({
     <div className={`rounded-2xl border ${valuation.hasKnownBasePrice ? 'border-[#CDA032]/25 bg-[#CDA032]/5' : 'border-[var(--bb-border)] bg-[var(--bb-surface-2])'} space-y-3 ${compact ? 'p-3' : 'p-4'}`}>
       {valuation.hasKnownBasePrice ? (
         <div className="flex justify-between gap-3 text-sm">
-          <span className="opacity-70">Starting value of your phone</span>
+          <span className="opacity-70">{TRADE_COPY.summary.baseValue}</span>
           <span className="font-bold tabular-nums">{formatCurrency(valuation.basePurchasePrice)}</span>
         </div>
       ) : (
         <div className="flex justify-between gap-3 text-sm">
-          <span className="opacity-70">Starting value of your phone</span>
+          <span className="opacity-70">{TRADE_COPY.summary.baseValue}</span>
           <span className="font-bold text-[#CDA032]/60">Quote upon inspection</span>
         </div>
       )}

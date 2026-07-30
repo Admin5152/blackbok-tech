@@ -59,7 +59,7 @@ export const TradeAdminThresholds: React.FC = () => {
       }
       await updateDeviceThreshold(model, value);
       await reload();
-      notify?.('Threshold saved.', 'success');
+      notify?.('Minimum value saved.', 'success');
     } catch (e) {
       notify?.(tradeAdminErrorMessage(e), 'error');
     } finally {
@@ -78,7 +78,7 @@ export const TradeAdminThresholds: React.FC = () => {
     try {
       await updateDeviceThreshold(pendingClear, null);
       await reload();
-      notify?.(`Cleared threshold for ${pendingClear}.`, 'success');
+      notify?.(`Cleared minimum for ${pendingClear}.`, 'success');
       setPendingClear(null);
     } catch (e) {
       notify?.(tradeAdminErrorMessage(e), 'error');
@@ -96,7 +96,7 @@ export const TradeAdminThresholds: React.FC = () => {
       : 'not set';
 
   if (loading) {
-    return <div className="text-center py-16 text-white/30 text-sm">Loading thresholds…</div>;
+    return <div className="text-center py-16 text-white/30 text-sm">Loading minimum values…</div>;
   }
   if (error) {
     return (
@@ -110,7 +110,7 @@ export const TradeAdminThresholds: React.FC = () => {
     <div className="space-y-4">
       <div className="rounded-xl border border-white/10 bg-black/30 p-4 text-sm text-white/70 space-y-1.5">
         <p>
-          Global fallback (Business rules):{' '}
+          Shop-wide fallback (Business rules):{' '}
           <span className="font-bold text-[#B38B21]">{globalLabel}</span>
         </p>
         <p className="text-[11px] text-white/45">
@@ -139,7 +139,7 @@ export const TradeAdminThresholds: React.FC = () => {
                 <th className="px-3 py-2">Model</th>
                 <th className="px-3 py-2">Type</th>
                 <th className="px-3 py-2">Base range</th>
-                <th className="px-3 py-2">Threshold</th>
+                <th className="px-3 py-2">Minimum value</th>
                 <th className="px-3 py-2">Status</th>
                 <th className="px-3 py-2">Clear</th>
               </tr>
@@ -160,7 +160,7 @@ export const TradeAdminThresholds: React.FC = () => {
                       defaultValue={r.current_threshold ?? ''}
                       key={`${r.model}-${r.current_threshold ?? 'empty'}`}
                       disabled={saving === r.model}
-                      placeholder="Global"
+                      placeholder="Shop-wide"
                       onBlur={(e) => {
                         const next = e.target.value.trim();
                         const prev =
@@ -177,14 +177,14 @@ export const TradeAdminThresholds: React.FC = () => {
                         r.current_threshold == null ? 'text-amber-300' : 'text-emerald-400'
                       }`}
                     >
-                      {r.current_threshold == null ? 'Uses global' : 'Custom'}
+                      {r.current_threshold == null ? 'Uses shop-wide' : 'Custom'}
                     </span>
                   </td>
                   <td className="px-3 py-2">
                     {r.current_threshold != null && (
                       <button
                         type="button"
-                        title="Clear threshold"
+                        title="Clear minimum"
                         disabled={saving === r.model}
                         onClick={() => void clearThreshold(r.model)}
                         className="inline-flex items-center justify-center p-1.5 rounded-lg text-red-400/80 hover:bg-red-500/15 hover:text-red-300 disabled:opacity-40"
@@ -206,10 +206,10 @@ export const TradeAdminThresholds: React.FC = () => {
 
       <ConfirmDeleteDialog
         open={pendingClear != null}
-        title="Clear threshold?"
+        title="Clear minimum?"
         message={
           pendingClear
-            ? `Clear threshold for ${pendingClear}? Cut-off for this model will fall back to global config.`
+            ? `Clear minimum for ${pendingClear}? Cut-off for this model will use the shop-wide minimum under Business rules.`
             : ''
         }
         busy={deleting}

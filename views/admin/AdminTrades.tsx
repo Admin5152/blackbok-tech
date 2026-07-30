@@ -307,7 +307,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
 
     const offerDisplay = (t: TradeRequest) => {
         const v = t.finalValue ?? (t as any).offeredPrice;
-        return v != null && Number.isFinite(Number(v)) ? formatCurrency(Number(v)) : 'TBD';
+        return v != null && Number.isFinite(Number(v)) ? formatCurrency(Number(v)) : 'Not set';
     };
 
     const modalOfferRaw = sel ? (sel.finalValue ?? (sel as any).offeredPrice) : undefined;
@@ -464,7 +464,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
         });
         void saveUpgradeProductIds(eligibleIds).then(() => {
             setShowUpgradeMgr(false);
-            notify?.('Upgrade target list saved.', 'success');
+            notify?.('Upgrade phones list saved.', 'success');
         }).catch((e: unknown) => {
             notify?.(e instanceof Error ? e.message : 'Could not save upgrade picks', 'error');
         });
@@ -476,7 +476,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                 <div>
                     <p className="text-[10px] font-black uppercase tracking-widest text-[#B38B21]">Trade Admin</p>
                     <p className="text-[11px] text-white/50 mt-0.5 leading-relaxed">
-                        Full lifecycle: queue flags, pricing editors, thresholds, config, questionnaire, aesthetics, audit.
+                        Open full Trade Admin: requests, prices, minimums, rules, questions, appearance, change history.
                     </p>
                 </div>
                 <button
@@ -506,7 +506,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
             <div className="bg-[#B38B21]/5 border border-[#B38B21]/20 rounded-xl p-4">
                 <p className="text-[9px] font-black uppercase tracking-widest text-[#B38B21] mb-2">Trade-in workflow</p>
                 <p className="text-[10px] text-white/45 leading-relaxed mb-3">
-                    Customer submits iPhone/iPad + component checklist → you inspect → send final offer → mark complete when upgrade stock is allocated.
+                    Customer submits iPhone/iPad + condition questions → you inspect → send final offer → mark complete when the upgrade phone is taken from stock.
                 </p>
                 <div className="flex flex-wrap gap-2 text-[9px] font-black uppercase tracking-wider text-white/50">
                     <span className="px-2 py-1 rounded-lg bg-black/30">1 · Submitted + estimate</span>
@@ -544,14 +544,14 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                 onClick={() => void navigate({ to: '/admin/trade/upgrades' })}
                                 className="flex items-center gap-1.5 px-3 py-2 bg-white/5 text-white/60 hover:text-white border border-white/10 rounded-xl text-[10px] font-black uppercase transition-all"
                             >
-                                <Package size={12} /> Upgrade targets
+                                <Package size={12} /> Upgrade phones
                             </button>
                             <button
                                 type="button"
                                 onClick={() => void navigate({ to: '/admin/trade/devices' })}
                                 className="flex items-center gap-1.5 px-3 py-2 bg-white/5 text-white/60 hover:text-white border border-white/10 rounded-xl text-[10px] font-black uppercase transition-all"
                             >
-                                <Smartphone size={12} /> Tradable devices
+                                <Smartphone size={12} /> Devices we accept
                             </button>
                         </>
                     )}
@@ -659,7 +659,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                             </div>
                             {Boolean((sel as { target_product_id?: string }).target_product_id) && (
                                 <div className="bg-black/40 rounded-xl p-2.5 col-span-2">
-                                    <p className="text-[9px] text-white/30 uppercase tracking-widest mb-0.5">Catalogue product</p>
+                                    <p className="text-[9px] text-white/30 uppercase tracking-widest mb-0.5">Shop product</p>
                                     <p className="text-xs text-white font-bold break-words">
                                         {targetProductForReview?.name || (sel as { target_product_id?: string }).target_product_id || '—'}
                                     </p>
@@ -773,7 +773,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                                         </>
                                     ) : (
                                         <p className="text-[10px] text-white/35">
-                                            No product linked yet — the customer has not chosen an upgrade target on the trade-in flow.
+                                            No upgrade phone linked yet — the customer hasn’t chosen one.
                                         </p>
                                     )}
                                 </div>
@@ -878,18 +878,18 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                     <div className="p-6">
                         <h3 className="text-base font-black text-white mb-1">Manage upgrade picks</h3>
                         <p className="text-[10px] text-white/30 mb-4 leading-relaxed">
-                            Only products with a Matching trade-in model (trade-linked) can be added.
-                            Prefer Trade Admin → Upgrade targets for the shared saved list. Clear the list to show all trade-linked iPhone / iPad products.
+                            Only products linked to a trade-in model can be added.
+                            Prefer Trade Admin → Upgrade phones for the shared saved list. Clear the list to show all linked iPhone / iPad shop products.
                         </p>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-h-0">
                             <div className="flex flex-col min-h-0 border border-white/10 rounded-xl overflow-hidden bg-black/30">
                                 <div className="p-3 border-b border-white/10 shrink-0">
-                                    <SearchInput value={upgradeMgrQ} onChange={setUpgradeMgrQ} placeholder="Search catalogue..." />
+                                    <SearchInput value={upgradeMgrQ} onChange={setUpgradeMgrQ} placeholder="Search shop products..." />
                                 </div>
                                 <div className="max-h-[48vh] overflow-y-auto p-2 space-y-1">
                                     {upgradeCatalogRows.length === 0 ? (
                                         <p className="text-[10px] text-white/30 p-3 leading-relaxed">
-                                            No trade-linked products. Set Matching trade-in model on Products first.
+                                            No linked products. Set Matching trade-in model on Products first.
                                         </p>
                                     ) : (
                                         upgradeCatalogRows.map((p) => (
@@ -989,7 +989,7 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                             <button
                                 type="button"
                                 onClick={() => {
-                                    if (!window.confirm('Reset catalog to built-in defaults? Your custom devices will be removed from this browser.')) return;
+                                    if (!window.confirm('Reset the device list to the built-in list? Your custom devices will be removed from this computer.')) return;
                                     saveDevices([...DEFAULT_TRADE_DEVICES]);
                                 }}
                                 className="text-[10px] font-black uppercase text-white/40 hover:text-[#B38B21] border border-white/10 rounded-lg px-2 py-1.5"

@@ -118,7 +118,7 @@ export const TradeAdminQuestionnaire: React.FC = () => {
   };
 
   const addQuestion = async () => {
-    const code = window.prompt('Question code (unique, e.g. screen_cracked):');
+    const code = window.prompt('Short internal name (unique, e.g. screen cracked):');
     if (!code?.trim()) return;
     const text = window.prompt('Question text shown to customer:');
     if (!text?.trim()) return;
@@ -181,13 +181,13 @@ export const TradeAdminQuestionnaire: React.FC = () => {
           const result = await deleteQuestionIfSafe(pendingDelete.id);
           notify?.(
             result === 'deactivated'
-              ? 'Question deactivated (answers still referenced).'
+              ? 'Question turned off (old answers still use it).'
               : 'Question deleted.',
             'success',
           );
         } catch {
           await deactivateQuestion(pendingDelete.id);
-          notify?.('Question deactivated.', 'success');
+          notify?.('Question turned off.', 'success');
         }
       } else {
         await deleteAnswer(pendingDelete.id);
@@ -307,7 +307,7 @@ export const TradeAdminQuestionnaire: React.FC = () => {
 
       <p className="text-[10px] text-white/40">
         Turn a question on (Active) and it appears in the customer condition quiz right away — no
-        redeploy needed. Tap ⓘ next to Gate / Outcome for what each setting means.
+        update required. Tap ⓘ next to Critical check / What this answer does for what each setting means.
       </p>
 
       {error && (
@@ -364,7 +364,7 @@ export const TradeAdminQuestionnaire: React.FC = () => {
                       <span className="text-[8px] uppercase text-white/40">hidden</span>
                     )}
                     {q.is_gate && (
-                      <span className="text-[8px] uppercase text-amber-300">must-pass</span>
+                      <span className="text-[8px] uppercase text-amber-300">Must pass</span>
                     )}
                   </div>
                   <input
@@ -394,8 +394,8 @@ export const TradeAdminQuestionnaire: React.FC = () => {
                         checked={q.is_gate}
                         onChange={(e) => void saveQuestionField(q.id, { is_gate: e.target.checked })}
                       />
-                      Must-pass check
-                      <FieldInfoTip title="Must-pass check" body={TRADE_GATE_TIP} />
+                      Critical check
+                      <FieldInfoTip title="Critical check" body={TRADE_GATE_TIP} />
                     </label>
                     <label className="inline-flex items-center gap-1">
                       <input
@@ -569,7 +569,7 @@ export const TradeAdminQuestionnaire: React.FC = () => {
         }
         message={
           pendingDelete?.kind === 'question'
-            ? 'Remove this question? If answers are still referenced it will be deactivated instead of hard-deleted.'
+            ? 'Remove this question? If old answers still use it, it will be turned off instead of deleted.'
             : 'Are you sure you want to delete this answer?'
         }
         requireTypedDelete={pendingDelete?.kind === 'question'}

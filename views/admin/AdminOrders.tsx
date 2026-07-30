@@ -61,7 +61,7 @@ export const AdminOrders: React.FC = () => {
         if (r === 'in_person' || r === 'pickup_cash') return 'Pay on pickup';
         if (r === 'mobile_money') return 'Mobile Money';
         if (r === 'card') return 'Card';
-        return raw ? String(raw) : 'N/A';
+        return raw ? String(raw) : '—';
     };
 
     const shippingMethodLabel = (raw?: string) => {
@@ -449,7 +449,7 @@ export const AdminOrders: React.FC = () => {
                                         <MapPin size={12} /> Customer & Delivery
                                     </h3>
                                     <p className={`text-sm font-bold mb-1 ${strongCls}`}>{sel.userName || 'Guest User'}</p>
-                                    <p className={`text-xs mb-1 ${bodyCls}`}>{sel.userEmail || 'N/A'}</p>
+                                    <p className={`text-xs mb-1 ${bodyCls}`}>{sel.userEmail || '—'}</p>
                                     <p className={`text-xs mb-1 ${bodyCls}`}>{sel.userPhone || 'No phone'}</p>
                                     <p className={`text-xs mb-3 ${bodyCls}`}>{sel.shipping_address || 'No address provided'}</p>
                                     <div className={`pt-3 border-t flex items-center justify-between text-xs ${isLight ? 'border-black/10' : 'border-white/5'}`}>

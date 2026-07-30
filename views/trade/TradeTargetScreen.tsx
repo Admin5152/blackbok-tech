@@ -1,7 +1,7 @@
 /**
  * Spec Screen 5 — Target device picker (live shop SKUs from v_trade_targets).
  *
- * Drilldown: category → model card → storage → SIM → RAM → colour.
+ * Drilldown: category → model card → (New/Pre-owned if both) → storage → SIM → RAM → colour.
  * Each step only lists options that exist on in-stock SKU rows for that product
  * (e.g. iPhone 17 → only real 256GB / eSIM / RAM / colours).
  *
@@ -15,12 +15,12 @@
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { Banknote, Smartphone } from 'lucide-react';
+import { Banknote, Search, Smartphone, X } from 'lucide-react';
 import { useTradeFlow } from '../../lib/tradeFlowContext';
 import { TradePhasePills } from '../../components/trade/TradePhasePills';
 import { PageBackButton } from '../../components/PageBackButton';
 import { Pagination } from '../../components/Pagination';
-import { PAGE_SIZES, usePagination } from '../../lib/pagination';
+import { usePagination } from '../../lib/pagination';
 import { getTradeTargets } from '../../lib/tradeApi';
 import { getProductPageRow } from '../../lib/catalogApi';
 import { displayImageForColorSelection } from '../../lib/productColorImages';
@@ -29,27 +29,31 @@ import { TRADE_COPY, simVariantLabel } from '../../lib/tradeCopy';
 import {
   filterTradeTargetRowsByUpgradePicks,
   loadUpgradeProductIds,
-  orderTargetProductsByAllowlist,
   TRADE_UPGRADE_PICKS_UPDATED_EVENT,
 } from '../../lib/tradeUpgradePicks';
 import {
+  conditionsInGroup,
   distinctTargetCategories,
   distinctTargetRam,
   distinctTargetSims,
   distinctTargetStorage,
   filterInStockTargets,
   findTargetSku,
+  formatTargetConditionLabel,
   formatTargetSelectionSummary,
-  groupTargetsByProduct,
+  groupTargetsByModel,
+  orderTargetModelGroupsByAllowlist,
   selectionHasStock,
+  summaryFromConditionMember,
   targetColorRows,
+  type TargetModelGroup,
   type TargetProductSummary,
 } from '../../lib/tradeTargetHelpers';
 import type { TradeTargetLock } from '../../lib/tradeFlowState';
 import { useAppContext } from '../../lib/appContext';
 import type { TradeTargetRow } from '../../types/supabase';
 
-type Phase = 'browse' | 'configure' | 'review';
+type Phase = 'browse' | 'condition' | 'configure' | 'review';
 
 export function TradeTargetScreen() {
   const { theme, notify } = useAppContext();
@@ -69,6 +73,8 @@ export function TradeTargetScreen() {
 
   const [phase, setPhase] = useState<Phase>('browse');
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedGroup, setSelectedGroup] = useState<TargetModelGroup | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<TargetProductSummary | null>(null);
   const [storage, setStorage] = useState<string | null>(null);
   const [sim, setSim] = useState<string | null>(null);
@@ -147,18 +153,26 @@ export function TradeTargetScreen() {
     }
   }, [categories, categoryFilter]);
 
-  const products = useMemo(() => {
+  const modelGroups = useMemo(() => {
     const filtered = categoryFilter
       ? browseSourceRows.filter((r) => r.category === categoryFilter)
       : browseSourceRows;
-    const grouped = groupTargetsByProduct(filtered);
-    return orderTargetProductsByAllowlist(grouped, allowIds);
-  }, [browseSourceRows, categoryFilter, allowIds]);
+    const grouped = groupTargetsByModel(filtered);
+    const ordered = orderTargetModelGroupsByAllowlist(grouped, allowIds);
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return ordered;
+    return ordered.filter((g) => {
+      const hay = `${g.name} ${g.category ?? ''} ${g.tradeModel ?? ''} ${g.members
+        .map((m) => m.name)
+        .join(' ')}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [browseSourceRows, categoryFilter, allowIds, searchQuery]);
 
   const targetPaging = usePagination(
-    products,
-    PAGE_SIZES.catalog,
-    `${categoryFilter ?? 'all'}|${products.length}`,
+    modelGroups,
+    36,
+    `${categoryFilter ?? 'all'}|${searchQuery.trim()}|${modelGroups.length}`,
   );
 
   const productHasStock = useMemo(() => {
@@ -166,6 +180,16 @@ export function TradeTargetScreen() {
     for (const r of stockRows) set.add(r.product_id);
     return set;
   }, [stockRows]);
+
+  const groupHasStock = (g: TargetModelGroup) =>
+    g.members.some((m) => productHasStock.has(m.productId));
+
+  const groupConditions = useMemo(
+    () => (selectedGroup ? conditionsInGroup(selectedGroup) : []),
+    [selectedGroup],
+  );
+
+  const groupNeedsConditionPick = groupConditions.length >= 2;
 
   /** Configure against all variants for this product (incl. OOS prefs) */
   const productRows = useMemo(() => {
@@ -354,7 +378,17 @@ export function TradeTargetScreen() {
           : 'border-white/10 bg-white/[0.03] hover:border-[#CDA032]/40'
     }`;
 
-  const openConfigure = (p: TargetProductSummary) => {
+  const filterChipClass = (selected: boolean) =>
+    `shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-bold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032] ${
+      selected
+        ? 'border-[#CDA032] bg-[#CDA032]/15 text-[#CDA032]'
+        : isLight
+          ? 'border-black/10 bg-white hover:border-[#CDA032]/40'
+          : 'border-white/10 bg-white/[0.04] hover:border-[#CDA032]/40'
+    }`;
+
+  const openConfigure = (p: TargetProductSummary, group: TargetModelGroup | null = selectedGroup) => {
+    setSelectedGroup(group);
     setSelectedProduct(p);
     setStorage(null);
     setSim(null);
@@ -375,6 +409,54 @@ export function TradeTargetScreen() {
       .catch(() => {
         /* optional detail — configure still works */
       });
+  };
+
+  const openModelGroup = (g: TargetModelGroup) => {
+    setSelectedGroup(g);
+    setSelectedProduct(null);
+    setStorage(null);
+    setSim(null);
+    setRam(null);
+    setColor(null);
+    setProductDetail(null);
+    const conditions = conditionsInGroup(g);
+    if (conditions.length >= 2) {
+      setPhase('condition');
+      return;
+    }
+    const only = g.members[0];
+    if (only) openConfigure(summaryFromConditionMember(only), g);
+  };
+
+  const selectCondition = (condition: string) => {
+    if (!selectedGroup) return;
+    const member =
+      selectedGroup.members.find((m) => m.condition === condition) ??
+      selectedGroup.members[0];
+    if (!member) return;
+    openConfigure(summaryFromConditionMember(member), selectedGroup);
+  };
+
+  const backFromConfigure = () => {
+    if (selectedGroup && conditionsInGroup(selectedGroup).length >= 2) {
+      setSelectedProduct(null);
+      setStorage(null);
+      setSim(null);
+      setRam(null);
+      setColor(null);
+      setProductDetail(null);
+      setPhase('condition');
+      return;
+    }
+    setSelectedGroup(null);
+    setSelectedProduct(null);
+    setPhase('browse');
+  };
+
+  const backFromCondition = () => {
+    setSelectedGroup(null);
+    setSelectedProduct(null);
+    setPhase('browse');
   };
 
   const lockTarget = (lock: TradeTargetLock) => {
@@ -437,6 +519,12 @@ export function TradeTargetScreen() {
   const detailRows = useMemo(() => {
     if (!selectedProduct) return [];
     const rows: Array<{ label: string; value: string }> = [];
+    if (selectedProduct.condition) {
+      rows.push({
+        label: TRADE_COPY.target.detailCondition,
+        value: formatTargetConditionLabel(selectedProduct.condition),
+      });
+    }
     const stor = selectedSku?.storage ?? storage;
     const r = selectedSku?.ram ?? ram;
     const s = selectedSku?.sim_type ?? sim;
@@ -637,6 +725,87 @@ export function TradeTargetScreen() {
     );
   }
 
+  // ── New / Pre-owned (only when model group has 2+ conditions) ──
+  if (phase === 'condition' && selectedGroup && groupNeedsConditionPick) {
+    return (
+      <section aria-labelledby="trade-target-condition-heading" className="space-y-6">
+        <TradePhasePills active="upgrade" maxReachable="upgrade" />
+        <PageBackButton
+          isLight={isLight}
+          label={TRADE_COPY.back}
+          onClick={backFromCondition}
+        />
+
+        <div className="flex flex-col sm:flex-row gap-6 items-start">
+          <div
+            className={`w-full sm:w-40 aspect-square rounded-2xl flex items-center justify-center overflow-hidden shrink-0 ${
+              isLight ? 'bg-black/[0.04]' : 'bg-white/[0.06]'
+            }`}
+          >
+            {selectedGroup.image ? (
+              <img
+                src={selectedGroup.image}
+                alt=""
+                className="w-full h-full object-contain p-3"
+              />
+            ) : (
+              <Smartphone size={40} className="text-[#CDA032]/60" aria-hidden />
+            )}
+          </div>
+          <div className="min-w-0 flex-1 space-y-2">
+            <h1
+              id="trade-target-condition-heading"
+              className="text-xl sm:text-2xl font-black tracking-tight"
+            >
+              {selectedGroup.name}
+            </h1>
+            <p className={`text-sm ${isLight ? 'text-black/55' : 'text-white/50'}`}>
+              {TRADE_COPY.target.askConditionHint}
+            </p>
+          </div>
+        </div>
+
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#CDA032] mb-3">
+            {TRADE_COPY.target.askCondition}
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {groupConditions.map((cond) => {
+              const member = selectedGroup.members.find((m) => m.condition === cond);
+              if (!member) return null;
+              const inStock = productHasStock.has(member.productId);
+              return (
+                <button
+                  key={cond}
+                  type="button"
+                  onClick={() => selectCondition(cond)}
+                  className={`flex flex-col items-start rounded-2xl border-2 p-4 sm:p-5 text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032] ${
+                    isLight
+                      ? 'border-black/10 bg-white hover:border-[#CDA032]/40'
+                      : 'border-white/10 bg-white/[0.03] hover:border-[#CDA032]/40'
+                  }`}
+                >
+                  <span className="text-sm font-black uppercase tracking-widest text-[#CDA032]">
+                    {formatTargetConditionLabel(cond)}
+                  </span>
+                  <span className="mt-2 text-sm font-bold leading-snug">{member.name}</span>
+                  <span className="mt-1.5 text-[11px] font-black tabular-nums text-[#CDA032]">
+                    from {formatGhs(member.priceFrom)}
+                  </span>
+                  {!inStock && (
+                    <span className="mt-1 text-[8px] font-black uppercase tracking-wider text-amber-500/90">
+                      {TRADE_COPY.target.availabilityPreference}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   // ── Configure SKU phase ──
   if (phase === 'configure' && selectedProduct) {
     return (
@@ -644,8 +813,12 @@ export function TradeTargetScreen() {
         <TradePhasePills active="upgrade" maxReachable="upgrade" />
         <PageBackButton
           isLight={isLight}
-          label={TRADE_COPY.back}
-          onClick={() => setPhase('browse')}
+          label={
+            groupNeedsConditionPick
+              ? TRADE_COPY.target.changeCondition
+              : TRADE_COPY.back
+          }
+          onClick={backFromConfigure}
         />
 
         <div className="flex flex-col sm:flex-row gap-6 items-start">
@@ -671,6 +844,11 @@ export function TradeTargetScreen() {
             >
               {selectedProduct.name}
             </h1>
+            {selectedProduct.condition ? (
+              <p className="mt-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#CDA032]">
+                {formatTargetConditionLabel(selectedProduct.condition)}
+              </p>
+            ) : null}
             <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#CDA032] mt-1">
               {TRADE_COPY.target.configureSku}
             </p>
@@ -851,71 +1029,96 @@ export function TradeTargetScreen() {
 
   // ── Browse phase ──
   return (
-    <section aria-labelledby="trade-target-heading" className="space-y-6">
+    <section aria-labelledby="trade-target-heading" className="space-y-4">
       <TradePhasePills active="upgrade" maxReachable="upgrade" />
-      <div className="space-y-2">
+
+      <div className="space-y-1">
         <h2
           id="trade-target-heading"
-          className="text-2xl font-bold tracking-tight"
+          className="text-xl sm:text-2xl font-bold tracking-tight"
         >
           {TRADE_COPY.target.heading}
         </h2>
-        <p className={`text-sm ${isLight ? 'text-black/55' : 'text-white/50'}`}>
+        <p className={`text-xs sm:text-sm ${isLight ? 'text-black/55' : 'text-white/50'}`}>
           {TRADE_COPY.target.subheading}
+          {state.deviceLock ? (
+            <span className={isLight ? ' text-black/40' : ' text-white/35'}>
+              {' '}
+              · Trading in {state.deviceLock.model}
+              {state.deviceLock.storage ? ` ${state.deviceLock.storage}` : ''}
+            </span>
+          ) : null}
         </p>
-        <p className={`text-xs ${isLight ? 'text-black/45' : 'text-white/40'}`}>
-          {TRADE_COPY.target.pickHint}
-        </p>
-        {state.deviceLock && (
-          <p
-            className={`text-xs ${
-              isLight ? 'text-black/40' : 'text-white/35'
-            }`}
-          >
-            Trading in: {state.deviceLock.model} · {state.deviceLock.storage}
-            {state.deviceLock.color ? ` · ${state.deviceLock.color}` : ''}
-          </p>
-        )}
       </div>
 
-      {/* Cash trade-in only — target=null path */}
-      <button
-        type="button"
-        onClick={handleCashOnly}
-        className={`w-full flex items-start gap-4 rounded-2xl border-2 p-4 sm:p-5 text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032] ${
-          state.targetLock?.cashOnly
-            ? 'border-[#CDA032] bg-[#CDA032]/10'
-            : isLight
-              ? 'border-black/10 bg-white hover:border-[#CDA032]/40'
-              : 'border-white/10 bg-white/[0.03] hover:border-[#CDA032]/40'
+      {/* Sticky filters — stay visible while scrolling the phone list */}
+      <div
+        className={`sticky top-0 z-20 -mx-1 px-1 py-2 space-y-2 backdrop-blur-md ${
+          isLight ? 'bg-[color:var(--bb-bg)]/90' : 'bg-[color:var(--bb-bg)]/90'
         }`}
       >
-        <Banknote size={28} className="text-[#CDA032] shrink-0 mt-0.5" aria-hidden />
-        <span>
-          <span className="block text-sm font-black uppercase tracking-widest">
-            {TRADE_COPY.target.cashOnly}
-          </span>
-          <span
-            className={`block text-xs mt-1 leading-relaxed ${
-              isLight ? 'text-black/50' : 'text-white/45'
-            }`}
-          >
-            {TRADE_COPY.target.cashOnlyHint}
-          </span>
-        </span>
-      </button>
+        <div className="flex gap-2">
+          <label className="relative block min-w-0 flex-1">
+            <span className="sr-only">Search upgrade devices</span>
+            <Search
+              size={15}
+              className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 ${
+                isLight ? 'text-black/35' : 'text-white/35'
+              }`}
+              aria-hidden
+            />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search model…"
+              autoComplete="off"
+              enterKeyHint="search"
+              className={`w-full rounded-xl border pl-9 pr-9 py-2.5 text-sm font-medium outline-none transition-colors focus:border-[#CDA032]/60 focus-visible:ring-2 focus-visible:ring-[#CDA032]/35 ${
+                isLight
+                  ? 'border-black/10 bg-white text-black placeholder:text-black/35'
+                  : 'border-white/10 bg-white/[0.04] text-white placeholder:text-white/35'
+              }`}
+            />
+            {searchQuery.trim() ? (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className={`absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 transition-colors ${
+                  isLight
+                    ? 'text-black/40 hover:bg-black/5 hover:text-black'
+                    : 'text-white/40 hover:bg-white/10 hover:text-white'
+                }`}
+                aria-label="Clear search"
+              >
+                <X size={14} aria-hidden />
+              </button>
+            ) : null}
+          </label>
 
-      {/* Category filter — cross-type allowed */}
-      {categories.length > 0 && (
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#CDA032] mb-3">
-            {TRADE_COPY.target.browseByCategory}
-          </p>
-          <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={handleCashOnly}
+            className={`shrink-0 inline-flex items-center gap-1.5 rounded-xl border px-3 py-2.5 text-[11px] font-black uppercase tracking-wide transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032] ${
+              state.targetLock?.cashOnly
+                ? 'border-[#CDA032] bg-[#CDA032]/15 text-[#CDA032]'
+                : isLight
+                  ? 'border-black/10 bg-white text-black/70 hover:border-[#CDA032]/40'
+                  : 'border-white/10 bg-white/[0.04] text-white/70 hover:border-[#CDA032]/40'
+            }`}
+            title={TRADE_COPY.target.cashOnlyHint}
+          >
+            <Banknote size={14} aria-hidden />
+            Cash
+          </button>
+        </div>
+
+        {categories.length > 0 && (
+          <div className="flex gap-1.5 overflow-x-auto bb-scrollbar pb-0.5 -mx-0.5 px-0.5">
             <button
               type="button"
               onClick={() => setCategoryFilter(null)}
-              className={chipClass(categoryFilter === null)}
+              className={filterChipClass(categoryFilter === null)}
             >
               All
             </button>
@@ -924,52 +1127,65 @@ export function TradeTargetScreen() {
                 key={cat}
                 type="button"
                 onClick={() => setCategoryFilter(cat)}
-                className={chipClass(categoryFilter === cat)}
+                className={filterChipClass(categoryFilter === cat)}
               >
                 {cat}
               </button>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {products.length === 0 ? (
-        <div className="text-center py-12 space-y-2 px-4">
+      {modelGroups.length === 0 ? (
+        <div className="text-center py-10 space-y-2 px-4">
           <p className="text-sm text-[color:var(--bb-muted)]">
-            {TRADE_COPY.states.emptyTargets}
+            {searchQuery.trim()
+              ? `No upgrades match “${searchQuery.trim()}”.`
+              : TRADE_COPY.states.emptyTargets}
           </p>
-          {allowIds?.length ? (
-            <p className="text-xs text-[color:var(--bb-muted)] max-w-md mx-auto leading-relaxed">
-              Staff selected {allowIds.length} upgrade product(s), but none are ready to show.
-              Each product needs Matching trade-in model set to an active Tradable device, and
-              the product must be active in Admin → Products.
-            </p>
+          {searchQuery.trim() ? (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="text-xs font-bold text-[#CDA032] underline"
+            >
+              Clear search
+            </button>
           ) : (
             <p className="text-xs text-[color:var(--bb-muted)] max-w-md mx-auto leading-relaxed">
-              Nothing listed yet. In admin: list Tradable devices, set Matching trade-in model
-              on shop products, then add them under Upgrade phones (or leave that list empty to
-              show all linked iPhone / iPad).
+              Ask staff to link shop phones for trade-in upgrades, or choose Cash above.
             </p>
           )}
         </div>
       ) : (
         <>
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#CDA032]">
-            {TRADE_COPY.target.pickModel}
-          </p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
-            {targetPaging.pageItems.map((p) => {
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#CDA032]">
+              {TRADE_COPY.target.pickModel}
+            </p>
+            <p className={`text-[11px] tabular-nums ${isLight ? 'text-black/45' : 'text-white/40'}`}>
+              {modelGroups.length === 1 ? '1 phone' : `${modelGroups.length} phones`}
+              {searchQuery.trim() || categoryFilter ? ' match' : ''}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-2.5">
+            {targetPaging.pageItems.map((g) => {
               const selected =
                 state.targetLock &&
                 !state.targetLock.cashOnly &&
-                state.targetLock.productId === p.productId;
-              const inStock = productHasStock.has(p.productId);
+                Boolean(
+                  state.targetLock.productId &&
+                    g.members.some((m) => m.productId === state.targetLock?.productId),
+                );
+              const inStock = groupHasStock(g);
+              const conditions = conditionsInGroup(g);
               return (
                 <button
-                  key={p.productId}
+                  key={g.key}
                   type="button"
-                  onClick={() => openConfigure(p)}
-                  className={`flex flex-col items-center rounded-2xl border-2 p-4 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032] ${
+                  onClick={() => openModelGroup(g)}
+                  className={`flex flex-col items-stretch rounded-xl border p-2 sm:p-2.5 text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032] ${
                     selected
                       ? 'border-[#CDA032] bg-[#CDA032]/10'
                       : isLight
@@ -978,53 +1194,55 @@ export function TradeTargetScreen() {
                   }`}
                 >
                   <div
-                    className={`w-full aspect-square rounded-xl mb-3 flex items-center justify-center overflow-hidden ${
+                    className={`w-full aspect-square rounded-lg mb-1.5 flex items-center justify-center overflow-hidden ${
                       isLight ? 'bg-black/[0.04]' : 'bg-white/[0.06]'
                     }`}
                   >
-                    {p.image ? (
+                    {g.image ? (
                       <img
-                        src={p.image}
+                        src={g.image}
                         alt=""
-                        className="w-full h-full object-contain p-2"
+                        className="w-full h-full object-contain p-1.5"
                         loading="lazy"
                       />
                     ) : (
-                      <Smartphone size={32} className="text-[#CDA032]/60" aria-hidden />
+                      <Smartphone size={22} className="text-[#CDA032]/60" aria-hidden />
                     )}
                   </div>
-                  <span className="text-xs sm:text-sm font-bold text-center leading-snug">
-                    {p.name}
+                  <span className="text-[11px] sm:text-xs font-bold leading-snug line-clamp-2 min-h-[2.4em]">
+                    {g.name}
                   </span>
-                  <span className="mt-1.5 text-[11px] font-black tabular-nums text-[#CDA032]">
-                    from {formatGhs(p.priceFrom)}
+                  <span className="mt-1 text-[10px] sm:text-[11px] font-black tabular-nums text-[#CDA032]">
+                    from {formatGhs(g.priceFrom)}
                   </span>
-                  {!inStock && (
-                    <span className="mt-1 text-[8px] font-black uppercase tracking-wider text-amber-500/90">
-                      {TRADE_COPY.target.availabilityPreference}
-                    </span>
-                  )}
-                  {p.hasTradeModel && p.tradeModel ? (
+                  {conditions.length >= 2 ? (
                     <span
-                      className={`mt-1 text-[8px] font-black uppercase tracking-wider ${
-                        isLight ? 'text-black/40' : 'text-white/35'
+                      className={`mt-0.5 text-[8px] font-black uppercase tracking-wider ${
+                        isLight ? 'text-black/45' : 'text-white/40'
                       }`}
                     >
-                      → {p.tradeModel}
+                      New · Pre-owned
+                    </span>
+                  ) : !inStock ? (
+                    <span className="mt-0.5 text-[8px] font-black uppercase tracking-wider text-amber-500/90">
+                      {TRADE_COPY.target.availabilityPreference}
                     </span>
                   ) : null}
                 </button>
               );
             })}
           </div>
-          <Pagination
-            page={targetPaging.page}
-            pageCount={targetPaging.pageCount}
-            onPageChange={targetPaging.setPage}
-            total={targetPaging.total}
-            pageSize={PAGE_SIZES.catalog}
-            isLight={isLight}
-          />
+
+          {targetPaging.pageCount > 1 ? (
+            <Pagination
+              page={targetPaging.page}
+              pageCount={targetPaging.pageCount}
+              onPageChange={targetPaging.setPage}
+              total={targetPaging.total}
+              pageSize={36}
+              isLight={isLight}
+            />
+          ) : null}
         </>
       )}
 

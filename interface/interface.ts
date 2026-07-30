@@ -30,6 +30,10 @@ export interface User {
   password: string;
   role: 'user' | 'admin' | 'staff';
   wishlist?: string[]; // Array of product IDs
+  phone?: string;
+  address?: string;
+  city?: string;
+  region?: string;
 }
 
 export interface CartItem extends Product {

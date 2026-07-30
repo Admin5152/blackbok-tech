@@ -113,7 +113,7 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
 
   const [formData, setFormData] = useState({
     name: user?.name || '', email: user?.email || '',
-    phone: '', address: '', date: '', timeSlot: '',
+    phone: user?.phone || '', address: user?.address || '', date: '', timeSlot: '',
     fulfillmentMethod: 'Headquarters' as 'Headquarters' | 'Pickup',
   });
 
@@ -146,6 +146,18 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
       }
     }
   }, [step, subStep, tradePhase, bookingPhase]);
+
+  // Prefill contact from profile; keep editable (only fill empty fields).
+  useEffect(() => {
+    if (!user) return;
+    setFormData((prev) => ({
+      ...prev,
+      name: prev.name.trim() ? prev.name : user.name || '',
+      email: prev.email.trim() ? prev.email : user.email || '',
+      phone: prev.phone.trim() ? prev.phone : user.phone || '',
+      address: prev.address.trim() ? prev.address : user.address || '',
+    }));
+  }, [user?.id, user?.name, user?.email, user?.phone, user?.address]);
 
   // Admin device list override (merged onto catalog so deviceType/brand/img stay valid)
   useEffect(() => {
@@ -1725,8 +1737,8 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                       setFormData({
                         name: user?.name || '',
                         email: user?.email || '',
-                        phone: '',
-                        address: '',
+                        phone: user?.phone || '',
+                        address: user?.address || '',
                         date: '',
                         timeSlot: '',
                         fulfillmentMethod: 'Headquarters',

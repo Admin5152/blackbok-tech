@@ -1,7 +1,7 @@
 /**
- * Trade Admin — Upgrade targets: which shop products customers can trade into.
+ * Trade Admin — Upgrade phones: which shop products customers can trade into.
  *
- * Staff pick from the shop catalogue. Products need a catalog model link
+ * Staff pick from the shop catalogue. Products need a trade-in phone link
  * (`products.trade_model`). If not linked, Add opens a quick assign popup.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -90,7 +90,7 @@ export const TradeAdminUpgrades: React.FC = () => {
         );
       }
     } catch (e) {
-      notify?.(friendlyError(e, 'load upgrade targets'), 'error');
+      notify?.(friendlyError(e, 'load upgrade phones'), 'error');
     } finally {
       setLoading(false);
     }
@@ -180,7 +180,7 @@ export const TradeAdminUpgrades: React.FC = () => {
             window.dispatchEvent(new CustomEvent('products:refresh'));
           } catch (e) {
             openLinkModal(p, true);
-            notify?.(friendlyError(e, 'auto-link catalog model'), 'warning');
+            notify?.(friendlyError(e, 'link the trade-in model'), 'warning');
           }
         })();
         return;
@@ -190,14 +190,14 @@ export const TradeAdminUpgrades: React.FC = () => {
     }
 
     const reason = tradeUpgradeBlockReason(p);
-    notify?.(reason || 'This product cannot be used as an upgrade target.', 'error');
+    notify?.(reason || 'This product cannot be used as an upgrade phone.', 'error');
   };
 
   const confirmLinkAndMaybeAdd = async () => {
     if (!linkModal) return;
     const model = linkModel.trim();
     if (!model) {
-      notify?.('Enter the catalog model name to link.', 'warning');
+      notify?.('Enter the model name to link (e.g. iPhone 17 Pro Max).', 'warning');
       return;
     }
 
@@ -270,20 +270,20 @@ export const TradeAdminUpgrades: React.FC = () => {
       setDirty(false);
       notify?.(
         clean.length
-          ? `Saved ${clean.length} upgrade target(s) for the trade-in page.`
-          : 'Cleared list — customers see all trade-linked iPhone / iPad products.',
+          ? `Saved ${clean.length} upgrade phone(s) for the trade-in page.`
+          : 'Cleared list — customers see all linked iPhone / iPad shop products.',
         'success',
       );
       window.dispatchEvent(new CustomEvent('products:refresh'));
     } catch (e) {
-      notify?.(friendlyError(e, 'save upgrade targets'), 'error');
+      notify?.(friendlyError(e, 'save upgrade phones'), 'error');
     } finally {
       setSaving(false);
     }
   };
 
   if (loading) {
-    return <p className="text-sm opacity-60 py-8">Loading upgrade targets…</p>;
+    return <p className="text-sm opacity-60 py-8">Loading upgrade phones…</p>;
   }
 
   return (
@@ -292,11 +292,11 @@ export const TradeAdminUpgrades: React.FC = () => {
         <div>
           <h2 className="text-xl font-black tracking-tight flex items-center gap-2">
             <Package size={20} className="text-[#CDA032]" aria-hidden />
-            Upgrade targets
+            Upgrade phones
           </h2>
           <p className="text-xs opacity-60 mt-1 max-w-2xl leading-relaxed">
             Add shop products customers can trade into. Each product needs a{' '}
-            <strong className="opacity-90">catalog model link</strong> (e.g. iPhone 17 Pro Max).
+            <strong className="opacity-90">trade-in phone link</strong> (e.g. iPhone 17 Pro Max).
             If it isn’t linked yet, Add opens a quick popup to assign the model, then adds it to
             the list. Press{' '}
             <strong className="opacity-90">Save list</strong> when done.
@@ -308,15 +308,15 @@ export const TradeAdminUpgrades: React.FC = () => {
           )}
           {listSource === 'local' && (
             <p className="text-[11px] text-amber-400 font-medium mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5">
-              This list came from this browser only (shared save failed or never ran). Save list to
-              sync for customers and other staff.
+              This list is only on this computer. Press Save list so every staff phone and customer
+              sees the same list.
             </p>
           )}
           <p className="text-[10px] uppercase tracking-widest mt-2 opacity-50">
             {pickIds.length === 0
-              ? 'Showing all trade-linked iPhone / iPad (no custom list)'
+              ? 'Showing all linked iPhone / iPad (no custom list)'
               : `${pickIds.length} product(s) on the customer list`}
-            {listSource === 'server' ? ' · shared' : listSource === 'local' ? ' · this browser' : ''}
+            {listSource === 'server' ? ' · shared' : listSource === 'local' ? ' · this computer only' : ''}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -342,7 +342,7 @@ export const TradeAdminUpgrades: React.FC = () => {
         <div className="flex flex-col min-h-0 border border-[var(--bb-border)] rounded-2xl overflow-hidden bg-[var(--bb-surface)]">
           <div className="p-3 border-b border-[var(--bb-border)] shrink-0 space-y-2">
             <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032]">
-              Shop catalogue
+              Shop products
             </p>
             <input
               value={q}
@@ -401,7 +401,7 @@ export const TradeAdminUpgrades: React.FC = () => {
                         type="button"
                         onClick={() => openLinkModal(p, false)}
                         className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-[#CDA032]/30 text-[#CDA032] text-[9px] font-black uppercase"
-                        title="Assign catalog model"
+                        title="Assign trade-in model"
                       >
                         <Link2 size={11} aria-hidden /> Link
                       </button>
@@ -431,7 +431,7 @@ export const TradeAdminUpgrades: React.FC = () => {
               onClick={() => {
                 if (
                   !window.confirm(
-                    'Clear the custom list? Customers will see all trade-linked iPhone / iPad products again.',
+                    'Clear the custom list? Customers will see all linked iPhone / iPad shop products again.',
                   )
                 ) {
                   return;
@@ -450,7 +450,7 @@ export const TradeAdminUpgrades: React.FC = () => {
           >
             {pickIds.length === 0 ? (
               <p className="text-xs opacity-40 p-4 leading-relaxed">
-                Nothing selected — the trade-in upgrade step shows every trade-linked iPhone / iPad
+                Nothing selected — the trade-in upgrade step shows every linked iPhone / iPad
                 in stock. Add products on the left to lock the list.
               </p>
             ) : (
@@ -544,7 +544,7 @@ export const TradeAdminUpgrades: React.FC = () => {
                   id="link-trade-model-title"
                   className="text-sm font-black uppercase tracking-widest text-[#CDA032]"
                 >
-                  Link catalog model
+                  Link trade-in model
                 </p>
                 <p
                   className={`text-xs mt-2 leading-relaxed ${
@@ -554,7 +554,7 @@ export const TradeAdminUpgrades: React.FC = () => {
                   <span className={`font-bold ${isLight ? 'text-black' : 'text-[#F5F5F5]'}`}>
                     {linkModal.product.name}
                   </span>{' '}
-                  needs a catalog model link so customers can pick it as an upgrade target.
+                  needs a trade-in phone link so customers can pick it as an upgrade phone.
                 </p>
               </div>
               <button
@@ -577,7 +577,7 @@ export const TradeAdminUpgrades: React.FC = () => {
                   isLight ? 'text-black/60' : 'text-[#B0B0B0]'
                 }`}
               >
-                Catalog model name
+                Trade-in model name
               </label>
               <input
                 list="bb-trade-catalog-models"
@@ -596,7 +596,7 @@ export const TradeAdminUpgrades: React.FC = () => {
                 ))}
               </datalist>
               <p className={`text-[10px] mt-2 leading-relaxed ${isLight ? 'text-black/50' : 'text-white/45'}`}>
-                Use the exact model name. New names are saved to the catalog automatically.
+                Use the exact model name. New names are saved for trade-in automatically.
               </p>
             </div>
 

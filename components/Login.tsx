@@ -145,7 +145,11 @@ export const Login: React.FC<LoginProps> = ({
           name: response.user.name || 'User',
           email: response.user.email,
           password: formData.password, // Keep password for compatibility
-          role: resolvedRole
+          role: resolvedRole,
+          phone: response.user.phone,
+          address: response.user.address,
+          city: response.user.city,
+          region: response.user.region,
         };
 
         console.log('Final user object:', user);

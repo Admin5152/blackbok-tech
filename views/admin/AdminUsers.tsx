@@ -8,8 +8,8 @@ import { formatCurrency } from '../../lib/utils';
 
 // Matches public.app_role: user | admin | staff (profiles.role CHECK).
 const ROLES = [
-    { id: 'user', label: 'User', icon: Users, desc: 'Storefront access (same as legacy "customer")', color: '#6b7280' },
-    { id: 'staff', label: 'Staff', icon: BadgeCheck, desc: 'Sales / ops — catalog & orders (not full admin)', color: '#10b981' },
+    { id: 'user', label: 'User', icon: Users, desc: 'Can shop on the website (customer account)', color: '#6b7280' },
+    { id: 'staff', label: 'Staff', icon: BadgeCheck, desc: 'Can manage shop & orders (not full admin)', color: '#10b981' },
     { id: 'admin', label: 'Admin', icon: Shield, desc: 'Full system access', color: '#6366f1' },
 ] as const;
 
@@ -332,7 +332,7 @@ export const AdminUsers: React.FC<{
             {listTab === 'deleted' ? (
                 <>
                     <p className="text-xs text-white/50">
-                        Customers who used “Delete account” in their profile. Auth and shop rows for that login are removed; this list is kept for support and audit.
+                        Customers who used “Delete account” in their profile. Their login and shop account are removed; this list is kept for support.
                     </p>
                     {deletedLoadError && (
                         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200 font-medium">
@@ -355,7 +355,7 @@ export const AdminUsers: React.FC<{
                                             <th className="text-left p-4 font-black uppercase text-[10px] text-white/50 tracking-widest">Removed</th>
                                             <th className="text-left p-4 font-black uppercase text-[10px] text-white/50 tracking-widest">Email</th>
                                             <th className="text-left p-4 font-black uppercase text-[10px] text-white/50 tracking-widest">Display name</th>
-                                            <th className="text-left p-4 font-black uppercase text-[10px] text-white/50 tracking-widest">Former user id</th>
+                                            <th className="text-left p-4 font-black uppercase text-[10px] text-white/50 tracking-widest">Former account</th>
                                         </tr>
                                     </thead>
                                     <tbody>

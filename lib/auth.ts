@@ -4,12 +4,36 @@ import type { User } from '../interface/interface';
 import { normalizeCanonicalRole, type CanonicalAppRole, canAccessAdminDashboard } from './roles';
 import { resolveUserDisplayName } from './userDisplayName';
 
+/** Contact fields from a profiles row (for form prefills). */
+function contactFieldsFromProfile(profile: {
+  phone?: string | null;
+  address?: string | null;
+  city?: string | null;
+  region?: string | null;
+} | null | undefined): Pick<AuthUser, 'phone' | 'address' | 'city' | 'region'> {
+  const trim = (v: unknown) => {
+    const s = String(v ?? '').trim();
+    return s || undefined;
+  };
+  return {
+    phone: trim(profile?.phone),
+    address: trim(profile?.address),
+    city: trim(profile?.city),
+    region: trim(profile?.region),
+  };
+}
+
 // Authentication Types
 export interface AuthUser {
   id: string;
   email: string;
   name?: string;
   role?: CanonicalAppRole;
+  /** From profiles — used to prefill trade/repair/checkout contact forms */
+  phone?: string;
+  address?: string;
+  city?: string;
+  region?: string;
 }
 
 export interface LoginCredentials {
@@ -363,7 +387,8 @@ class AuthService {
             id: data.user.id,
             email: data.user.email || '',
             name: resolveUserDisplayName(profileRow?.name, data.user),
-            role: finalRole
+            role: finalRole,
+            ...contactFieldsFromProfile(profileRow),
           };
           
           console.log(' Final auth user:', authUser);
@@ -623,7 +648,8 @@ class AuthService {
         id: user.id,
         email: user.email || '',
         name: resolveUserDisplayName(profile?.name, user),
-        role: finalRole
+        role: finalRole,
+        ...contactFieldsFromProfile(profile),
       };
     } catch (error) {
       console.error('Get current user error:', error);

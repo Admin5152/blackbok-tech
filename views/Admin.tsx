@@ -55,15 +55,15 @@ const NAV_ITEMS: { id: AdminSection; label: string; icon: any; adminOnly?: boole
 ];
 
 const SECTION_TITLES: Record<AdminSection, string> = {
-  overview: 'Dashboard Overview',
-  inbox: 'Message Inbox',
-  orders: 'Order Management',
-  customers: 'Customer Directory',
-  products: 'Product Catalogue',
+  overview: 'Overview',
+  inbox: 'Messages',
+  orders: 'Orders',
+  customers: 'Customers',
+  products: 'Shop products',
   promotions: 'Promotions',
-  trades: 'Trade-In Requests',
-  returns: 'Return Requests',
-  repairs: 'Repair Requests',
+  trades: 'Trade-ins',
+  returns: 'Returns',
+  repairs: 'Repairs',
   users: 'Users',
 };
 
@@ -317,7 +317,7 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
                 ? 'border-black/10 text-black/70 hover:text-black hover:bg-black/5'
                 : 'border-white/10 text-white/70 hover:text-white hover:bg-white/5'
               }`}
-            title="Open storefront"
+            title="Open shop"
           >
             <Store size={15} />
             <span className="hidden sm:inline text-[10px] font-black uppercase tracking-widest">Store</span>

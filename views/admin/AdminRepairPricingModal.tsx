@@ -62,7 +62,7 @@ export const AdminRepairPricingModal: React.FC<Props> = ({ open, onClose }) => {
   };
 
   const resetAll = () => {
-    if (!window.confirm('Reset all iPhone repair matrix prices to built-in defaults?')) return;
+    if (!window.confirm('Reset all iPhone repair prices to the built-in defaults?')) return;
     clearRepairMatrixOverrides();
     onClose();
   };
@@ -74,10 +74,10 @@ export const AdminRepairPricingModal: React.FC<Props> = ({ open, onClose }) => {
       <ModalClose onClose={onClose} />
       <div className="p-6">
         <h3 className="text-base font-black text-white mb-1 flex items-center gap-2">
-          <Wrench size={16} className="text-orange-400" /> iPhone repair matrix
+          <Wrench size={16} className="text-orange-400" /> iPhone repair price list
         </h3>
         <p className="text-[10px] text-white/30 mb-4 leading-relaxed">
-          Component repair prices (GHS) shown to customers on Apple iPhone repairs with matrix pricing. Use N/A or Consult where a service does not apply. Saves to this browser only.
+          Repair prices (GHS) shown to customers for Apple iPhone fixed-price repairs. Use “Not offered” or “Ask in store” where a service does not apply. Saves on this computer only.
         </p>
 
         <div className="mb-3">
@@ -145,7 +145,7 @@ export const AdminRepairPricingModal: React.FC<Props> = ({ open, onClose }) => {
               Cancel
             </button>
             <button type="button" onClick={save} className="px-5 py-2 rounded-xl text-[10px] font-black uppercase bg-[#B38B21] text-black hover:bg-[#D4AF37]">
-              Save matrix
+              Save prices
             </button>
           </div>
         </div>

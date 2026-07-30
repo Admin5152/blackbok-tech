@@ -137,7 +137,7 @@ function parseCsvText(text: string): CsvPreviewRow[] {
             brand: get('brand') || 'Apple',
             condition: get('condition') || 'new',
             status,
-            trade_model: get('trade_model') || null,
+            trade_model: get('trade_model') || get('trade-in model') || get('trade in model') || null,
             stock: Number.isFinite(stock) ? Math.floor(stock) : 0,
             errors,
             valid: errors.length === 0,
@@ -325,7 +325,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
             return;
         }
         if (skuMatrixEnabled && skuRows.length === 0) {
-            setError('Add Color / Storage / RAM options, turn on stock per version, and wait for rows to appear (or click Create versions).');
+            setError('Add Color / Storage / RAM options, turn on Generate versions from options, and wait for rows to appear (or click Create versions).');
             return;
         }
         if (
@@ -600,7 +600,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                 notes.push(`FAIL line ${row.line}: ${friendlyProductActionError(e, 'import')}`);
             }
         }
-        const summary = `CSV import: ${ok} created, ${fail} failed`;
+        const summary = `Spreadsheet import: ${ok} created, ${fail} failed`;
         void appendAuditNote('products', 'bulk-csv', `${summary}. ${notes.slice(0, 40).join('; ')}`);
         setCsvResult(summary);
         setCsvBusy(false);
@@ -654,7 +654,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                     onClick={() => setHealthView('apple_missing_trade')}
                     className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase ${healthView === 'apple_missing_trade' ? 'bg-amber-500 text-black' : 'bg-amber-500/10 text-amber-400'}`}
                 >
-                    Apple missing trade_model ({healthCounts.apple_missing_trade})
+                    Apple phones with no trade-in link ({healthCounts.apple_missing_trade})
                 </button>
                 <button
                     type="button"
@@ -704,7 +704,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                     {canEdit && (
                         <>
                             <button type="button" onClick={() => { setShowCsv(true); setCsvResult(''); }} className={`flex items-center gap-1.5 px-3 py-2 border rounded-xl text-[10px] font-black uppercase ${isLight ? 'border-black/10 text-black/60' : 'border-white/10 text-white/50 hover:text-white'}`}>
-                                <FileSpreadsheet size={12} /> CSV
+                                <FileSpreadsheet size={12} /> Spreadsheet
                             </button>
                             <button type="button" onClick={openAdd} className="flex items-center gap-1.5 px-3 py-2 bg-[#B38B21] text-black font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-[#D4AF37] transition-all">
                                 <Plus size={12} /> Add Product
@@ -724,7 +724,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                     </button>
                 </div>
             ) : filtered.length === 0 ? (
-                <EmptyState icon={<Package size={40} />} message={products.length === 0 ? 'No products in catalog yet' : 'No products match these filters'} />
+                <EmptyState icon={<Package size={40} />} message={products.length === 0 ? 'No shop products yet' : 'No products match these filters'} />
             ) : (
                 <TableWrapper>
                     <thead><tr>
@@ -840,9 +840,11 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                 <Modal isLight={isLight} onClose={() => setShowCsv(false)} maxW="max-w-3xl">
                     <ModalClose isLight={isLight} onClose={() => setShowCsv(false)} />
                     <div className="p-5 sm:p-6 space-y-4">
-                        <h3 className="text-lg font-black">Bulk CSV import</h3>
+                        <h3 className="text-lg font-black">Bulk import from spreadsheet</h3>
                         <p className={`text-xs ${muted}`}>
-                            Columns: name,price,category,brand,condition,status,trade_model,stock
+                            Columns: name, price, category, brand, condition, status, trade-in model, stock
+                            — first row is the header.
+                            — first row is the header.
                         </p>
                         <textarea
                             rows={8}

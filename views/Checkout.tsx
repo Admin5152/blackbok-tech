@@ -733,7 +733,7 @@ const ShippingStep: React.FC<ShippingStepProps> = ({
               className={`w-full bg-neutral-100 dark:bg-black/50 border rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none text-black placeholder:text-black/45 dark:text-white dark:placeholder:text-white/30 ${
                 errors.phone ? 'border-red-500/60' : 'border-black/15 dark:border-white/20'
               }`}
-              placeholder="+233 XX XXX XXXX"
+              placeholder="+233… or your country code"
               aria-invalid={!!errors.phone}
             />
             {errors.phone && (
@@ -851,7 +851,7 @@ const ShippingStep: React.FC<ShippingStepProps> = ({
               className={`w-full bg-neutral-100 dark:bg-black/50 border rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none text-black placeholder:text-black/45 dark:text-white dark:placeholder:text-white/30 ${
                 errors.phone ? 'border-red-500/60' : 'border-black/15 dark:border-white/20'
               }`}
-              placeholder="+233 XX XXX XXXX"
+              placeholder="+233… or your country code"
             />
             {errors.phone && <p className="text-xs text-red-400 mt-1">{errors.phone}</p>}
           </div>
@@ -1066,7 +1066,7 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
               value={momo.number}
               onChange={(e) => onMomoChange({ ...momo, number: e.target.value })}
               className="w-full bg-neutral-100 dark:bg-black/50 border border-black/15 dark:border-white/20 rounded-lg px-4 py-3 focus:border-[#B38B21] outline-none text-black placeholder:text-black/45 dark:text-white dark:placeholder:text-white/35"
-              placeholder="+233 XX XXX XXXX"
+              placeholder="+233… or your country code"
             />
           </div>
         </div>

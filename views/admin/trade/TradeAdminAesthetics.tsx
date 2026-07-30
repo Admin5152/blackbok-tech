@@ -91,7 +91,7 @@ export const TradeAdminAesthetics: React.FC = () => {
         await upsertAestheticOverride(model, grade, n);
       }
       await reload();
-      notify?.('Aesthetic override saved.', 'success');
+      notify?.('Appearance amount saved.', 'success');
     } catch (e) {
       notify?.(tradeAdminErrorMessage(e), 'error');
     } finally {
@@ -125,7 +125,7 @@ export const TradeAdminAesthetics: React.FC = () => {
       } else {
         await deleteAestheticOverride(pendingClear.model, 'a1');
         await deleteAestheticOverride(pendingClear.model, 'a2');
-        notify?.(`Cleared aesthetics for ${pendingClear.model}.`, 'success');
+        notify?.(`Cleared appearance amounts for ${pendingClear.model}.`, 'success');
       }
       await reload();
       setPendingClear(null);
@@ -138,7 +138,7 @@ export const TradeAdminAesthetics: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="text-center py-16 text-white/30 text-sm">Loading aesthetics…</div>;
+    return <div className="text-center py-16 text-white/30 text-sm">Loading appearance amounts…</div>;
   }
   if (error) {
     return (
@@ -316,12 +316,12 @@ export const TradeAdminAesthetics: React.FC = () => {
 
       <ConfirmDeleteDialog
         open={pendingClear != null}
-        title="Delete aesthetic override?"
+        title="Remove appearance amount?"
         message={
           pendingClear?.kind === 'grade'
-            ? `Delete ${pendingClear.grade.toUpperCase()} override for ${pendingClear.model}?`
+            ? `Remove the ${pendingClear.grade.toUpperCase()} appearance amount for ${pendingClear.model}?`
             : pendingClear
-              ? `Delete all aesthetic overrides for ${pendingClear.model}?`
+              ? `Remove all appearance amounts for ${pendingClear.model}?`
               : ''
         }
         busy={deleting}

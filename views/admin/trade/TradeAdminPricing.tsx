@@ -531,7 +531,7 @@ export const TradeAdminPricing: React.FC = () => {
       setNewBase('');
       selectFocusModel(row.model);
       notify?.(
-        `Added ${row.model} ${row.storage} ${simVariantLabel(row.sim_variant)}. Customers see it when the device is Listed.`,
+        `Added ${row.model} ${row.storage} ${simVariantLabel(row.sim_variant)}. Customers see it when the device is on the customer list.`,
         'success',
       );
     } catch (e) {
@@ -557,7 +557,7 @@ export const TradeAdminPricing: React.FC = () => {
     try {
       const row = await cloneBaseValueForSim(src.id, sim);
       setBases((prev) => [...prev, row].sort((a, b) => a.model.localeCompare(b.model)));
-      notify?.(`Cloned as ${simVariantLabel(sim)}.`, 'success');
+      notify?.(`Copied as ${simVariantLabel(sim)}.`, 'success');
     } catch (e) {
       notify?.(tradeAdminErrorMessage(e), 'error');
     } finally {
@@ -618,7 +618,7 @@ export const TradeAdminPricing: React.FC = () => {
       });
       setDeducs((prev) => [...prev, row]);
       setDedAmount('');
-      notify?.('Deduction row added.', 'success');
+      notify?.('Condition deduction added.', 'success');
     } catch (e) {
       notify?.(tradeAdminErrorMessage(e), 'error');
     } finally {
@@ -696,7 +696,7 @@ export const TradeAdminPricing: React.FC = () => {
         .
         {activeDeviceModels.length === 0 && (
           <span className={`block mt-1 ${isLight ? 'text-amber-700' : 'text-amber-300'}`}>
-            No devices are Listed yet — add or activate models on Devices first.
+            No devices on the customer list yet — add or activate models on Devices first.
           </span>
         )}
       </div>
@@ -829,7 +829,7 @@ export const TradeAdminPricing: React.FC = () => {
             >
               <option value="">All rows</option>
               <option value="active">Shown only</option>
-              <option value="inactive">Hidden only</option>
+              <option value="inactive">Off-list only</option>
             </select>
           </label>
 
@@ -860,11 +860,11 @@ export const TradeAdminPricing: React.FC = () => {
               }`}
             >
               <p className="font-bold uppercase tracking-wider text-[10px]">
-                Incomplete SIM coverage
+                Missing SIM price
               </p>
               <p className={isLight ? 'text-amber-800/80' : 'text-amber-100/80'}>
                 Customers only see storage/SIM options you price. Use “Copy as other SIM” on a row
-                to add the missing variant.
+                to add the missing SIM type.
               </p>
               <ul className="list-disc pl-4 space-y-0.5">
                 {simCoverageHints.map((h) => (
@@ -882,12 +882,11 @@ export const TradeAdminPricing: React.FC = () => {
             }`}
           >
             <p className="text-[10px] font-black uppercase tracking-widest text-[#B38B21]">
-              Add base row (model × storage × SIM)
+              Add starting price (model × storage × SIM)
             </p>
             <p className={`text-[11px] ${muted}`}>
-              Pick a Listed device, then set Physical SIM (<code className={title}>ps</code>)
-              and eSIM (<code className={title}>es</code>) as separate rows when both
-              apply — each needs its own base value.
+              Pick a device on the customer list, then add Physical SIM and eSIM as separate rows
+              when both apply — each needs its own starting price.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
               <select
@@ -1064,7 +1063,7 @@ export const TradeAdminPricing: React.FC = () => {
                               <button
                                 key={s}
                                 type="button"
-                                title={`Clone as ${simVariantLabel(s)}`}
+                                title={`Copy as ${simVariantLabel(s)}`}
                                 disabled={savingId === r.id}
                                 onClick={() => void cloneAsSim(r, s)}
                                 className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-black uppercase border disabled:opacity-40 ${chipIdle} hover:text-[#B38B21] hover:border-[#B38B21]/40`}
@@ -1309,7 +1308,7 @@ export const TradeAdminPricing: React.FC = () => {
         }
         message={
           pendingDelete?.kind === 'base'
-            ? `Permanently delete base pricing for ${pendingDelete.row.model} ${pendingDelete.row.storage} ${simVariantLabel(pendingDelete.row.sim_variant)}. This cannot be undone.`
+            ? `Permanently delete starting price for ${pendingDelete.row.model} ${pendingDelete.row.storage} ${simVariantLabel(pendingDelete.row.sim_variant)}. This cannot be undone.`
             : pendingDelete
               ? `Permanently delete deduction “${pendingDelete.row.model} · ${pendingDelete.row.fault_label || pendingDelete.row.fault_code}”. This cannot be undone.`
               : ''

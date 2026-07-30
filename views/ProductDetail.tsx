@@ -15,6 +15,7 @@ import {
   findVariantRowForOptions,
 } from '../lib/productOptions';
 import { variantEffectivePrice, getMaxTradeBaseForModel, saveTradeTargetSeed } from '../lib/catalogApi';
+import { getDealDiscountPercentage } from '../lib/dealOfTheDay';
 import { galleryImagesForSelection } from '../lib/productColorImages';
 import { PageBackButton } from '../components/PageBackButton';
 import type { ProductVariant } from '../types';
@@ -50,17 +51,16 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
     const row = findVariantRowForOptions(product, selectedOptions);
     return row as ProductVariant | null;
   }, [product, selectedOptions]);
-  const unitPrice = useMemo(() => {
-    const raw = variantEffectivePrice(product, matchedVariant);
-    if (product.discount && product.discount > 0) {
-      return raw * (1 - product.discount / 100);
-    }
-    return raw;
-  }, [product, matchedVariant]);
   const listPrice = useMemo(
     () => variantEffectivePrice(product, matchedVariant),
     [product, matchedVariant],
   );
+  const unitPrice = useMemo(() => {
+    const pct = getDealDiscountPercentage(product);
+    if (pct > 0) return Math.round(listPrice * (1 - pct / 100) * 100) / 100;
+    return listPrice;
+  }, [product, listPrice]);
+  const discountPct = getDealDiscountPercentage(product);
 
   const [tradeMax, setTradeMax] = useState<number | null>(null);
   useEffect(() => {
@@ -274,13 +274,16 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               )}
             </div>
 
-            {/* Price — effective price for selected SKU (fn_variant_effective_price) */}
+            {/* Price — updates when Color / Storage / RAM / SIM selection changes */}
             <div className="flex items-center gap-4 flex-wrap">
-              <span className="text-2xl sm:text-3xl font-bold text-[#B38B21] tabular-nums">
+              <span
+                key={`${matchedVariant?.id ?? 'base'}-${listPrice}`}
+                className="text-2xl sm:text-3xl font-bold text-[#B38B21] tabular-nums"
+              >
                 {formatGhs(unitPrice)}
               </span>
 
-              {product.discount != null && product.discount > 0 && (
+              {discountPct > 0 && listPrice > unitPrice && (
                 <span className={`text-base line-through ${isLight ? 'text-black/35' : 'text-white/40'}`}>
                   {formatGhs(listPrice)}
                 </span>
@@ -346,12 +349,14 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                           const ol = opt.toLowerCase();
                           const isSelected = selectedOptions[variant.name] === opt;
                           const chipLabel = isSimGroup ? formatSimTypeLabel(opt) : opt;
-                          const trialOpts = {
+                          // Same as quick-view: allow the chip if *some* in-stock SKU
+                          // exists with this option (snap other dims), not only the
+                          // exact current combination — otherwise Color/Storage feel stuck
+                          // and the price never moves to the intended variant.
+                          const trialOpts = snapSelectionToInStock(product, normalizedVariants, {
                             ...selectedOptions,
                             [variant.name]: opt,
-                          };
-                          // Discoverability: keep the chip visible; disable when this
-                          // exact combination has no stock (do not hide options).
+                          });
                           const optDisabled = getAvailableStock(product, trialOpts) <= 0;
                           if (isColorGroup) {
                             return (

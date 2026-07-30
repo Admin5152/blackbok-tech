@@ -16,3 +16,16 @@ export function looksLikeFullPhone(value: string | null | undefined): boolean {
   if (!value) return false;
   return value.replace(/\D/g, '').length >= 9 && !value.includes('•');
 }
+
+/**
+ * Contact phone for forms — any country.
+ * Accepts +, spaces, dashes, parentheses; requires 7–15 digits (ITU E.164 max).
+ */
+export function isValidContactPhone(raw: string): boolean {
+  const trimmed = String(raw || '').trim();
+  if (!trimmed) return false;
+  // Digits only for length; allow leading + and common separators in the original.
+  if (!/^\+?[\d\s().\-]+$/.test(trimmed)) return false;
+  const digits = trimmed.replace(/\D/g, '');
+  return digits.length >= 7 && digits.length <= 15;
+}

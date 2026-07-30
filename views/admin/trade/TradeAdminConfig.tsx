@@ -127,7 +127,7 @@ export const TradeAdminConfig: React.FC = () => {
   const addKey = async () => {
     const key = newKey.trim();
     if (!key) {
-      notify?.('Enter a config key.', 'warning');
+      notify?.('Enter a rule name.', 'warning');
       return;
     }
     if (rows.some((r) => r.key === key)) {
@@ -183,7 +183,7 @@ export const TradeAdminConfig: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="text-center py-16 text-white/30 text-sm">Loading config…</div>;
+    return <div className="text-center py-16 text-white/30 text-sm">Loading business rules…</div>;
   }
   if (error) {
     return (
@@ -221,14 +221,14 @@ export const TradeAdminConfig: React.FC = () => {
           Add a new rule
           <FieldInfoTip
             title="When to add a rule"
-            body="Most day-to-day settings already exist below. Only add a new key if a manager or developer asks you to."
+            body="Most day-to-day settings already exist below. Only add a new rule if a manager asks you to."
           />
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <input
             value={newKey}
             onChange={(e) => setNewKey(e.target.value)}
-            placeholder="Internal name (e.g. store_location)"
+            placeholder="Rule name (e.g. store location)"
             className="bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none"
           />
           <input
@@ -290,7 +290,7 @@ export const TradeAdminConfig: React.FC = () => {
                   )}
                   <button
                     type="button"
-                    title="Delete config key"
+                    title="Delete this rule"
                     disabled={saving === r.key}
                     onClick={() => void removeKey(r.key)}
                     className="inline-flex items-center justify-center p-1.5 rounded-lg text-red-400/80 hover:bg-red-500/15 hover:text-red-300 disabled:opacity-40"
@@ -369,10 +369,10 @@ export const TradeAdminConfig: React.FC = () => {
 
       <ConfirmDeleteDialog
         open={pendingDeleteKey != null}
-        title="Delete config key?"
+        title="Delete this rule?"
         message={
           pendingDeleteKey
-            ? `Permanently delete config key “${pendingDeleteKey}”? Estimates that depend on it may break until you re-add it.`
+            ? `Permanently delete the rule “${pendingDeleteKey}”? Quotes that use it may stop working until you add it again.`
             : ''
         }
         requireTypedDelete

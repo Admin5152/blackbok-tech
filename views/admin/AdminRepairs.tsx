@@ -245,15 +245,15 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="bg-orange-500/5 border border-orange-500/20 rounded-xl p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-orange-400 mb-1">iPhone matrix flow</p>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-orange-400 mb-1">iPhone fixed-price repairs</p>
                     <p className="text-[10px] text-white/45 leading-relaxed">
-                        Apple iPhone + priced issues → customer sees matrix total at submit. You confirm after inspection, then send estimate for approval.
+                        Apple iPhone with priced issues → customer sees a quoted total when they submit. Confirm after inspection, then send the estimate for approval.
                     </p>
                 </div>
                 <div className="bg-white/[0.03] border border-white/10 rounded-xl p-4">
                     <p className="text-[9px] font-black uppercase tracking-widest text-white/50 mb-1">Diagnostic flow</p>
                     <p className="text-[10px] text-white/45 leading-relaxed">
-                        Samsung, laptops, tablets, etc. → no matrix. Diagnose, enter a manual quote, send estimate when ready.
+                        Samsung, laptops, tablets, etc. → no fixed price list. Check the device, enter a quote, then send the estimate when ready.
                     </p>
                 </div>
             </div>
@@ -275,7 +275,7 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
                 <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
                     {([
                         ['all', 'All pricing'],
-                        ['apple_matrix', 'iPhone matrix'],
+                        ['apple_matrix', 'iPhone fixed price'],
                         ['diagnostic_quote', 'Diagnostic'],
                     ] as const).map(([key, label]) => (
                         <button
@@ -297,7 +297,7 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
                         onClick={() => setShowPricingMgr(true)}
                         className="flex items-center gap-1.5 px-3 py-2 bg-white/5 text-white/60 hover:text-white border border-white/10 rounded-xl text-[10px] font-black uppercase transition-all shrink-0"
                     >
-                        <Settings2 size={12} /> Matrix prices
+                        <Settings2 size={12} /> Repair prices
                     </button>
                 )}
                 <SearchInput value={q} onChange={setQ} placeholder="Search repairs..." />
@@ -355,7 +355,7 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
                                 </Td>
                                 <Td>
                                     <p className="text-xs font-black text-[#B38B21]">
-                                        {repairCostNum(r) > 0 ? formatCurrency(repairCostNum(r)) : 'TBD'}
+                                        {repairCostNum(r) > 0 ? formatCurrency(repairCostNum(r)) : 'Not set'}
                                     </p>
                                 </Td>
                                 <Td>
@@ -461,7 +461,7 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
                                     </p>
                                 </div>
                                 <div className="bg-black/40 rounded-xl p-2.5 col-span-2">
-                                    <p className="text-[9px] text-white/30 uppercase tracking-widest mb-0.5">Pricing path</p>
+                                    <p className="text-[9px] text-white/30 uppercase tracking-widest mb-0.5">How it was priced</p>
                                     <p className="text-xs font-bold text-white">
                                         {formatPricingModeLabel(sel.pricing_mode)}
                                     </p>
@@ -473,7 +473,7 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
 
                             {sel.pricing_mode === PRICING_MODE.APPLE_MATRIX && (
                                 <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-3 space-y-2">
-                                    <p className="text-[9px] text-orange-400 uppercase tracking-widest">Customer matrix selection</p>
+                                    <p className="text-[9px] text-orange-400 uppercase tracking-widest">Customer’s selected parts</p>
                                     {parseRepairIssueTypes(sel.issue_type || (sel as { issueType?: string }).issueType).length > 0 ? (
                                         <div className="flex flex-wrap gap-1.5">
                                             {parseRepairIssueTypes(sel.issue_type || (sel as { issueType?: string }).issueType).map((label) => (
@@ -487,7 +487,7 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
                                     )}
                                     {repairCustomerMatrixTotal(sel) != null && (
                                         <p className="text-sm font-black text-orange-300">
-                                            Matrix total at submit: {formatCurrency(repairCustomerMatrixTotal(sel)!)}
+                                            Quoted total at submit: {formatCurrency(repairCustomerMatrixTotal(sel)!)}
                                         </p>
                                     )}
                                 </div>
@@ -497,7 +497,7 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
                                 <div className="bg-white/[0.03] border border-white/10 rounded-xl p-3">
                                     <p className="text-[9px] text-white/40 uppercase tracking-widest mb-1">Diagnostic path</p>
                                     <p className="text-[10px] text-white/45 leading-relaxed">
-                                        No matrix pricing for this device. Complete diagnosis, then send a manual estimate below.
+                                        No fixed price for this device. Finish checking it, then send a manual estimate below.
                                     </p>
                                 </div>
                             )}
@@ -505,7 +505,7 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
                             {!sel.pricing_mode && (
                                 <div className="bg-white/[0.03] border border-white/10 rounded-xl p-3">
                                     <p className="text-[9px] text-white/40 uppercase tracking-widest">Legacy request</p>
-                                    <p className="text-[10px] text-white/45 mt-1">Pricing path not recorded — use diagnostic workflow.</p>
+                                    <p className="text-[10px] text-white/45 mt-1">No fixed price for this job — check the phone, then enter a quote.</p>
                                 </div>
                             )}
 
@@ -652,7 +652,7 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
                                     </p>
                                     <p className="text-[9px] text-white/40 leading-relaxed">
                                         {sel.pricing_mode === PRICING_MODE.APPLE_MATRIX
-                                            ? 'Confirm or adjust the matrix total after inspection, then send for customer approval.'
+                                            ? 'Confirm or adjust the quoted total after inspection, then send for customer approval.'
                                             : 'Enter your diagnosed repair cost. Sending sets status to Estimate sent.'}
                                     </p>
                                     {sel.pricing_mode === PRICING_MODE.APPLE_MATRIX && repairCustomerMatrixTotal(sel) != null && (
@@ -661,7 +661,7 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
                                             onClick={() => setEstimate(String(repairCustomerMatrixTotal(sel)!))}
                                             className="text-[9px] font-black uppercase text-orange-400 hover:text-orange-300"
                                         >
-                                            Use customer matrix total ({formatCurrency(repairCustomerMatrixTotal(sel)!)})
+                                            Use customer’s quoted total ({formatCurrency(repairCustomerMatrixTotal(sel)!)})
                                         </button>
                                     )}
                                     <div className="relative">

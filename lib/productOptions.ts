@@ -255,8 +255,9 @@ function mapOptionGroupToVariantField(groupName: string): 'color' | 'storage' | 
   return null;
 }
 
+/** Case-insensitive; collapses spaces so "256 GB" matches "256GB". */
 function normOpt(s: unknown): string {
-  return toOptionString(s).toLowerCase();
+  return toOptionString(s).toLowerCase().replace(/\s+/g, '');
 }
 
 /**
@@ -275,7 +276,12 @@ export function formatSelectedOptionsLabel(selectedOptions: Record<string, strin
   return parts.join(' · ');
 }
 
-/** Resolve the matching SKU row for selected options (incl. SIM). */
+/**
+ * Resolve the matching SKU row for selected options (incl. SIM).
+ * Must stay aligned with `getAvailableStock`: every selected dimension that
+ * maps to a SKU field must be present and equal on the row (empty ≠ wildcard).
+ * Otherwise the first loose match can keep a stale price while stock updates.
+ */
 export function findVariantRowForOptions(
   product: Product,
   selectedOptions: Record<string, string> = {},
@@ -291,8 +297,10 @@ export function findVariantRowForOptions(
       const field = mapOptionGroupToVariantField(groupName);
       if (!field) continue;
       const cell = toOptionString(row[field]);
-      // Empty cell on row means that dimension doesn't apply — skip
-      if (!cell) continue;
+      if (!cell) {
+        ok = false;
+        break;
+      }
       if (normOpt(cell) !== normOpt(val)) {
         ok = false;
         break;

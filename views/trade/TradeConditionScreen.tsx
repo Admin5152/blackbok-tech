@@ -103,10 +103,16 @@ export function TradeConditionScreen() {
 
   // Threshold lead capture
   const [leadName, setLeadName] = useState(user?.name ?? '');
-  const [leadPhone, setLeadPhone] = useState('');
+  const [leadPhone, setLeadPhone] = useState(user?.phone ?? '');
   const [leadConsent, setLeadConsent] = useState(false);
   const [leadSubmitting, setLeadSubmitting] = useState(false);
   const [leadDone, setLeadDone] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    setLeadName((n) => n || user.name || '');
+    setLeadPhone((p) => p || user.phone || '');
+  }, [user?.id, user?.name, user?.phone]);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const estimateGen = useRef(0);

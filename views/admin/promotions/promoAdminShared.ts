@@ -25,7 +25,7 @@ export function appliesToLabel(appliesTo: PromoAppliesTo): string {
     case 'repair':
       return 'Repair';
     case 'tradein_topup':
-      return 'Trade-in top-up';
+      return 'Extra pay after trade-in';
     default:
       return appliesTo;
   }
@@ -35,7 +35,7 @@ export function appliesToLabel(appliesTo: PromoAppliesTo): string {
 export function appliesToHint(appliesTo: PromoAppliesTo): string {
   switch (appliesTo) {
     case 'order':
-      return 'Whole cart — products, delivery, repairs, and trade-in top-ups.';
+      return 'Whole cart — products, delivery, repairs, and trade-in extra pay.';
     case 'product':
       return 'Only the products you pick below.';
     case 'category':
@@ -45,7 +45,7 @@ export function appliesToHint(appliesTo: PromoAppliesTo): string {
     case 'repair':
       return 'Repair line items only.';
     case 'tradein_topup':
-      return 'Trade-in top-up line items only.';
+      return 'Only the extra amount the customer pays after trade-in.';
     default:
       return '';
   }

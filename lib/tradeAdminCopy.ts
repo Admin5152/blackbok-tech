@@ -59,7 +59,7 @@ export const TRADE_ADMIN_PAGE_INTRO: Record<
   },
   upgrades: {
     title: 'Upgrade phones we sell into',
-    body: 'Only trade-linked shop products can be listed (Matching trade-in model must be set). Empty list = show all linked iPhone/iPad. Press Save list to publish for every staff browser.',
+    body: 'Only shop phones that already have a Matching trade-in model can appear here. Leave the list empty to show all linked iPhone / iPad. Press Save list so every staff computer and the customer site use the same list.',
     next: 'If Add is locked, open Products and set Matching trade-in model first.',
   },
   pricing: {
@@ -191,7 +191,7 @@ export const TRADE_CONFIG_KEY_LABELS: Record<string, { label: string; tip: strin
     tip: 'Preferred way to notify customers about offer updates.',
   },
   upgrade_target_product_ids: {
-    label: 'Upgrade product list (advanced)',
+    label: 'Upgrade phones list (advanced)',
     tip: 'Usually managed on the Upgrade phones page — do not edit by hand unless you know the product IDs.',
   },
 };
@@ -202,7 +202,7 @@ export const TRADE_CONFIG_VALUE_LABELS: Record<string, string> = {
   none_if_90: 'No deduction if 90% or higher',
   full_verify: 'Full deduction + check in store',
   none_if_working: 'No deduction if it still works',
-  hard_stop: 'Block online trade-in',
+  hard_stop: 'Stop the online trade-in',
   screen_deduction: 'Treat like screen damage',
   percent: 'Percent of starting price',
   fixed: 'Fixed cedis amount',
@@ -215,18 +215,18 @@ export const TRADE_CONFIG_VALUE_LABELS: Record<string, string> = {
 
 export const TRADE_OUTCOME_LABELS: Record<TradeAnswerOutcome | string, string> = {
   none: 'No change to price',
-  deduct_full: 'Full condition deduction',
-  deduct_half: 'Half condition deduction',
-  deduct_quarter: 'Quarter condition deduction',
+  deduct_full: 'Take off the full amount for that part',
+  deduct_half: 'Take off half the amount for that part',
+  deduct_quarter: 'Take off a quarter of the amount for that part',
   aesthetic_a1: 'Apply light-wear deduction',
   aesthetic_a2: 'Apply heavier-wear deduction',
-  battery_replaced_policy: 'Use battery-replaced rule',
-  camera_replaced_policy: 'Use camera-replaced rule',
-  hard_stop: 'Block online trade-in',
+  battery_replaced_policy: 'Follow the “battery was replaced” rule',
+  camera_replaced_policy: 'Follow the “camera was replaced” rule',
+  hard_stop: 'Stop the online trade-in',
 };
 
 export const TRADE_OUTCOME_TIP =
-  'What this answer does to the live estimate. “Block online trade-in” stops the quiz (for example Find My still on).';
+  'What this answer does to the live estimate. “Stop the online trade-in” ends the quiz (for example Find My still on).';
 
 export const TRADE_GATE_TIP =
   'Must-pass questions are critical checks (power on, Find My off). A failing answer can stop the online estimate.';

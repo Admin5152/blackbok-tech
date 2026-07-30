@@ -31,7 +31,7 @@ const APPLIES_OPTIONS: { id: PromoAppliesTo; label: string }[] = [
   { id: 'category', label: 'Product categories' },
   { id: 'delivery', label: 'Delivery' },
   { id: 'repair', label: 'Repair' },
-  { id: 'tradein_topup', label: 'Trade-in top-up' },
+  { id: 'tradein_topup', label: 'Extra pay after trade-in' },
 ];
 
 const PRESET_CARDS: {
@@ -39,12 +39,12 @@ const PRESET_CARDS: {
   title: string;
   second: string;
 }[] = [
-  { id: 'single', title: 'Single-use voucher', second: '1 code, 1 person, 1 time' },
+  { id: 'single', title: 'One-time code', second: '1 code, 1 person, 1 time' },
   { id: 'personal', title: 'Personal code', second: 'One account, reusable' },
   { id: 'public_once', title: 'Public, once per customer', second: 'Shareable, 1 use each' },
-  { id: 'public_open', title: 'Public, unlimited', second: 'No caps at all' },
-  { id: 'batch', title: 'Bulk voucher batch', second: 'N unique single-use codes' },
-  { id: 'first_n', title: 'First N customers', second: 'Stops after N redemptions' },
+  { id: 'public_open', title: 'Public, no use limits', second: 'No caps at all' },
+  { id: 'batch', title: 'Many unique codes', second: 'N unique one-time codes' },
+  { id: 'first_n', title: 'First N customers', second: 'Stops after N uses' },
 ];
 
 type ChipMode = 'cash' | 'percentage';
@@ -183,10 +183,10 @@ export const AdminPromotionBuilder: React.FC = () => {
 
   const floorHelper =
     mode === 'cash' && multiple != null
-      ? `Floor for a ${formatGHS(cashPesewas || 0)} discount is ${formatGHS(floorPesewas)} (${multiple}x).`
+      ? `Usual minimum for a ${formatGHS(cashPesewas || 0)} discount is ${formatGHS(floorPesewas)} (${multiple}× the discount).`
       : mode === 'cash'
-        ? 'Floor loads from promo settings.'
-        : 'No floor required for percentage discounts.';
+        ? 'Usual minimum spend comes from promo settings.'
+        : 'No minimum-spend rule for percentage discounts.';
 
   const filteredCategories = useMemo(() => {
     const q = categoryFilter.trim().toLowerCase();
@@ -300,7 +300,7 @@ export const AdminPromotionBuilder: React.FC = () => {
       return;
     }
     if (belowFloor && !bypassReason.trim()) {
-      notify('Minimum order is below the 6x floor. Needs bypass with a reason.', 'error');
+      notify('Minimum spend is lower than our usual 6× rule. Add a reason to allow it.', 'error');
       return;
     }
     if (preset === 'personal' && !assignedUserId) {
@@ -339,7 +339,7 @@ export const AdminPromotionBuilder: React.FC = () => {
   if (belowFloor) {
     warningBlocks.push({
       tone: 'danger',
-      copy: 'Minimum order is below the 6x floor. Needs bypass with a reason.',
+      copy: 'Minimum spend is lower than our usual 6× rule. Add a reason to allow it.',
     });
   }
   if (noBudget) {
@@ -363,13 +363,13 @@ export const AdminPromotionBuilder: React.FC = () => {
   if (aboveReview && reviewThreshold != null) {
     warningBlocks.push({
       tone: 'accent',
-      copy: `Above the ${formatGHS(reviewThreshold)} review threshold. It will still publish, but is logged for review.`,
+      copy: `Above the ${formatGHS(reviewThreshold)} review amount. It will still go live, but is flagged for review.`,
     });
   }
   if (warningBlocks.length === 0) {
     warningBlocks.push({
       tone: 'success',
-      copy: 'Passes every guard. Safe to publish.',
+      copy: 'Looks good. Safe to publish.',
     });
   }
 
@@ -528,7 +528,7 @@ export const AdminPromotionBuilder: React.FC = () => {
               onClick={useFloor}
               className="rounded-xl border border-[#B38B21]/40 px-3 py-2 text-xs font-medium text-[#B38B21]"
             >
-              Use the floor
+              Use usual minimum
             </button>
           </div>
           <p className={`text-[13px] ${muted}`}>{floorHelper}</p>
@@ -536,7 +536,7 @@ export const AdminPromotionBuilder: React.FC = () => {
             <input
               value={bypassReason}
               onChange={(e) => setBypassReason(e.target.value)}
-              placeholder="Bypass reason"
+              placeholder="Reason for lower minimum"
               className={inputCls}
             />
           )}
@@ -635,14 +635,14 @@ export const AdminPromotionBuilder: React.FC = () => {
               }}
               className={`${chipBase} ${scopeGlobal ? chipSelected : chipIdle} ${fg}`}
             >
-              Global
+              All locations
             </button>
             <button
               type="button"
               onClick={() => setScopeGlobal(false)}
               className={`${chipBase} ${!scopeGlobal ? chipSelected : chipIdle} ${fg}`}
             >
-              Campus
+              Selected locations
             </button>
           </div>
           {!scopeGlobal && (
@@ -667,7 +667,7 @@ export const AdminPromotionBuilder: React.FC = () => {
             </div>
           )}
           {(scopeGlobal || campusIds.length === 0) && (
-            <p className={`text-[13px] ${muted}`}>Applies at every campus.</p>
+            <p className={`text-[13px] ${muted}`}>Applies at every location.</p>
           )}
 
           <div className="grid sm:grid-cols-3 gap-3">
@@ -741,9 +741,9 @@ export const AdminPromotionBuilder: React.FC = () => {
           </button>
           {advanced && limits && (
             <div className={`text-[13px] ${muted} space-y-1`}>
-              <p>code_max: {limits.code_max ?? 'null'}</p>
-              <p>promo_max: {limits.promo_max ?? 'null'}</p>
-              <p>per_user: {limits.per_user ?? 'null'}</p>
+              <p>Max codes: {limits.code_max ?? 'No limit'}</p>
+              <p>Campaign use limit: {limits.promo_max ?? 'No limit'}</p>
+              <p>Per customer: {limits.per_user ?? 'No limit'}</p>
             </div>
           )}
           {preset === 'personal' && (
@@ -782,7 +782,7 @@ export const AdminPromotionBuilder: React.FC = () => {
           <div className={`rounded-[12px] px-3 py-3 ${isLight ? 'bg-black/[0.03]' : 'bg-white/[0.04]'}`}>
             <p className={`text-[13px] ${muted}`}>Total cost if every code is used</p>
             <p className={`text-[24px] font-medium mt-1 ${fg}`}>
-              {totalCostPesewas == null ? 'Unbounded' : formatGHS(totalCostPesewas)}
+              {totalCostPesewas == null ? 'No limit' : formatGHS(totalCostPesewas)}
             </p>
           </div>
           <div className={`rounded-[12px] px-3 py-3 ${isLight ? 'bg-black/[0.03]' : 'bg-white/[0.04]'}`}>

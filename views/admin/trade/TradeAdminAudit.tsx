@@ -47,13 +47,13 @@ export const TradeAdminAudit: React.FC = () => {
         <input
           value={entity}
           onChange={(e) => setEntity(e.target.value)}
-          placeholder="Entity (e.g. trade_in_requests)"
+          placeholder="What was changed (e.g. trade requests)"
           className="bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none"
         />
         <input
           value={actor}
           onChange={(e) => setActor(e.target.value)}
-          placeholder="Actor UUID"
+          placeholder="Staff member"
           className="bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none"
         />
         <input
@@ -77,7 +77,7 @@ export const TradeAdminAudit: React.FC = () => {
           {error}
         </div>
       ) : rows.length === 0 ? (
-        <p className="text-center py-12 text-white/30 text-sm">No audit rows match.</p>
+        <p className="text-center py-12 text-white/30 text-sm">No matching history.</p>
       ) : (
         <div className="space-y-2">
           {rows.map((r) => {
@@ -99,7 +99,7 @@ export const TradeAdminAudit: React.FC = () => {
                     </p>
                     <p className="text-[10px] text-white/35 truncate">
                       {r.entity_id} · {new Date(r.created_at).toLocaleString()}
-                      {r.actor_id ? ` · actor ${r.actor_id.slice(0, 8)}…` : ''}
+                      {r.actor_id ? ` · by ${r.actor_id.slice(0, 8)}…` : ''}
                     </p>
                   </div>
                   <span className="text-[9px] font-black uppercase text-white/40">
@@ -109,7 +109,7 @@ export const TradeAdminAudit: React.FC = () => {
                 {open && (
                   <div className="border-t border-white/10 p-3 space-y-1.5 bg-black/40">
                     {diffs.length === 0 ? (
-                      <p className="text-[10px] text-white/30">No field-level diff (empty payloads).</p>
+                      <p className="text-[10px] text-white/30">No detailed changes recorded.</p>
                     ) : (
                       diffs.map((d) => (
                         <div key={d.key} className="text-[10px] font-mono">
