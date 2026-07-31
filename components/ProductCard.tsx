@@ -2,8 +2,7 @@
  * Storefront product card — layout preserved; data from v_product_page row.
  *
  * Displays: primary image, name, brand, price_from (+ "from" when range),
- * discount badge, condition badge, color dots (max 5 +n), stock state,
- * Trade-in eligible pill when trade_model is set. No client joins.
+ * discount badge, color dots (max 5 +n), stock state. No client joins.
  */
 import React, { useMemo, useRef } from 'react';
 import { Link } from '@tanstack/react-router';
@@ -47,15 +46,6 @@ function colorSwatch(name: string): string {
   if (ol.includes('silver') || ol.includes('natural')) return '#9ca3af';
   if (ol.includes('space gray') || ol.includes('graphite')) return '#4B4B4D';
   return '#6b7280';
-}
-
-function conditionLabel(condition?: string | null, isNew?: boolean): string | null {
-  if (isNew) return null;
-  const c = (condition || '').toLowerCase();
-  if (!c || c === 'new') return null;
-  if (c.includes('refurb')) return 'Refurbished';
-  if (c.includes('pre') || c.includes('used') || c.includes('owned')) return 'Pre-owned';
-  return condition ?? null;
 }
 
 function stockLabel(total: number): { kind: 'in' | 'low' | 'out'; text: string } {
@@ -120,11 +110,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     Math.floor(Number(product.total_stock ?? product.stock ?? 0)),
   );
   const stock = stockLabel(totalStock);
-  const cond = conditionLabel(product.condition, product.new || product.is_new);
   const colors = Array.isArray(product.colors) ? product.colors.filter(Boolean) : [];
   const visibleColors = colors.slice(0, 5);
   const extraColors = Math.max(0, colors.length - 5);
-  const tradeEligible = Boolean(product.trade_model);
   const isDeal = isDealOfTheDayProduct(product);
   const discountPct = getDealDiscountPercentage(product);
   const promoText = getDealPromoText(product);
@@ -167,24 +155,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             🔥 Deal of the Day
           </span>
         )}
-        {product.new && (
-          <span className="bg-white text-black text-[7px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest shadow-lg">NEW</span>
-        )}
         {discountPct > 0 && (
           <span className="bg-[#CDA032] text-black text-[7px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest shadow-lg italic">
             -{discountPct}% OFF
-          </span>
-        )}
-        {cond && (
-          <span className={`text-[7px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest shadow-lg ${
-            isLight ? 'bg-black/80 text-white' : 'bg-white/90 text-black'
-          }`}>
-            {cond}
-          </span>
-        )}
-        {tradeEligible && (
-          <span className="bg-emerald-600 text-white text-[7px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest shadow-lg">
-            Trade-in eligible
           </span>
         )}
       </div>

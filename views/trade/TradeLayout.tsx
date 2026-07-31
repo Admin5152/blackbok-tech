@@ -1,5 +1,6 @@
 /**
- * Trade v2 layout — Repair-matched: hero, Change rows, sticky summary.
+ * Trade v2 layout — hero, sticky estimate sidebar, phase content.
+ * Device/Trading Into Change rows only appear on Review+ (see TradeCollapsedSteps).
  */
 import React from 'react';
 import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router';

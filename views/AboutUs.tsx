@@ -286,7 +286,13 @@ export const AboutUs: React.FC<AboutUsProps> = ({ theme = 'dark' }) => {
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent" />
                                 <div className="absolute bottom-0 left-0 right-0 p-6 text-white sm:p-8">
                                     <p className="text-[10px] font-black uppercase tracking-[0.35em] text-[#D4AF37]">Our Promise</p>
-                                    <h3 className="mt-3 max-w-sm text-3xl font-black leading-tight tracking-tight sm:text-4xl">
+                                    <h3
+                                        className={`mt-3 max-w-sm text-3xl font-black leading-tight tracking-tight sm:text-4xl ${
+                                            isLight
+                                                ? '[text-shadow:0_0_1px_#D4AF37,0_0_1px_#D4AF37,1px_0_0_#D4AF37,-1px_0_0_#D4AF37,0_1px_0_#D4AF37,0_-1px_0_#D4AF37]'
+                                                : ''
+                                        }`}
+                                    >
                                         Precision, respect, and real support.
                                     </h3>
                                 </div>

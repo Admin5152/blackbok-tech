@@ -65,11 +65,6 @@ export const StoreProductListRow: React.FC<Props> = ({
               <span className="font-black text-base sm:text-lg text-[#CDA032] tabular-nums">
                 {formatCurrency(priceFrom)}
               </span>
-              {product.trade_model && (
-                <span className="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-600/15 text-emerald-500">
-                  Trade-in eligible
-                </span>
-              )}
               <ProductAvailabilityBadge available={available} isLight={isLight} inline />
             </div>
           </div>

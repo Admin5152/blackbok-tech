@@ -39,7 +39,6 @@ import {
   productPassesStoreBaseFilters,
   fetchStoreSearchProducts,
   getCategorySubcategoryOptions,
-  getSubcategoryCount,
   resolveStoreSubcategoryFilter,
   encodeStoreSubcategorySearch,
   subcategoryFilterLabel,
@@ -468,15 +467,12 @@ export const Store: React.FC<StoreProps> = ({
 
   const categoryPickerCards = useMemo(() => {
     const ordered = buildOrderedStoreCategoryKeys(products);
-    const countInBucket = (bucket: string) =>
-      products.filter((p) => normalizeProductCategory(p.category) === bucket).length;
     const dealProducts = products.filter((p) => isDealOfTheDayProduct(p));
 
     return [
       {
         key: 'deals',
         label: '🔥 Deal of the Day',
-        count: dealProducts.length,
         cover: dealProducts[0]?.image || dealProducts[0]?.image_url || null,
         onSelect: openDealOfTheDay,
         icon: <Flame size={28} strokeWidth={1.5} />,
@@ -484,7 +480,6 @@ export const Store: React.FC<StoreProps> = ({
       ...ordered.map((cat) => ({
         key: `pick-${cat}`,
         label: cat,
-        count: countInBucket(cat),
         cover: categoryCoverImage(products, cat),
         onSelect: () => openCategory(cat as Category),
         icon: categoryIconLg(cat),
@@ -497,7 +492,6 @@ export const Store: React.FC<StoreProps> = ({
     return subcategoryOptions.map((opt) => ({
       key: `${opt.kind}-${opt.value}`,
       option: opt,
-      count: getSubcategoryCount(products, activeCategory, opt),
       icon: subcategoryCardIcon(opt),
       onSelect: () => openSubcategory({ kind: opt.kind, value: opt.value }),
     }));
@@ -683,9 +677,6 @@ export const Store: React.FC<StoreProps> = ({
                   </span>
                   <div>
                     <span className="block text-sm sm:text-base font-bold tracking-tight">{card.label}</span>
-                    <span className="mt-0.5 block text-xs text-[color:var(--bb-muted)]">
-                      {card.count} {card.count === 1 ? 'item' : 'items'}
-                    </span>
                   </div>
                 </div>
               </button>
@@ -748,9 +739,6 @@ export const Store: React.FC<StoreProps> = ({
                     </span>
                     <span className="mt-1 block text-sm text-[color:var(--bb-muted)]">
                       {card.option.description}
-                    </span>
-                    <span className="mt-2 block text-xs font-medium text-[color:var(--bb-muted)]">
-                      {card.count} {card.count === 1 ? 'item' : 'items'}
                     </span>
                   </div>
                 </div>

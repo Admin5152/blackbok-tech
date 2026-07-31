@@ -216,7 +216,12 @@ export function TradeCollapsedSteps() {
     );
   }
 
-  /* ── Later steps: major section collapses (Repair step > N) ── */
+  /* Upgrade + Condition: no Device/Trading Into rows — sidebar + phase pills only */
+  if (step < 7) {
+    return null;
+  }
+
+  /* ── Review+ (summary/details): full recap with Change links ── */
   return (
     <div className="mb-2">
       {deviceSummary && (
@@ -226,14 +231,14 @@ export function TradeCollapsedSteps() {
           onChange={changeDeviceDetails}
         />
       )}
-      {step > 5 && target && (
+      {target && (
         <CollapsedRow
           label={TRADE_COPY.collapsed.tradingInto}
           value={targetSummary}
           onChange={changeTarget}
         />
       )}
-      {step > 6 && conditionSummary && (
+      {conditionSummary && (
         <CollapsedRow
           label={TRADE_COPY.collapsed.condition}
           value={conditionSummary}

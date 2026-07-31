@@ -1,10 +1,12 @@
 /**
  * Upgrade → Condition → Review pills (matches legacy Trades / screenshot flow).
+ * Clicking an earlier pill is the primary way to edit a previous phase.
  */
 import React from 'react';
 import { ChevronRight } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import { TRADE_COPY } from '../../lib/tradeCopy';
+import { useTradeFlow } from '../../lib/tradeFlowContext';
 
 export type TradeDetailPhase = 'upgrade' | 'condition' | 'review';
 
@@ -43,8 +45,20 @@ export function TradePhasePills({
   maxReachable?: TradeDetailPhase;
 }) {
   const navigate = useNavigate();
+  const { dispatch } = useTradeFlow();
   const activeOrder = PHASES.find((p) => p.id === active)?.order ?? 1;
   const maxOrder = PHASES.find((p) => p.id === maxReachable)?.order ?? activeOrder;
+
+  const jumpTo = (phase: (typeof PHASES)[number]) => {
+    if (phase.id === 'upgrade') {
+      dispatch({ type: 'CLEAR_TARGET' });
+      dispatch({ type: 'RESET_QUIZ' });
+    } else if (phase.id === 'condition') {
+      dispatch({ type: 'RESET_QUIZ' });
+    }
+    void navigate({ to: phase.path });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
     <nav
@@ -64,7 +78,7 @@ export function TradePhasePills({
               disabled={!isActive && !canJump}
               onClick={() => {
                 if (!canJump) return;
-                void navigate({ to: path });
+                jumpTo({ id, label, path, order });
               }}
               className={`rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition-all ${
                 isActive
