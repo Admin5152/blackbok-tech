@@ -107,9 +107,6 @@ function TradeLayoutInner() {
                 <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-[#CDA032]/10 border border-[#CDA032]/30">
                   <RefreshCcw size={20} className="text-[#CDA032]" aria-hidden />
                 </div>
-                <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.3em] text-[#CDA032]">
-                  {TRADE_COPY.layout.eyebrow}
-                </span>
               </div>
               <h1 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tighter leading-[1.1]">
                 {TRADE_COPY.layout.heroLine1}
@@ -119,16 +116,7 @@ function TradeLayoutInner() {
                 </span>
               </h1>
             </>
-          ) : (
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-[#CDA032]/10 border border-[#CDA032]/30 shrink-0">
-                <RefreshCcw size={16} className="text-[#CDA032]" aria-hidden />
-              </div>
-              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#CDA032]">
-                {TRADE_COPY.layout.eyebrow}
-              </span>
-            </div>
-          )}
+          ) : null}
         </header>
 
         <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-start">

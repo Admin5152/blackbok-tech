@@ -97,6 +97,7 @@ export function buildOrderedStoreCategoryKeys(products: Product[]): string[] {
   catalogKeys['Smart watches'] = true;
   catalogKeys['Headphones'] = true;
   catalogKeys['Speakers'] = true;
+  catalogKeys['Accessories'] = true;
 
   const remaining = new Set(Object.keys(catalogKeys));
   const ordered: string[] = [];

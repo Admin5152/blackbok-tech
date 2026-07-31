@@ -13,7 +13,7 @@
 export const TRADE_COPY = {
   /** Page chrome — matches Repair hero / summary language */
   layout: {
-    eyebrow: 'BlackBox Trade-In Center',
+    eyebrow: 'Trade-in',
     heroLine1: 'Trade in. Upgrade',
     heroLine2: 'without the hassle.',
     heroSub:
@@ -179,7 +179,7 @@ export const TRADE_COPY = {
     gateIcloud: 'Can you sign out of iCloud (turn off Find My)?',
     hardStopHeading: 'We can\'t complete this trade-in online',
     hardStopBody:
-      'We can\'t trade this in online — visit BlackBox for further analysis. Thanks for checking.',
+      'Please visit BlackBox in person for help with this device.',
     /** D2: iCloud / Find My locked → hard reject (trade_config icloud_locked_policy=hard_stop) */
     hardStopIcloud:
       'Please sign out of iCloud (turn off Find My) before trading in, or visit BlackBox in person for help.',

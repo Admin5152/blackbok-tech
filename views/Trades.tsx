@@ -766,7 +766,6 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
             <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-[#CDA032]/10 border border-[#CDA032]/30">
               <RefreshCcw size={20} className="text-[#CDA032]" />
             </div>
-            <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.3em] text-[#CDA032]">BlackBox Trade-In Center</span>
           </div>
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-black uppercase tracking-tighter leading-[1.1]">
             Trade in. Upgrade<br />

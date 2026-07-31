@@ -418,10 +418,16 @@ export function TradeConditionScreen() {
 
   // ── Hard stop (D2 iCloud / power) ──
   if (state.hardStopped) {
-    const isIcloud = Object.values(state.quizAnswers).some(
+    const answers = Object.values(state.quizAnswers);
+    const isIcloud = answers.some(
       (a) =>
         a.outcome === 'hard_stop' &&
         (a.questionCode === 'GATE2' || a.questionCode === 'iGATE2'),
+    );
+    const isPower = answers.some(
+      (a) =>
+        a.outcome === 'hard_stop' &&
+        (a.questionCode === 'GATE1' || a.questionCode === 'iGATE1'),
     );
     return (
       <section className="space-y-6 text-center py-8">
@@ -432,7 +438,9 @@ export function TradeConditionScreen() {
         <p className={`text-sm leading-relaxed max-w-md mx-auto ${isLight ? 'text-black/60' : 'text-white/55'}`}>
           {isIcloud
             ? TRADE_COPY.questionnaire.hardStopIcloud
-            : TRADE_COPY.questionnaire.hardStopBody}
+            : isPower
+              ? TRADE_COPY.questionnaire.hardStopPower
+              : TRADE_COPY.questionnaire.hardStopBody}
         </p>
         <button
           type="button"

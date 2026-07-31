@@ -190,6 +190,27 @@ export function lookupBaseValueFromRows(
 }
 
 /**
+ * Prefer Yes before No for binary gates (display_order in DB may be inverted).
+ * Other answers keep display_order.
+ */
+function sortAnswersYesFirst<T extends { answer_text: string; display_order: number }>(
+  answers: T[],
+): T[] {
+  const rank = (text: string) => {
+    const n = text.trim().toLowerCase();
+    if (n === 'yes' || n.startsWith('yes ') || n.startsWith('yes,')) return 0;
+    if (n === 'no' || n.startsWith('no ') || n.startsWith('no,')) return 1;
+    return 2;
+  };
+  return [...answers].sort((a, b) => {
+    const ra = rank(a.answer_text);
+    const rb = rank(b.answer_text);
+    if (ra !== rb) return ra - rb;
+    return a.display_order - b.display_order;
+  });
+}
+
+/**
  * Full questionnaire with answers — drives Screen 6.
  * Questions and answer options are admin-editable in DB; never hardcode.
  */
@@ -224,7 +245,7 @@ export async function getTradeQuestions(
 
   return questions.map((q) => ({
     ...q,
-    answers: byQuestion.get(q.id) ?? [],
+    answers: sortAnswersYesFirst(byQuestion.get(q.id) ?? []),
   }));
 }
 
