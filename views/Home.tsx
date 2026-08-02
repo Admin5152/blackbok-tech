@@ -805,19 +805,19 @@ export const Home: React.FC<HomeProps> = ({
             {(exploreFilter === 'All Gear' || exploreFilter === 'Pro Series') && (
               <Link to="/store" search={{ category: 'Audio' } as any} className={`col-span-1 md:col-span-2 row-span-1 md:row-span-1 rounded-[2rem] p-8 md:p-10 flex flex-col justify-center relative overflow-hidden group transition-transform duration-500 hover:-translate-y-1 hover:shadow-2xl hover:ring-2 hover:ring-[#D4AF37]/25 ${theme === 'light' ? 'bg-[#E1F2EB] text-[#0A261D]' : 'bg-gradient-to-br from-[#1A362D] to-[#0A1A14] text-[#86EFAC] border border-[#22C55E]/20'}`}>
                 <div className="relative z-10 w-full md:w-2/3">
-                  <span className={`inline-block px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.2em] mb-4 backdrop-blur-md ${theme === 'light' ? 'bg-white/50 text-[#0A261D]' : 'bg-black/30 text-[#86EFAC]'}`}>Limited Time Offer</span>
+                  <span className={`inline-block px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.2em] mb-4 backdrop-blur-md ${theme === 'light' ? 'bg-white/50 text-[#0A261D]' : 'bg-black/30 text-[#86EFAC]'}`}>Hear the sound of quality</span>
                   <h3 className={`text-3xl md:text-5xl font-black italic tracking-tighter uppercase leading-[1.1] mb-2 ${theme === 'light' ? 'text-[#0A261D]' : 'text-white'}`}>
-                    Get Up To<br />
-                    <span className={theme === 'light' ? 'text-[#22C55E]' : 'text-[#4ADE80]'}>20% Off Audio</span>
+                    Browse our<br />
+                    <span className={theme === 'light' ? 'text-[#22C55E]' : 'text-[#4ADE80]'}>BEST SELLING AUDIO DEVICES</span>
                   </h3>
                   <span className={`inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest mt-4 group-hover:translate-x-2 transition-transform ${theme === 'light' ? 'text-[#0A261D]' : 'text-[#86EFAC]'}`}>
-                    Shop Promotion <ArrowRight size={14} />
+                    Shop Now <ArrowRight size={14} />
                   </span>
                 </div>
                 <div className="absolute top-0 -right-10 md:right-0 bottom-0 w-2/3 md:w-1/2">
                   <img
-                    src="/cases.jpeg"
-                    alt="Audio Promo"
+                    src="/Headphones111.jpeg"
+                    alt="Audio "
                     className={`w-full h-full object-cover rounded-l-full scale-125 group-hover:scale-110 transition-all duration-700 ${
                       theme === 'light' ? 'opacity-95' : 'opacity-70 blur-[2px] group-hover:blur-none'
                     }`}
@@ -842,17 +842,17 @@ export const Home: React.FC<HomeProps> = ({
                 </div>
 
                 <div className="absolute inset-0 pt-16 pb-24 px-4 flex items-center justify-center -z-0">
-                  <img src="/iPhone.jpeg" alt="iPhone" className="w-[80%] h-[80%] object-contain drop-shadow-2xl group-hover:scale-110 transition-transform duration-700" />
+                  <img src="/phones.jpeg" alt="iPhone" className="w-[80%] h-[80%] object-contain drop-shadow-2xl group-hover:scale-110 transition-transform duration-700" />
                 </div>
 
                 <div className="z-20 transform translate-y-2 group-hover:translate-y-0 transition-transform mt-auto">
-                  <span className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${theme === 'light' ? 'text-black/40' : 'text-white/40'}`}>Our Picks</span>
+                  <span className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${theme === 'light' ? 'text-black/40' : 'text-white/40'}`}>BROWSE OUR</span>
                   <h3 className={`text-lg font-black uppercase italic tracking-tight leading-tight mb-4 ${theme === 'light' ? 'text-black' : 'text-white'}`}>
-                    iPhone 14<br />Midnight Black
+                    BEST SELLING PHONES
                   </h3>
                   <div className="flex items-center justify-between">
                     <span className={`px-4 py-2 rounded-xl text-xs font-black bg-[#CDA032] text-black shadow-lg`}>
-                      From GHC 7,999
+                      Have a look
                     </span>
                   </div>
                 </div>
@@ -874,17 +874,17 @@ export const Home: React.FC<HomeProps> = ({
                 </div>
 
                 <div className="absolute inset-0 pt-16 pb-24 px-4 flex items-center justify-center -z-0">
-                  <img src="/ps5.jpeg" alt="Gaming Console" className="w-[90%] h-[90%] object-contain drop-shadow-2xl group-hover:scale-110 transition-transform duration-700" />
+                  <img src="/ps5and xbox.jpeg" alt="Gaming Console" className="w-[90%] h-[90%] object-contain drop-shadow-2xl group-hover:scale-110 transition-transform duration-700" />
                 </div>
 
                 <div className="z-20 transform translate-y-2 group-hover:translate-y-0 transition-transform mt-auto">
                   <span className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${theme === 'light' ? 'text-black/40' : 'text-white/40'}`}>Your Choice</span>
                   <h3 className={`text-lg font-black uppercase italic tracking-tight leading-tight mb-4 ${theme === 'light' ? 'text-black' : 'text-white'}`}>
-                    PS5 DualSense<br />Wireless Controller
+                   Check out our latest gaming consoles
                   </h3>
                   <div className="flex items-center justify-between">
                     <span className={`px-4 py-2 rounded-xl text-xs font-black bg-[#CDA032] text-black shadow-lg`}>
-                      GHC 850
+                      for the love of the game 
                     </span>
                   </div>
                 </div>
@@ -920,13 +920,13 @@ export const Home: React.FC<HomeProps> = ({
               <Link to="/trades" className={`col-span-1 md:col-span-1 row-span-1 rounded-[2rem] p-8 relative overflow-hidden group transition-transform duration-500 hover:-translate-y-1 hover:shadow-xl hover:ring-2 hover:ring-[#D4AF37]/25 flex flex-col justify-end ${theme === 'light' ? 'bg-[#F9FAFB] shadow-inner' : 'bg-[#14141c] shadow-inner border border-white/[0.07]'}`}>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent z-10 opacity-70"></div>
                 <div className="absolute inset-0 bg-gradient-to-br from-[#CDA032]/20 to-transparent z-20 mix-blend-overlay"></div>
-                <img src="/iPhone.jpeg" alt="Trade In Promo" className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-[2s] z-0 filter saturate-150" />
+                <img src="/trade.jpeg" alt="Trade In Promo" className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-[2s] z-0 filter saturate-150" />
                 <div className="relative z-30 transform group-hover:-translate-y-1 transition-transform">
                   <div className="px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 inline-block mb-3">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-white">Avid Offers</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-white">What you can get with our</span>
                   </div>
                   <h3 className="text-xl font-black italic tracking-tighter uppercase text-white shadow-black drop-shadow-lg">
-                    Trade-In Bonus
+                    Trade-Ins
                   </h3>
                 </div>
                 <div className="absolute top-4 right-4 w-8 h-8 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white/40">
