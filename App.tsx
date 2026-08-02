@@ -83,6 +83,7 @@ import { AdminPromotionDetail } from './views/admin/promotions/AdminPromotionDet
 import { AdminPromotionBuilder } from './views/admin/promotions/AdminPromotionBuilder';
 import { AdminPromoCodesRegistry } from './views/admin/promotions/AdminPromoCodesRegistry';
 import { PromoVoucherPrint } from './views/admin/promotions/PromoVoucherPrint';
+import { PromoBuilderUiPreview } from './views/admin/promotions/PromoBuilderUiPreview';
 import { saveReturnTo } from './lib/returnTo';
 import { isTradeV2Enabled } from './lib/tradeFeatureFlags';
 import { ForgotPassword } from './views/ForgotPassword';
@@ -1070,6 +1071,13 @@ const errorDebugRoute = createRoute({
   },
 });
 
+/** Frontend-only preview of the new promotion builder (no admin login). */
+const promoBuilderPreviewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/preview/promo-builder',
+  component: PromoBuilderUiPreview,
+});
+
 const splatRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '$',
@@ -1138,6 +1146,7 @@ const routeTree = rootRoute.addChildren([
   confirmationRoute,
   emailConfirmRoute,
   errorDebugRoute,
+  promoBuilderPreviewRoute,
   splatRoute,
 ]);
 
@@ -1208,7 +1217,14 @@ function RootComponent() {
   const isResetPasswordRoute = location.pathname === '/reset-password';
   const isConfirmationRoute = location.pathname === '/confirmation';
   const isEmailConfirmRoute = location.pathname === '/emailconfirm';
-  const isStandaloneRoute = isAdminRoute || isForgotPasswordRoute || isResetPasswordRoute || isConfirmationRoute || isEmailConfirmRoute;
+  const isPromoBuilderPreview = location.pathname === '/preview/promo-builder';
+  const isStandaloneRoute =
+    isAdminRoute ||
+    isForgotPasswordRoute ||
+    isResetPasswordRoute ||
+    isConfirmationRoute ||
+    isEmailConfirmRoute ||
+    isPromoBuilderPreview;
   /** Order / trade / repair invoice pages — no site chrome; minimal wordmark footer only. */
   const isReceiptRoute = location.pathname.startsWith('/receipt/');
 
