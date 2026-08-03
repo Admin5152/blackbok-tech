@@ -82,7 +82,7 @@ export const ProductImageGallery: React.FC<ProductImageGalleryProps> = ({
   if (!currentUrl) {
     return (
       <div
-        className={`rounded-2xl border aspect-[4/5] max-h-[min(420px,70vh)] mx-auto w-full flex flex-col items-center justify-center gap-3 ${
+        className={`rounded-2xl border aspect-[4/5] max-h-[min(220px,38vh)] sm:max-h-[min(360px,55vh)] mx-auto w-full flex flex-col items-center justify-center gap-3 ${
           isLight
             ? 'border-black/10 bg-black/[0.02]'
             : 'border-white/10 bg-white/[0.02]'
@@ -117,13 +117,13 @@ export const ProductImageGallery: React.FC<ProductImageGalleryProps> = ({
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        <div className="aspect-[4/5] max-h-[min(420px,70vh)] w-full mx-auto overflow-hidden flex items-center justify-center">
+        <div className="aspect-[4/5] max-h-[min(220px,38vh)] sm:max-h-[min(360px,55vh)] lg:max-h-[min(420px,70vh)] w-full mx-auto overflow-hidden flex items-center justify-center">
           <img
             key={activeImage?.id ?? 'fallback'}
             src={currentUrl}
             alt={currentAlt}
             draggable={false}
-            className="max-h-full max-w-full w-full h-full object-contain p-3 sm:p-4 transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+            className="max-h-full max-w-full w-full h-full object-contain p-2 sm:p-4 transition-transform duration-500 ease-out group-hover:scale-[1.03]"
           />
         </div>
 

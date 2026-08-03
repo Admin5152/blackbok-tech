@@ -839,7 +839,7 @@ const adminProductsRoute = createRoute({
   component: AdminRouteShell,
 });
 
-/** iPad bulk pricing / stock — same staff gate, opens ipads section. */
+/** iPad bulk pricing / stock — same staff gate, opens Shop → iPads tab. */
 const adminIpadsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/admin/ipads',

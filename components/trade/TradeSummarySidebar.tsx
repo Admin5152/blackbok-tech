@@ -2,7 +2,7 @@
  * Sticky Trade Summary sidebar — mirrors Repair Summary (read-only).
  * Edits happen via blue Change links in TradeCollapsedSteps.
  */
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   ClipboardList,
   RefreshCcw,
@@ -14,21 +14,60 @@ import { useTradeFlow } from '../../lib/tradeFlowContext';
 import { TRADE_COPY, simVariantLabel } from '../../lib/tradeCopy';
 import { formatGhs } from '../../lib/money';
 import { computeTradeBalanceDisplay, tradeBalanceAccentClass } from '../../lib/tradeBalanceDisplay';
+import { useAppContext } from '../../lib/appContext';
+import {
+  resolveTradedInSummaryImage,
+  resolveUpgradeSummaryImage,
+} from '../../lib/tradeModelImages';
 
 function IconTile({ children }: { children: React.ReactNode }) {
   return (
-    <div className="w-10 h-10 rounded-xl bg-[var(--bb-surface-2)] border border-[var(--bb-border)] flex items-center justify-center shrink-0">
+    <div className="w-10 h-10 rounded-xl bg-[var(--bb-surface-2)] border border-[var(--bb-border)] flex items-center justify-center shrink-0 overflow-hidden">
       {children}
     </div>
   );
 }
 
+function DeviceThumb({
+  src,
+  alt,
+  fallback,
+}: {
+  src: string | null;
+  alt: string;
+  fallback: React.ReactNode;
+}) {
+  if (!src) return <>{fallback}</>;
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="h-full w-full object-contain p-0.5"
+      draggable={false}
+    />
+  );
+}
+
 export function TradeSummarySidebar() {
   const { state } = useTradeFlow();
+  const { products } = useAppContext();
   const est = state.lastEstimate;
   const lock = state.deviceLock;
   const target = state.targetLock;
   const quizDone = state.quizComplete;
+
+  const tradedInImage = useMemo(
+    () => resolveTradedInSummaryImage(state.model, state.deviceType, products),
+    [state.model, state.deviceType, products],
+  );
+
+  const upgradeImage = useMemo(
+    () =>
+      target && !target.cashOnly
+        ? resolveUpgradeSummaryImage(target.productId, products)
+        : null,
+    [target, products],
+  );
 
   const hasAnything =
     Boolean(state.deviceType) ||
@@ -56,7 +95,11 @@ export function TradeSummarySidebar() {
         {deviceLine && (
           <div className="flex gap-4">
             <IconTile>
-              <Smartphone size={18} className="text-[#CDA032]" aria-hidden />
+              <DeviceThumb
+                src={state.model ? tradedInImage : null}
+                alt={deviceLine}
+                fallback={<Smartphone size={18} className="text-[#CDA032]" aria-hidden />}
+              />
             </IconTile>
             <div className="min-w-0">
               <p className="text-[10px] uppercase font-bold tracking-widest opacity-50 mb-0.5">
@@ -90,7 +133,11 @@ export function TradeSummarySidebar() {
         {target && (
           <div className="flex gap-4">
             <IconTile>
-              <ShoppingBag size={18} className="text-[#CDA032]" aria-hidden />
+              <DeviceThumb
+                src={upgradeImage}
+                alt={target.productName || TRADE_COPY.layout.summaryTarget}
+                fallback={<ShoppingBag size={18} className="text-[#CDA032]" aria-hidden />}
+              />
             </IconTile>
             <div className="min-w-0">
               <p className="text-[10px] uppercase font-bold tracking-widest opacity-50 mb-0.5">

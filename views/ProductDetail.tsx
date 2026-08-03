@@ -183,11 +183,11 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
   ];
 
   return (
-    <div className={`min-h-screen ${isLight ? 'bg-[#F5F5F7] text-[#1d1d1f]' : 'bg-[#060605] text-white'} pb-20`}>
-      <div className="container mx-auto max-w-6xl px-4 lg:px-6 py-5 sm:py-6">
+    <div className={`min-h-screen ${isLight ? 'bg-[#F5F5F7] text-[#1d1d1f]' : 'bg-[#060605] text-white'} pb-16`}>
+      <div className="container mx-auto max-w-6xl px-4 lg:px-6 py-3 sm:py-5">
 
         {/* Breadcrumb */}
-        <nav className="mb-4">
+        <nav className="mb-2.5 sm:mb-4">
           <ol
             className={`flex items-center space-x-2 text-xs sm:text-sm ${
               isLight ? 'text-black/50' : 'text-white/60'
@@ -197,7 +197,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               <PageBackButton isLight={isLight} fallbackTo="/store" label="Back" className="bb-store-picker-back" />
             </li>
             <li className="hidden sm:inline">/</li>
-            <li>
+            <li className="hidden sm:inline">
               <button
                 type="button"
                 onClick={() => navigateTo('store')}
@@ -206,36 +206,14 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                 Store
               </button>
             </li>
-            <li>/</li>
-            <li className={isLight ? 'text-black font-medium truncate max-w-[min(20rem,50vw)]' : 'text-white truncate max-w-[min(20rem,50vw)]'}>
+            <li className="hidden sm:inline">/</li>
+            <li className={`hidden sm:inline truncate max-w-[min(20rem,50vw)] ${isLight ? 'text-black font-medium' : 'text-white'}`}>
               {product.name}
             </li>
           </ol>
         </nav>
 
-        {/* Sticky in-page nav (mobile-first) */}
-        <div className="sticky top-20 z-30 -mx-4 lg:mx-0 mb-5">
-          <div className={`px-4 lg:px-0 py-1.5 border-b backdrop-blur-xl ${isLight ? 'border-black/5 bg-[#F5F5F7]/90' : 'border-white/10 bg-[#060605]/85'}`}>
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-              <button
-                type="button"
-                onClick={() => scrollTo(overviewRef)}
-                className={`shrink-0 px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-[0.28em] transition ${isLight ? 'bg-black/5 border-black/10 hover:bg-black/10 text-black' : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'}`}
-              >
-                Overview
-              </button>
-              <button
-                type="button"
-                onClick={() => scrollTo(specsRef)}
-                className={`shrink-0 px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-[0.28em] transition ${isLight ? 'bg-black/5 border-black/10 hover:bg-black/10 text-black' : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'}`}
-              >
-                Specs
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-8">
 
           {/* Image Section */}
           <div className="relative lg:max-w-md xl:max-w-lg lg:justify-self-center w-full">
@@ -247,81 +225,75 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             />
 
             {product.discount != null && product.discount > 0 && (
-              <div className="absolute top-3 left-3 z-10 bg-[#B38B21] text-black px-2.5 py-0.5 rounded-full text-[10px] font-bold shadow-lg pointer-events-none">
+              <div className="absolute top-2 left-2 z-10 bg-[#B38B21] text-black px-2 py-0.5 rounded-full text-[10px] font-bold shadow-lg pointer-events-none">
                 -{product.discount}% OFF
               </div>
             )}
             {(product.is_deal_of_the_day || product.isDealOfTheDay) && (
-              <div className="absolute top-3 right-3 z-10 bg-gradient-to-r from-orange-600 to-amber-500 text-white px-2.5 py-0.5 rounded-full text-[10px] font-bold shadow-lg pointer-events-none">
+              <div className="absolute top-2 right-2 z-10 bg-gradient-to-r from-orange-600 to-amber-500 text-white px-2 py-0.5 rounded-full text-[10px] font-bold shadow-lg pointer-events-none">
                 Deal of the Day
               </div>
             )}
           </div>
 
-          {/* Info Section — tight vertical rhythm; options in one card */}
-          <div className="space-y-4">
+          {/* Buy box — keep color/storage/CTA above the fold */}
+          <div className="space-y-2.5 sm:space-y-3">
 
-            <div className="space-y-1">
-              <p className={`text-[9px] font-black uppercase tracking-[0.28em] ${isLight ? 'text-black/45' : 'text-white/45'}`}>
-                {product.brand || product.category}
-              </p>
-              <h1 className={`text-xl sm:text-2xl font-bold tracking-tight leading-snug ${isLight ? 'text-black' : 'text-white'}`}>
-                {product.name}
-              </h1>
-              {(product.is_deal_of_the_day || product.isDealOfTheDay) &&
-                (product.promo_text || product.promoText) && (
-                <p className={`text-xs font-semibold ${isLight ? 'text-orange-700' : 'text-orange-300'}`}>
-                  {product.promo_text || product.promoText}
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 space-y-0.5">
+                <p className={`text-[9px] font-black uppercase tracking-[0.22em] ${isLight ? 'text-black/45' : 'text-white/45'}`}>
+                  {product.brand || product.category}
                 </p>
-              )}
-            </div>
-
-            {/* Price — updates when Color / Storage / RAM / SIM selection changes */}
-            <div className="flex items-baseline gap-3 flex-wrap">
-              <span
-                key={`${matchedVariant?.id ?? 'base'}-${listPrice}`}
-                className="text-xl sm:text-2xl font-bold text-[#B38B21] tabular-nums"
-              >
-                {formatGhs(unitPrice)}
-              </span>
-
-              {discountPct > 0 && listPrice > unitPrice && (
-                <span className={`text-sm line-through ${isLight ? 'text-black/35' : 'text-white/40'}`}>
-                  {formatGhs(listPrice)}
+                <h1 className={`text-lg sm:text-xl font-bold tracking-tight leading-snug ${isLight ? 'text-black' : 'text-white'}`}>
+                  {product.name}
+                </h1>
+              </div>
+              <div className="shrink-0 text-right">
+                <span
+                  key={`${matchedVariant?.id ?? 'base'}-${listPrice}`}
+                  className="block text-lg sm:text-xl font-bold text-[#B38B21] tabular-nums"
+                >
+                  {formatGhs(unitPrice)}
                 </span>
-              )}
+                {discountPct > 0 && listPrice > unitPrice && (
+                  <span className={`text-xs line-through ${isLight ? 'text-black/35' : 'text-white/40'}`}>
+                    {formatGhs(listPrice)}
+                  </span>
+                )}
+              </div>
             </div>
 
-            {/* Trade-in banner — only when products.trade_model is set */}
+            {(product.is_deal_of_the_day || product.isDealOfTheDay) &&
+              (product.promo_text || product.promoText) && (
+              <p className={`text-xs font-semibold ${isLight ? 'text-orange-700' : 'text-orange-300'}`}>
+                {product.promo_text || product.promoText}
+              </p>
+            )}
+
             {product.trade_model && tradeMax != null && tradeMax > 0 && (
-              <div
-                className={`rounded-xl border p-3 flex flex-col sm:flex-row sm:items-center gap-2.5 ${
+              <button
+                type="button"
+                onClick={startTradeIn}
+                className={`w-full rounded-lg border px-3 py-2 flex items-center justify-between gap-2 text-left ${
                   isLight
                     ? 'border-[#CDA032]/35 bg-[#CDA032]/10'
                     : 'border-[#CDA032]/30 bg-[#CDA032]/10'
                 }`}
               >
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs sm:text-sm font-bold leading-snug">
-                    Trade in your old device — get up to {formatGhs(tradeMax)} toward this
-                  </p>
-                  <p className={`text-[10px] mt-0.5 ${isLight ? 'text-black/50' : 'text-white/45'}`}>
-                    Your current selection will be pre-filled as the upgrade target.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={startTradeIn}
-                  className="shrink-0 rounded-lg bg-[#CDA032] text-black font-black uppercase tracking-[0.12em] text-[9px] px-4 py-2.5 hover:brightness-105"
-                >
-                  Start trade-in
-                </button>
-              </div>
+                <span className="min-w-0">
+                  <span className="block text-[11px] sm:text-xs font-bold leading-snug truncate">
+                    Trade in — up to {formatGhs(tradeMax)} off
+                  </span>
+                </span>
+                <span className="shrink-0 rounded-md bg-[#CDA032] text-black font-black uppercase tracking-[0.1em] text-[8px] px-2.5 py-1.5">
+                  Start
+                </span>
+              </button>
             )}
 
             {normalizedVariants.length > 0 && (
               <div
-                className={`rounded-xl border p-3 sm:p-4 space-y-3 ${
+                className={`rounded-xl border p-2.5 sm:p-3 space-y-2 ${
                   isLight ? 'border-black/10 bg-white shadow-sm' : 'border-white/10 bg-white/[0.03]'
                 }`}
               >
@@ -331,30 +303,23 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                   const selRaw = (selectedOptions[variant.name] || '').trim();
                   const sel = isSimGroup ? formatSimTypeLabel(selRaw) : selRaw;
                   return (
-                    <div key={variant.name} className="space-y-1.5">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className={`text-[9px] font-black uppercase tracking-[0.18em] shrink-0 ${isLight ? 'text-black/45' : 'text-white/45'}`}>
+                    <div key={variant.name} className="flex items-start gap-2.5 sm:gap-3">
+                      <div className="w-[4.25rem] sm:w-20 shrink-0 pt-1">
+                        <span className={`block text-[9px] font-black uppercase tracking-[0.14em] ${isLight ? 'text-black/45' : 'text-white/45'}`}>
                           {variant.name}
                         </span>
                         {sel ? (
-                          <span
-                            className="text-[11px] font-bold text-[#B38B21] truncate text-right max-w-[58%]"
-                            title={sel}
-                          >
+                          <span className="block text-[10px] font-bold text-[#B38B21] truncate" title={sel}>
                             {sel}
                           </span>
                         ) : null}
                       </div>
-                      <div className={`flex flex-wrap ${isColorGroup ? 'gap-2' : 'gap-1.5'}`}>
+                      <div className={`flex flex-1 flex-wrap content-start ${isColorGroup ? 'gap-1.5' : 'gap-1'}`}>
                         {variant.options.map((option, optIdx) => {
                           const opt = toOptionString(option);
                           const ol = opt.toLowerCase();
                           const isSelected = selectedOptions[variant.name] === opt;
                           const chipLabel = isSimGroup ? formatSimTypeLabel(opt) : opt;
-                          // Same as quick-view: allow the chip if *some* in-stock SKU
-                          // exists with this option (snap other dims), not only the
-                          // exact current combination — otherwise Color/Storage feel stuck
-                          // and the price never moves to the intended variant.
                           const trialOpts = snapSelectionToInStock(product, normalizedVariants, {
                             ...selectedOptions,
                             [variant.name]: opt,
@@ -370,13 +335,13 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                                 aria-label={`${variant.name}: ${opt}${isSelected ? ', selected' : ''}${optDisabled ? ', out of stock' : ''}`}
                                 aria-pressed={isSelected}
                                 onClick={() => !optDisabled && handleOptionChange(variant.name, opt)}
-                                className={`relative shrink-0 w-8 h-8 rounded-full border-2 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B38B21] ${
-                                  isLight ? 'focus-visible:ring-offset-2 focus-visible:ring-offset-white' : 'focus-visible:ring-offset-2 focus-visible:ring-offset-[#060605]'
+                                className={`relative shrink-0 w-7 h-7 rounded-full border-2 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B38B21] ${
+                                  isLight ? 'focus-visible:ring-offset-1 focus-visible:ring-offset-white' : 'focus-visible:ring-offset-1 focus-visible:ring-offset-[#060605]'
                                 } ${ol === 'white' ? (isLight ? 'ring-1 ring-black/25' : 'ring-1 ring-white/30') : ''} ${
                                   optDisabled
                                     ? 'opacity-35 cursor-not-allowed'
                                     : isSelected
-                                      ? 'border-[#B38B21] ring-2 ring-[#B38B21]/35 scale-[1.03]'
+                                      ? 'border-[#B38B21] ring-2 ring-[#B38B21]/35'
                                       : isLight
                                         ? 'border-black/20 hover:border-black/40'
                                         : 'border-white/30 hover:border-white/55'
@@ -416,7 +381,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                               type="button"
                               disabled={optDisabled}
                               onClick={() => !optDisabled && handleOptionChange(variant.name, opt)}
-                              className={`shrink-0 min-w-[2.25rem] px-2.5 py-1.5 rounded-lg text-[11px] font-bold tracking-wide transition-all border ${
+                              className={`shrink-0 min-w-[2rem] px-2 py-1 rounded-md text-[10px] sm:text-[11px] font-bold tracking-wide transition-all border ${
                                 optDisabled
                                   ? 'opacity-35 cursor-not-allowed border-black/10'
                                   : isSelected
@@ -437,22 +402,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               </div>
             )}
 
-            {/* Overview — after buy box so options + CTA stay above the fold */}
-            <div ref={overviewRef as any} className="pt-0.5 scroll-mt-28">
-              <h2 className="text-[10px] font-black uppercase tracking-[0.28em] text-[#B38B21] mb-2">Overview</h2>
-              {product.description ? (
-                <p className={`leading-relaxed max-w-xl text-sm font-medium ${isLight ? 'text-black/80' : 'text-white/80'}`}>
-                  {product.description}
-                </p>
-              ) : (
-                <p className={`italic max-w-xl text-xs ${isLight ? 'text-black/40' : 'text-white/40'}`}>
-                  No description has been added for this product yet.
-                </p>
-              )}
-            </div>
-
-            {/* Quantity */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
               <div
                 className={`flex items-center rounded-full overflow-hidden border ${
                   isLight ? 'border-black/15 bg-white' : 'border-white/20'
@@ -461,18 +411,18 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                 <button
                   type="button"
                   onClick={decrementQuantity}
-                  className={`px-3 py-1.5 transition ${
+                  className={`px-2.5 py-1.5 transition ${
                     isLight ? 'hover:bg-black/[0.06] text-black' : 'hover:bg-white/10 text-white'
                   }`}
                 >
                   <Minus size={14} />
                 </button>
-                <span className={`px-4 text-sm tabular-nums ${isLight ? 'text-black font-semibold' : 'text-white'}`}>{quantity}</span>
+                <span className={`px-3 text-sm tabular-nums ${isLight ? 'text-black font-semibold' : 'text-white'}`}>{quantity}</span>
                 <button
                   type="button"
                   onClick={incrementQuantity}
                   disabled={quantity >= availableStock}
-                  className={`px-3 py-1.5 transition ${
+                  className={`px-2.5 py-1.5 transition ${
                     isLight ? 'hover:bg-black/[0.06] text-black' : 'hover:bg-white/10 text-white'
                   } disabled:opacity-30 disabled:pointer-events-none`}
                 >
@@ -482,12 +432,11 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               <ProductAvailabilityBadge available={availableStock} isLight={isLight} />
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex gap-2.5 sm:gap-3 flex-wrap">
+            <div className="flex gap-2 flex-wrap">
               <button
                 onClick={handleAddToCart}
                 disabled={availableStock <= 0}
-                className="w-full sm:flex-1 sm:min-w-[180px] bg-[#B38B21] text-black font-bold py-2.5 sm:py-3 rounded-full text-sm hover:opacity-90 transition shadow-md disabled:opacity-40 disabled:pointer-events-none"
+                className="flex-1 min-w-[10rem] bg-[#B38B21] text-black font-bold py-2.5 rounded-full text-sm hover:opacity-90 transition shadow-md disabled:opacity-40 disabled:pointer-events-none"
               >
                 {availableStock <= 0 ? 'Out of stock' : 'Add to Cart'}
               </button>
@@ -518,22 +467,46 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               </button>
             </div>
 
-            {/* Features */}
-            <div className={`grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 pt-4 border-t text-center ${isLight ? 'border-black/10' : 'border-white/10'}`}>
-              <div>
-                <Truck size={18} className="mx-auto mb-1.5 text-[#B38B21]" />
-                <p className={`text-[11px] ${isLight ? 'text-black/50' : 'text-white/60'}`}>Free Shipping</p>
+            <div ref={overviewRef as any} className="pt-1 scroll-mt-28 space-y-3">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => scrollTo(overviewRef)}
+                  className={`px-2.5 py-1 rounded-full border text-[9px] font-black uppercase tracking-[0.22em] ${isLight ? 'bg-black/5 border-black/10 text-black' : 'bg-white/5 border-white/10 text-white'}`}
+                >
+                  Overview
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollTo(specsRef)}
+                  className={`px-2.5 py-1 rounded-full border text-[9px] font-black uppercase tracking-[0.22em] ${isLight ? 'bg-black/5 border-black/10 text-black' : 'bg-white/5 border-white/10 text-white'}`}
+                >
+                  Specs
+                </button>
               </div>
-              <div>
-                <Shield size={18} className="mx-auto mb-1.5 text-[#B38B21]" />
-                <p className={`text-[11px] font-semibold ${isLight ? 'text-black/70' : 'text-white/75'}`}>2 Month Warranty</p>
-                <p className={`mt-0.5 text-[9px] leading-snug px-1 ${isLight ? 'text-black/45' : 'text-white/45'}`}>
-                  BlackBox faults only — not user damage
+              {product.description ? (
+                <p className={`leading-relaxed max-w-xl text-sm ${isLight ? 'text-black/75' : 'text-white/75'}`}>
+                  {product.description}
                 </p>
+              ) : (
+                <p className={`italic max-w-xl text-xs ${isLight ? 'text-black/40' : 'text-white/40'}`}>
+                  No description has been added for this product yet.
+                </p>
+              )}
+            </div>
+
+            <div className={`grid grid-cols-3 gap-2 pt-2 border-t text-center ${isLight ? 'border-black/10' : 'border-white/10'}`}>
+              <div>
+                <Truck size={16} className="mx-auto mb-1 text-[#B38B21]" />
+                <p className={`text-[10px] ${isLight ? 'text-black/50' : 'text-white/60'}`}>Free Shipping</p>
               </div>
               <div>
-                <RefreshCw size={18} className="mx-auto mb-1.5 text-[#B38B21]" />
-                <p className={`text-[11px] ${isLight ? 'text-black/50' : 'text-white/60'}`}>30 Day Returns</p>
+                <Shield size={16} className="mx-auto mb-1 text-[#B38B21]" />
+                <p className={`text-[10px] font-semibold ${isLight ? 'text-black/70' : 'text-white/75'}`}>2 Mo Warranty</p>
+              </div>
+              <div>
+                <RefreshCw size={16} className="mx-auto mb-1 text-[#B38B21]" />
+                <p className={`text-[10px] ${isLight ? 'text-black/50' : 'text-white/60'}`}>30 Day Returns</p>
               </div>
             </div>
 

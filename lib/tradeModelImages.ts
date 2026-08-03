@@ -6,7 +6,7 @@ import type { Product } from '../types';
 import type { TradeDeviceRow } from '../types/supabase';
 import { getIphoneModelImage } from './repairAppleModels';
 
-function productImageUrl(p: Product): string | null {
+export function productImageUrl(p: Product): string | null {
   const fromGallery = p.images?.find((img) => img.is_primary)?.url || p.images?.[0]?.url;
   const url = (fromGallery || p.image || p.image_url || '').trim();
   return url || null;
@@ -56,6 +56,31 @@ export function resolveTradeModelImage(
     return getIphoneModelImage(device.model);
   }
   return null;
+}
+
+/** Image for the device the customer is trading in (summary sidebar). */
+export function resolveTradedInSummaryImage(
+  model: string | null | undefined,
+  deviceType: 'iphone' | 'ipad' | string | null | undefined,
+  products?: Product[] | null,
+): string | null {
+  const m = (model || '').trim();
+  if (!m) return null;
+  const dtype = deviceType === 'ipad' ? 'ipad' : 'iphone';
+  return resolveTradeModelImage(
+    { model: m, device_type: dtype, image_url: null },
+    products,
+  );
+}
+
+/** Image for the upgrade/target shop product (summary sidebar). */
+export function resolveUpgradeSummaryImage(
+  productId: string | null | undefined,
+  products?: Product[] | null,
+): string | null {
+  if (!productId || !products?.length) return null;
+  const hit = products.find((p) => p.id === productId);
+  return hit ? productImageUrl(hit) : null;
 }
 
 export function enrichTradeModelsWithImages(

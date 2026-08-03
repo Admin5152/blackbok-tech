@@ -91,12 +91,12 @@ export function getProductOptionGroups(product: Product | null | undefined): Pro
   const s = uniqFromRows(rows, 'storage');
   const r = uniqFromRows(rows, 'ram').filter((x) => x.toUpperCase() !== 'N/A');
   const sim = uniqFromRows(rows, 'sim_type');
-  // iPad order: Size → Connectivity → Storage → Colour (condition is product-level)
+  // Size first for tablets; Color + Storage next so key picks stay above the fold.
   if (size.length) skuGroups.push({ name: 'Size', options: size });
-  if (sim.length) skuGroups.push({ name: 'SIM', options: sim });
+  if (c.length) skuGroups.push({ name: 'Color', options: c });
   if (s.length) skuGroups.push({ name: 'Storage', options: s });
   if (r.length) skuGroups.push({ name: 'RAM', options: r });
-  if (c.length) skuGroups.push({ name: 'Color', options: c });
+  if (sim.length) skuGroups.push({ name: 'SIM', options: sim });
   if (skuGroups.length > 0) return skuGroups;
 
   if (Array.isArray(product.variants) && product.variants.length > 0) {

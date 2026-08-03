@@ -48,7 +48,6 @@ const NAV_ITEMS: { id: AdminSection; label: string; icon: any; adminOnly?: boole
   { id: 'orders', label: 'Orders', icon: ShoppingCart },
   { id: 'customers', label: 'Customers', icon: Users },
   { id: 'products', label: 'Shop', icon: Package },
-  { id: 'ipads', label: 'iPads', icon: Tablet },
   { id: 'promotions', label: 'Promotions', icon: Tag },
   { id: 'trades', label: 'Trade-Ins', icon: RefreshCcw },
   { id: 'returns', label: 'Returns', icon: RotateCcw },
@@ -56,13 +55,18 @@ const NAV_ITEMS: { id: AdminSection; label: string; icon: any; adminOnly?: boole
   { id: 'users', label: 'User Roles', icon: Shield, adminOnly: true },
 ];
 
+const SHOP_SUBNAV: { id: 'products' | 'ipads'; label: string; to: string; icon: any }[] = [
+  { id: 'products', label: 'Products', to: '/admin/products', icon: Package },
+  { id: 'ipads', label: 'iPads', to: '/admin/ipads', icon: Tablet },
+];
+
 const SECTION_TITLES: Record<AdminSection, string> = {
   overview: 'Overview',
   inbox: 'Messages',
   orders: 'Orders',
   customers: 'Customers',
-  products: 'Shop products',
-  ipads: 'iPad catalogue',
+  products: 'Shop',
+  ipads: 'Shop',
   promotions: 'Promotions',
   trades: 'Trade-ins',
   returns: 'Returns',
@@ -140,8 +144,10 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
 
   useEffect(() => {
     const uid = user?.id;
-    if (!uid || section === 'overview' || !isNavBadgeKey(section)) return;
-    markAdminNavSectionSeen(uid, section);
+    if (!uid || section === 'overview') return;
+    const badgeKey = section === 'ipads' ? 'products' : section;
+    if (!isNavBadgeKey(badgeKey)) return;
+    markAdminNavSectionSeen(uid, badgeKey);
     void refreshBadgeCounts();
   }, [section, user?.id, refreshBadgeCounts]);
 
@@ -171,6 +177,7 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
   };
 
   const isLight = theme === 'light';
+  const isShopSection = section === 'products' || section === 'ipads';
 
   return (
     <div className={`min-h-screen flex ${isLight ? 'bg-[#FAFAFA]' : 'bg-[#060606]'}`}>
@@ -211,6 +218,7 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
         <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]">
           {visibleNav.map(item => {
             const n = isNavBadgeKey(item.id) ? badgeCounts[item.id] : 0;
+            const isActive = item.id === 'products' ? isShopSection : section === item.id;
             return (
             <button
               key={item.id}
@@ -230,7 +238,7 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
               }}
               title={!sidebar ? item.label : undefined}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all
-                ${section === item.id
+                ${isActive
                   ? 'bg-[#B38B21] text-black shadow-sm'
                   : isLight
                     ? 'text-black/70 hover:text-black hover:bg-black/5'
@@ -239,7 +247,7 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
               <span className="relative shrink-0">
                 <item.icon size={17} className="shrink-0" />
                 {!sidebar && isNavBadgeKey(item.id) && (
-                  <NavUnreadDot show={n > 0} className={section === item.id ? 'ring-[#B38B21]' : ''} />
+                  <NavUnreadDot show={n > 0} className={isActive ? 'ring-[#B38B21]' : ''} />
                 )}
               </span>
               {sidebar && (
@@ -250,7 +258,7 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
                   {isNavBadgeKey(item.id) && (
                     <NavUnreadBadge
                       count={n}
-                      className={section === item.id ? 'ring-2 ring-black/25' : ''}
+                      className={isActive ? 'ring-2 ring-black/25' : ''}
                       title={`${n} new since last viewed`}
                     />
                   )}
@@ -297,7 +305,9 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
             <p className={`text-[9px] font-black uppercase tracking-widest truncate ${isLight ? 'text-black/50' : 'text-white/55'}`}>
               {section === 'trades'
                 ? 'Devices · pricing · queue'
-                : (
+                : isShopSection
+                  ? (section === 'ipads' ? 'iPad catalogue · pricing · stock' : 'Products · catalogue · stock')
+                  : (
                   <>
                     BlackBox Admin ·{' '}
                     {new Date().toLocaleDateString('en', {
@@ -344,6 +354,34 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
 
         {/* Content — page scrolls normally (Lenis disabled on /admin) */}
         <main className="flex-1 p-4 sm:p-5 lg:p-6">
+          {isShopSection && (
+            <nav
+              className="flex gap-1.5 overflow-x-auto scrollbar-none pb-3 mb-1 -mx-1 px-1"
+              aria-label="Shop admin sections"
+            >
+              {SHOP_SUBNAV.map((item) => {
+                const active = section === item.id;
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => navigate(item.id)}
+                    className={`shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${
+                      active
+                        ? 'bg-[#B38B21] text-black border-[#B38B21]'
+                        : isLight
+                          ? 'bg-black/[0.04] text-black/75 border-black/15 hover:bg-black/[0.08] hover:text-black hover:border-black/25'
+                          : 'bg-white/[0.08] text-[#E8E8E8] border-white/20 hover:bg-white/15 hover:text-[#F5F5F5] hover:border-white/35'
+                    }`}
+                  >
+                    <Icon size={13} strokeWidth={2.25} />
+                    {item.label}
+                  </button>
+                );
+              })}
+            </nav>
+          )}
           {section === 'overview' && <AdminOverview onNavigate={navigate} />}
           {/* {section === 'inbox' && <AdminInbox />} */}
           {section === 'orders' && <AdminOrders />}
