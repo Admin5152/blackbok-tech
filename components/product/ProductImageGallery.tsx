@@ -82,14 +82,14 @@ export const ProductImageGallery: React.FC<ProductImageGalleryProps> = ({
   if (!currentUrl) {
     return (
       <div
-        className={`rounded-3xl border aspect-square flex flex-col items-center justify-center gap-3 ${
+        className={`rounded-2xl border aspect-[4/5] max-h-[min(420px,70vh)] mx-auto w-full flex flex-col items-center justify-center gap-3 ${
           isLight
             ? 'border-black/10 bg-black/[0.02]'
             : 'border-white/10 bg-white/[0.02]'
         }`}
       >
         <ImageOff
-          size={28}
+          size={24}
           className={isLight ? 'text-black/20' : 'text-white/20'}
         />
         <span
@@ -106,10 +106,10 @@ export const ProductImageGallery: React.FC<ProductImageGalleryProps> = ({
   const showThumbs = ordered.length > 1;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Primary image */}
       <div
-        className={`group relative rounded-3xl overflow-hidden border shadow-2xl ${
+        className={`group relative rounded-2xl overflow-hidden border ${
           isLight
             ? 'border-black/10 bg-black/[0.03]'
             : 'border-white/10 bg-black/30 backdrop-blur-sm'
@@ -117,13 +117,13 @@ export const ProductImageGallery: React.FC<ProductImageGalleryProps> = ({
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        <div className="aspect-square w-full overflow-hidden">
+        <div className="aspect-[4/5] max-h-[min(420px,70vh)] w-full mx-auto overflow-hidden flex items-center justify-center">
           <img
             key={activeImage?.id ?? 'fallback'}
             src={currentUrl}
             alt={currentAlt}
             draggable={false}
-            className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+            className="max-h-full max-w-full w-full h-full object-contain p-3 sm:p-4 transition-transform duration-500 ease-out group-hover:scale-[1.03]"
           />
         </div>
 
@@ -137,13 +137,13 @@ export const ProductImageGallery: React.FC<ProductImageGalleryProps> = ({
               onClick={() =>
                 setActiveIndex((i) => (i === 0 ? ordered.length - 1 : i - 1))
               }
-              className={`hidden sm:flex absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full items-center justify-center backdrop-blur-md transition-all opacity-0 group-hover:opacity-100 ${
+              className={`hidden sm:flex absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full items-center justify-center backdrop-blur-md transition-all opacity-0 group-hover:opacity-100 ${
                 isLight
                   ? 'bg-white/80 text-black border border-black/10 hover:bg-white'
                   : 'bg-black/60 text-white border border-white/10 hover:bg-black/80'
               }`}
             >
-              <ChevronLeft size={18} />
+              <ChevronLeft size={16} />
             </button>
             <button
               type="button"
@@ -151,18 +151,18 @@ export const ProductImageGallery: React.FC<ProductImageGalleryProps> = ({
               onClick={() =>
                 setActiveIndex((i) => (i === ordered.length - 1 ? 0 : i + 1))
               }
-              className={`hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full items-center justify-center backdrop-blur-md transition-all opacity-0 group-hover:opacity-100 ${
+              className={`hidden sm:flex absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full items-center justify-center backdrop-blur-md transition-all opacity-0 group-hover:opacity-100 ${
                 isLight
                   ? 'bg-white/80 text-black border border-black/10 hover:bg-white'
                   : 'bg-black/60 text-white border border-white/10 hover:bg-black/80'
               }`}
             >
-              <ChevronRight size={18} />
+              <ChevronRight size={16} />
             </button>
 
             {/* Mobile-only position dots */}
             <div
-              className="sm:hidden absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5"
+              className="sm:hidden absolute bottom-2.5 left-1/2 -translate-x-1/2 flex items-center gap-1.5"
               aria-hidden="true"
             >
               {ordered.map((image, idx) => (
@@ -170,7 +170,7 @@ export const ProductImageGallery: React.FC<ProductImageGalleryProps> = ({
                   key={image.id}
                   className={`h-1.5 rounded-full transition-all ${
                     idx === safeIndex
-                      ? 'w-4 bg-[#CDA032]'
+                      ? 'w-3.5 bg-[#CDA032]'
                       : isLight
                         ? 'w-1.5 bg-black/30'
                         : 'w-1.5 bg-white/40'
@@ -187,7 +187,7 @@ export const ProductImageGallery: React.FC<ProductImageGalleryProps> = ({
         <div
           role="tablist"
           aria-label={`${productName} image gallery thumbnails`}
-          className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1"
+          className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1"
         >
           {ordered.map((image, idx) => {
             const isActive = idx === safeIndex;
@@ -201,9 +201,9 @@ export const ProductImageGallery: React.FC<ProductImageGalleryProps> = ({
                   image.alt_text ?? `${productName} image ${idx + 1}`
                 }
                 onClick={() => setActiveIndex(idx)}
-                className={`shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${
+                className={`shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-all ${
                   isActive
-                    ? 'border-[#CDA032] shadow-[0_0_0_3px_rgba(205,160,50,0.2)]'
+                    ? 'border-[#CDA032] shadow-[0_0_0_2px_rgba(205,160,50,0.2)]'
                     : isLight
                       ? 'border-black/10 hover:border-black/30 opacity-70 hover:opacity-100'
                       : 'border-white/10 hover:border-white/30 opacity-70 hover:opacity-100'
@@ -213,7 +213,7 @@ export const ProductImageGallery: React.FC<ProductImageGalleryProps> = ({
                   src={image.url}
                   alt=""
                   draggable={false}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain p-1"
                 />
               </button>
             );

@@ -41,7 +41,7 @@ export const StoreProductListRow: React.FC<Props> = ({
         <img
           src={product.image || product.image_url || ''}
           alt={product.name}
-          className="bb-product-card-img hover:scale-105 transition-transform duration-500"
+          className="bb-product-card-img transition-opacity duration-300"
         />
       </button>
 

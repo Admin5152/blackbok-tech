@@ -143,12 +143,29 @@ function categoryIconLg(cat: string): React.ReactNode {
   return CATEGORY_ICONS_LG[cat] ?? <LayoutGrid size={28} strokeWidth={1.5} />;
 }
 
+/** Existing site marketing photos for shop category picker cards. */
+const CATEGORY_COVER_BY_KEY: Record<string, string> = {
+  deals: '/trade.jpeg',
+  iPhone: '/phones.jpeg',
+  'Android phones': '/phones.jpeg',
+  iPad: '/iPhone.jpeg',
+  Tablet: '/iPhone.jpeg',
+  MacBooks: '/macbook.jpeg',
+  Laptops: '/laptop.jpeg',
+  'Smart watches': '/iphone_modern.png',
+  Gaming: '/ps5and xbox.jpeg',
+  Headphones: '/Headphones111.jpeg',
+  Speakers: '/Headphones111.jpeg',
+  Accessories: '/cases.jpeg',
+  Trades: '/trade.jpeg',
+};
+
 function categoryCoverImage(products: Product[], cat: string): string | null {
   const match = products.find((p) => {
     if (normalizeProductCategory(p.category) !== cat) return false;
     return Boolean(p.image_url || p.image);
   });
-  return match?.image_url || match?.image || null;
+  return match?.image_url || match?.image || CATEGORY_COVER_BY_KEY[cat] || null;
 }
 
 export const Store: React.FC<StoreProps> = ({
@@ -531,7 +548,10 @@ export const Store: React.FC<StoreProps> = ({
       {
         key: 'deals',
         label: '🔥 Deal of the Day',
-        cover: dealProducts[0]?.image || dealProducts[0]?.image_url || null,
+        cover:
+          dealProducts[0]?.image ||
+          dealProducts[0]?.image_url ||
+          CATEGORY_COVER_BY_KEY.deals,
         onSelect: openDealOfTheDay,
         icon: <Flame size={28} strokeWidth={1.5} />,
       },
@@ -710,23 +730,26 @@ export const Store: React.FC<StoreProps> = ({
   if (showCategoryPicker) {
     return (
       <div className="bb-store-page">
-        <div className="bb-store-toolbar">
-          <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3">
-            <div className="bb-store-toolbar-row flex min-w-0 items-center gap-1.5 sm:gap-2">
-              <PageBackButton isLight={isLight} fallbackTo="/" iconOnly />
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#CDA032]">Shop</p>
-                <h1 className="text-base sm:text-lg font-bold leading-tight truncate">Browse by category</h1>
-              </div>
+        <header className="bb-store-picker-header">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 pt-5 sm:pt-7 pb-1">
+            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+              <PageBackButton
+                isLight={isLight}
+                fallbackTo="/"
+                label="Home"
+                className="bb-store-picker-back"
+              />
+              <h1 className="text-xl sm:text-2xl font-black tracking-tight leading-tight min-w-0 truncate">
+                Browse by category
+              </h1>
             </div>
+            <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-[color:var(--bb-muted)]">
+              Pick a category to see products. You can still search or filter once you are in a section.
+            </p>
           </div>
-        </div>
+        </header>
 
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-10">
-          <p className="mb-6 sm:mb-8 max-w-xl text-sm text-[color:var(--bb-muted)]">
-            Pick a category to see products. You can still search or filter once you are in a section.
-          </p>
-
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 pt-6 sm:pt-8 pb-10">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {categoryPickerCards.map((card) => (
               <button
@@ -769,25 +792,28 @@ export const Store: React.FC<StoreProps> = ({
   }
 
   if (showSeriesPicker && activeCategory) {
-    const scopeLabel = activeCategory;
     return (
       <div className="bb-store-page">
-        <div className="bb-store-toolbar">
-          <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3">
-            <div className="bb-store-toolbar-row flex min-w-0 items-center gap-1.5 sm:gap-2">
-              <PageBackButton isLight={isLight} onClick={goToCategoryPicker} iconOnly />
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#CDA032]">{scopeLabel}</p>
-                <h1 className="text-base sm:text-lg font-bold leading-tight truncate">Choose a series</h1>
-              </div>
+        <header className="bb-store-picker-header">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 pt-5 sm:pt-7 pb-1">
+            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+              <PageBackButton
+                isLight={isLight}
+                onClick={goToCategoryPicker}
+                label="Categories"
+                className="bb-store-picker-back"
+              />
+              <h1 className="text-xl sm:text-2xl font-black tracking-tight leading-tight min-w-0 truncate">
+                Choose a series
+              </h1>
             </div>
+            <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-[color:var(--bb-muted)]">
+              Pick a series, then choose Brand new or Used.
+            </p>
           </div>
-        </div>
+        </header>
 
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-10">
-          <p className="mb-6 sm:mb-8 max-w-xl text-sm text-[color:var(--bb-muted)]">
-            Pick a series, then choose Brand new or Used.
-          </p>
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 pt-6 sm:pt-8 pb-10">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {seriesOptions.map((opt: StoreSeriesOption) => {
               const count = getSeriesCount(baseFilteredProducts, activeCategory, opt.value);
@@ -828,26 +854,29 @@ export const Store: React.FC<StoreProps> = ({
       ? `Choose condition to see matching ${seriesLabel || scopeLabel} inventory.`
       : `Pick a type to browse ${scopeLabel} products.`;
     const onBack = seriesOptions.length > 0 ? goToSeriesPicker : goToCategoryPicker;
+    const backLabel = seriesOptions.length > 0 ? 'Series' : 'Categories';
 
     return (
       <div className="bb-store-page">
-        <div className="bb-store-toolbar">
-          <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3">
-            <div className="bb-store-toolbar-row flex min-w-0 items-center gap-1.5 sm:gap-2">
-              <PageBackButton isLight={isLight} fallbackTo="/store" iconOnly onClick={onBack} />
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#CDA032]">
-                  {seriesLabel ? `${scopeLabel} · ${seriesLabel}` : scopeLabel}
-                </p>
-                <h1 className="text-base sm:text-lg font-bold leading-tight truncate">{title}</h1>
-              </div>
+        <header className="bb-store-picker-header">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 pt-5 sm:pt-7 pb-1">
+            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+              <PageBackButton
+                isLight={isLight}
+                fallbackTo="/store"
+                onClick={onBack}
+                label={backLabel}
+                className="bb-store-picker-back"
+              />
+              <h1 className="text-xl sm:text-2xl font-black tracking-tight leading-tight min-w-0 truncate">
+                {title}
+              </h1>
             </div>
+            <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-[color:var(--bb-muted)]">{blurb}</p>
           </div>
-        </div>
+        </header>
 
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-10">
-          <p className="mb-6 sm:mb-8 max-w-xl text-sm text-[color:var(--bb-muted)]">{blurb}</p>
-
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 pt-6 sm:pt-8 pb-10">
           <div
             className={`grid gap-3 sm:gap-4 ${
               subcategoryCards.length <= 2

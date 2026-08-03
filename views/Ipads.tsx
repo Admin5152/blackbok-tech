@@ -339,7 +339,7 @@ export const Ipads: React.FC<Props> = ({ theme = 'dark', search }) => {
                 <Link
                   key={m.modelFamily}
                   to="/ipads/$modelSlug"
-                  params={{ modelSlug: m.modelFamily }}
+                  params={{ modelSlug: m.modelFamily } as any}
                   className={`group rounded-2xl border overflow-hidden transition-all ${
                     isLight
                       ? 'bg-white border-black/5 hover:border-[#CDA032]/40'

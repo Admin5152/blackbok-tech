@@ -145,7 +145,7 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
                 ''
               }
               alt={product.name}
-              className="absolute inset-0 h-full w-full object-cover object-center"
+              className="absolute inset-0 h-full w-full object-contain object-center p-4 sm:p-6"
             />
           </div>
 

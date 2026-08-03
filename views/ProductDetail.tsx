@@ -183,18 +183,18 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
   ];
 
   return (
-    <div className={`min-h-screen ${isLight ? 'bg-[#F5F5F7] text-[#1d1d1f]' : 'bg-[#060605] text-white'} pb-24`}>
-      <div className="container mx-auto px-4 lg:px-8 py-10">
+    <div className={`min-h-screen ${isLight ? 'bg-[#F5F5F7] text-[#1d1d1f]' : 'bg-[#060605] text-white'} pb-20`}>
+      <div className="container mx-auto max-w-6xl px-4 lg:px-6 py-5 sm:py-6">
 
         {/* Breadcrumb */}
-        <nav className="mb-8">
+        <nav className="mb-4">
           <ol
-            className={`flex items-center space-x-2 text-sm ${
+            className={`flex items-center space-x-2 text-xs sm:text-sm ${
               isLight ? 'text-black/50' : 'text-white/60'
             }`}
           >
             <li>
-              <PageBackButton isLight={isLight} fallbackTo="/store" label="Back" />
+              <PageBackButton isLight={isLight} fallbackTo="/store" label="Back" className="bb-store-picker-back" />
             </li>
             <li className="hidden sm:inline">/</li>
             <li>
@@ -207,25 +207,27 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               </button>
             </li>
             <li>/</li>
-            <li className={isLight ? 'text-black font-medium truncate max-w-[min(28rem,55vw)]' : 'text-white truncate max-w-[min(28rem,55vw)]'}>
+            <li className={isLight ? 'text-black font-medium truncate max-w-[min(20rem,50vw)]' : 'text-white truncate max-w-[min(20rem,50vw)]'}>
               {product.name}
             </li>
           </ol>
         </nav>
 
         {/* Sticky in-page nav (mobile-first) */}
-        <div className="sticky top-20 z-30 -mx-4 lg:mx-0 mb-10">
-          <div className={`px-4 lg:px-0 py-2 border-b backdrop-blur-xl ${isLight ? 'border-black/5 bg-[#F5F5F7]/90' : 'border-white/10 bg-[#060605]/85'}`}>
+        <div className="sticky top-20 z-30 -mx-4 lg:mx-0 mb-5">
+          <div className={`px-4 lg:px-0 py-1.5 border-b backdrop-blur-xl ${isLight ? 'border-black/5 bg-[#F5F5F7]/90' : 'border-white/10 bg-[#060605]/85'}`}>
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
               <button
+                type="button"
                 onClick={() => scrollTo(overviewRef)}
-                className={`shrink-0 px-4 py-2 rounded-full border text-[10px] font-black uppercase tracking-[0.35em] transition ${isLight ? 'bg-black/5 border-black/10 hover:bg-black/10 text-black' : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'}`}
+                className={`shrink-0 px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-[0.28em] transition ${isLight ? 'bg-black/5 border-black/10 hover:bg-black/10 text-black' : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'}`}
               >
                 Overview
               </button>
               <button
+                type="button"
                 onClick={() => scrollTo(specsRef)}
-                className={`shrink-0 px-4 py-2 rounded-full border text-[10px] font-black uppercase tracking-[0.35em] transition ${isLight ? 'bg-black/5 border-black/10 hover:bg-black/10 text-black' : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'}`}
+                className={`shrink-0 px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-[0.28em] transition ${isLight ? 'bg-black/5 border-black/10 hover:bg-black/10 text-black' : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'}`}
               >
                 Specs
               </button>
@@ -233,10 +235,10 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
 
           {/* Image Section */}
-          <div className="relative">
+          <div className="relative lg:max-w-md xl:max-w-lg lg:justify-self-center w-full">
             <ProductImageGallery
               images={galleryImages}
               fallbackUrl={matchedVariant?.image_url ?? product.image ?? product.image_url ?? null}
@@ -245,46 +247,46 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             />
 
             {product.discount != null && product.discount > 0 && (
-              <div className="absolute top-6 left-6 z-10 bg-[#B38B21] text-black px-4 py-1 rounded-full text-sm font-bold shadow-lg pointer-events-none">
+              <div className="absolute top-3 left-3 z-10 bg-[#B38B21] text-black px-2.5 py-0.5 rounded-full text-[10px] font-bold shadow-lg pointer-events-none">
                 -{product.discount}% OFF
               </div>
             )}
             {(product.is_deal_of_the_day || product.isDealOfTheDay) && (
-              <div className="absolute top-6 right-6 z-10 bg-gradient-to-r from-orange-600 to-amber-500 text-white px-4 py-1 rounded-full text-sm font-bold shadow-lg pointer-events-none">
-                🔥 Deal of the Day
+              <div className="absolute top-3 right-3 z-10 bg-gradient-to-r from-orange-600 to-amber-500 text-white px-2.5 py-0.5 rounded-full text-[10px] font-bold shadow-lg pointer-events-none">
+                Deal of the Day
               </div>
             )}
           </div>
 
           {/* Info Section — tight vertical rhythm; options in one card */}
-          <div className="space-y-5">
+          <div className="space-y-4">
 
-            <div className="space-y-1.5">
-              <p className={`text-[10px] font-black uppercase tracking-[0.35em] ${isLight ? 'text-black/45' : 'text-white/45'}`}>
+            <div className="space-y-1">
+              <p className={`text-[9px] font-black uppercase tracking-[0.28em] ${isLight ? 'text-black/45' : 'text-white/45'}`}>
                 {product.brand || product.category}
               </p>
-              <h1 className={`text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-[1.1] ${isLight ? 'text-black' : 'text-white'}`}>
+              <h1 className={`text-xl sm:text-2xl font-bold tracking-tight leading-snug ${isLight ? 'text-black' : 'text-white'}`}>
                 {product.name}
               </h1>
               {(product.is_deal_of_the_day || product.isDealOfTheDay) &&
                 (product.promo_text || product.promoText) && (
-                <p className={`text-sm font-semibold ${isLight ? 'text-orange-700' : 'text-orange-300'}`}>
+                <p className={`text-xs font-semibold ${isLight ? 'text-orange-700' : 'text-orange-300'}`}>
                   {product.promo_text || product.promoText}
                 </p>
               )}
             </div>
 
             {/* Price — updates when Color / Storage / RAM / SIM selection changes */}
-            <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex items-baseline gap-3 flex-wrap">
               <span
                 key={`${matchedVariant?.id ?? 'base'}-${listPrice}`}
-                className="text-2xl sm:text-3xl font-bold text-[#B38B21] tabular-nums"
+                className="text-xl sm:text-2xl font-bold text-[#B38B21] tabular-nums"
               >
                 {formatGhs(unitPrice)}
               </span>
 
               {discountPct > 0 && listPrice > unitPrice && (
-                <span className={`text-base line-through ${isLight ? 'text-black/35' : 'text-white/40'}`}>
+                <span className={`text-sm line-through ${isLight ? 'text-black/35' : 'text-white/40'}`}>
                   {formatGhs(listPrice)}
                 </span>
               )}
@@ -293,24 +295,24 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             {/* Trade-in banner — only when products.trade_model is set */}
             {product.trade_model && tradeMax != null && tradeMax > 0 && (
               <div
-                className={`rounded-2xl border p-4 flex flex-col sm:flex-row sm:items-center gap-3 ${
+                className={`rounded-xl border p-3 flex flex-col sm:flex-row sm:items-center gap-2.5 ${
                   isLight
                     ? 'border-[#CDA032]/35 bg-[#CDA032]/10'
                     : 'border-[#CDA032]/30 bg-[#CDA032]/10'
                 }`}
               >
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold leading-snug">
+                  <p className="text-xs sm:text-sm font-bold leading-snug">
                     Trade in your old device — get up to {formatGhs(tradeMax)} toward this
                   </p>
-                  <p className={`text-[11px] mt-1 ${isLight ? 'text-black/50' : 'text-white/45'}`}>
+                  <p className={`text-[10px] mt-0.5 ${isLight ? 'text-black/50' : 'text-white/45'}`}>
                     Your current selection will be pre-filled as the upgrade target.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={startTradeIn}
-                  className="shrink-0 rounded-xl bg-[#CDA032] text-black font-black uppercase tracking-[0.15em] text-[10px] px-5 py-3 hover:brightness-105"
+                  className="shrink-0 rounded-lg bg-[#CDA032] text-black font-black uppercase tracking-[0.12em] text-[9px] px-4 py-2.5 hover:brightness-105"
                 >
                   Start trade-in
                 </button>
@@ -319,7 +321,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
 
             {normalizedVariants.length > 0 && (
               <div
-                className={`rounded-2xl border p-4 sm:p-5 space-y-3.5 ${
+                className={`rounded-xl border p-3 sm:p-4 space-y-3 ${
                   isLight ? 'border-black/10 bg-white shadow-sm' : 'border-white/10 bg-white/[0.03]'
                 }`}
               >
@@ -329,21 +331,21 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                   const selRaw = (selectedOptions[variant.name] || '').trim();
                   const sel = isSimGroup ? formatSimTypeLabel(selRaw) : selRaw;
                   return (
-                    <div key={variant.name} className="space-y-2">
+                    <div key={variant.name} className="space-y-1.5">
                       <div className="flex items-center justify-between gap-3">
-                        <span className={`text-[10px] font-black uppercase tracking-[0.2em] shrink-0 ${isLight ? 'text-black/45' : 'text-white/45'}`}>
+                        <span className={`text-[9px] font-black uppercase tracking-[0.18em] shrink-0 ${isLight ? 'text-black/45' : 'text-white/45'}`}>
                           {variant.name}
                         </span>
                         {sel ? (
                           <span
-                            className="text-xs font-bold text-[#B38B21] truncate text-right max-w-[58%]"
+                            className="text-[11px] font-bold text-[#B38B21] truncate text-right max-w-[58%]"
                             title={sel}
                           >
                             {sel}
                           </span>
                         ) : null}
                       </div>
-                      <div className={`flex flex-wrap ${isColorGroup ? 'gap-2.5' : 'gap-2'}`}>
+                      <div className={`flex flex-wrap ${isColorGroup ? 'gap-2' : 'gap-1.5'}`}>
                         {variant.options.map((option, optIdx) => {
                           const opt = toOptionString(option);
                           const ol = opt.toLowerCase();
@@ -368,7 +370,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                                 aria-label={`${variant.name}: ${opt}${isSelected ? ', selected' : ''}${optDisabled ? ', out of stock' : ''}`}
                                 aria-pressed={isSelected}
                                 onClick={() => !optDisabled && handleOptionChange(variant.name, opt)}
-                                className={`relative shrink-0 w-10 h-10 rounded-full border-2 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B38B21] ${
+                                className={`relative shrink-0 w-8 h-8 rounded-full border-2 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B38B21] ${
                                   isLight ? 'focus-visible:ring-offset-2 focus-visible:ring-offset-white' : 'focus-visible:ring-offset-2 focus-visible:ring-offset-[#060605]'
                                 } ${ol === 'white' ? (isLight ? 'ring-1 ring-black/25' : 'ring-1 ring-white/30') : ''} ${
                                   optDisabled
@@ -414,7 +416,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                               type="button"
                               disabled={optDisabled}
                               onClick={() => !optDisabled && handleOptionChange(variant.name, opt)}
-                              className={`shrink-0 min-w-[2.5rem] px-3.5 py-2 rounded-xl text-xs font-bold tracking-wide transition-all border ${
+                              className={`shrink-0 min-w-[2.25rem] px-2.5 py-1.5 rounded-lg text-[11px] font-bold tracking-wide transition-all border ${
                                 optDisabled
                                   ? 'opacity-35 cursor-not-allowed border-black/10'
                                   : isSelected
@@ -436,21 +438,21 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             )}
 
             {/* Overview — after buy box so options + CTA stay above the fold */}
-            <div ref={overviewRef as any} className="pt-1 scroll-mt-28">
-              <h2 className="text-sm font-black uppercase tracking-[0.35em] text-[#B38B21] mb-3">Overview</h2>
+            <div ref={overviewRef as any} className="pt-0.5 scroll-mt-28">
+              <h2 className="text-[10px] font-black uppercase tracking-[0.28em] text-[#B38B21] mb-2">Overview</h2>
               {product.description ? (
-                <p className={`leading-relaxed max-w-xl text-base sm:text-lg font-medium ${isLight ? 'text-black/80' : 'text-white/80'}`}>
+                <p className={`leading-relaxed max-w-xl text-sm font-medium ${isLight ? 'text-black/80' : 'text-white/80'}`}>
                   {product.description}
                 </p>
               ) : (
-                <p className={`italic max-w-xl text-sm ${isLight ? 'text-black/40' : 'text-white/40'}`}>
+                <p className={`italic max-w-xl text-xs ${isLight ? 'text-black/40' : 'text-white/40'}`}>
                   No description has been added for this product yet.
                 </p>
               )}
             </div>
 
             {/* Quantity */}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:flex-wrap">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
               <div
                 className={`flex items-center rounded-full overflow-hidden border ${
                   isLight ? 'border-black/15 bg-white' : 'border-white/20'
@@ -459,33 +461,33 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                 <button
                   type="button"
                   onClick={decrementQuantity}
-                  className={`px-4 py-2 transition ${
+                  className={`px-3 py-1.5 transition ${
                     isLight ? 'hover:bg-black/[0.06] text-black' : 'hover:bg-white/10 text-white'
                   }`}
                 >
-                  <Minus size={16} />
+                  <Minus size={14} />
                 </button>
-                <span className={`px-6 tabular-nums ${isLight ? 'text-black font-semibold' : 'text-white'}`}>{quantity}</span>
+                <span className={`px-4 text-sm tabular-nums ${isLight ? 'text-black font-semibold' : 'text-white'}`}>{quantity}</span>
                 <button
                   type="button"
                   onClick={incrementQuantity}
                   disabled={quantity >= availableStock}
-                  className={`px-4 py-2 transition ${
+                  className={`px-3 py-1.5 transition ${
                     isLight ? 'hover:bg-black/[0.06] text-black' : 'hover:bg-white/10 text-white'
                   } disabled:opacity-30 disabled:pointer-events-none`}
                 >
-                  <Plus size={16} />
+                  <Plus size={14} />
                 </button>
               </div>
               <ProductAvailabilityBadge available={availableStock} isLight={isLight} />
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-3 sm:gap-4 flex-wrap">
+            <div className="flex gap-2.5 sm:gap-3 flex-wrap">
               <button
                 onClick={handleAddToCart}
                 disabled={availableStock <= 0}
-                className="w-full sm:flex-1 sm:min-w-[200px] bg-[#B38B21] text-black font-bold py-4 rounded-full hover:opacity-90 transition shadow-lg disabled:opacity-40 disabled:pointer-events-none"
+                className="w-full sm:flex-1 sm:min-w-[180px] bg-[#B38B21] text-black font-bold py-2.5 sm:py-3 rounded-full text-sm hover:opacity-90 transition shadow-md disabled:opacity-40 disabled:pointer-events-none"
               >
                 {availableStock <= 0 ? 'Out of stock' : 'Add to Cart'}
               </button>
@@ -493,45 +495,45 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               <button
                 type="button"
                 onClick={() => onToggleWishlist(product.id)}
-                className={`p-4 rounded-full border transition ${isWishlisted
+                className={`p-2.5 rounded-full border transition ${isWishlisted
                   ? 'border-[#B38B21] text-[#B38B21] bg-[#B38B21]/10'
                   : isLight
                     ? 'border-black/15 text-black hover:border-black/30'
                     : 'border-white/20 hover:border-white/40 text-white'
                   }`}
               >
-                <Heart size={20} className={isWishlisted ? 'fill-current' : ''} />
+                <Heart size={18} className={isWishlisted ? 'fill-current' : ''} />
               </button>
 
               <button
                 type="button"
                 onClick={() => setIsShareModalOpen(true)}
-                className={`p-4 rounded-full border transition group ${
+                className={`p-2.5 rounded-full border transition group ${
                   isLight
                     ? 'border-black/15 text-black hover:border-black/30'
                     : 'border-white/20 hover:border-white/40 text-white'
                 }`}
               >
-                <Share2 size={20} className="group-hover:scale-110 transition-transform" />
+                <Share2 size={18} className="group-hover:scale-110 transition-transform" />
               </button>
             </div>
 
             {/* Features */}
-            <div className={`grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 pt-5 border-t text-center ${isLight ? 'border-black/10' : 'border-white/10'}`}>
+            <div className={`grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 pt-4 border-t text-center ${isLight ? 'border-black/10' : 'border-white/10'}`}>
               <div>
-                <Truck className="mx-auto mb-2 text-[#B38B21]" />
-                <p className={`text-xs ${isLight ? 'text-black/50' : 'text-white/60'}`}>Free Shipping</p>
+                <Truck size={18} className="mx-auto mb-1.5 text-[#B38B21]" />
+                <p className={`text-[11px] ${isLight ? 'text-black/50' : 'text-white/60'}`}>Free Shipping</p>
               </div>
               <div>
-                <Shield className="mx-auto mb-2 text-[#B38B21]" />
-                <p className={`text-xs font-semibold ${isLight ? 'text-black/70' : 'text-white/75'}`}>2 Month Warranty</p>
-                <p className={`mt-1 text-[10px] leading-snug px-1 ${isLight ? 'text-black/45' : 'text-white/45'}`}>
+                <Shield size={18} className="mx-auto mb-1.5 text-[#B38B21]" />
+                <p className={`text-[11px] font-semibold ${isLight ? 'text-black/70' : 'text-white/75'}`}>2 Month Warranty</p>
+                <p className={`mt-0.5 text-[9px] leading-snug px-1 ${isLight ? 'text-black/45' : 'text-white/45'}`}>
                   BlackBox faults only — not user damage
                 </p>
               </div>
               <div>
-                <RefreshCw className="mx-auto mb-2 text-[#B38B21]" />
-                <p className={`text-xs ${isLight ? 'text-black/50' : 'text-white/60'}`}>30 Day Returns</p>
+                <RefreshCw size={18} className="mx-auto mb-1.5 text-[#B38B21]" />
+                <p className={`text-[11px] ${isLight ? 'text-black/50' : 'text-white/60'}`}>30 Day Returns</p>
               </div>
             </div>
 
@@ -542,21 +544,21 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             does not scroll into the "Shop picks" list on mobile. */}
         <div
           ref={specsRef as any}
-          className={`mt-14 md:mt-16 pt-10 border-t scroll-mt-28 ${isLight ? 'border-black/10' : 'border-white/10'}`}
+          className={`mt-10 md:mt-12 pt-8 border-t scroll-mt-28 ${isLight ? 'border-black/10' : 'border-white/10'}`}
         >
-          <h2 className="text-sm font-black uppercase tracking-[0.35em] text-[#B38B21] mb-6">Specifications</h2>
+          <h2 className="text-[10px] font-black uppercase tracking-[0.28em] text-[#B38B21] mb-4">Specifications</h2>
           {product.specs && product.specs.length > 0 ? (
-            <ul className="space-y-4 max-w-3xl">
+            <ul className="space-y-2.5 max-w-3xl">
               {product.specs.map((s, i) => (
                 <li
                   key={i}
-                  className={`flex items-start gap-4 p-4 rounded-2xl border ${
+                  className={`flex items-start gap-3 p-3 rounded-xl border ${
                     isLight ? 'bg-white border-black/10' : 'bg-white/5 border-white/10'
                   }`}
                 >
-                  <span className="mt-1 w-2 h-2 rounded-full bg-[#B38B21] shadow-[0_0_8px_rgba(179,139,33,0.5)] shrink-0" />
+                  <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#B38B21] shrink-0" />
                   <span
-                    className={`text-sm leading-relaxed font-bold tracking-wide ${
+                    className={`text-xs sm:text-sm leading-relaxed font-semibold tracking-wide ${
                       isLight ? 'text-black/85' : 'text-white/90'
                     }`}
                   >
@@ -566,7 +568,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               ))}
             </ul>
           ) : (
-            <p className={`italic text-sm ${isLight ? 'text-black/45' : 'text-white/40'}`}>
+            <p className={`italic text-xs ${isLight ? 'text-black/45' : 'text-white/40'}`}>
               No specifications have been added for this product yet.
             </p>
           )}
@@ -581,25 +583,25 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
           const visibleRelated = relatedProducts.filter(p => p.id !== product.id).slice(0, 4);
           if (visibleRelated.length === 0) return null;
           return (
-          <div className={`mt-16 md:mt-20 border-t pt-16 ${isLight ? 'border-black/10' : 'border-white/10'}`}>
-            <div className="flex items-end justify-between mb-10 px-2">
+          <div className={`mt-10 md:mt-12 border-t pt-8 ${isLight ? 'border-black/10' : 'border-white/10'}`}>
+            <div className="flex items-end justify-between mb-5 px-1">
               <div>
-                <h2 className={`text-3xl md:text-4xl font-black italic tracking-tighter uppercase ${isLight ? 'text-black' : 'text-white'}`}>
+                <h2 className={`text-lg md:text-xl font-bold tracking-tight ${isLight ? 'text-black' : 'text-white'}`}>
                   Shop picks you <span className="text-[#B38B21]">may like</span>
                 </h2>
               </div>
               <button
                 onClick={() => navigateTo('store')}
-                className={`hidden md:flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-colors ${
+                className={`hidden md:flex items-center gap-2 text-[9px] font-black uppercase tracking-widest transition-colors ${
                   isLight ? 'text-black/45 hover:text-[#B38B21]' : 'text-white/40 hover:text-[#B38B21]'
                 }`}
                 type="button"
               >
-                View Collection <ChevronRight size={14} />
+                View Collection <ChevronRight size={12} />
               </button>
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8 pb-10">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 pb-6">
               {visibleRelated.map((item) => (
                 <button
                   key={item.id}
@@ -608,25 +610,25 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                     window.scrollTo(0, 0);
                     navigateTo('product', item.id);
                   }}
-                  className={`group text-left cursor-pointer rounded-[2rem] border transition-all duration-500 overflow-hidden ${isLight ? 'bg-white border-black/5 hover:border-black' : 'bg-white/5 border-white/5 hover:border-[#B38B21]/40 hover:bg-white/[0.08] shadow-2xl'}`}
+                  className={`group text-left cursor-pointer rounded-xl border transition-all duration-300 overflow-hidden ${isLight ? 'bg-white border-black/5 hover:border-black/20' : 'bg-white/5 border-white/5 hover:border-[#B38B21]/40 hover:bg-white/[0.08]'}`}
                 >
                   <div className="aspect-square overflow-hidden relative">
                     <img
                       src={item.image || item.image_url || ''}
                       alt={item.name}
-                      className="w-full h-full object-cover group-hover:scale-110 transition duration-700"
+                      className="w-full h-full object-contain p-2 group-hover:scale-[1.03] transition duration-500"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-6 pointer-events-none">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white">View Details ›</p>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3 pointer-events-none">
+                      <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white">View Details ›</p>
                     </div>
                   </div>
-                  <div className="p-6 space-y-2">
-                    <p className={`text-[9px] font-black uppercase tracking-widest opacity-40 ${isLight ? 'text-black' : 'text-white'}`}>{item.category}</p>
-                    <h3 className="font-bold text-sm tracking-tight truncate">{item.name}</h3>
-                    <div className="flex items-center justify-between pt-2">
-                      <p className="text-[#B38B21] font-black italic text-lg">{formatGhs(item.price)}</p>
-                      <span className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all ${isLight ? 'border-black/5 text-black' : 'border-white/10 text-white/40'}`}>
-                        <Plus size={14} />
+                  <div className="p-3 space-y-1">
+                    <p className={`text-[8px] font-black uppercase tracking-widest opacity-40 ${isLight ? 'text-black' : 'text-white'}`}>{item.category}</p>
+                    <h3 className="font-semibold text-xs tracking-tight truncate">{item.name}</h3>
+                    <div className="flex items-center justify-between pt-1">
+                      <p className="text-[#B38B21] font-bold text-sm">{formatGhs(item.price)}</p>
+                      <span className={`w-7 h-7 rounded-md flex items-center justify-center border transition-all ${isLight ? 'border-black/5 text-black' : 'border-white/10 text-white/40'}`}>
+                        <Plus size={12} />
                       </span>
                     </div>
                   </div>
