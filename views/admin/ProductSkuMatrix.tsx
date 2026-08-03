@@ -25,6 +25,7 @@ type Props = {
   storage: string[];
   ram: string[];
   simTypes?: string[];
+  displaySizes?: string[];
   basePrice: number;
   enabled: boolean;
   onEnabledChange: (v: boolean) => void;
@@ -32,6 +33,8 @@ type Props = {
   onRowsChange: (rows: SkuMatrixRow[]) => void;
   isLight?: boolean;
   onUploadRowImage?: (index: number, file: File) => void | Promise<void>;
+  /** When true, hide RAM emphasis and label SIM as Connectivity (iPad). */
+  tabletMode?: boolean;
 };
 
 export const ProductSkuMatrix: React.FC<Props> = ({
@@ -39,6 +42,7 @@ export const ProductSkuMatrix: React.FC<Props> = ({
   storage,
   ram,
   simTypes = [],
+  displaySizes = [],
   basePrice,
   enabled,
   onEnabledChange,
@@ -46,34 +50,35 @@ export const ProductSkuMatrix: React.FC<Props> = ({
   onRowsChange,
   isLight = false,
   onUploadRowImage,
+  tabletMode = false,
 }) => {
-  const canMatrix = canUseSkuMatrix(colors, storage, ram, simTypes);
+  const canMatrix = canUseSkuMatrix(colors, storage, ram, simTypes, displaySizes);
   const chipSignature = useMemo(
     () =>
-      `${colors.join('\u0001')}|${storage.join('\u0001')}|${ram.join('\u0001')}|${simTypes.join('\u0001')}`,
-    [colors, storage, ram, simTypes],
+      `${displaySizes.join('\u0001')}|${colors.join('\u0001')}|${storage.join('\u0001')}|${ram.join('\u0001')}|${simTypes.join('\u0001')}`,
+    [colors, storage, ram, simTypes, displaySizes],
   );
 
   const comboCount = useMemo(() => {
     if (!canMatrix) return 0;
-    return buildSkuCombinations(colors, storage, ram, simTypes).length;
-  }, [colors, storage, ram, simTypes, canMatrix]);
+    return buildSkuCombinations(colors, storage, ram, simTypes, displaySizes).length;
+  }, [colors, storage, ram, simTypes, displaySizes, canMatrix]);
 
   const duplicateKeys = useMemo(() => new Set(findDuplicateSkuKeys(rows)), [rows]);
 
   useEffect(() => {
     if (!enabled || !canMatrix) return;
-    onRowsChange(syncSkuRowsFromChips(colors, storage, ram, rows, simTypes));
+    onRowsChange(syncSkuRowsFromChips(colors, storage, ram, rows, simTypes, displaySizes));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chipSignature, enabled, canMatrix]);
 
   const regenerate = () =>
-    onRowsChange(syncSkuRowsFromChips(colors, storage, ram, rows, simTypes));
+    onRowsChange(syncSkuRowsFromChips(colors, storage, ram, rows, simTypes, displaySizes));
 
   const handleEnable = (next: boolean) => {
     onEnabledChange(next);
     if (next && canMatrix) {
-      onRowsChange(syncSkuRowsFromChips(colors, storage, ram, rows, simTypes));
+      onRowsChange(syncSkuRowsFromChips(colors, storage, ram, rows, simTypes, displaySizes));
     }
   };
 
@@ -86,9 +91,10 @@ export const ProductSkuMatrix: React.FC<Props> = ({
 
   const rowLabel = (row: SkuMatrixRow) => {
     const parts = [
+      row.display_size,
       row.color,
       row.storage,
-      row.ram,
+      row.ram && row.ram.toUpperCase() !== 'N/A' ? row.ram : '',
       row.sim_type ? formatSimTypeLabel(row.sim_type) : '',
     ].filter(Boolean);
     return parts.length ? parts.join(' · ') : 'Default';
@@ -137,8 +143,9 @@ export const ProductSkuMatrix: React.FC<Props> = ({
             <Layers size={12} /> Generate versions from options
           </p>
           <p className={`text-[11px] mt-1 max-w-md ${muted}`}>
-            Add all colors, storage, RAM, and SIM above — then generate every combination. You only
-            need to fill or edit price and stock on each row.
+            Add all sizes, colors, storage
+            {tabletMode ? '' : ', RAM'}, and {tabletMode ? 'connectivity' : 'SIM'} above — then generate
+            every combination. You only need to fill or edit price and stock on each row.
           </p>
         </div>
         <label
@@ -159,7 +166,8 @@ export const ProductSkuMatrix: React.FC<Props> = ({
 
       {!canMatrix && (
         <p className="text-xs text-amber-400/95 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3">
-          Add Color, Storage, RAM, or SIM options above first — then generate versions here.
+          Add Color, Size, Storage{tabletMode ? '' : ', RAM'}, or {tabletMode ? 'Connectivity' : 'SIM'}{' '}
+          options above first — then generate versions here.
         </p>
       )}
 
@@ -201,8 +209,8 @@ export const ProductSkuMatrix: React.FC<Props> = ({
 
           {duplicateKeys.size > 0 && (
             <p className="text-xs text-amber-400 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-2">
-              Duplicate combinations detected (same color / storage / RAM / SIM). Fix before saving —
-              each combination must be unique.
+              Duplicate combinations detected (same size / color / storage / RAM / SIM). Fix before
+              saving — each combination must be unique.
             </p>
           )}
 

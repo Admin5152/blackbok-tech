@@ -12,6 +12,10 @@ const OPTION_KEY_LABELS: Record<string, string> = {
   sim: 'SIM',
   sim_type: 'SIM',
   'sim type': 'SIM',
+  connectivity: 'Connectivity',
+  size: 'Size',
+  display_size: 'Size',
+  'display size': 'Size',
   variant: 'Item code',
   sku: 'Item code',
   configuration: 'Configuration',
@@ -42,6 +46,11 @@ export function formatSimTypeLabel(code: string): string {
     case 'wifi':
     case 'wi-fi':
       return 'Wi‑Fi only';
+    case 'cell_ps':
+    case 'cellular':
+      return 'Cellular';
+    case 'cell_es':
+      return 'Cellular (eSIM)';
     case 'dual':
       return 'Dual SIM';
     default:

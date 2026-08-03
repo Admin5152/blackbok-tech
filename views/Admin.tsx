@@ -19,6 +19,7 @@ import { AdminOverview } from './admin/AdminOverview';
 import { AdminOrders } from './admin/AdminOrders';
 import { AdminCustomers } from './admin/AdminCustomers';
 import { AdminProducts } from './admin/AdminProducts';
+import { AdminIpads } from './admin/AdminIpads';
 import { AdminRepairs } from './admin/AdminRepairs';
 import { AdminReturns } from './admin/AdminReturns';
 import { AdminUsers } from './admin/AdminUsers';
@@ -27,11 +28,11 @@ import { TradeAdminShell } from './admin/trade/TradeAdminShell';
 // AdminTrades retired — Trade Admin lives at /admin/trade (embedded via TradeAdminShell).
 import {
   Home, Users, Package, ShoppingCart, RefreshCcw,
-  Wrench, LogOut, Menu, X, Shield, Store, RotateCcw, Tag,
+  Wrench, LogOut, Menu, X, Shield, Store, RotateCcw, Tag, Tablet,
 } from 'lucide-react';
 import { AdminPromotionsShell } from './admin/promotions/AdminPromotionsShell';
 
-export type AdminSection = 'overview' | 'inbox' | 'orders' | 'customers' | 'products' | 'trades' | 'returns' | 'repairs' | 'users' | 'promotions';
+export type AdminSection = 'overview' | 'inbox' | 'orders' | 'customers' | 'products' | 'ipads' | 'trades' | 'returns' | 'repairs' | 'users' | 'promotions';
 
 interface AdminProps {
   user?: any;
@@ -47,6 +48,7 @@ const NAV_ITEMS: { id: AdminSection; label: string; icon: any; adminOnly?: boole
   { id: 'orders', label: 'Orders', icon: ShoppingCart },
   { id: 'customers', label: 'Customers', icon: Users },
   { id: 'products', label: 'Shop', icon: Package },
+  { id: 'ipads', label: 'iPads', icon: Tablet },
   { id: 'promotions', label: 'Promotions', icon: Tag },
   { id: 'trades', label: 'Trade-Ins', icon: RefreshCcw },
   { id: 'returns', label: 'Returns', icon: RotateCcw },
@@ -60,6 +62,7 @@ const SECTION_TITLES: Record<AdminSection, string> = {
   orders: 'Orders',
   customers: 'Customers',
   products: 'Shop products',
+  ipads: 'iPad catalogue',
   promotions: 'Promotions',
   trades: 'Trade-ins',
   returns: 'Returns',
@@ -152,6 +155,8 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
     // Overview CTAs + in-app navigate must hit the same deep links as the sidebar.
     if (s === 'products') {
       void routerNavigate({ to: '/admin/products' as any });
+    } else if (s === 'ipads') {
+      void routerNavigate({ to: '/admin/ipads' as any });
     } else if (s === 'trades') {
       void routerNavigate({ to: '/admin/trade' as any });
     } else if (s === 'promotions') {
@@ -344,6 +349,7 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
           {section === 'orders' && <AdminOrders />}
           {section === 'customers' && <AdminCustomers />}
           {section === 'products' && <AdminProducts canEdit={canEditOps} theme={theme} />}
+          {section === 'ipads' && <AdminIpads canEdit={canEditOps} theme={theme} />}
           {section === 'trades' && <TradeAdminShell />}
           {section === 'promotions' && <AdminPromotionsShell />}
           {section === 'returns' && <AdminReturns canEdit={canEditOps} />}

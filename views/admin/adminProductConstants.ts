@@ -27,12 +27,16 @@ export type ProductDraft = Partial<Product> & {
   ram?: string[];
   specs?: string[];
   sim_types?: string[];
+  /** Screen sizes for tablets (e.g. 11", 13") — product_variants.display_size */
+  display_sizes?: string[];
   featured?: boolean;
   /**
    * Admin taxonomy picker value (condition new|used OR brand/type config value).
    * Synced into `condition` / `is_new` / `subcategory` on save.
    */
   taxonomy_value?: string | null;
+  /** Series slug (pro / air / iphone-17 …) — stored on products.subcategory for series cats */
+  series?: string | null;
   /** Local / joined gallery — persisted via product_images helpers. */
   images?: ProductImage[];
   specifications?: Record<string, unknown> | null;

@@ -37,6 +37,14 @@ export interface StoreFilterPanelProps {
   onClearAll: () => void;
   onClose?: () => void;
   resultCount: number;
+  /** Optional series chips (iPhone / iPad / MacBooks) */
+  seriesOptions?: { value: string; label: string }[];
+  activeSeries?: string;
+  onSeriesClick?: (value: string) => void;
+  /** Optional New / Used chips when browsing a condition category */
+  conditionOptions?: { value: string; label: string }[];
+  activeCondition?: string;
+  onConditionClick?: (value: string) => void;
 }
 
 function clampPriceRange(min: number, max: number): { min: number; max: number } {
@@ -139,6 +147,12 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
   onClearAll,
   onClose,
   resultCount,
+  seriesOptions,
+  activeSeries,
+  onSeriesClick,
+  conditionOptions,
+  activeCondition,
+  onConditionClick,
 }) => {
   const isDrawer = variant === 'drawer';
   const borderSubtle = isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)';
@@ -170,6 +184,42 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
           })}
         </div>
       </section>
+
+      {seriesOptions && seriesOptions.length > 0 && onSeriesClick && (
+        <section className="bb-store-filter-section">
+          <h3 className="bb-store-filter-section__title">Series</h3>
+          <div className="flex flex-wrap gap-2">
+            {seriesOptions.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => onSeriesClick(opt.value)}
+                className={chipClass(activeSeries === opt.value, isLight)}
+              >
+                <span className="bb-store-filter-chip__label">{opt.label}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {conditionOptions && conditionOptions.length > 0 && onConditionClick && (
+        <section className="bb-store-filter-section">
+          <h3 className="bb-store-filter-section__title">Condition</h3>
+          <div className="flex flex-wrap gap-2">
+            {conditionOptions.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => onConditionClick(opt.value)}
+                className={chipClass(activeCondition === opt.value, isLight)}
+              >
+                <span className="bb-store-filter-chip__label">{opt.label}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Promotions */}
       <section className="bb-store-filter-section">

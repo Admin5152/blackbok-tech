@@ -124,6 +124,8 @@ export interface ProductVariant {
   color?: string;
   ram?: string;
   storage?: string;
+  /** Screen size for tablets (e.g. 11", 13"). Part of iPad price key. */
+  display_size?: string | null;
   /** ps | es | single | wifi | cell_ps | cell_es — matches trade pricing */
   sim_type?: string | null;
   price_modifier?: number;
@@ -132,6 +134,7 @@ export interface ProductVariant {
   stock?: number;
   is_active?: boolean;
   image_url?: string | null;
+  attributes?: Record<string, unknown> | null;
   created_at?: string;
   updated_at?: string;
   // Legacy seed / grouped selectors (not DB SKU rows)

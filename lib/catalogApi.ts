@@ -167,12 +167,17 @@ export async function getProductVariants(productId: string): Promise<ProductVari
     color: v.color != null ? String(v.color) : undefined,
     ram: v.ram != null ? String(v.ram) : undefined,
     storage: v.storage != null ? String(v.storage) : undefined,
+    display_size: v.display_size != null ? String(v.display_size) : undefined,
     sim_type: v.sim_type != null ? String(v.sim_type) : undefined,
     price_modifier: Number(v.price_modifier ?? 0) || 0,
     price: v.price != null ? Number(v.price) : undefined,
     stock: Math.max(0, Math.floor(Number(v.stock ?? 0))),
     is_active: v.is_active !== false,
     image_url: v.image_url != null ? String(v.image_url) : undefined,
+    attributes:
+      v.attributes && typeof v.attributes === 'object'
+        ? (v.attributes as Record<string, unknown>)
+        : undefined,
   }));
 }
 

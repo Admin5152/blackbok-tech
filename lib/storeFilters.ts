@@ -149,19 +149,140 @@ export function productMatchesStoreNewFilter(
 ): boolean {
   if (!filter) return true;
 
-  const nameOrModel = `${p.name || ''} ${p.model || ''}`.toLowerCase();
-  const isIphone = nameOrModel.includes('iphone') || (p.category && p.category.toLowerCase() === 'iphone');
+  const condition = String(p.condition || '').toLowerCase();
   const isNew = productIsNew(p);
 
-  if (isIphone) {
-    if (filter === 'new') {
-      return /(iphone\s+(15|16|17))/i.test(nameOrModel) && isNew;
-    } else {
-      return /(iphone\s+(xr|xs|11|12|13|14|15|16|17))/i.test(nameOrModel) && !isNew;
-    }
+  if (filter === 'new') {
+    if (condition === 'new') return true;
+    if (condition === 'preowned' || condition === 'refurbished' || condition === 'used') return false;
+    return isNew;
   }
 
-  return filter === 'new' ? isNew : !isNew;
+  // used
+  if (condition === 'preowned' || condition === 'refurbished' || condition === 'used') return true;
+  if (condition === 'new') return false;
+  return !isNew;
+}
+
+// ─── Series (category → series → condition) ─────────────────────────────────
+
+export type StoreSeriesOption = {
+  value: string;
+  label: string;
+  description: string;
+};
+
+/** Categories that show a Series step before New/Used. */
+export const CATEGORIES_WITH_SERIES = new Set(['iPhone', 'iPad', 'MacBooks']);
+
+export const IPAD_SERIES_OPTIONS: StoreSeriesOption[] = [
+  { value: 'pro', label: 'iPad Pro', description: 'Pro models with M-series chips' },
+  { value: 'air', label: 'iPad Air', description: 'Air models' },
+  { value: 'mini', label: 'iPad mini', description: 'Compact mini models' },
+  { value: 'standard', label: 'iPad', description: 'Standard iPad models' },
+];
+
+export const IPHONE_SERIES_OPTIONS: StoreSeriesOption[] = [
+  { value: 'iphone-17', label: 'iPhone 17', description: 'iPhone 17 family' },
+  { value: 'iphone-16', label: 'iPhone 16', description: 'iPhone 16 family' },
+  { value: 'iphone-15', label: 'iPhone 15', description: 'iPhone 15 family' },
+  { value: 'iphone-14', label: 'iPhone 14', description: 'iPhone 14 family' },
+  { value: 'iphone-13', label: 'iPhone 13', description: 'iPhone 13 family' },
+  { value: 'iphone-12', label: 'iPhone 12', description: 'iPhone 12 family' },
+  { value: 'iphone-11', label: 'iPhone 11', description: 'iPhone 11 family' },
+  { value: 'iphone-x', label: 'iPhone X series', description: 'X, XR, XS' },
+  { value: 'iphone-se', label: 'iPhone SE', description: 'SE models' },
+  { value: 'iphone-older', label: 'Older iPhones', description: 'iPhone 8 and earlier' },
+];
+
+export const MACBOOK_SERIES_OPTIONS: StoreSeriesOption[] = [
+  { value: 'pro', label: 'MacBook Pro', description: 'Pro notebooks' },
+  { value: 'air', label: 'MacBook Air', description: 'Air notebooks' },
+  { value: 'other', label: 'Other Mac', description: 'iMac, Mac mini & more' },
+];
+
+export function categoryUsesSeriesStep(category: string | null | undefined): boolean {
+  if (!category) return false;
+  return CATEGORIES_WITH_SERIES.has(normalizeProductCategory(category));
+}
+
+export function getCategorySeriesOptions(category: string): StoreSeriesOption[] {
+  const n = normalizeProductCategory(category);
+  if (n === 'iPad' || n === 'Tablet') return IPAD_SERIES_OPTIONS;
+  if (n === 'iPhone') return IPHONE_SERIES_OPTIONS;
+  if (n === 'MacBooks' || n === 'Laptop' || n === 'Laptops') return MACBOOK_SERIES_OPTIONS;
+  return [];
+}
+
+/** Resolve series slug from a product (specs → subcategory → name heuristics). */
+export function getProductSeriesSlug(p: Product): string | null {
+  const specs = p.specifications;
+  if (specs && typeof specs === 'object') {
+    const s = String((specs as Record<string, unknown>).series ?? '').trim().toLowerCase();
+    if (s) return s;
+  }
+  const sub = String(p.subcategory ?? '').trim().toLowerCase();
+  if (sub && sub !== 'new' && sub !== 'used') return sub.replace(/\s+/g, '-');
+
+  const cat = normalizeProductCategory(p.category);
+  const hay = `${p.name || ''} ${p.model || ''} ${p.brand || ''}`.toLowerCase();
+
+  if (cat === 'iPad' || cat === 'Tablet') {
+    if (hay.includes('ipad pro')) return 'pro';
+    if (hay.includes('ipad air')) return 'air';
+    if (hay.includes('ipad mini')) return 'mini';
+    if (hay.includes('ipad')) return 'standard';
+  }
+  if (cat === 'iPhone') {
+    if (/iphone\s*17/.test(hay)) return 'iphone-17';
+    if (/iphone\s*16/.test(hay)) return 'iphone-16';
+    if (/iphone\s*15/.test(hay)) return 'iphone-15';
+    if (/iphone\s*14/.test(hay)) return 'iphone-14';
+    if (/iphone\s*13/.test(hay)) return 'iphone-13';
+    if (/iphone\s*12/.test(hay)) return 'iphone-12';
+    if (/iphone\s*11/.test(hay)) return 'iphone-11';
+    if (/iphone\s*(x|xr|xs)/.test(hay)) return 'iphone-x';
+    if (/iphone\s*se/.test(hay)) return 'iphone-se';
+    return 'iphone-older';
+  }
+  if (cat === 'MacBooks' || cat === 'Laptops' || cat === 'Laptop') {
+    if (hay.includes('macbook pro') || hay.includes('mac book pro')) return 'pro';
+    if (hay.includes('macbook air') || hay.includes('mac book air')) return 'air';
+    if (hay.includes('mac')) return 'other';
+  }
+  return null;
+}
+
+export function productMatchesStoreSeries(
+  p: Product,
+  series: string | null | undefined,
+): boolean {
+  if (!series) return true;
+  const want = series.trim().toLowerCase();
+  const got = getProductSeriesSlug(p);
+  if (!got) return false;
+  return got === want || got.replace(/\s+/g, '-') === want;
+}
+
+export function getSeriesCount(
+  products: Product[],
+  category: string,
+  seriesValue: string,
+): number {
+  return products.filter(
+    (p) =>
+      productMatchesStoreCategories(p, [category as Category]) &&
+      productMatchesStoreSeries(p, seriesValue),
+  ).length;
+}
+
+export function seriesFilterLabel(series: string | null | undefined, category?: string | null): string {
+  if (!series) return '';
+  if (category) {
+    const opt = getCategorySeriesOptions(category).find((o) => o.value === series);
+    if (opt) return opt.label;
+  }
+  return series;
 }
 
 // ─── Subcategory system ──────────────────────────────────────────────────────
@@ -293,6 +414,9 @@ export function applyAdminTaxonomyFields(input: {
   /** Selected subcategory option value (e.g. new, used, PlayStation, AirPods) */
   taxonomyValue: string | null | undefined;
   existingCondition?: string | null;
+  /** Series slug for iPhone/iPad/MacBook (stored on products.subcategory) */
+  series?: string | null;
+  existingSubcategory?: string | null;
 }): {
   category: string;
   subcategory: string | null;
@@ -307,10 +431,18 @@ export function applyAdminTaxonomyFields(input: {
     (o) => o.value.toLowerCase() === raw.toLowerCase() || o.label.toLowerCase() === raw.toLowerCase(),
   );
 
+  const seriesSlug = String(input.series ?? '').trim() || null;
+  const existingSub = String(input.existingSubcategory ?? '').trim();
+  const keepSeries =
+    seriesSlug ||
+    (existingSub && existingSub.toLowerCase() !== 'new' && existingSub.toLowerCase() !== 'used'
+      ? existingSub
+      : null);
+
   if (category === 'Android phones') {
     return {
       category,
-      subcategory: null,
+      subcategory: keepSeries,
       condition: 'new',
       is_new: true,
       taxonomyLabel: hit?.label ?? 'New',
@@ -321,7 +453,8 @@ export function applyAdminTaxonomyFields(input: {
     const isUsed = (hit?.value ?? raw).toLowerCase() === 'used';
     return {
       category,
-      subcategory: null,
+      // Preserve series on subcategory for iPhone / iPad / MacBooks
+      subcategory: keepSeries,
       condition: isUsed ? 'preowned' : 'new',
       is_new: !isUsed,
       taxonomyLabel: isUsed ? 'Used' : 'New',

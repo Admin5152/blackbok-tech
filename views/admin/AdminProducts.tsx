@@ -52,7 +52,7 @@ type HealthView = 'all' | 'apple_missing_trade' | 'iphone14_missing_sim';
 const EMPTY: ProductDraft = {
     name: '', price: 0, category: 'iPhone', description: '', image: '',
     stock: 10, rating: 4.5, discount: undefined, new: true, is_new: true,
-    colors: [], storage: [], ram: [], specs: [], sim_types: [], featured: false,
+    colors: [], storage: [], ram: [], specs: [], sim_types: [], display_sizes: [], featured: false,
     is_deal_of_the_day: false, promo_text: '',
     brand: 'Apple', condition: 'new', status: 'active', trade_model: null,
     currency: 'GHS',
@@ -166,6 +166,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
     const [storageIn, setStorageIn] = useState('');
     const [ramIn, setRamIn] = useState('');
     const [simIn, setSimIn] = useState('');
+    const [sizeIn, setSizeIn] = useState('');
     const [specsIn, setSpecsIn] = useState('');
     const [skuMatrixEnabled, setSkuMatrixEnabled] = useState(false);
     const [skuRows, setSkuRows] = useState<SkuMatrixRow[]>([]);
@@ -191,12 +192,21 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                   .filter(Boolean),
               ),
             );
+        const displaySizes =
+            (p as ProductDraft)?.display_sizes ||
+            Array.from(
+              new Set(
+                parseSkuVariants(p?.variants)
+                  .map((r) => r.display_size)
+                  .filter(Boolean),
+              ),
+            );
         const fromDb = parseSkuVariants(p?.variants);
         const rows =
             fromDb.length > 0
                 ? fromDb
-                : canUseSkuMatrix(colors, storage, ram, simTypes)
-                  ? syncSkuRowsFromChips(colors, storage, ram, [], simTypes)
+                : canUseSkuMatrix(colors, storage, ram, simTypes, displaySizes)
+                  ? syncSkuRowsFromChips(colors, storage, ram, [], simTypes, displaySizes)
                   : [];
         setSkuRows(rows);
         setSkuMatrixEnabled(p ? skuMatrixEnabledForProduct(p as Product) : false);
@@ -208,7 +218,8 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
         const storage = next.storage || [];
         const ram = next.ram || [];
         const simTypes = next.sim_types || [];
-        if (!canUseSkuMatrix(colors, storage, ram, simTypes)) {
+        const displaySizes = next.display_sizes || [];
+        if (!canUseSkuMatrix(colors, storage, ram, simTypes, displaySizes)) {
             if (!parseSkuVariants(next.variants).length) {
                 setSkuMatrixEnabled(false);
                 setSkuRows([]);
@@ -216,7 +227,9 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
             return;
         }
         setSkuMatrixEnabled(true);
-        setSkuRows((prev) => syncSkuRowsFromChips(colors, storage, ram, prev, simTypes));
+        setSkuRows((prev) =>
+          syncSkuRowsFromChips(colors, storage, ram, prev, simTypes, displaySizes),
+        );
     };
 
     const load = async (opts?: { silent?: boolean }) => {
@@ -239,7 +252,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
 
     const openAdd = () => {
         setDraft({ ...EMPTY });
-        setColorIn(''); setStorageIn(''); setRamIn(''); setSimIn(''); setSpecsIn('');
+        setColorIn(''); setStorageIn(''); setRamIn(''); setSimIn(''); setSizeIn(''); setSpecsIn('');
         setSkuRows([]); setSkuMatrixEnabled(false);
         priceEditBaselineRef.current = null;
         setError(''); setShowForm(true);
@@ -248,18 +261,33 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
         const simTypes = Array.from(
           new Set(parseSkuVariants(p.variants).map((r) => r.sim_type).filter(Boolean)),
         );
+        const displaySizes = Array.from(
+          new Set(parseSkuVariants(p.variants).map((r) => r.display_size).filter(Boolean)),
+        );
         const spec = p.specifications;
+        const seriesFromSpecs =
+          spec && typeof spec === 'object'
+            ? String((spec as Record<string, unknown>).series ?? '').trim()
+            : '';
+        const series =
+          seriesFromSpecs ||
+          (p.subcategory && p.subcategory !== 'new' && p.subcategory !== 'used'
+            ? String(p.subcategory)
+            : '') ||
+          null;
         priceEditBaselineRef.current = Number(p.price) || 0;
         setDraft({
             ...p,
             sim_types: simTypes,
+            display_sizes: displaySizes,
+            series,
             images: p.images || [],
             specifications: spec ?? {},
             specificationsJson: spec && typeof spec === 'object' ? JSON.stringify(spec, null, 2) : '{}',
             taxonomy_value: resolveTaxonomyValueFromProduct(p),
         } as ProductDraft);
-        setColorIn(''); setStorageIn(''); setRamIn(''); setSimIn(''); setSpecsIn('');
-        resetSkuState({ ...p, sim_types: simTypes } as ProductDraft);
+        setColorIn(''); setStorageIn(''); setRamIn(''); setSimIn(''); setSizeIn(''); setSpecsIn('');
+        resetSkuState({ ...p, sim_types: simTypes, display_sizes: displaySizes } as ProductDraft);
         setError(''); setShowForm(true);
     };
 
@@ -334,18 +362,19 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                 draft.storage || [],
                 draft.ram || [],
                 draft.sim_types || [],
+                draft.display_sizes || [],
             ) &&
             (!skuMatrixEnabled || skuRows.length === 0)
         ) {
             setError(
-                'You added Color / Storage / RAM / SIM options — turn on stock per version and create versions so the shop and trade-in only show real options.',
+                'You added Color / Size / Storage / RAM / SIM options — turn on stock per version and create versions so the shop and trade-in only show real options.',
             );
             return;
         }
         if (skuMatrixEnabled && skuRows.length > 0) {
             const dups = findDuplicateSkuKeys(skuRows);
             if (dups.length) {
-                setError('Duplicate combinations (color / storage / RAM / SIM). Fix duplicates before saving.');
+                setError('Duplicate combinations (size / color / storage / RAM / SIM). Fix duplicates before saving.');
                 return;
             }
         }
@@ -377,10 +406,25 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
           category: draft.category || 'iPhone',
           taxonomyValue,
           existingCondition: draft.condition,
+          series: draft.series,
+          existingSubcategory: draft.subcategory,
         });
 
         try {
             let productId = draft.id;
+            let specsPayload = draft.specifications ?? null;
+            if (draft.series && taxonomy.category) {
+              const base =
+                specsPayload && typeof specsPayload === 'object'
+                  ? { ...(specsPayload as Record<string, unknown>) }
+                  : {};
+              base.series = draft.series;
+              if (taxonomy.category === 'iPad') base.catalog = 'ipad';
+              if (!base.model_family && draft.slug) {
+                base.model_family = String(draft.slug).replace(/-(new|preowned)$/, '');
+              }
+              specsPayload = base;
+            }
             const productPayload = {
                 name: draft.name,
                 description: draft.description || '',
@@ -405,7 +449,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                 featured: Boolean(draft.featured),
                 is_deal_of_the_day: Boolean(draft.is_deal_of_the_day ?? draft.isDealOfTheDay),
                 promo_text: draft.promo_text ?? draft.promoText ?? null,
-                specifications: draft.specifications ?? {},
+                specifications: specsPayload ?? {},
             };
 
             if (draft.id) {
@@ -438,6 +482,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                         storage: r.storage || null,
                         ram: r.ram || null,
                         sim_type: r.sim_type || null,
+                        display_size: r.display_size || null,
                         stock: r.stock,
                         price_modifier: r.price_modifier,
                         price: r.price != null && Number.isFinite(Number(r.price)) ? Number(r.price) : null,
@@ -498,7 +543,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
         }
     };
 
-    const addChip = (field: 'colors' | 'storage' | 'ram' | 'specs' | 'sim_types', val: string, clear: () => void) => {
+    const addChip = (field: 'colors' | 'storage' | 'ram' | 'specs' | 'sim_types' | 'display_sizes', val: string, clear: () => void) => {
         if (!val.trim()) return;
         const arr = (draft[field] as string[] | undefined) || [];
         if (arr.includes(val.trim())) {
@@ -512,7 +557,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
         }
         clear();
     };
-    const rmChip = (field: 'colors' | 'storage' | 'ram' | 'specs' | 'sim_types', val: string) => {
+    const rmChip = (field: 'colors' | 'storage' | 'ram' | 'specs' | 'sim_types' | 'display_sizes', val: string) => {
         if (field === 'specs') {
             setDraft({ ...draft, specs: ((draft.specs as string[] | undefined) || []).filter((x) => x !== val) });
             return;
@@ -821,6 +866,8 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                         setRamIn={setRamIn}
                         simIn={simIn}
                         setSimIn={setSimIn}
+                        sizeIn={sizeIn}
+                        setSizeIn={setSizeIn}
                         specsIn={specsIn}
                         setSpecsIn={setSpecsIn}
                         onAddChip={addChip}

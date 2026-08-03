@@ -20,3 +20,17 @@ export function formatGhs(amount: number): string {
   });
   return `GH₵${formatted}`;
 }
+
+/**
+ * iPad / catalogue copy style: "GHS 14,999" (no cedis symbol, no decimals).
+ * Prefer formatGhs() elsewhere for app-wide consistency.
+ */
+export function formatGhsPlain(amount: number): string {
+  const n = Number(amount);
+  if (!Number.isFinite(n)) return 'GHS 0';
+  const formatted = Math.round(n).toLocaleString('en-GH', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+  return `GHS ${formatted}`;
+}

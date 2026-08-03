@@ -48,6 +48,8 @@ import { Home } from './views/Home';
 import { ProductDetail } from './views/ProductDetail';
 import { Repair } from './views/Repair';
 import { Store } from './views/Store';
+import { Ipads } from './views/Ipads';
+import { IpadModelPage } from './views/IpadModelPage';
 import { Auth } from './views/Auth';
 import { Profile } from './views/Profile';
 import { Confirmation } from './views/Confirmation';
@@ -225,6 +227,7 @@ const storeRoute = createRoute({
     browse?: 'all' | 'deals';
     condition?: 'new' | 'used';
     subcategory?: string;
+    series?: string;
   } => {
     let categories: string[] | undefined;
     
@@ -258,12 +261,16 @@ const storeRoute = createRoute({
       typeof search.subcategory === 'string' && search.subcategory.trim()
         ? search.subcategory.trim().slice(0, 80)
         : undefined;
+    const series =
+      typeof search.series === 'string' && search.series.trim()
+        ? search.series.trim().slice(0, 80)
+        : undefined;
     
-    return { categories, q, browse, condition, subcategory };
+    return { categories, q, browse, condition, subcategory, series };
   },
   component: () => {
     const context = useAppContext();
-    const { categories, q, browse, condition, subcategory } = storeRoute.useSearch();
+    const { categories, q, browse, condition, subcategory, series } = storeRoute.useSearch();
     return (
       <Store
         {...context}
@@ -272,6 +279,56 @@ const storeRoute = createRoute({
         browseFromUrl={browse}
         conditionFromUrl={condition}
         subcategoryFromUrl={subcategory}
+        seriesFromUrl={series}
+      />
+    );
+  },
+});
+
+const ipadsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/ipads',
+  validateSearch: (search: Record<string, unknown>): {
+    series?: string;
+    storage?: string;
+    connectivity?: string;
+    condition?: string;
+    minPrice?: number;
+    maxPrice?: number;
+  } => {
+    const num = (v: unknown) => {
+      const n = typeof v === 'number' ? v : Number(v);
+      return Number.isFinite(n) ? n : undefined;
+    };
+    return {
+      series: typeof search.series === 'string' ? search.series.slice(0, 40) : undefined,
+      storage: typeof search.storage === 'string' ? search.storage.slice(0, 40) : undefined,
+      connectivity:
+        typeof search.connectivity === 'string' ? search.connectivity.slice(0, 40) : undefined,
+      condition: typeof search.condition === 'string' ? search.condition.slice(0, 40) : undefined,
+      minPrice: num(search.minPrice),
+      maxPrice: num(search.maxPrice),
+    };
+  },
+  component: () => {
+    const context = useAppContext();
+    const search = ipadsRoute.useSearch();
+    return <Ipads theme={context.theme} search={search} />;
+  },
+});
+
+const ipadModelRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/ipads/$modelSlug',
+  component: () => {
+    const { modelSlug } = useParams({ from: ipadModelRoute.id } as any);
+    const context = useAppContext();
+    return (
+      <IpadModelPage
+        modelSlug={String(modelSlug)}
+        theme={context.theme}
+        addToCart={context.addToCart}
+        notify={context.notify}
       />
     );
   },
@@ -616,10 +673,13 @@ const AdminRouteShell: React.FC = () => {
       ? ('trades' as const)
       : isPromotionsAdminPath
         ? ('promotions' as const)
-        : location.pathname === '/admin/products' ||
-            location.pathname.startsWith('/admin/products/')
-          ? ('products' as const)
-          : undefined;
+        : location.pathname === '/admin/ipads' ||
+            location.pathname.startsWith('/admin/ipads/')
+          ? ('ipads' as const)
+          : location.pathname === '/admin/products' ||
+              location.pathname.startsWith('/admin/products/')
+            ? ('products' as const)
+            : undefined;
 
   useEffect(() => {
     if (!authReady) {
@@ -776,6 +836,13 @@ const adminRoute = createRoute({
 const adminProductsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/admin/products',
+  component: AdminRouteShell,
+});
+
+/** iPad bulk pricing / stock — same staff gate, opens ipads section. */
+const adminIpadsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/admin/ipads',
   component: AdminRouteShell,
 });
 
@@ -1087,6 +1154,8 @@ const splatRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   indexRoute,
   storeRoute,
+  ipadsRoute,
+  ipadModelRoute,
   productDetailRoute,
   cartRoute,
   checkoutRoute,
@@ -1112,6 +1181,7 @@ const routeTree = rootRoute.addChildren([
   resetPasswordRoute,
   adminRoute,
   adminProductsRoute,
+  adminIpadsRoute,
   adminPromotionsRoute.addChildren([
     adminPromotionsIndexRoute,
     adminPromotionsNewRoute,

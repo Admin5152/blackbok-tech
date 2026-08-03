@@ -1,8 +1,9 @@
 /**
- * Product SKU matrix helpers — Color × Storage × RAM × SIM → product_variants rows.
+ * Product SKU matrix helpers — Color × Storage × RAM × SIM × Size → product_variants.
  *
  * WHY: Admin Shop edits inventory per combination; storefront/checkout resolve
  * stock and effective price from these rows (not products.stock alone).
+ * Size (display_size) is required for iPads (11" vs 13").
  */
 import type { Product, ProductVariant } from '../types';
 
@@ -14,6 +15,8 @@ export type SkuMatrixRow = {
   ram: string;
   /** Physical SIM / eSIM / wifi / etc. — product_variants.sim_type */
   sim_type: string;
+  /** Screen size for tablets — product_variants.display_size */
+  display_size: string;
   stock: number;
   price_modifier: number;
   /**
@@ -31,6 +34,9 @@ const SIM_CODES = ['ps', 'es', 'single', 'wifi', 'cell_ps', 'cell_es'] as const;
 export type SkuSimCode = (typeof SIM_CODES)[number];
 export const SKU_SIM_CODES: readonly SkuSimCode[] = SIM_CODES;
 
+/** Common iPad connectivity codes for admin quick-picks */
+export const IPAD_SIM_OPTIONS = ['wifi', 'cell_ps', 'cell_es'] as const;
+
 const norm = (s: string | undefined | null) => (s ?? '').trim().toLowerCase();
 
 export function skuMatrixKey(row: {
@@ -38,8 +44,9 @@ export function skuMatrixKey(row: {
   storage?: string;
   ram?: string;
   sim_type?: string;
+  display_size?: string;
 }): string {
-  return `${norm(row.color)}|${norm(row.storage)}|${norm(row.ram)}|${norm(row.sim_type)}`;
+  return `${norm(row.display_size)}|${norm(row.color)}|${norm(row.storage)}|${norm(row.ram)}|${norm(row.sim_type)}`;
 }
 
 /** True when variant is a DB SKU row, not legacy `{ name, options }`. */
@@ -47,7 +54,15 @@ export function isDbSkuVariant(v: unknown): boolean {
   if (!v || typeof v !== 'object') return false;
   const o = v as Record<string, unknown>;
   if (typeof o.name === 'string' && Array.isArray(o.options)) return false;
-  return Boolean(o.id || o.color || o.storage || o.ram || o.sim_type || o.stock != null);
+  return Boolean(
+    o.id ||
+      o.color ||
+      o.storage ||
+      o.ram ||
+      o.sim_type ||
+      o.display_size ||
+      o.stock != null,
+  );
 }
 
 export function parseSkuVariants(variants: ProductVariant[] | undefined): SkuMatrixRow[] {
@@ -63,6 +78,7 @@ export function parseSkuVariants(variants: ProductVariant[] | undefined): SkuMat
       storage: String(row.storage ?? '').trim(),
       ram: String(row.ram ?? '').trim(),
       sim_type: String(row.sim_type ?? '').trim(),
+      display_size: String(row.display_size ?? '').trim(),
       stock: Math.max(0, Math.floor(Number(row.stock ?? 0))),
       price_modifier: Number(row.price_modifier ?? 0) || 0,
       price: abs,
@@ -77,11 +93,11 @@ export function totalSkuStock(rows: SkuMatrixRow[]): number {
   return rows.reduce((sum, r) => sum + Math.max(0, Math.floor(Number(r.stock) || 0)), 0);
 }
 
-/** Slug from color-storage-sim for auto SKU when staff leave code blank. */
+/** Slug from size-color-storage-sim for auto SKU when staff leave code blank. */
 export function autoGenerateSku(
-  row: Pick<SkuMatrixRow, 'color' | 'storage' | 'ram' | 'sim_type'>,
+  row: Pick<SkuMatrixRow, 'color' | 'storage' | 'ram' | 'sim_type' | 'display_size'>,
 ): string {
-  const parts = [row.color, row.storage, row.ram, row.sim_type]
+  const parts = [row.display_size, row.color, row.storage, row.ram, row.sim_type]
     .map((p) =>
       (p || '')
         .trim()
@@ -112,6 +128,7 @@ export function chipsFromSkuRows(rows: SkuMatrixRow[]): {
   storage: string[];
   ram: string[];
   sim_types: string[];
+  display_sizes: string[];
 } {
   const uniq = (vals: string[]) => {
     const out: string[] = [];
@@ -129,10 +146,13 @@ export function chipsFromSkuRows(rows: SkuMatrixRow[]): {
   return {
     colors: uniq(rows.map((r) => r.color)),
     storage: uniq(rows.map((r) => r.storage)),
-    ram: uniq(rows.map((r) => r.ram)),
+    ram: uniq(rows.map((r) => r.ram).filter((x) => x.toUpperCase() !== 'N/A')),
     sim_types: uniq(rows.map((r) => r.sim_type)),
+    display_sizes: uniq(rows.map((r) => r.display_size)),
   };
 }
+
+type ComboDims = Pick<SkuMatrixRow, 'color' | 'storage' | 'ram' | 'sim_type' | 'display_size'>;
 
 /** Cartesian product across whichever chip dimensions exist. */
 export function buildSkuCombinations(
@@ -140,32 +160,30 @@ export function buildSkuCombinations(
   storage: string[],
   ram: string[],
   simTypes: string[] = [],
-): Array<Pick<SkuMatrixRow, 'color' | 'storage' | 'ram' | 'sim_type'>> {
-  const dims: { key: 'color' | 'storage' | 'ram' | 'sim_type'; values: string[] }[] = [];
+  displaySizes: string[] = [],
+): ComboDims[] {
+  const dims: { key: keyof ComboDims; values: string[] }[] = [];
+  if (displaySizes.length) dims.push({ key: 'display_size', values: displaySizes });
   if (colors.length) dims.push({ key: 'color', values: colors });
   if (storage.length) dims.push({ key: 'storage', values: storage });
   if (ram.length) dims.push({ key: 'ram', values: ram });
   if (simTypes.length) dims.push({ key: 'sim_type', values: simTypes });
   if (dims.length === 0) return [];
 
-  type Combo = Pick<SkuMatrixRow, 'color' | 'storage' | 'ram' | 'sim_type'>;
-  const walk = (idx: number, cur: Combo): Combo[] => {
+  const walk = (idx: number, cur: ComboDims): ComboDims[] => {
     if (idx >= dims.length) return [cur];
-    const out: Combo[] = [];
+    const out: ComboDims[] = [];
     for (const v of dims[idx].values) {
       out.push(...walk(idx + 1, { ...cur, [dims[idx].key]: v }));
     }
     return out;
   };
 
-  return walk(0, { color: '', storage: '', ram: '', sim_type: '' });
+  return walk(0, { color: '', storage: '', ram: '', sim_type: '', display_size: '' });
 }
 
 /** Regenerate rows from chips while keeping stock / ids / prices where keys match. */
-export function mergeSkuMatrix(
-  combos: Array<Pick<SkuMatrixRow, 'color' | 'storage' | 'ram' | 'sim_type'>>,
-  existing: SkuMatrixRow[],
-): SkuMatrixRow[] {
+export function mergeSkuMatrix(combos: ComboDims[], existing: SkuMatrixRow[]): SkuMatrixRow[] {
   const byKey = new Map(existing.map((r) => [skuMatrixKey(r), r]));
   return combos.map((c) => {
     const prev = byKey.get(skuMatrixKey(c));
@@ -175,6 +193,7 @@ export function mergeSkuMatrix(
       storage: c.storage ?? '',
       ram: c.ram ?? '',
       sim_type: c.sim_type ?? '',
+      display_size: c.display_size ?? '',
       stock: prev?.stock ?? 0,
       price_modifier: prev?.price_modifier ?? 0,
       price: prev?.price ?? null,
@@ -190,8 +209,9 @@ export function canUseSkuMatrix(
   storage: string[],
   ram: string[],
   simTypes: string[] = [],
+  displaySizes: string[] = [],
 ): boolean {
-  return colors.length + storage.length + ram.length + simTypes.length > 0;
+  return colors.length + storage.length + ram.length + simTypes.length + displaySizes.length > 0;
 }
 
 export function skuMatrixEnabledForProduct(product: Product | null | undefined): boolean {
@@ -202,20 +222,31 @@ export function skuMatrixEnabledForProduct(product: Product | null | undefined):
     storage?: string[];
     ram?: string[];
     sim_types?: string[];
+    display_sizes?: string[];
   };
-  return canUseSkuMatrix(p.colors || [], p.storage || [], p.ram || [], p.sim_types || []);
+  return canUseSkuMatrix(
+    p.colors || [],
+    p.storage || [],
+    p.ram || [],
+    p.sim_types || [],
+    p.display_sizes || [],
+  );
 }
 
-/** Keep matrix rows aligned when Color / Storage / RAM / SIM chips change. */
+/** Keep matrix rows aligned when chips change. */
 export function syncSkuRowsFromChips(
   colors: string[],
   storage: string[],
   ram: string[],
   existing: SkuMatrixRow[],
   simTypes: string[] = [],
+  displaySizes: string[] = [],
 ): SkuMatrixRow[] {
-  if (!canUseSkuMatrix(colors, storage, ram, simTypes)) return [];
-  return mergeSkuMatrix(buildSkuCombinations(colors, storage, ram, simTypes), existing);
+  if (!canUseSkuMatrix(colors, storage, ram, simTypes, displaySizes)) return [];
+  return mergeSkuMatrix(
+    buildSkuCombinations(colors, storage, ram, simTypes, displaySizes),
+    existing,
+  );
 }
 
 /** Health view 12f — Apple / iPhone / iPad active catalog missing trade bridge. */

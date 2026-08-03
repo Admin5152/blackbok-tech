@@ -51,7 +51,7 @@ function chipsFromScalar(val: unknown): string[] {
   return coerceOptionStrings(parts.length ? parts : [s]);
 }
 
-function uniqFromRows(rows: any[], key: 'color' | 'storage' | 'ram' | 'sim_type'): string[] {
+function uniqFromRows(rows: any[], key: 'color' | 'storage' | 'ram' | 'sim_type' | 'display_size'): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
   for (const r of rows) {
@@ -86,14 +86,17 @@ export function getProductOptionGroups(product: Product | null | undefined): Pro
   );
 
   const skuGroups: ProductOptionGroup[] = [];
+  const size = uniqFromRows(rows, 'display_size');
   const c = uniqFromRows(rows, 'color');
   const s = uniqFromRows(rows, 'storage');
-  const r = uniqFromRows(rows, 'ram');
+  const r = uniqFromRows(rows, 'ram').filter((x) => x.toUpperCase() !== 'N/A');
   const sim = uniqFromRows(rows, 'sim_type');
-  if (c.length) skuGroups.push({ name: 'Color', options: c });
+  // iPad order: Size → Connectivity → Storage → Colour (condition is product-level)
+  if (size.length) skuGroups.push({ name: 'Size', options: size });
+  if (sim.length) skuGroups.push({ name: 'SIM', options: sim });
   if (s.length) skuGroups.push({ name: 'Storage', options: s });
   if (r.length) skuGroups.push({ name: 'RAM', options: r });
-  if (sim.length) skuGroups.push({ name: 'SIM', options: sim });
+  if (c.length) skuGroups.push({ name: 'Color', options: c });
   if (skuGroups.length > 0) return skuGroups;
 
   if (Array.isArray(product.variants) && product.variants.length > 0) {
@@ -246,12 +249,15 @@ export function snapSelectionToInStock(
   return combo ?? initialSelectedFromGroups(groups);
 }
 
-function mapOptionGroupToVariantField(groupName: string): 'color' | 'storage' | 'ram' | 'sim_type' | null {
+function mapOptionGroupToVariantField(
+  groupName: string,
+): 'color' | 'storage' | 'ram' | 'sim_type' | 'display_size' | null {
   const n = groupName.trim().toLowerCase();
   if (n === 'color') return 'color';
   if (n === 'storage') return 'storage';
   if (n === 'ram') return 'ram';
-  if (n === 'sim' || n === 'sim type' || n === 'sim_type') return 'sim_type';
+  if (n === 'sim' || n === 'sim type' || n === 'sim_type' || n === 'connectivity') return 'sim_type';
+  if (n === 'size' || n === 'display_size' || n === 'display size') return 'display_size';
   return null;
 }
 

@@ -36,15 +36,21 @@ import {
   countActiveStoreFilters,
   productMatchesStoreCategories,
   productMatchesStoreSubcategoryFilter,
+  productMatchesStoreSeries,
   productPassesStoreBaseFilters,
   fetchStoreSearchProducts,
   getCategorySubcategoryOptions,
+  getCategorySeriesOptions,
+  categoryUsesSeriesStep,
   resolveStoreSubcategoryFilter,
   encodeStoreSubcategorySearch,
   subcategoryFilterLabel,
+  seriesFilterLabel,
+  getSeriesCount,
   type StoreNewFilter,
   type StoreSubcategoryFilter,
   type SubcategoryOption,
+  type StoreSeriesOption,
 } from '../lib/storeFilters';
 import type { Theme } from '../App';
 
@@ -68,6 +74,7 @@ interface StoreProps {
   /** @deprecated Prefer subcategoryFromUrl — kept for ?condition=new|used bookmarks */
   conditionFromUrl?: StoreNewFilter;
   subcategoryFromUrl?: string;
+  seriesFromUrl?: string;
 }
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
@@ -162,6 +169,7 @@ export const Store: React.FC<StoreProps> = ({
   browseFromUrl,
   conditionFromUrl,
   subcategoryFromUrl,
+  seriesFromUrl,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -200,21 +208,46 @@ export const Store: React.FC<StoreProps> = ({
     [activeCategory],
   );
 
+  const seriesOptions = useMemo(
+    () => (activeCategory && categoryUsesSeriesStep(activeCategory)
+      ? getCategorySeriesOptions(activeCategory)
+      : []),
+    [activeCategory],
+  );
+
+  const activeSeries =
+    seriesFromUrl && seriesOptions.some((o) => o.value === seriesFromUrl)
+      ? seriesFromUrl
+      : undefined;
+
   /** Step 1: category cards. */
   const showCategoryPicker =
     selectedCategories.length === 0 && !searchTerm.trim() && !browseFlat;
 
   /**
-   * Step 2: dynamic subcategory picker (condition or brand/type).
-   * Skipped for browse-all / deals, multi-category, search, or categories with no config.
+   * Step 2: series picker (iPhone / iPad / MacBooks) before New/Used.
    */
-  const showSubcategoryPicker =
+  const showSeriesPicker =
     !showCategoryPicker &&
     !searchTerm.trim() &&
     !browseFlat &&
     selectedCategories.length === 1 &&
+    seriesOptions.length > 0 &&
+    !activeSeries;
+
+  /**
+   * Step 3: dynamic subcategory picker (condition or brand/type).
+   * For series categories, requires series first.
+   */
+  const showSubcategoryPicker =
+    !showCategoryPicker &&
+    !showSeriesPicker &&
+    !searchTerm.trim() &&
+    !browseFlat &&
+    selectedCategories.length === 1 &&
     subcategoryOptions.length > 0 &&
-    !subcategoryFilter;
+    !subcategoryFilter &&
+    (seriesOptions.length === 0 || Boolean(activeSeries));
 
   useEffect(() => {
     try {
@@ -309,16 +342,17 @@ export const Store: React.FC<StoreProps> = ({
     } else if (browseAll && !t) {
       out.browse = 'all';
     }
+    if (activeSeries && !t) out.series = activeSeries;
     if (subcategoryFilter && !t) {
       Object.assign(out, encodeStoreSubcategorySearch(subcategoryFilter));
     }
     return out;
-  }, [searchTerm, selectedCategories, browseAll, browseDeals, subcategoryFilter]);
+  }, [searchTerm, selectedCategories, browseAll, browseDeals, subcategoryFilter, activeSeries]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     // Don't rewrite URL on pickers (keeps /store + category/subcategory steps clean).
-    if (showCategoryPicker || showSubcategoryPicker) return;
+    if (showCategoryPicker || showSeriesPicker || showSubcategoryPicker) return;
     const id = window.setTimeout(() => {
       setSearchQuery(searchTerm.trim());
       navigate({ to: '/store', search: buildStoreSearchParams() as never, replace: true });
@@ -330,6 +364,7 @@ export const Store: React.FC<StoreProps> = ({
     searchTerm,
     setSearchQuery,
     showCategoryPicker,
+    showSeriesPicker,
     showSubcategoryPicker,
   ]);
 
@@ -357,10 +392,17 @@ export const Store: React.FC<StoreProps> = ({
     navigate({ to: '/store', search: {} as never, replace: true });
   }, [navigate, resetLocalStoreFilters, setSelectedCategories]);
 
-  const goToSubcategoryPicker = useCallback(() => {
+  const goToSeriesPicker = useCallback(() => {
     resetLocalStoreFilters();
     navigate({ to: '/store', search: categoryScopeSearch() as never, replace: true });
   }, [navigate, resetLocalStoreFilters, categoryScopeSearch]);
+
+  const goToSubcategoryPicker = useCallback(() => {
+    resetLocalStoreFilters();
+    const scope = { ...categoryScopeSearch() };
+    if (activeSeries) scope.series = activeSeries;
+    navigate({ to: '/store', search: scope as never, replace: true });
+  }, [navigate, resetLocalStoreFilters, categoryScopeSearch, activeSeries]);
 
   const openCategory = useCallback(
     (cat: Category) => {
@@ -377,6 +419,21 @@ export const Store: React.FC<StoreProps> = ({
     navigate({ to: '/store', search: { browse: 'deals' } as never, replace: true });
   }, [navigate, resetLocalStoreFilters, setSelectedCategories]);
 
+  const openSeries = useCallback(
+    (series: string) => {
+      resetLocalStoreFilters();
+      navigate({
+        to: '/store',
+        search: {
+          ...categoryScopeSearch(),
+          series,
+        } as never,
+        replace: true,
+      });
+    },
+    [navigate, categoryScopeSearch, resetLocalStoreFilters],
+  );
+
   const openSubcategory = useCallback(
     (filter: StoreSubcategoryFilter) => {
       resetLocalStoreFilters();
@@ -384,12 +441,13 @@ export const Store: React.FC<StoreProps> = ({
         to: '/store',
         search: {
           ...categoryScopeSearch(),
+          ...(activeSeries ? { series: activeSeries } : {}),
           ...encodeStoreSubcategorySearch(filter),
         } as never,
         replace: true,
       });
     },
-    [navigate, categoryScopeSearch, resetLocalStoreFilters],
+    [navigate, categoryScopeSearch, resetLocalStoreFilters, activeSeries],
   );
 
   // Hit products GIN index via .textSearch when the user types a query
@@ -501,15 +559,17 @@ export const Store: React.FC<StoreProps> = ({
     const results = baseFilteredProducts.filter(
       (p) =>
         productMatchesStoreCategories(p, selectedCategories) &&
+        productMatchesStoreSeries(p, activeSeries) &&
         productMatchesStoreSubcategoryFilter(p, subcategoryFilter) &&
         (!browseDeals || isDealOfTheDayProduct(p)),
     );
     return sortProductsStockFirst(results);
-  }, [baseFilteredProducts, selectedCategories, subcategoryFilter, browseDeals]);
+  }, [baseFilteredProducts, selectedCategories, activeSeries, subcategoryFilter, browseDeals]);
 
   const storePageResetKey = [
     searchTerm,
     selectedCategories.join(','),
+    activeSeries || '',
     subcategoryFilter ? `${subcategoryFilter.kind}:${subcategoryFilter.value}` : '',
     priceRange.min,
     priceRange.max,
@@ -550,6 +610,7 @@ export const Store: React.FC<StoreProps> = ({
       to: '/store',
       search: {
         ...categoryScopeSearch(),
+        ...(activeSeries ? { series: activeSeries } : {}),
         ...encodeStoreSubcategorySearch(subcategoryFilter),
       } as never,
       replace: true,
@@ -620,6 +681,26 @@ export const Store: React.FC<StoreProps> = ({
     activeFiltersCount,
     onClearAll: clearAllFilters,
     resultCount: filteredProducts.length,
+    seriesOptions: seriesOptions.map((o) => ({ value: o.value, label: o.label })),
+    activeSeries,
+    onSeriesClick: (value: string) => {
+      navigate({
+        to: '/store',
+        search: {
+          ...categoryScopeSearch(),
+          series: value,
+          ...encodeStoreSubcategorySearch(subcategoryFilter),
+        } as never,
+        replace: true,
+      });
+    },
+    conditionOptions: subcategoryOptions
+      .filter((o) => o.kind === 'condition')
+      .map((o) => ({ value: o.value, label: o.label })),
+    activeCondition: subcategoryFilter?.kind === 'condition' ? subcategoryFilter.value : undefined,
+    onConditionClick: (value: string) => {
+      openSubcategory({ kind: 'condition', value });
+    },
   };
 
   const gridCols = showDesktopFilters
@@ -687,23 +768,76 @@ export const Store: React.FC<StoreProps> = ({
     );
   }
 
+  if (showSeriesPicker && activeCategory) {
+    const scopeLabel = activeCategory;
+    return (
+      <div className="bb-store-page">
+        <div className="bb-store-toolbar">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3">
+            <div className="bb-store-toolbar-row flex min-w-0 items-center gap-1.5 sm:gap-2">
+              <PageBackButton isLight={isLight} onClick={goToCategoryPicker} iconOnly />
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#CDA032]">{scopeLabel}</p>
+                <h1 className="text-base sm:text-lg font-bold leading-tight truncate">Choose a series</h1>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-10">
+          <p className="mb-6 sm:mb-8 max-w-xl text-sm text-[color:var(--bb-muted)]">
+            Pick a series, then choose Brand new or Used.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            {seriesOptions.map((opt: StoreSeriesOption) => {
+              const count = getSeriesCount(baseFilteredProducts, activeCategory, opt.value);
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => openSeries(opt.value)}
+                  className="group relative flex min-h-[8.5rem] flex-col overflow-hidden rounded-2xl border border-[var(--bb-border)] bg-[var(--bb-surface)] text-left transition-all hover:border-[#CDA032]/50 hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032]/50"
+                >
+                  <div className="relative z-[1] flex flex-1 flex-col justify-between p-4 sm:p-5">
+                    <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--bb-border)] bg-[var(--bb-surface-2)] text-[#CDA032]">
+                      {categoryIconLg(activeCategory)}
+                    </span>
+                    <div>
+                      <span className="block text-sm sm:text-base font-bold tracking-tight">{opt.label}</span>
+                      <span className="mt-1 block text-xs text-[color:var(--bb-muted)]">{opt.description}</span>
+                      <span className="mt-2 block text-[10px] font-black uppercase tracking-widest text-[#CDA032]/80">
+                        {count} model{count === 1 ? '' : 's'}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (showSubcategoryPicker) {
     const scopeLabel = activeCategory ?? 'Products';
+    const seriesLabel = activeSeries ? seriesFilterLabel(activeSeries, activeCategory) : '';
     const isConditionStep = subcategoryOptions.every((o) => o.kind === 'condition');
     const title = isConditionStep ? 'New or used?' : `Choose ${scopeLabel}`;
     const blurb = isConditionStep
-      ? `Choose condition to see matching ${scopeLabel} inventory.`
+      ? `Choose condition to see matching ${seriesLabel || scopeLabel} inventory.`
       : `Pick a type to browse ${scopeLabel} products.`;
+    const onBack = seriesOptions.length > 0 ? goToSeriesPicker : goToCategoryPicker;
 
     return (
       <div className="bb-store-page">
         <div className="bb-store-toolbar">
           <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3">
             <div className="bb-store-toolbar-row flex min-w-0 items-center gap-1.5 sm:gap-2">
-              <PageBackButton isLight={isLight} fallbackTo="/store" iconOnly onClick={goToCategoryPicker} />
+              <PageBackButton isLight={isLight} fallbackTo="/store" iconOnly onClick={onBack} />
               <div className="min-w-0 flex-1">
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#CDA032]">
-                  {scopeLabel}
+                  {seriesLabel ? `${scopeLabel} · ${seriesLabel}` : scopeLabel}
                 </p>
                 <h1 className="text-base sm:text-lg font-bold leading-tight truncate">{title}</h1>
               </div>
@@ -751,8 +885,14 @@ export const Store: React.FC<StoreProps> = ({
   }
 
   const subLabel = subcategoryFilterLabel(subcategoryFilter, activeCategory);
+  const seriesLabel = seriesFilterLabel(activeSeries, activeCategory);
   const canChangeSubcategory =
     Boolean(activeCategory) && getCategorySubcategoryOptions(activeCategory!).length > 0;
+  const onProductGridBack = canChangeSubcategory
+    ? goToSubcategoryPicker
+    : seriesOptions.length > 0
+      ? goToSeriesPicker
+      : goToCategoryPicker;
 
   return (
     <div className="bb-store-page">
@@ -764,7 +904,7 @@ export const Store: React.FC<StoreProps> = ({
                 isLight={isLight}
                 fallbackTo="/store"
                 iconOnly
-                onClick={canChangeSubcategory ? goToSubcategoryPicker : goToCategoryPicker}
+                onClick={onProductGridBack}
               />
 
               <div className="bb-store-search-wrap relative min-w-0">
@@ -906,17 +1046,27 @@ export const Store: React.FC<StoreProps> = ({
                   : selectedCategories.length === 1
                     ? ` in ${selectedCategories[0]}`
                     : ''}
+                {seriesLabel ? ` · ${seriesLabel}` : ''}
                 {subLabel ? ` · ${subLabel}` : ''}
                 {showPromotionsOnly ? ' on sale' : ''}
               </p>
               <div className="flex items-center gap-3">
+                {seriesOptions.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={goToSeriesPicker}
+                    className="text-xs font-bold uppercase tracking-wider text-[#CDA032] hover:underline"
+                  >
+                    Change series
+                  </button>
+                )}
                 {canChangeSubcategory && (
                   <button
                     type="button"
                     onClick={goToSubcategoryPicker}
                     className="text-xs font-bold uppercase tracking-wider text-[#CDA032] hover:underline"
                   >
-                    Change filter
+                    Change condition
                   </button>
                 )}
                 <button

@@ -594,6 +594,7 @@ export type SkuVariantInput = {
   storage?: string | null;
   ram?: string | null;
   sim_type?: string | null;
+  display_size?: string | null;
   stock: number;
   price_modifier?: number;
   /** Absolute price; null/undefined → DB null (effective = base + modifier). */
@@ -606,13 +607,26 @@ export type SkuVariantInput = {
 const normSkuDim = (v: string | null | undefined) => (v ?? '').trim().toLowerCase();
 
 const skuDimsMatch = (
-  a: { color?: string | null; storage?: string | null; ram?: string | null; sim_type?: string | null },
-  b: { color?: string | null; storage?: string | null; ram?: string | null; sim_type?: string | null },
+  a: {
+    color?: string | null;
+    storage?: string | null;
+    ram?: string | null;
+    sim_type?: string | null;
+    display_size?: string | null;
+  },
+  b: {
+    color?: string | null;
+    storage?: string | null;
+    ram?: string | null;
+    sim_type?: string | null;
+    display_size?: string | null;
+  },
 ) =>
   normSkuDim(a.color) === normSkuDim(b.color) &&
   normSkuDim(a.storage) === normSkuDim(b.storage) &&
   normSkuDim(a.ram) === normSkuDim(b.ram) &&
-  normSkuDim(a.sim_type) === normSkuDim(b.sim_type);
+  normSkuDim(a.sim_type) === normSkuDim(b.sim_type) &&
+  normSkuDim(a.display_size) === normSkuDim(b.display_size);
 
 /** Map PostgREST unique-violation into a staff-readable message. */
 const rethrowVariantConstraint = (err: { message?: string; code?: string }): never => {
@@ -620,7 +634,7 @@ const rethrowVariantConstraint = (err: { message?: string; code?: string }): nev
   const code = String(err?.code || '');
   if (code === '23505' || /uq_variant_combo|uq_variant_sku|duplicate key/i.test(msg)) {
     throw new Error(
-      'Duplicate combination (color / storage / RAM / SIM) or item code. Each combination must be unique.',
+      'Duplicate combination (size / color / storage / RAM / SIM) or item code. Each combination must be unique.',
     );
   }
   throw err instanceof Error ? err : new Error(msg || 'Could not save stock versions');
@@ -630,7 +644,7 @@ const rethrowVariantConstraint = (err: { message?: string; code?: string }): nev
 export const syncProductVariants = async (productId: string, rows: SkuVariantInput[]) => {
   const { data: existing, error: fetchErr } = await supabase
     .from('product_variants')
-    .select('id, color, storage, ram, sim_type')
+    .select('id, color, storage, ram, sim_type, display_size')
     .eq('product_id', productId);
   if (fetchErr) throw fetchErr;
 
@@ -647,6 +661,7 @@ export const syncProductVariants = async (productId: string, rows: SkuVariantInp
         storage: row.storage?.trim() || null,
         ram: row.ram?.trim() || null,
         sim_type: row.sim_type?.trim() || null,
+        display_size: row.display_size?.trim() || null,
         stock: Math.max(0, Math.floor(Number(row.stock) || 0)),
         price_modifier: Number(row.price_modifier ?? 0) || 0,
         price: absPrice,

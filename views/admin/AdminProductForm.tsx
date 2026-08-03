@@ -9,7 +9,7 @@ import { createPortal } from 'react-dom';
 import { Save, X, Package, ImageIcon, Layers, Tag, Upload, Star } from 'lucide-react';
 import type { Product, ProductImage } from '../../types';
 import type { SkuMatrixRow } from '../../lib/productSkuMatrix';
-import { totalSkuStock, canUseSkuMatrix, chipsFromSkuRows } from '../../lib/productSkuMatrix';
+import { totalSkuStock, canUseSkuMatrix, chipsFromSkuRows, IPAD_SIM_OPTIONS } from '../../lib/productSkuMatrix';
 import { formatCurrency } from '../../lib/utils';
 import { ProductSkuMatrix } from './ProductSkuMatrix';
 import { ProductColorImageUploader } from '../../components/admin/ProductColorImageUploader';
@@ -38,6 +38,8 @@ import {
 import {
   applyAdminTaxonomyFields,
   categoryUsesConditionSubcategory,
+  categoryUsesSeriesStep,
+  getCategorySeriesOptions,
   getCategorySubcategoryOptions,
 } from '../../lib/storeFilters';
 import { formatSimTypeLabel } from '../../lib/productLabels';
@@ -127,8 +129,10 @@ type Props = {
   setSimIn: (v: string) => void;
   specsIn: string;
   setSpecsIn: (v: string) => void;
-  onAddChip: (field: 'colors' | 'storage' | 'ram' | 'specs' | 'sim_types', val: string, clear: () => void) => void;
-  onRemoveChip: (field: 'colors' | 'storage' | 'ram' | 'specs' | 'sim_types', val: string) => void;
+  onAddChip: (field: 'colors' | 'storage' | 'ram' | 'specs' | 'sim_types' | 'display_sizes', val: string, clear: () => void) => void;
+  onRemoveChip: (field: 'colors' | 'storage' | 'ram' | 'specs' | 'sim_types' | 'display_sizes', val: string) => void;
+  sizeIn: string;
+  setSizeIn: (v: string) => void;
   skuMatrixEnabled: boolean;
   setSkuMatrixEnabled: (v: boolean) => void;
   skuRows: SkuMatrixRow[];
@@ -151,6 +155,8 @@ export const AdminProductForm: React.FC<Props> = ({
   setRamIn,
   simIn,
   setSimIn,
+  sizeIn,
+  setSizeIn,
   specsIn,
   setSpecsIn,
   onAddChip,
@@ -176,7 +182,13 @@ export const AdminProductForm: React.FC<Props> = ({
 
   const priceNum = Number(draft.price) || 0;
   const chipsLocked = skuMatrixEnabled && skuRows.length > 0;
-  const hasOptions = canUseSkuMatrix(draft.colors || [], draft.storage || [], draft.ram || [], draft.sim_types || []);
+  const hasOptions = canUseSkuMatrix(
+    draft.colors || [],
+    draft.storage || [],
+    draft.ram || [],
+    draft.sim_types || [],
+    draft.display_sizes || [],
+  );
   const displayStock = skuMatrixEnabled && skuRows.length > 0 ? totalSkuStock(skuRows) : (draft.stock ?? 0);
   const comboCount = skuRows.length;
   const gallery = draft.images || [];
@@ -237,6 +249,12 @@ export const AdminProductForm: React.FC<Props> = ({
   const displayStorage = derivedChips?.storage ?? draft.storage ?? [];
   const displayRam = derivedChips?.ram ?? draft.ram ?? [];
   const displaySimTypes = derivedChips?.sim_types ?? draft.sim_types ?? [];
+  const displaySizes = derivedChips?.display_sizes ?? draft.display_sizes ?? [];
+  const isTabletCategory = String(draft.category || '').toLowerCase() === 'ipad';
+  const seriesOptions = categoryUsesSeriesStep(categoryKey)
+    ? getCategorySeriesOptions(categoryKey)
+    : [];
+  const simQuickPicks = isTabletCategory ? IPAD_SIM_OPTIONS : PRODUCT_SIM_OPTIONS;
 
   const colorImages = useMemo(() => {
     const map: Record<string, string> = {};
@@ -726,6 +744,26 @@ export const AdminProductForm: React.FC<Props> = ({
                     <p className={`text-[10px] mt-1 ${s.muted}`}>{taxonomyOptions.find((o) => o.value === taxonomySelectValue)?.description}</p>
                   </div>
                 )}
+                {seriesOptions.length > 0 && (
+                  <div>
+                    <label className={s.label}>Series</label>
+                    <select
+                      value={draft.series ?? ''}
+                      onChange={(e) => setDraft({ ...draft, series: e.target.value || null })}
+                      className={s.input}
+                    >
+                      <option value="">Select series</option>
+                      {seriesOptions.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                    <p className={`text-[10px] mt-1 ${s.muted}`}>
+                      Shown on the shop as Category → Series → New/Used.
+                    </p>
+                  </div>
+                )}
                 <div>
                   <label className={s.label}>Brand</label>
                   <input
@@ -1013,8 +1051,44 @@ export const AdminProductForm: React.FC<Props> = ({
               <p className={`text-[11px] px-1 ${s.muted}`}>
                 {chipsLocked
                   ? 'Options are locked to the generated versions below. Edit price and stock on each row — or rebuild from options.'
-                  : 'Add every Color, Storage, RAM, and SIM option once. Generate versions to auto-build all combinations — then only fill or edit prices and stock.'}
+                  : isTabletCategory
+                    ? 'Add Size, Colour, Storage, and Connectivity (Wi‑Fi / Cellular). Generate versions, then set prices and stock.'
+                    : 'Add every Color, Storage, RAM, and SIM option once. Generate versions to auto-build all combinations — then only fill or edit prices and stock.'}
               </p>
+              {isTabletCategory && (
+                <ChipField
+                  label="Screen size"
+                  chips={displaySizes}
+                  inputVal={sizeIn}
+                  setInputVal={setSizeIn}
+                  placeholder='e.g. 11" or 13"'
+                  onAdd={() => onAddChip('display_sizes', sizeIn, () => setSizeIn(''))}
+                  onRemove={(v) => onRemoveChip('display_sizes', v)}
+                  styles={s}
+                  readOnly={chipsLocked}
+                  readOnlyNote="Managed by generated versions"
+                />
+              )}
+              {isTabletCategory && !chipsLocked && (
+                <div className="flex flex-wrap gap-1.5 px-1 -mt-2 mb-3">
+                  {['11"', '13"', '8.3"', '10.9"', '10.2"'].map((sz) => (
+                    <button
+                      key={sz}
+                      type="button"
+                      onClick={() => onAddChip('display_sizes', sz, () => setSizeIn(''))}
+                      className={`text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-lg border ${
+                        (displaySizes || []).includes(sz)
+                          ? 'border-[#B38B21] text-[#B38B21] bg-[#B38B21]/10'
+                          : isLight
+                            ? 'border-black/10 text-black/50'
+                            : 'border-white/10 text-white/45'
+                      }`}
+                    >
+                      {sz}
+                    </button>
+                  ))}
+                </div>
+              )}
               <ChipField
                 label="Colors"
                 chips={displayColors}
@@ -1039,34 +1113,36 @@ export const AdminProductForm: React.FC<Props> = ({
                 readOnly={chipsLocked}
                 readOnlyNote="Managed by generated versions"
               />
+              {!isTabletCategory && (
+                <ChipField
+                  label="RAM"
+                  chips={displayRam}
+                  inputVal={ramIn}
+                  setInputVal={setRamIn}
+                  placeholder="e.g. 16GB"
+                  onAdd={() => onAddChip('ram', ramIn, () => setRamIn(''))}
+                  onRemove={(v) => onRemoveChip('ram', v)}
+                  styles={s}
+                  readOnly={chipsLocked}
+                  readOnlyNote="Managed by generated versions"
+                />
+              )}
               <ChipField
-                label="RAM"
-                chips={displayRam}
-                inputVal={ramIn}
-                setInputVal={setRamIn}
-                placeholder="e.g. 16GB"
-                onAdd={() => onAddChip('ram', ramIn, () => setRamIn(''))}
-                onRemove={(v) => onRemoveChip('ram', v)}
-                styles={s}
-                readOnly={chipsLocked}
-                readOnlyNote="Managed by generated versions"
-              />
-              <ChipField
-                label="SIM type (Physical / eSIM / Wi‑Fi / …)"
+                label={isTabletCategory ? 'Connectivity (Wi‑Fi / Cellular)' : 'SIM type (Physical / eSIM / Wi‑Fi / …)'}
                 chips={displaySimTypes}
                 inputVal={simIn}
                 setInputVal={setSimIn}
-                placeholder="e.g. Physical SIM or eSIM — or pick below"
+                placeholder={isTabletCategory ? 'wifi or cell_ps' : 'e.g. Physical SIM or eSIM — or pick below'}
                 onAdd={() => onAddChip('sim_types', simIn, () => setSimIn(''))}
                 onRemove={(v) => onRemoveChip('sim_types', v)}
                 styles={s}
                 readOnly={chipsLocked}
-                readOnlyNote="SIM is set per version when generate-versions is on"
+                readOnlyNote="Set per version when generate-versions is on"
                 formatChip={formatSimTypeLabel}
               />
               {!chipsLocked && (
                 <div className="flex flex-wrap gap-1.5 px-1">
-                  {PRODUCT_SIM_OPTIONS.map((code) => (
+                  {simQuickPicks.map((code) => (
                     <button
                       key={code}
                       type="button"
@@ -1089,14 +1165,16 @@ export const AdminProductForm: React.FC<Props> = ({
                 <ProductSkuMatrix
                   colors={draft.colors || []}
                   storage={draft.storage || []}
-                  ram={draft.ram || []}
+                  ram={isTabletCategory ? [] : draft.ram || []}
                   simTypes={draft.sim_types || []}
+                  displaySizes={draft.display_sizes || []}
                   basePrice={priceNum}
                   enabled={skuMatrixEnabled}
                   onEnabledChange={setSkuMatrixEnabled}
                   rows={skuRows}
                   onRowsChange={setSkuRows}
                   isLight={isLight}
+                  tabletMode={isTabletCategory}
                   onUploadRowImage={async (index, file) => {
                     setImgBusy(true);
                     setImgError('');

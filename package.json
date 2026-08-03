@@ -17,7 +17,8 @@
     "test:rls": "node scripts/rls-trade-tests.mjs",
     "test:trade": "node scripts/engine-matrix.mjs && node scripts/rls-trade-tests.mjs",
     "test:engine:vitest": "vitest run tests/trade-engine-matrix.test.ts",
-    "test:promo": "vitest run tests/promotions-money.test.ts"
+    "test:promo": "vitest run tests/promotions-money.test.ts",
+    "import:ipads": "tsx scripts/import-ipads.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.95.3",
@@ -37,8 +38,10 @@
     "@types/web-push": "^3.6.4",
     "@vercel/node": "^5.8.26",
     "@vitejs/plugin-react": "^5.0.0",
+    "tsx": "^4.23.5",
     "typescript": "~5.8.2",
     "vite": "^6.2.0",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "xlsx": "^0.18.5"
   }
 }

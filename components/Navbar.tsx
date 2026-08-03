@@ -3,7 +3,7 @@ import {
   X, CheckCircle2, Activity, Scale, RefreshCcw, RotateCcw, Home as HomeIcon,
   ShoppingBag, Wrench, ShoppingCart, User as UserIcon,
   ChevronRight, ChevronDown, Settings, AlertTriangle,
-  Sparkles, Eye, Clock, Menu, Sun, Moon, Search, TrendingUp, Box, Laptop, Smartphone, Gamepad2, History, Calendar, Info, Heart, UserCog, Headphones, LayoutDashboard
+  Sparkles, Eye, Clock, Menu, Sun, Moon, Search, TrendingUp, Box, Laptop, Smartphone, Gamepad2, History, Calendar, Info, Heart, UserCog, Headphones, LayoutDashboard, Tablet
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from '@tanstack/react-router';
 import { User, CartItem, Product, Order, RepairRequest, TradeRequest } from '../types';
@@ -192,6 +192,7 @@ export const Navbar: React.FC<{
             subItems: [
               { path: '/store', label: 'Browse all', icon: Box, search: { browse: 'all' } },
               { path: '/store', label: 'iPhone', icon: Smartphone, search: { category: 'iPhone' } },
+              { path: '/store', label: 'iPad', icon: Tablet, search: { category: 'iPad' } },
               { path: '/store', label: 'Laptops', icon: Laptop, search: { category: 'Laptop' } },
               { path: '/store', label: 'Accessories', icon: Box, search: { category: 'Accessories' } },
               { path: '/store', label: 'Gaming', icon: Gamepad2, search: { category: 'Gaming' } },
@@ -492,6 +493,9 @@ export const Navbar: React.FC<{
                   <div className={`w-56 rounded-2xl border shadow-2xl p-2 backdrop-blur-3xl ${isLight ? 'bg-white/95 border-black/5' : 'bg-[#121212]/95 border-white/5'}`}>
                     <Link to="/store" search={{ category: 'iPhone' } as any} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
                       <Smartphone size={14} className="opacity-40" /> iPhone
+                    </Link>
+                    <Link to="/store" search={{ category: 'iPad' } as any} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
+                      <Tablet size={14} className="opacity-40" /> iPad
                     </Link>
                     <Link to="/store" search={{ category: 'Laptop' } as any} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
                       <Laptop size={14} className="opacity-40" /> Laptops
