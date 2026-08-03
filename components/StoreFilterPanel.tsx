@@ -37,9 +37,11 @@ export interface StoreFilterPanelProps {
   onClearAll: () => void;
   onClose?: () => void;
   resultCount: number;
-  /** Optional series chips (iPhone / iPad / MacBooks) */
+  /** Optional series chips (iPhone / iPad / MacBooks). Empty activeSeries = All. */
   seriesOptions?: { value: string; label: string }[];
+  /** Active series slug, or '' / undefined for All */
   activeSeries?: string;
+  /** Pass '' to clear series (show all in category) */
   onSeriesClick?: (value: string) => void;
   /** Optional New / Used chips when browsing a condition category */
   conditionOptions?: { value: string; label: string }[];
@@ -189,6 +191,13 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
         <section className="bb-store-filter-section">
           <h3 className="bb-store-filter-section__title">Series</h3>
           <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => onSeriesClick('')}
+              className={chipClass(!activeSeries, isLight)}
+            >
+              <span className="bb-store-filter-chip__label">All</span>
+            </button>
             {seriesOptions.map((opt) => (
               <button
                 key={opt.value}
@@ -205,7 +214,11 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
 
       {conditionOptions && conditionOptions.length > 0 && onConditionClick && (
         <section className="bb-store-filter-section">
-          <h3 className="bb-store-filter-section__title">Condition</h3>
+          <h3 className="bb-store-filter-section__title">
+            {conditionOptions.every((o) => o.value === 'new' || o.value === 'used')
+              ? 'Condition'
+              : 'Type'}
+          </h3>
           <div className="flex flex-wrap gap-2">
             {conditionOptions.map((opt) => (
               <button

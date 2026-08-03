@@ -18,6 +18,7 @@ import {
   Sparkles,
   Package,
   Flame,
+  ChevronRight,
 } from 'lucide-react';
 import { PageBackButton } from '../components/PageBackButton';
 import { Product, Category } from '../types';
@@ -152,20 +153,93 @@ const CATEGORY_COVER_BY_KEY: Record<string, string> = {
   Tablet: '/iPhone.jpeg',
   MacBooks: '/macbook.jpeg',
   Laptops: '/laptop.jpeg',
+  Laptop: '/laptop.jpeg',
   'Smart watches': '/iphone_modern.png',
   Gaming: '/ps5and xbox.jpeg',
   Headphones: '/Headphones111.jpeg',
+  Audio: '/Headphones111.jpeg',
   Speakers: '/Headphones111.jpeg',
   Accessories: '/cases.jpeg',
   Trades: '/trade.jpeg',
 };
 
-function categoryCoverImage(products: Product[], cat: string): string | null {
+const DEFAULT_SHOP_COVER = '/shop.jpeg';
+
+/** Brand / type picker cards. Prefer live product photos; these are fallbacks. */
+const SUBCATEGORY_COVER_BY_VALUE: Record<string, string> = {
+  PlayStation: '/IMG_9009.JPG',
+  Xbox: '/ps5and xbox.jpeg',
+  Steam: '/ps5.jpeg',
+  Nintendo: '/ps5.jpeg',
+  AirPods: '/IMG_9011.JPG',
+  JBL: '/Headphones111.jpeg',
+  Sony: '/Headphones111.jpeg',
+  EarPods: '/Headphones111.jpeg',
+  HomePod: '/Headphones111.jpeg',
+  HarmanKardon: '/Headphones111.jpeg',
+  'Harman Kardon': '/Headphones111.jpeg',
+  iWatches: '/IMG_9008.JPG',
+  'Apple Watch': '/IMG_9008.JPG',
+  Others: '/iphone_modern.png',
+  PhoneCases: '/cases.jpeg',
+  'Phone Cases': '/cases.jpeg',
+  ScreenProtectors: '/cases.jpeg',
+  'Screen Protectors': '/cases.jpeg',
+  Chargers: '/cases.jpeg',
+};
+
+function productImageUrl(p: Product | undefined): string | null {
+  if (!p) return null;
+  return p.image_url || p.image || null;
+}
+
+function categoryCoverImage(products: Product[], cat: string): string {
   const match = products.find((p) => {
     if (normalizeProductCategory(p.category) !== cat) return false;
     return Boolean(p.image_url || p.image);
   });
-  return match?.image_url || match?.image || CATEGORY_COVER_BY_KEY[cat] || null;
+  return productImageUrl(match) || CATEGORY_COVER_BY_KEY[cat] || DEFAULT_SHOP_COVER;
+}
+
+function subcategoryCoverImage(
+  products: Product[],
+  category: string | undefined,
+  option: SubcategoryOption,
+  seriesValue?: string,
+): string {
+  const catNorm = category ? normalizeProductCategory(category) : undefined;
+
+  const hit = products.find((p) => {
+    if (catNorm && normalizeProductCategory(p.category) !== catNorm) return false;
+    if (seriesValue && !productMatchesStoreSeries(p, seriesValue)) return false;
+    if (!productMatchesStoreSubcategoryFilter(p, option)) return false;
+    return Boolean(p.image_url || p.image);
+  });
+  const live = productImageUrl(hit);
+  if (live) return live;
+
+  const staticCover =
+    SUBCATEGORY_COVER_BY_VALUE[option.value] || SUBCATEGORY_COVER_BY_VALUE[option.label];
+  if (staticCover) return staticCover;
+
+  if (catNorm) return categoryCoverImage(products, catNorm);
+  return DEFAULT_SHOP_COVER;
+}
+
+function seriesCoverImage(
+  products: Product[],
+  category: string | undefined,
+  seriesValue: string,
+): string {
+  if (!category || !seriesValue) {
+    return category ? categoryCoverImage(products, normalizeProductCategory(category)) : DEFAULT_SHOP_COVER;
+  }
+  const hit = products.find((p) => {
+    if (normalizeProductCategory(p.category) !== normalizeProductCategory(category)) return false;
+    if (!productMatchesStoreSeries(p, seriesValue)) return false;
+    return Boolean(p.image_url || p.image);
+  });
+  return productImageUrl(hit) || categoryCoverImage(products, normalizeProductCategory(category));
 }
 
 export const Store: React.FC<StoreProps> = ({
@@ -200,6 +274,13 @@ export const Store: React.FC<StoreProps> = ({
   const [priceRange, setPriceRange] = useState({ min: 0, max: STORE_PRICE_SLIDER_MAX });
   const [showPromotionsOnly, setShowPromotionsOnly] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [categoryViewMode, setCategoryViewMode] = useState<'cards' | 'list'>(() => {
+    try {
+      return localStorage.getItem('bb-store-category-view') === 'list' ? 'list' : 'cards';
+    } catch {
+      return 'cards';
+    }
+  });
   const [desktopMinInput, setDesktopMinInput] = useState('0');
   const [desktopMaxInput, setDesktopMaxInput] = useState(String(STORE_PRICE_SLIDER_MAX));
   /** GIN textSearch hits — null means use full catalog (no active search query) */
@@ -232,8 +313,11 @@ export const Store: React.FC<StoreProps> = ({
     [activeCategory],
   );
 
+  const seriesIsAll = seriesFromUrl === 'all';
   const activeSeries =
-    seriesFromUrl && seriesOptions.some((o) => o.value === seriesFromUrl)
+    seriesFromUrl &&
+    !seriesIsAll &&
+    seriesOptions.some((o) => o.value === seriesFromUrl)
       ? seriesFromUrl
       : undefined;
 
@@ -243,6 +327,8 @@ export const Store: React.FC<StoreProps> = ({
 
   /**
    * Step 2: series picker (iPhone / iPad / MacBooks) before New/Used.
+   * Skip when series=all or a condition/brand is already chosen — series
+   * is then an optional refine chip (empty / all = every series).
    */
   const showSeriesPicker =
     !showCategoryPicker &&
@@ -250,11 +336,13 @@ export const Store: React.FC<StoreProps> = ({
     !browseFlat &&
     selectedCategories.length === 1 &&
     seriesOptions.length > 0 &&
-    !activeSeries;
+    !activeSeries &&
+    !seriesIsAll &&
+    !subcategoryFilter;
 
   /**
    * Step 3: dynamic subcategory picker (condition or brand/type).
-   * For series categories, requires series first.
+   * For series categories, requires a series choice (or All) first.
    */
   const showSubcategoryPicker =
     !showCategoryPicker &&
@@ -264,7 +352,7 @@ export const Store: React.FC<StoreProps> = ({
     selectedCategories.length === 1 &&
     subcategoryOptions.length > 0 &&
     !subcategoryFilter &&
-    (seriesOptions.length === 0 || Boolean(activeSeries));
+    (seriesOptions.length === 0 || Boolean(activeSeries) || seriesIsAll);
 
   useEffect(() => {
     try {
@@ -273,6 +361,14 @@ export const Store: React.FC<StoreProps> = ({
       /* ignore */
     }
   }, [showDesktopFilters]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('bb-store-category-view', categoryViewMode);
+    } catch {
+      /* ignore */
+    }
+  }, [categoryViewMode]);
 
   const commitDesktopPrice = () => {
     const minRaw = desktopMinInput.trim() === '' ? 0 : Number(desktopMinInput);
@@ -360,11 +456,12 @@ export const Store: React.FC<StoreProps> = ({
       out.browse = 'all';
     }
     if (activeSeries && !t) out.series = activeSeries;
+    else if (seriesIsAll && !t) out.series = 'all';
     if (subcategoryFilter && !t) {
       Object.assign(out, encodeStoreSubcategorySearch(subcategoryFilter));
     }
     return out;
-  }, [searchTerm, selectedCategories, browseAll, browseDeals, subcategoryFilter, activeSeries]);
+  }, [searchTerm, selectedCategories, browseAll, browseDeals, subcategoryFilter, activeSeries, seriesIsAll]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -416,10 +513,11 @@ export const Store: React.FC<StoreProps> = ({
 
   const goToSubcategoryPicker = useCallback(() => {
     resetLocalStoreFilters();
-    const scope = { ...categoryScopeSearch() };
+    const scope: Record<string, string> = { ...categoryScopeSearch() };
     if (activeSeries) scope.series = activeSeries;
+    else if (seriesOptions.length > 0) scope.series = 'all';
     navigate({ to: '/store', search: scope as never, replace: true });
-  }, [navigate, resetLocalStoreFilters, categoryScopeSearch, activeSeries]);
+  }, [navigate, resetLocalStoreFilters, categoryScopeSearch, activeSeries, seriesOptions.length]);
 
   const openCategory = useCallback(
     (cat: Category) => {
@@ -443,7 +541,7 @@ export const Store: React.FC<StoreProps> = ({
         to: '/store',
         search: {
           ...categoryScopeSearch(),
-          series,
+          series: series || 'all',
         } as never,
         replace: true,
       });
@@ -458,13 +556,17 @@ export const Store: React.FC<StoreProps> = ({
         to: '/store',
         search: {
           ...categoryScopeSearch(),
-          ...(activeSeries ? { series: activeSeries } : {}),
+          ...(activeSeries
+            ? { series: activeSeries }
+            : seriesIsAll
+              ? { series: 'all' }
+              : {}),
           ...encodeStoreSubcategorySearch(filter),
         } as never,
         replace: true,
       });
     },
-    [navigate, categoryScopeSearch, resetLocalStoreFilters, activeSeries],
+    [navigate, categoryScopeSearch, resetLocalStoreFilters, activeSeries, seriesIsAll],
   );
 
   // Hit products GIN index via .textSearch when the user types a query
@@ -543,6 +645,9 @@ export const Store: React.FC<StoreProps> = ({
   const categoryPickerCards = useMemo(() => {
     const ordered = buildOrderedStoreCategoryKeys(products);
     const dealProducts = products.filter((p) => isDealOfTheDayProduct(p));
+    const countInBucket = (bucket: string) =>
+      baseFilteredProducts.filter((p) => normalizeProductCategory(p.category) === bucket).length;
+    const dealCount = baseFilteredProducts.filter((p) => isDealOfTheDayProduct(p)).length;
 
     return [
       {
@@ -554,6 +659,8 @@ export const Store: React.FC<StoreProps> = ({
           CATEGORY_COVER_BY_KEY.deals,
         onSelect: openDealOfTheDay,
         icon: <Flame size={28} strokeWidth={1.5} />,
+        iconSm: <Flame size={18} strokeWidth={1.5} />,
+        count: dealCount,
       },
       ...ordered.map((cat) => ({
         key: `pick-${cat}`,
@@ -561,9 +668,11 @@ export const Store: React.FC<StoreProps> = ({
         cover: categoryCoverImage(products, cat),
         onSelect: () => openCategory(cat as Category),
         icon: categoryIconLg(cat),
+        iconSm: categoryIcon(cat),
+        count: countInBucket(cat),
       })),
     ];
-  }, [products, openDealOfTheDay, openCategory]);
+  }, [products, baseFilteredProducts, openDealOfTheDay, openCategory]);
 
   const subcategoryCards = useMemo(() => {
     if (!activeCategory) return [];
@@ -571,9 +680,10 @@ export const Store: React.FC<StoreProps> = ({
       key: `${opt.kind}-${opt.value}`,
       option: opt,
       icon: subcategoryCardIcon(opt),
+      cover: subcategoryCoverImage(products, activeCategory, opt, activeSeries),
       onSelect: () => openSubcategory({ kind: opt.kind, value: opt.value }),
     }));
-  }, [activeCategory, subcategoryOptions, products, openSubcategory]);
+  }, [activeCategory, activeSeries, subcategoryOptions, products, openSubcategory]);
 
   const filteredProducts = useMemo(() => {
     const results = baseFilteredProducts.filter(
@@ -637,38 +747,65 @@ export const Store: React.FC<StoreProps> = ({
     });
   };
 
-  const toggleCategory = (cat: Category | 'All') => {
+  /** Filter-panel category chips: single-select refine, not multi-toggle / picker nav. */
+  const selectCategoryFilter = (cat: Category | 'All') => {
     if (cat === 'All') {
       setSelectedCategories([]);
       navigate({
         to: '/store',
-        search: {
-          browse: 'deals',
-          ...encodeStoreSubcategorySearch(subcategoryFilter),
-        } as never,
+        search: { browse: 'deals' } as never,
+        replace: true,
       });
       return;
     }
-    const next = selectedCategories.includes(cat)
-      ? selectedCategories.filter((c) => c !== cat)
-      : [...selectedCategories, cat];
-    setSelectedCategories(next);
-    const scope =
-      next.length === 0
-        ? { browse: 'deals' as const }
-        : next.length === 1
-          ? { category: String(next[0]) }
-          : { categories: next.join(',') };
-    // Changing category clears subcategory — options differ per category.
+    // Already browsing this category — keep series/condition; don't bounce the URL.
+    if (selectedCategories.length === 1 && String(selectedCategories[0]) === String(cat)) {
+      return;
+    }
+    setSelectedCategories([cat]);
     navigate({
       to: '/store',
-      search: { ...scope } as never,
+      search: { category: String(cat) } as never,
+      replace: true,
     });
   };
 
+  /** Refine series in-place. Empty value = all series in the current category. */
+  const applySeriesFilter = useCallback(
+    (value: string) => {
+      const search: Record<string, string> = {
+        ...categoryScopeSearch(),
+        ...encodeStoreSubcategorySearch(subcategoryFilter),
+      };
+      if (value) search.series = value;
+      else if (seriesOptions.length > 0) search.series = 'all';
+      navigate({ to: '/store', search: search as never, replace: true });
+    },
+    [navigate, categoryScopeSearch, subcategoryFilter, seriesOptions.length],
+  );
+
+  /** Refine New/Used (or brand) without wiping price / promo local state. */
+  const applyConditionFilter = useCallback(
+    (value: string) => {
+      const kind =
+        subcategoryOptions.find((o) => o.value === value)?.kind ??
+        (value === 'new' || value === 'used' ? 'condition' : 'brand');
+      navigate({
+        to: '/store',
+        search: {
+          ...categoryScopeSearch(),
+          ...(activeSeries ? { series: activeSeries } : seriesIsAll || seriesOptions.length > 0 ? { series: 'all' } : {}),
+        ...encodeStoreSubcategorySearch({ kind, value }),
+      } as never,
+        replace: true,
+      });
+    },
+    [navigate, categoryScopeSearch, activeSeries, seriesIsAll, seriesOptions.length, subcategoryOptions],
+  );
+
   const isCategoryRowActive = (cat: StoreCategoryRow): boolean => {
     if (cat.value === 'All') return browseDeals;
-    return selectedCategories.includes(cat.value);
+    return selectedCategories.length === 1 && selectedCategories[0] === cat.value;
   };
 
   const handlePriceRangeChange = (range: { min: number; max: number }) => {
@@ -681,7 +818,7 @@ export const Store: React.FC<StoreProps> = ({
     isLight,
     categoryOptions,
     isCategoryRowActive,
-    onCategoryClick: (cat: StoreCategoryRow) => toggleCategory(cat.value),
+    onCategoryClick: (cat: StoreCategoryRow) => selectCategoryFilter(cat.value),
     showPromotionsOnly,
     onTogglePromotions: () => setShowPromotionsOnly((v) => !v),
     priceRange,
@@ -702,25 +839,11 @@ export const Store: React.FC<StoreProps> = ({
     onClearAll: clearAllFilters,
     resultCount: filteredProducts.length,
     seriesOptions: seriesOptions.map((o) => ({ value: o.value, label: o.label })),
-    activeSeries,
-    onSeriesClick: (value: string) => {
-      navigate({
-        to: '/store',
-        search: {
-          ...categoryScopeSearch(),
-          series: value,
-          ...encodeStoreSubcategorySearch(subcategoryFilter),
-        } as never,
-        replace: true,
-      });
-    },
-    conditionOptions: subcategoryOptions
-      .filter((o) => o.kind === 'condition')
-      .map((o) => ({ value: o.value, label: o.label })),
-    activeCondition: subcategoryFilter?.kind === 'condition' ? subcategoryFilter.value : undefined,
-    onConditionClick: (value: string) => {
-      openSubcategory({ kind: 'condition', value });
-    },
+    activeSeries: activeSeries ?? '',
+    onSeriesClick: applySeriesFilter,
+    conditionOptions: subcategoryOptions.map((o) => ({ value: o.value, label: o.label })),
+    activeCondition: subcategoryFilter?.value,
+    onConditionClick: applyConditionFilter,
   };
 
   const gridCols = showDesktopFilters
@@ -742,6 +865,36 @@ export const Store: React.FC<StoreProps> = ({
               <h1 className="text-xl sm:text-2xl font-black tracking-tight leading-tight min-w-0 truncate">
                 Browse by category
               </h1>
+              <div className="ml-auto flex shrink-0 items-center gap-0.5 rounded-lg border border-[var(--bb-border)] p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setCategoryViewMode('cards')}
+                  className={`rounded-md p-1.5 transition-colors ${
+                    categoryViewMode === 'cards'
+                      ? 'bg-[#CDA032] text-black'
+                      : 'text-current hover:bg-black/5 dark:hover:bg-white/5'
+                  }`}
+                  aria-label="Card view"
+                  aria-pressed={categoryViewMode === 'cards'}
+                  title="Cards"
+                >
+                  <LayoutGrid size={14} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCategoryViewMode('list')}
+                  className={`rounded-md p-1.5 transition-colors ${
+                    categoryViewMode === 'list'
+                      ? 'bg-[#CDA032] text-black'
+                      : 'text-current hover:bg-black/5 dark:hover:bg-white/5'
+                  }`}
+                  aria-label="List view"
+                  aria-pressed={categoryViewMode === 'list'}
+                  title="List"
+                >
+                  <List size={14} />
+                </button>
+              </div>
             </div>
             <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-[color:var(--bb-muted)]">
               Pick a category to see products. You can still search or filter once you are in a section.
@@ -750,42 +903,106 @@ export const Store: React.FC<StoreProps> = ({
         </header>
 
         <div className="max-w-7xl mx-auto px-3 sm:px-4 pt-6 sm:pt-8 pb-10">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            {categoryPickerCards.map((card) => (
-              <button
-                key={card.key}
-                type="button"
-                onClick={card.onSelect}
-                className={`group relative flex min-h-[9.5rem] sm:min-h-[11rem] flex-col overflow-hidden rounded-2xl border bg-[var(--bb-surface)] text-left transition-all duration-300 hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032]/50 ${
-                  card.key === 'deals'
-                    ? 'border-orange-400/50 hover:border-orange-500'
-                    : 'border-[var(--bb-border)] hover:border-[#CDA032]/50'
-                }`}
-              >
-                {card.cover ? (
-                  <div className="absolute inset-0">
-                    <img
-                      src={card.cover}
-                      alt=""
-                      className="h-full w-full object-cover opacity-40 transition-transform duration-500 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[var(--bb-bg)] via-[var(--bb-bg)]/70 to-transparent" />
-                  </div>
-                ) : (
-                  <div className="absolute inset-0 bg-gradient-to-br from-[#CDA032]/12 via-transparent to-transparent" />
-                )}
-
-                <div className="relative z-[1] flex flex-1 flex-col justify-between p-4 sm:p-5">
-                  <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--bb-border)] bg-[var(--bb-surface-2)] text-[#CDA032] transition-colors group-hover:border-[#CDA032]/40">
-                    {card.icon}
+          {categoryViewMode === 'list' ? (
+            <div className="mx-auto flex max-w-3xl flex-col gap-2">
+              {categoryPickerCards.map((card) => (
+                <button
+                  key={card.key}
+                  type="button"
+                  onClick={card.onSelect}
+                  className={`group flex items-center gap-3 rounded-xl border bg-[var(--bb-surface)] p-2.5 text-left transition-all hover:border-[#CDA032]/50 hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032]/50 sm:gap-4 sm:p-3 ${
+                    card.key === 'deals'
+                      ? 'border-orange-400/50'
+                      : 'border-[var(--bb-border)]'
+                  }`}
+                >
+                  <span className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-[var(--bb-surface-2)] sm:h-16 sm:w-16">
+                    {card.cover ? (
+                      <img
+                        src={card.cover}
+                        alt=""
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center text-[#CDA032]">
+                        {card.iconSm}
+                      </span>
+                    )}
                   </span>
-                  <div>
-                    <span className="block text-sm sm:text-base font-bold tracking-tight">{card.label}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-bold tracking-tight sm:text-base">
+                      {card.label}
+                    </span>
+                    <span className="mt-0.5 block text-[10px] font-black uppercase tracking-widest text-[#CDA032]/80">
+                      {card.count} item{card.count === 1 ? '' : 's'}
+                    </span>
+                  </span>
+                  <ChevronRight
+                    size={18}
+                    className="shrink-0 text-[color:var(--bb-muted)] transition-transform group-hover:translate-x-0.5 group-hover:text-[#CDA032]"
+                    aria-hidden
+                  />
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              {categoryPickerCards.map((card) => (
+                <button
+                  key={card.key}
+                  type="button"
+                  onClick={card.onSelect}
+                  className={`group relative flex min-h-[9.5rem] sm:min-h-[11rem] flex-col overflow-hidden rounded-2xl border bg-[var(--bb-surface)] text-left transition-all duration-300 hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032]/50 ${
+                    card.key === 'deals'
+                      ? 'border-orange-400/50 hover:border-orange-500'
+                      : 'border-[var(--bb-border)] hover:border-[#CDA032]/50'
+                  }`}
+                >
+                  {card.cover ? (
+                    <div className="absolute inset-0">
+                      <img
+                        src={card.cover}
+                        alt=""
+                        className="h-full w-full object-cover opacity-80 sm:opacity-85 transition-transform duration-500 group-hover:scale-105 group-hover:opacity-95"
+                      />
+                      <div
+                        className={`absolute inset-0 bg-gradient-to-t to-transparent ${
+                          isLight
+                            ? 'from-white via-white/55'
+                            : 'from-[#060605] via-[#060605]/55'
+                        }`}
+                      />
+                    </div>
+                  ) : (
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#CDA032]/12 via-transparent to-transparent" />
+                  )}
+
+                  <div className="relative z-[1] flex flex-1 flex-col justify-between p-4 sm:p-5">
+                    <span
+                      className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border text-[#CDA032] transition-colors group-hover:border-[#CDA032]/40 ${
+                        isLight
+                          ? 'border-black/10 bg-white/90 shadow-sm'
+                          : 'border-white/15 bg-black/50 backdrop-blur-sm'
+                      }`}
+                    >
+                      {card.icon}
+                    </span>
+                    <div>
+                      <span
+                        className={`block text-sm sm:text-base font-bold tracking-tight ${
+                          isLight
+                            ? 'text-black drop-shadow-[0_1px_1px_rgba(255,255,255,0.9)]'
+                            : 'text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.65)]'
+                        }`}
+                      >
+                        {card.label}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </button>
-            ))}
-          </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -808,15 +1025,84 @@ export const Store: React.FC<StoreProps> = ({
               </h1>
             </div>
             <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-[color:var(--bb-muted)]">
-              Pick a series, then choose Brand new or Used.
+              Pick a series (or All), then choose Brand new or Used.
             </p>
           </div>
         </header>
 
         <div className="max-w-7xl mx-auto px-3 sm:px-4 pt-6 sm:pt-8 pb-10">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            {(() => {
+              const allCount = baseFilteredProducts.filter((p) =>
+                productMatchesStoreCategories(p, [activeCategory as Category]),
+              ).length;
+              const allCover = categoryCoverImage(products, normalizeProductCategory(activeCategory));
+              const isPhoneSeries = normalizeProductCategory(activeCategory) === 'iPhone';
+              return (
+                <button
+                  key="all-series"
+                  type="button"
+                  onClick={() => openSeries('all')}
+                  className="group relative flex min-h-[8.5rem] flex-col overflow-hidden rounded-2xl border border-[var(--bb-border)] bg-[var(--bb-surface)] text-left transition-all hover:border-[#CDA032]/50 hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032]/50"
+                >
+                  <div className="absolute inset-0">
+                    <img
+                      src={allCover}
+                      alt=""
+                      className={
+                        isPhoneSeries
+                          ? 'absolute inset-y-0 right-0 h-full w-[68%] sm:w-[62%] object-cover object-[center_8%] opacity-90 sm:opacity-95 transition-transform duration-500 group-hover:scale-110'
+                          : 'h-full w-full object-cover opacity-80 sm:opacity-85 transition-transform duration-500 group-hover:scale-105 group-hover:opacity-95'
+                      }
+                    />
+                    <div
+                      className={`absolute inset-0 to-transparent ${
+                        isPhoneSeries
+                          ? isLight
+                            ? 'bg-gradient-to-r from-white via-white/80 to-white/10'
+                            : 'bg-gradient-to-r from-[#060605] via-[#060605]/75 to-transparent'
+                          : isLight
+                            ? 'bg-gradient-to-t from-white via-white/55'
+                            : 'bg-gradient-to-t from-[#060605] via-[#060605]/55'
+                      }`}
+                    />
+                  </div>
+                  <div className="relative z-[1] flex flex-1 flex-col justify-between p-4 sm:p-5">
+                    <span
+                      className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border text-[#CDA032] ${
+                        isLight
+                          ? 'border-black/10 bg-white/90 shadow-sm'
+                          : 'border-white/15 bg-black/50 backdrop-blur-sm'
+                      }`}
+                    >
+                      {categoryIconLg(activeCategory)}
+                    </span>
+                    <div>
+                      <span
+                        className={`block text-sm sm:text-base font-bold tracking-tight ${
+                          isLight
+                            ? 'text-black drop-shadow-[0_1px_1px_rgba(255,255,255,0.9)]'
+                            : 'text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.65)]'
+                        }`}
+                      >
+                        All {activeCategory}
+                      </span>
+                      <span className={`mt-1 block text-xs ${isLight ? 'text-black/60' : 'text-white/65'}`}>
+                        Every series in this category
+                      </span>
+                      <span className="mt-2 block text-[10px] font-black uppercase tracking-widest text-[#CDA032]/80">
+                        {allCount} model{allCount === 1 ? '' : 's'}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              );
+            })()}
             {seriesOptions.map((opt: StoreSeriesOption) => {
               const count = getSeriesCount(baseFilteredProducts, activeCategory, opt.value);
+              const cover = seriesCoverImage(products, activeCategory, opt.value);
+              // iPhone: crop toward camera / Dynamic Island so generations read differently
+              const isPhoneSeries = normalizeProductCategory(activeCategory) === 'iPhone';
               return (
                 <button
                   key={opt.value}
@@ -824,13 +1110,55 @@ export const Store: React.FC<StoreProps> = ({
                   onClick={() => openSeries(opt.value)}
                   className="group relative flex min-h-[8.5rem] flex-col overflow-hidden rounded-2xl border border-[var(--bb-border)] bg-[var(--bb-surface)] text-left transition-all hover:border-[#CDA032]/50 hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032]/50"
                 >
+                  {cover ? (
+                    <div className="absolute inset-0">
+                      <img
+                        src={cover}
+                        alt=""
+                        className={
+                          isPhoneSeries
+                            ? 'absolute inset-y-0 right-0 h-full w-[68%] sm:w-[62%] object-cover object-[center_8%] opacity-90 sm:opacity-95 transition-transform duration-500 group-hover:scale-110'
+                            : 'h-full w-full object-cover opacity-80 sm:opacity-85 transition-transform duration-500 group-hover:scale-105 group-hover:opacity-95'
+                        }
+                      />
+                      <div
+                        className={`absolute inset-0 to-transparent ${
+                          isPhoneSeries
+                            ? isLight
+                              ? 'bg-gradient-to-r from-white via-white/80 to-white/10'
+                              : 'bg-gradient-to-r from-[#060605] via-[#060605]/75 to-transparent'
+                            : isLight
+                              ? 'bg-gradient-to-t from-white via-white/55'
+                              : 'bg-gradient-to-t from-[#060605] via-[#060605]/55'
+                        }`}
+                      />
+                    </div>
+                  ) : (
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#CDA032]/12 via-transparent to-transparent" />
+                  )}
                   <div className="relative z-[1] flex flex-1 flex-col justify-between p-4 sm:p-5">
-                    <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--bb-border)] bg-[var(--bb-surface-2)] text-[#CDA032]">
+                    <span
+                      className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border text-[#CDA032] ${
+                        isLight
+                          ? 'border-black/10 bg-white/90 shadow-sm'
+                          : 'border-white/15 bg-black/50 backdrop-blur-sm'
+                      }`}
+                    >
                       {categoryIconLg(activeCategory)}
                     </span>
                     <div>
-                      <span className="block text-sm sm:text-base font-bold tracking-tight">{opt.label}</span>
-                      <span className="mt-1 block text-xs text-[color:var(--bb-muted)]">{opt.description}</span>
+                      <span
+                        className={`block text-sm sm:text-base font-bold tracking-tight ${
+                          isLight
+                            ? 'text-black drop-shadow-[0_1px_1px_rgba(255,255,255,0.9)]'
+                            : 'text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.65)]'
+                        }`}
+                      >
+                        {opt.label}
+                      </span>
+                      <span className={`mt-1 block text-xs ${isLight ? 'text-black/60' : 'text-white/65'}`}>
+                        {opt.description}
+                      </span>
                       <span className="mt-2 block text-[10px] font-black uppercase tracking-widest text-[#CDA032]/80">
                         {count} model{count === 1 ? '' : 's'}
                       </span>
@@ -891,16 +1219,49 @@ export const Store: React.FC<StoreProps> = ({
                 onClick={card.onSelect}
                 className="group relative flex min-h-[10rem] sm:min-h-[12rem] flex-col overflow-hidden rounded-2xl border border-[var(--bb-border)] bg-[var(--bb-surface)] text-left transition-all duration-300 hover:border-[#CDA032]/50 hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032]/50"
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-[#CDA032]/12 via-transparent to-transparent" />
+                {card.cover ? (
+                  <div className="absolute inset-0">
+                    <img
+                      src={card.cover}
+                      alt=""
+                      className="h-full w-full object-cover opacity-80 sm:opacity-85 transition-transform duration-500 group-hover:scale-105 group-hover:opacity-95"
+                    />
+                    <div
+                      className={`absolute inset-0 bg-gradient-to-t to-transparent ${
+                        isLight
+                          ? 'from-white via-white/55'
+                          : 'from-[#060605] via-[#060605]/55'
+                      }`}
+                    />
+                  </div>
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#CDA032]/12 via-transparent to-transparent" />
+                )}
                 <div className="relative z-[1] flex flex-1 flex-col justify-between p-5 sm:p-6">
-                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--bb-border)] bg-[var(--bb-surface-2)] text-[#CDA032] transition-colors group-hover:border-[#CDA032]/40">
+                  <span
+                    className={`inline-flex h-12 w-12 items-center justify-center rounded-xl border text-[#CDA032] transition-colors group-hover:border-[#CDA032]/40 ${
+                      isLight
+                        ? 'border-black/10 bg-white/90 shadow-sm'
+                        : 'border-white/15 bg-black/50 backdrop-blur-sm'
+                    }`}
+                  >
                     {card.icon}
                   </span>
                   <div>
-                    <span className="block text-lg sm:text-xl font-bold tracking-tight">
+                    <span
+                      className={`block text-lg sm:text-xl font-bold tracking-tight ${
+                        isLight
+                          ? 'text-black drop-shadow-[0_1px_1px_rgba(255,255,255,0.9)]'
+                          : 'text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.65)]'
+                      }`}
+                    >
                       {card.option.label}
                     </span>
-                    <span className="mt-1 block text-sm text-[color:var(--bb-muted)]">
+                    <span
+                      className={`mt-1 block text-sm ${
+                        isLight ? 'text-black/65' : 'text-white/70'
+                      }`}
+                    >
                       {card.option.description}
                     </span>
                   </div>
@@ -1033,6 +1394,63 @@ export const Store: React.FC<StoreProps> = ({
                 </div>
               </div>
             )}
+
+            {seriesOptions.length > 0 && (
+              <div
+                className="bb-scrollbar flex gap-1.5 overflow-x-auto pb-0.5 [-webkit-overflow-scrolling:touch]"
+                role="toolbar"
+                aria-label="Filter by series"
+              >
+                <button
+                  type="button"
+                  onClick={() => applySeriesFilter('')}
+                  className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${
+                    !activeSeries
+                      ? 'border-transparent bg-[#CDA032] text-black'
+                      : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:border-[#CDA032]/40'
+                  }`}
+                >
+                  All
+                </button>
+                {seriesOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => applySeriesFilter(opt.value)}
+                    className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${
+                      activeSeries === opt.value
+                        ? 'border-transparent bg-[#CDA032] text-black'
+                        : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:border-[#CDA032]/40'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {subcategoryOptions.length > 0 && subcategoryFilter && (
+              <div
+                className="bb-scrollbar flex gap-1.5 overflow-x-auto pb-0.5 [-webkit-overflow-scrolling:touch]"
+                role="toolbar"
+                aria-label="Filter by type"
+              >
+                {subcategoryOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => applyConditionFilter(opt.value)}
+                    className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${
+                      subcategoryFilter?.value === opt.value
+                        ? 'border-transparent bg-[#CDA032] text-black'
+                        : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:border-[#CDA032]/40'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1075,7 +1493,7 @@ export const Store: React.FC<StoreProps> = ({
                   : selectedCategories.length === 1
                     ? ` in ${selectedCategories[0]}`
                     : ''}
-                {seriesLabel ? ` · ${seriesLabel}` : ''}
+                {seriesLabel ? ` · ${seriesLabel}` : seriesIsAll ? ' · All series' : ''}
                 {subLabel ? ` · ${subLabel}` : ''}
                 {showPromotionsOnly ? ' on sale' : ''}
               </p>

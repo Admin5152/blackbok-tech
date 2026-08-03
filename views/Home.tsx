@@ -803,7 +803,7 @@ export const Home: React.FC<HomeProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 grid-rows-[auto] gap-4 md:gap-6 auto-rows-[240px] md:auto-rows-[280px] reveal-on-scroll reveal-delay-1">
 
             {(exploreFilter === 'All Gear' || exploreFilter === 'Pro Series') && (
-              <Link to="/store" search={{ category: 'Audio' } as any} className={`col-span-1 md:col-span-2 row-span-1 md:row-span-1 rounded-[2rem] p-8 md:p-10 flex flex-col justify-center relative overflow-hidden group transition-transform duration-500 hover:-translate-y-1 hover:shadow-2xl hover:ring-2 hover:ring-[#D4AF37]/25 ${theme === 'light' ? 'bg-[#E1F2EB] text-[#0A261D]' : 'bg-gradient-to-br from-[#1A362D] to-[#0A1A14] text-[#86EFAC] border border-[#22C55E]/20'}`}>
+              <Link to="/store" search={{ category: 'Headphones' } as any} className={`col-span-1 md:col-span-2 row-span-1 md:row-span-1 rounded-[2rem] p-8 md:p-10 flex flex-col justify-center relative overflow-hidden group transition-transform duration-500 hover:-translate-y-1 hover:shadow-2xl hover:ring-2 hover:ring-[#D4AF37]/25 ${theme === 'light' ? 'bg-[#E1F2EB] text-[#0A261D]' : 'bg-gradient-to-br from-[#1A362D] to-[#0A1A14] text-[#86EFAC] border border-[#22C55E]/20'}`}>
                 <div className="relative z-10 w-full md:w-2/3">
                   <span className={`inline-block px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.2em] mb-4 backdrop-blur-md ${theme === 'light' ? 'bg-white/50 text-[#0A261D]' : 'bg-black/30 text-[#86EFAC]'}`}>Hear the sound of quality</span>
                   <h3 className={`text-3xl md:text-5xl font-black italic tracking-tighter uppercase leading-[1.1] mb-2 ${theme === 'light' ? 'text-[#0A261D]' : 'text-white'}`}>

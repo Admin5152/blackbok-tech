@@ -196,7 +196,7 @@ export const Navbar: React.FC<{
               { path: '/store', label: 'Laptops', icon: Laptop, search: { category: 'Laptop' } },
               { path: '/store', label: 'Accessories', icon: Box, search: { category: 'Accessories' } },
               { path: '/store', label: 'Gaming', icon: Gamepad2, search: { category: 'Gaming' } },
-              { path: '/store', label: 'Audio', icon: Headphones, search: { category: 'Audio' } },
+              { path: '/store', label: 'Audio', icon: Headphones, search: { category: 'Headphones' } },
               {
                 path: '/history',
                 label: 'Track Orders',
@@ -506,7 +506,7 @@ export const Navbar: React.FC<{
                     <Link to="/store" search={{ category: 'Accessories' } as any} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
                       <Box size={14} className="opacity-40" /> Accessories
                     </Link>
-                    <Link to="/store" search={{ category: 'Audio' } as any} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
+                    <Link to="/store" search={{ category: 'Headphones' } as any} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
                       <Headphones size={14} className="opacity-40" /> Audio
                     </Link>
                     <div className={`my-1 h-px ${isLight ? 'bg-black/5' : 'bg-white/5'}`} />
