@@ -31,6 +31,7 @@ import {
   componentLabel,
   outcomeLabel,
 } from '../../../lib/tradeAdminCopy';
+import { ListSkeleton } from '../../../components/Skeleton';
 
 const COMPONENTS = [
   '',
@@ -275,7 +276,7 @@ export const TradeAdminQuestionnaire: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="text-center py-16 text-white/30 text-sm">Loading questions…</div>;
+    return <ListSkeleton count={6} />;
   }
 
   return (

@@ -29,6 +29,7 @@ import { CancelRequestButton } from '../components/CancelRequestButton';
 import { canCancelOrder, canCancelTrade } from '../lib/customerCancel';
 import { PAGE_SIZES, usePagination } from '../lib/pagination';
 import { Pagination } from '../components/Pagination';
+import { ListSkeleton } from '../components/Skeleton';
 
 type HistoryTab = 'orders' | 'trades' | 'repairs';
 
@@ -46,20 +47,25 @@ export const History: React.FC = () => {
     }, [tab]);
     const [searchQuery, setSearchQuery] = useState('');
     const [historyOrders, setHistoryOrders] = useState<Order[]>([]);
+    const [ordersLoading, setOrdersLoading] = useState(false);
 
     useEffect(() => {
         if (!user?.id) {
             setHistoryOrders([]);
+            setOrdersLoading(false);
             return;
         }
 
         const loadDeliveredOrders = async () => {
+            setOrdersLoading(true);
             try {
                 const data = await getUserOrdersFromItems(user.id);
                 setHistoryOrders(data || []);
             } catch (err) {
                 console.error('Failed to load order history:', err);
                 setHistoryOrders([]);
+            } finally {
+                setOrdersLoading(false);
             }
         };
 
@@ -232,7 +238,9 @@ export const History: React.FC = () => {
                 {/* Content Area */}
                 <div className="grid gap-6">
                     {activeTab === 'orders' && (
-                        filteredOrders.length > 0 ? (
+                        ordersLoading && filteredOrders.length === 0 ? (
+                            <ListSkeleton isLight={isLight} count={4} />
+                        ) : filteredOrders.length > 0 ? (
                             <>
                             {ordersPaging.pageItems.map(order => (
                                 <div

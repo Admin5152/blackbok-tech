@@ -6,6 +6,9 @@ import { friendlyError } from '../../lib/friendlyErrors';
 import { useAppContext } from '../../lib/appContext';
 import type { Order } from '../../types';
 import { formatCurrency } from '../../lib/utils';
+import { ListSkeleton } from '../../components/Skeleton';
+import { PAGE_SIZES, usePagination } from '../../lib/pagination';
+import { Pagination } from '../../components/Pagination';
 
 function isStorePickupOrder(order: Pick<Order, 'shipping_method'>): boolean {
     const m = String(order.shipping_method || '').toLowerCase();
@@ -250,6 +253,12 @@ export const AdminOrders: React.FC = () => {
         });
     }, [orders, q, statusFilter, dateFilter]);
 
+    const ordersPaging = usePagination(
+      filtered,
+      PAGE_SIZES.list,
+      `${q}|${statusFilter}|${dateFilter}`,
+    );
+
     const revenue = orders.reduce((s, o) => s + o.total, 0);
     const avgOrder = orders.length ? (revenue / orders.length).toFixed(0) : '0';
     const activeOrderCount = orders.filter(o => !['Delivered', 'Cancelled', 'Refunded'].includes(o.status)).length;
@@ -320,13 +329,11 @@ export const AdminOrders: React.FC = () => {
 
             {/* Orders Table */}
             {loading ? (
-                <div className="bg-[#0a0a0a] border border-white/5 rounded-xl p-12 flex flex-col items-center justify-center">
-                    <div className="w-8 h-8 rounded-full border-2 border-t-[#B38B21] border-white/10 animate-spin mb-4" />
-                    <p className="text-xs text-white/40 uppercase tracking-widest font-bold">Loading Orders...</p>
-                </div>
+                <ListSkeleton count={6} />
             ) : filtered.length === 0 ? (
                 <EmptyState icon={<ShoppingCart size={40} className="text-white/20" />} message={orders.length === 0 ? 'No orders yet. Completed checkouts will appear here.' : 'No orders match your filters.'} />
             ) : (
+                <>
                 <TableWrapper>
                     <thead>
                         <tr>
@@ -339,7 +346,7 @@ export const AdminOrders: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {filtered.map(o => (
+                        {ordersPaging.pageItems.map(o => (
                             <tr key={o.id} className="hover:bg-white/[0.02] transition-colors group cursor-pointer" onClick={() => setSel(o)}>
                                 <Td>
                                     <div className="flex items-center gap-3">
@@ -394,6 +401,14 @@ export const AdminOrders: React.FC = () => {
                         ))}
                     </tbody>
                 </TableWrapper>
+                <Pagination
+                  page={ordersPaging.page}
+                  pageCount={ordersPaging.pageCount}
+                  onPageChange={ordersPaging.setPage}
+                  total={ordersPaging.total}
+                  pageSize={PAGE_SIZES.list}
+                />
+                </>
             )}
 
             {/* Premium Order Details Modal */}

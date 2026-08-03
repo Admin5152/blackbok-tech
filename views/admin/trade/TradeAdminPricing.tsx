@@ -44,6 +44,7 @@ import type {
 } from '../../../types/supabase';
 import { useAppContext } from '../../../lib/appContext';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
+import { ListSkeleton } from '../../../components/Skeleton';
 
 type Tab = 'bases' | 'deductions';
 type DeviceTypeFilter = '' | TradeDeviceType;
@@ -655,9 +656,7 @@ export const TradeAdminPricing: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className={`text-center py-16 text-sm ${muted}`}>Loading pricing…</div>
-    );
+    return <ListSkeleton count={8} />;
   }
   if (error) {
     return (

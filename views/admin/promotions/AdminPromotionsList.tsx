@@ -19,6 +19,9 @@ import {
   promoValueLabel,
   statusBadgeClass,
 } from './promoAdminShared';
+import { ListSkeleton } from '../../../components/Skeleton';
+import { PAGE_SIZES, usePagination } from '../../../lib/pagination';
+import { Pagination } from '../../../components/Pagination';
 
 const STATUS_OPTIONS: Array<'all' | PromoStatus> = [
   'all',
@@ -54,6 +57,12 @@ export const AdminPromotionsList: React.FC = () => {
     for (const row of spendRows) m.set(row.promotion_id, row.spent_pesewas);
     return m;
   }, [spendRows]);
+
+  const promosPaging = usePagination(
+    promos,
+    PAGE_SIZES.list,
+    `${statusFilter}|${scopeFilter}|${promos.length}`,
+  );
 
   const muted = isLight ? 'text-black/50' : 'text-white/50';
   const fg = isLight ? 'text-black' : 'text-white';
@@ -127,9 +136,7 @@ export const AdminPromotionsList: React.FC = () => {
         </label>
       </div>
 
-      {isLoading && (
-        <p className={`text-sm ${muted}`}>Loading promotions…</p>
-      )}
+      {isLoading && <ListSkeleton isLight={isLight} count={5} />}
       {error && (
         <p className="text-sm text-red-400">
           {error instanceof Error ? error.message : 'Failed to load promotions.'}
@@ -143,8 +150,10 @@ export const AdminPromotionsList: React.FC = () => {
         </div>
       )}
 
+      {!isLoading && promos.length > 0 && (
+      <>
       <ul className="flex flex-col gap-2">
-        {promos.map((p) => {
+        {promosPaging.pageItems.map((p) => {
           const spent = spendById.get(p.id) ?? 0;
           return (
             <li key={p.id}>
@@ -210,6 +219,16 @@ export const AdminPromotionsList: React.FC = () => {
           );
         })}
       </ul>
+      <Pagination
+        page={promosPaging.page}
+        pageCount={promosPaging.pageCount}
+        onPageChange={promosPaging.setPage}
+        total={promosPaging.total}
+        pageSize={PAGE_SIZES.list}
+        isLight={isLight}
+      />
+      </>
+      )}
 
       {/* Keep Link available for deep-link tooling without a builder route yet */}
       <Link to="/admin/promotions" className="sr-only">

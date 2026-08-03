@@ -16,6 +16,7 @@ import {
 import { TRADE_COPY } from '../../lib/tradeCopy';
 import { saveReturnTo } from '../../lib/returnTo';
 import { PageBackButton } from '../../components/PageBackButton';
+import { ListSkeleton } from '../../components/Skeleton';
 import { PAGE_SIZES, usePagination } from '../../lib/pagination';
 import { Pagination } from '../../components/Pagination';
 import { WebPushSettingsCard } from '../../components/WebPushSettingsCard';
@@ -113,7 +114,7 @@ export function NotificationsPage() {
       )}
 
       {!authReady || loading ? (
-        <p className="text-sm text-center py-12 opacity-50">{TRADE_COPY.states.loading}</p>
+        <ListSkeleton isLight={isLight} count={6} className="py-4" />
       ) : !user ? (
         <div className="text-center py-12 space-y-4">
           <Bell className="mx-auto opacity-30" size={40} />

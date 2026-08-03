@@ -19,6 +19,7 @@ import { uploadImage, compressImage } from '../../../lib/upload';
 import { useAppContext } from '../../../lib/appContext';
 import type { TradeDeviceRow, TradeDeviceType } from '../../../types/supabase';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
+import { ListSkeleton } from '../../../components/Skeleton';
 
 type Filter = 'all' | 'iphone' | 'ipad' | 'inactive';
 
@@ -215,7 +216,7 @@ export const TradeAdminDevices: React.FC = () => {
   };
 
   if (loading) {
-    return <p className="text-sm opacity-60 py-8">Loading devices…</p>;
+    return <ListSkeleton count={6} />;
   }
 
   return (

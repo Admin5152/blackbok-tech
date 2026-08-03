@@ -1,16 +1,29 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Tag, ArrowRight, Bell, AlertCircle, ShoppingBag, Sparkles } from 'lucide-react';
 import { useAppContext } from '../App';
-import { formatCurrency } from '../lib/utils';
 import { ProductCard } from '../components/ProductCard';
 import { PageBackButton } from '../components/PageBackButton';
+import { ProductGridSkeleton } from '../components/Skeleton';
+import { PAGE_SIZES, usePagination } from '../lib/pagination';
+import { Pagination } from '../components/Pagination';
 
 export const Promotions: React.FC = () => {
     const { products, theme, onAddToCart, wishlist, toggleWishlist, compareIds, toggleCompare, onQuickView } = useAppContext();
     const isLight = theme === 'light';
 
-    const discountedProducts = products.filter(p => p.discount && p.discount > 0);
+    const discountedProducts = useMemo(
+      () => products.filter((p) => p.discount && p.discount > 0),
+      [products],
+    );
     const [isSubscribed, setIsSubscribed] = useState(false);
+    const catalogHydrating = products.length === 0;
+    const {
+      page,
+      setPage,
+      pageCount,
+      pageItems,
+      total,
+    } = usePagination(discountedProducts, PAGE_SIZES.catalog, discountedProducts.length);
 
     return (
         <div className={`min-h-screen pt-32 pb-20 px-4 md:px-8 transition-colors duration-500 ${isLight ? 'bg-[#FAFAFA]' : 'bg-gradient-to-b from-[#050508] via-[#0a0a12] to-[#050508]'}`}>
@@ -55,21 +68,32 @@ export const Promotions: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Content Grid */}
-                {discountedProducts.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                        {discountedProducts.map(p => (
-                            <ProductCard
-                                key={p.id}
-                                product={p}
-                                onAddToCart={onAddToCart}
-                                isWishlisted={wishlist.includes(p.id)}
-                                onToggleWishlist={toggleWishlist}
-                                isCompared={compareIds.includes(p.id)}
-                                onToggleCompare={toggleCompare}
-                                onQuickView={onQuickView}
-                            />
-                        ))}
+                {catalogHydrating ? (
+                    <ProductGridSkeleton isLight={isLight} count={8} />
+                ) : discountedProducts.length > 0 ? (
+                    <div className="space-y-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                            {pageItems.map((p) => (
+                                <ProductCard
+                                    key={p.id}
+                                    product={p}
+                                    onAddToCart={onAddToCart}
+                                    isWishlisted={wishlist.includes(p.id)}
+                                    onToggleWishlist={toggleWishlist}
+                                    isCompared={compareIds.includes(p.id)}
+                                    onToggleCompare={toggleCompare}
+                                    onQuickView={onQuickView}
+                                />
+                            ))}
+                        </div>
+                        <Pagination
+                          page={page}
+                          pageCount={pageCount}
+                          onPageChange={setPage}
+                          total={total}
+                          pageSize={PAGE_SIZES.catalog}
+                          isLight={isLight}
+                        />
                     </div>
                 ) : (
                     <div className="py-32 flex flex-col items-center justify-center text-center space-y-8">
@@ -103,7 +127,6 @@ export const Promotions: React.FC = () => {
                         <ShoppingBag size={18} />
                     </button>
                 </div>
-
             </div>
         </div>
     );

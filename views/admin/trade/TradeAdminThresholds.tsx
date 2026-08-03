@@ -15,6 +15,7 @@ import { formatGhs } from '../../../lib/money';
 import type { TradeThresholdWorksheetRow } from '../../../types/supabase';
 import { useAppContext } from '../../../lib/appContext';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
+import { ListSkeleton } from '../../../components/Skeleton';
 
 export const TradeAdminThresholds: React.FC = () => {
   const { notify } = useAppContext();
@@ -96,7 +97,7 @@ export const TradeAdminThresholds: React.FC = () => {
       : 'not set';
 
   if (loading) {
-    return <div className="text-center py-16 text-white/30 text-sm">Loading minimum values…</div>;
+    return <ListSkeleton count={6} />;
   }
   if (error) {
     return (

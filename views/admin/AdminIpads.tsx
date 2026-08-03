@@ -7,6 +7,9 @@ import { Download, Upload, Save } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { formatGhsPlain } from '../../lib/money';
 import { formatIpadConnectivity, formatIpadCondition } from '../../lib/ipadApi';
+import { ListSkeleton } from '../../components/Skeleton';
+import { PAGE_SIZES, usePagination } from '../../lib/pagination';
+import { Pagination } from '../../components/Pagination';
 
 type VariantRow = {
   id: string;
@@ -123,6 +126,12 @@ export const AdminIpads: React.FC<Props> = ({ canEdit = true, theme = 'dark' }) 
     }
     return [...map.values()];
   }, [visible]);
+
+  const ipadPaging = usePagination(
+    priceRows,
+    PAGE_SIZES.list,
+    `${modelFilter}|${priceRows.length}`,
+  );
 
   const savePrices = async () => {
     if (!canEdit) return;
@@ -349,7 +358,7 @@ export const AdminIpads: React.FC<Props> = ({ canEdit = true, theme = 'dark' }) 
 
       {message && <p className="text-sm text-[#CDA032]">{message}</p>}
       {error && <p className="text-sm text-red-400">{error}</p>}
-      {loading && <p className="text-sm opacity-50">Loading…</p>}
+      {loading && <ListSkeleton isLight={isLight} count={6} />}
 
       {!loading && (
         <div className={`overflow-x-auto rounded-2xl border ${isLight ? 'border-black/5' : 'border-white/5'}`}>
@@ -363,7 +372,7 @@ export const AdminIpads: React.FC<Props> = ({ canEdit = true, theme = 'dark' }) 
               </tr>
             </thead>
             <tbody>
-              {priceRows.map((row) => (
+              {ipadPaging.pageItems.map((row) => (
                 <tr key={row.id} className={`border-t ${isLight ? 'border-black/5' : 'border-white/5'}`}>
                   <td className="px-3 py-3">
                     <div className="font-bold text-xs">
@@ -426,6 +435,16 @@ export const AdminIpads: React.FC<Props> = ({ canEdit = true, theme = 'dark' }) 
             </p>
           )}
         </div>
+      )}
+      {!loading && priceRows.length > 0 && (
+        <Pagination
+          page={ipadPaging.page}
+          pageCount={ipadPaging.pageCount}
+          onPageChange={ipadPaging.setPage}
+          total={ipadPaging.total}
+          pageSize={PAGE_SIZES.list}
+          isLight={isLight}
+        />
       )}
     </div>
   );

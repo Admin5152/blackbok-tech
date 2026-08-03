@@ -5,6 +5,9 @@ import { getUsers, getAccountDeletions, updateUserRole, type AccountDeletionRow 
 import { friendlyError } from '../../lib/friendlyErrors';
 import type { User } from '../../types';
 import { formatCurrency } from '../../lib/utils';
+import { ListSkeleton } from '../../components/Skeleton';
+import { PAGE_SIZES, usePagination } from '../../lib/pagination';
+import { Pagination } from '../../components/Pagination';
 
 // Matches public.app_role: user | admin | staff (profiles.role CHECK).
 const ROLES = [
@@ -92,6 +95,12 @@ export const AdminUsers: React.FC<{
         const comparison = String(aVal).localeCompare(String(bVal));
         return sortDirection === 'asc' ? comparison : -comparison;
     });
+
+    const usersPaging = usePagination(
+      sorted,
+      PAGE_SIZES.list,
+      `${q}|${roleFilter}|${sortField}|${sortDirection}`,
+    );
 
     const handleSort = (field: keyof User) => {
         if (sortField === field) {
@@ -343,7 +352,7 @@ export const AdminUsers: React.FC<{
                         <SearchInput value={q} onChange={setQ} placeholder="Search by email or name…" />
                     </div>
                     {loading ? (
-                        <div className="text-center py-12 text-white/30 text-sm">Loading…</div>
+                        <ListSkeleton count={4} />
                     ) : filteredDeleted.length === 0 ? (
                         <EmptyState icon={<UserX size={40} />} message="No deleted accounts on file" />
                     ) : (
@@ -416,10 +425,11 @@ export const AdminUsers: React.FC<{
             </div>
 
             {loading ? (
-                <div className="text-center py-12 text-white/30 text-sm">Loading users...</div>
+                <ListSkeleton count={6} />
             ) : filtered.length === 0 ? (
                 <EmptyState icon={<Users size={40} />} message="No users found" />
             ) : (
+                <>
                 <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full">
@@ -451,7 +461,7 @@ export const AdminUsers: React.FC<{
                                 </tr>
                             </thead>
                             <tbody>
-                                {sorted.map(u => {
+                                {usersPaging.pageItems.map(u => {
                                     const roleInfo = getRoleInfo(u.role ?? 'user');
                                     const isCurrentUser = Boolean(currentUserId && u.id === currentUserId);
                                     return (
@@ -522,6 +532,14 @@ export const AdminUsers: React.FC<{
                         </table>
                     </div>
                 </div>
+                <Pagination
+                  page={usersPaging.page}
+                  pageCount={usersPaging.pageCount}
+                  onPageChange={usersPaging.setPage}
+                  total={usersPaging.total}
+                  pageSize={PAGE_SIZES.list}
+                />
+                </>
             )}
 
             {/* Instructions */}

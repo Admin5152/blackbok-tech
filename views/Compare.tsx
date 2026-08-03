@@ -11,6 +11,8 @@ import {
   filterComparePickerProducts,
   resolveCompareProducts,
 } from '../lib/compareProducts';
+import { usePagination } from '../lib/pagination';
+import { Pagination } from '../components/Pagination';
 import type { Product } from '../types';
 
 type CompareAddPanelProps = {
@@ -41,7 +43,14 @@ const CompareAddPanel: React.FC<CompareAddPanelProps> = ({
   onAdd,
   onClose,
   sticky = false,
-}) => (
+}) => {
+  const pickerPaging = usePagination(
+    products,
+    COMPARE_PICKER_PAGE_SIZE,
+    `${searchTerm}|${categoryFilter}|${products.length}`,
+  );
+
+  return (
   <div
     id="compare-add-panel"
     className={`mb-8 p-6 sm:p-8 rounded-2xl border ${containerClass} ${
@@ -124,44 +133,56 @@ const CompareAddPanel: React.FC<CompareAddPanelProps> = ({
         </p>
       </div>
     ) : (
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4 max-h-[min(60vh,420px)] overflow-y-auto bb-scrollbar pr-1">
-        {products.slice(0, COMPARE_PICKER_PAGE_SIZE).map((product) => {
-          const displayPrice = product.price_from ?? product.price;
-          const inStock = (product.total_stock ?? product.stock ?? 0) > 0;
-          return (
-            <button
-              key={product.id}
-              type="button"
-              onClick={() => onAdd(product.id)}
-              className={`p-3 sm:p-4 rounded-xl border transition-all text-left flex flex-col gap-3 group ${
-                isLight
-                  ? 'border-black/8 hover:border-black/20 hover:bg-black/[0.03]'
-                  : 'border-[var(--bb-border)] hover:border-[#CDA032]/40 hover:bg-white/[0.03]'
-              }`}
-            >
-              <div className="aspect-square bg-black rounded-lg p-2 flex items-center justify-center group-hover:scale-105 transition-transform">
-                <img
-                  src={product.image || product.image_url || ''}
-                  alt={product.name}
-                  className="w-full h-full object-contain"
-                />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[11px] font-bold leading-snug line-clamp-2 mb-1">{product.name}</p>
-                <p className="text-[10px] font-bold text-[#CDA032] tabular-nums">
-                  {formatCurrency(displayPrice)}
-                </p>
-                <p className={`text-[9px] mt-1 ${inStock ? 'text-emerald-600' : 'text-[color:var(--bb-muted)]'}`}>
-                  {inStock ? 'In stock' : 'Out of stock'}
-                </p>
-              </div>
-            </button>
-          );
-        })}
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4 max-h-[min(60vh,420px)] overflow-y-auto bb-scrollbar pr-1">
+          {pickerPaging.pageItems.map((product) => {
+            const displayPrice = product.price_from ?? product.price;
+            const inStock = (product.total_stock ?? product.stock ?? 0) > 0;
+            return (
+              <button
+                key={product.id}
+                type="button"
+                onClick={() => onAdd(product.id)}
+                className={`p-3 sm:p-4 rounded-xl border transition-all text-left flex flex-col gap-3 group ${
+                  isLight
+                    ? 'border-black/8 hover:border-black/20 hover:bg-black/[0.03]'
+                    : 'border-[var(--bb-border)] hover:border-[#CDA032]/40 hover:bg-white/[0.03]'
+                }`}
+              >
+                <div className="aspect-square bg-black rounded-lg p-2 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <img
+                    src={product.image || product.image_url || ''}
+                    alt={product.name}
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold leading-snug line-clamp-2 mb-1">{product.name}</p>
+                  <p className="text-[10px] font-bold text-[#CDA032] tabular-nums">
+                    {formatCurrency(displayPrice)}
+                  </p>
+                  <p className={`text-[9px] mt-1 ${inStock ? 'text-emerald-600' : 'text-[color:var(--bb-muted)]'}`}>
+                    {inStock ? 'In stock' : 'Out of stock'}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+        <Pagination
+          page={pickerPaging.page}
+          pageCount={pickerPaging.pageCount}
+          onPageChange={pickerPaging.setPage}
+          total={pickerPaging.total}
+          pageSize={COMPARE_PICKER_PAGE_SIZE}
+          isLight={isLight}
+          className="pt-2"
+        />
       </div>
     )}
   </div>
-);
+  );
+};
 
 export const Compare: React.FC = () => {
   const {

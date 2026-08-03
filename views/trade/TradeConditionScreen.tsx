@@ -23,6 +23,7 @@ import { Loader2, ShieldAlert, ArrowRight } from 'lucide-react';
 import { useTradeFlow } from '../../lib/tradeFlowContext';
 import { TradePhasePills } from '../../components/trade/TradePhasePills';
 import { PageBackButton } from '../../components/PageBackButton';
+import { ListSkeleton } from '../../components/Skeleton';
 import { useAppContext } from '../../lib/appContext';
 import { createTradeRequest } from '../../lib/api';
 import {
@@ -401,11 +402,7 @@ export function TradeConditionScreen() {
   if (!lock || !state.targetLock) return null;
 
   if (loading) {
-    return (
-      <p className="text-center py-16 text-sm text-[color:var(--bb-muted)]">
-        {TRADE_COPY.states.loadingQuestions}
-      </p>
-    );
+    return <ListSkeleton isLight={isLight} count={4} className="py-6 max-w-lg mx-auto" />;
   }
 
   if (error) {

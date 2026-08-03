@@ -6,6 +6,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { X } from 'lucide-react';
 import { useTradeFlow } from '../../lib/tradeFlowContext';
 import { PageBackButton } from '../../components/PageBackButton';
+import { ListSkeleton } from '../../components/Skeleton';
 import { getTradeCategories } from '../../lib/tradeApi';
 import {
   categoriesFromPriced,
@@ -88,11 +89,7 @@ export function TradeCategoryScreen() {
   if (!state.deviceType) return null;
 
   if (loading) {
-    return (
-      <p className="text-center py-12 text-sm text-[color:var(--bb-muted)]">
-        {TRADE_COPY.states.loadingDevices}
-      </p>
-    );
+    return <ListSkeleton isLight={isLight} count={4} className="py-6 max-w-lg mx-auto" />;
   }
 
   if (error) {

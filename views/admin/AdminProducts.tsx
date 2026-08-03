@@ -28,6 +28,9 @@ import {
 import type { SkuMatrixRow } from '../../lib/productSkuMatrix';
 import { scaleAbsoluteSkuPrices } from '../../lib/skuPrice';
 import { AdminProductForm } from './AdminProductForm';
+import { ListSkeleton } from '../../components/Skeleton';
+import { PAGE_SIZES, usePagination } from '../../lib/pagination';
+import { Pagination } from '../../components/Pagination';
 import {
   PRODUCT_CATEGORIES,
   PRODUCT_CONDITION_OPTIONS,
@@ -589,6 +592,12 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
         return mQ && mC && mS && mCond && mHealth;
     });
 
+    const productsPaging = usePagination(
+      filtered,
+      PAGE_SIZES.list,
+      `${q}|${catFilter}|${statusFilter}|${conditionFilter}|${healthView}`,
+    );
+
     const catMap: Record<string, number> = {};
     products.forEach(p => { const c = p.category ?? ''; catMap[c] = (catMap[c] || 0) + 1; });
     const lowStock = products.filter(p => {
@@ -760,7 +769,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
             </div>
 
             {loading ? (
-                <div className={`text-center py-12 text-sm ${muted}`}>Loading products…</div>
+                <ListSkeleton isLight={isLight} count={8} />
             ) : loadError ? (
                 <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-6 text-center space-y-3">
                     <p className="text-sm text-red-400 font-bold">{loadError}</p>
@@ -771,13 +780,14 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
             ) : filtered.length === 0 ? (
                 <EmptyState icon={<Package size={40} />} message={products.length === 0 ? 'No shop products yet' : 'No products match these filters'} />
             ) : (
+                <>
                 <TableWrapper>
                     <thead><tr>
                         <Th></Th><Th>Name</Th><Th>Category</Th><Th>Trade-in model</Th><Th>Price</Th><Th>Stock</Th><Th>Status</Th><Th>Feature</Th>
                         {canEdit && <Th>Actions</Th>}
                     </tr></thead>
                     <tbody>
-                        {filtered.map(p => {
+                        {productsPaging.pageItems.map(p => {
                             const stock = productStock(p);
                             const status = String(p.status || 'active').toLowerCase();
                             return (
@@ -849,6 +859,15 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                         })}
                     </tbody>
                 </TableWrapper>
+                <Pagination
+                  page={productsPaging.page}
+                  pageCount={productsPaging.pageCount}
+                  onPageChange={productsPaging.setPage}
+                  total={productsPaging.total}
+                  pageSize={PAGE_SIZES.list}
+                  isLight={isLight}
+                />
+                </>
             )}
 
             {showForm && (

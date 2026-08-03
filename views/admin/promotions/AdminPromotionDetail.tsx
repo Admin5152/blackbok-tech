@@ -43,6 +43,7 @@ import {
   type CodeDerivedStatus,
 } from './promoAdminShared';
 import { sharePromoCodeOnWhatsApp } from './PromoVoucherPrint';
+import { ListSkeleton } from '../../../components/Skeleton';
 
 type TabId = 'overview' | 'codes' | 'redemptions' | 'settings';
 
@@ -199,7 +200,7 @@ export const AdminPromotionDetail: React.FC = () => {
     });
   };
 
-  if (isLoading) return <p className={`text-sm ${muted}`}>Loading…</p>;
+  if (isLoading) return <ListSkeleton isLight={isLight} count={6} />;
   if (error || !promo) {
     return (
       <div className="space-y-3">

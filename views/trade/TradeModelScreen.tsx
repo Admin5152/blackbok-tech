@@ -7,6 +7,7 @@ import { Check, Smartphone } from 'lucide-react';
 import { useTradeFlow } from '../../lib/tradeFlowContext';
 import { PageBackButton } from '../../components/PageBackButton';
 import { Pagination } from '../../components/Pagination';
+import { ProductGridSkeleton } from '../../components/Skeleton';
 import { PAGE_SIZES, usePagination } from '../../lib/pagination';
 import { getTradeModelsInCategory } from '../../lib/tradeApi';
 import {
@@ -126,11 +127,7 @@ export function TradeModelScreen() {
   const selectedRow = models.find((m) => m.model === state.model) ?? null;
 
   if (loading) {
-    return (
-      <p className="text-center py-12 text-sm text-[color:var(--bb-muted)]">
-        {TRADE_COPY.states.loadingDevices}
-      </p>
-    );
+    return <ProductGridSkeleton isLight={isLight} count={6} className="py-6" />;
   }
 
   if (error) {

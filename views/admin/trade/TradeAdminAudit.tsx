@@ -8,6 +8,7 @@ import {
   tradeAdminErrorMessage,
 } from '../../../lib/tradeAdminApi';
 import type { AuditLogRow } from '../../../types/supabase';
+import { ListSkeleton } from '../../../components/Skeleton';
 
 export const TradeAdminAudit: React.FC = () => {
   const [rows, setRows] = useState<AuditLogRow[]>([]);
@@ -71,7 +72,7 @@ export const TradeAdminAudit: React.FC = () => {
       </div>
 
       {loading ? (
-        <div className="text-center py-16 text-white/30 text-sm">Loading audit log…</div>
+        <ListSkeleton count={6} />
       ) : error ? (
         <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
           {error}

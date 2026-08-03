@@ -8,6 +8,9 @@ import {
   AlertTriangle, Flag, RefreshCcw, ShieldAlert, Clock,
 } from 'lucide-react';
 import { Badge, EmptyState, SearchInput, TableWrapper, Td, Th } from '../adminUtils';
+import { ListSkeleton } from '../../../components/Skeleton';
+import { PAGE_SIZES, usePagination } from '../../../lib/pagination';
+import { Pagination } from '../../../components/Pagination';
 import {
   getAdminTradeQueue,
   tradeAdminErrorMessage,
@@ -111,6 +114,8 @@ export const TradeAdminQueue: React.FC<Props> = ({ embedMode, onSelectRequest })
     });
   }, [rows, q, statusF]);
 
+  const queuePaging = usePagination(filtered, PAGE_SIZES.list, `${q}|${statusF}`);
+
   const openDetail = (id: string) => {
     if (embedMode && onSelectRequest) {
       onSelectRequest(id);
@@ -206,7 +211,7 @@ export const TradeAdminQueue: React.FC<Props> = ({ embedMode, onSelectRequest })
       </div>
 
       {loading ? (
-        <div className="text-center py-12 text-white/30 text-sm">Loading trade queue…</div>
+        <ListSkeleton count={6} />
       ) : error ? (
         <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
           {error}
@@ -223,6 +228,7 @@ export const TradeAdminQueue: React.FC<Props> = ({ embedMode, onSelectRequest })
       ) : filtered.length === 0 ? (
         <EmptyState icon={<RefreshCcw size={40} />} message="No requests match your filters" />
       ) : (
+        <>
         <TableWrapper>
           <thead>
             <tr>
@@ -236,7 +242,7 @@ export const TradeAdminQueue: React.FC<Props> = ({ embedMode, onSelectRequest })
             </tr>
           </thead>
           <tbody>
-            {filtered.map((t) => (
+            {queuePaging.pageItems.map((t) => (
               <tr key={t.id} className="hover:bg-white/[0.02] transition-all">
                 <Td>
                   <p className="text-xs font-black text-[#B38B21]">
@@ -297,6 +303,14 @@ export const TradeAdminQueue: React.FC<Props> = ({ embedMode, onSelectRequest })
             ))}
           </tbody>
         </TableWrapper>
+        <Pagination
+          page={queuePaging.page}
+          pageCount={queuePaging.pageCount}
+          onPageChange={queuePaging.setPage}
+          total={queuePaging.total}
+          pageSize={PAGE_SIZES.list}
+        />
+        </>
       )}
     </div>
   );

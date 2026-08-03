@@ -8,6 +8,9 @@ import { Tablet } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatGhsPlain } from '../lib/money';
 import { PageBackButton } from '../components/PageBackButton';
+import { ProductGridSkeleton } from '../components/Skeleton';
+import { PAGE_SIZES, usePagination } from '../lib/pagination';
+import { Pagination } from '../components/Pagination';
 
 type IpadProductRow = {
   id: string;
@@ -197,6 +200,22 @@ export const Ipads: React.FC<Props> = ({ theme = 'dark', search }) => {
     });
   }, [models, search]);
 
+  const filterKey = [
+    search.series,
+    search.storage,
+    search.connectivity,
+    search.condition,
+    search.minPrice,
+    search.maxPrice,
+  ].join('|');
+  const {
+    page,
+    setPage,
+    pageCount,
+    pageItems,
+    total,
+  } = usePagination(filtered, PAGE_SIZES.catalog, filterKey);
+
   const setSearch = (patch: Partial<Search>) => {
     const next = { ...search, ...patch };
     // Drop undefined keys
@@ -317,9 +336,7 @@ export const Ipads: React.FC<Props> = ({ theme = 'dark', search }) => {
           </aside>
 
           <div>
-            {loading && (
-              <p className={`text-sm ${isLight ? 'text-black/50' : 'text-white/50'}`}>Loading iPads…</p>
-            )}
+            {loading && <ProductGridSkeleton isLight={isLight} count={6} className="xl:grid-cols-3" />}
             {error && <p className="text-sm text-red-400">{error}</p>}
             {!loading && !error && filtered.length === 0 && (
               <div className={`rounded-2xl border p-10 text-center ${isLight ? 'bg-white border-black/5' : 'bg-[#0a0a0a] border-white/5'}`}>
@@ -334,40 +351,52 @@ export const Ipads: React.FC<Props> = ({ theme = 'dark', search }) => {
                 </button>
               </div>
             )}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-              {filtered.map((m) => (
-                <Link
-                  key={m.modelFamily}
-                  to="/ipads/$modelSlug"
-                  params={{ modelSlug: m.modelFamily } as any}
-                  className={`group rounded-2xl border overflow-hidden transition-all ${
-                    isLight
-                      ? 'bg-white border-black/5 hover:border-[#CDA032]/40'
-                      : 'bg-[#0a0a0a] border-white/5 hover:border-[#CDA032]/40'
-                  }`}
-                >
-                  <div className={`aspect-[4/3] flex items-center justify-center ${isLight ? 'bg-black/[0.03]' : 'bg-white/[0.03]'}`}>
-                    {m.imageUrl ? (
-                      <img src={m.imageUrl} alt={m.displayName} className="h-full w-full object-contain p-6" />
-                    ) : (
-                      <Tablet size={48} className="opacity-25" />
-                    )}
-                  </div>
-                  <div className="p-4">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032] mb-1">
-                      {SERIES_LABELS[m.series] ?? m.series}
-                      {m.chip ? ` · ${m.chip}` : ''}
-                    </p>
-                    <h2 className="font-black text-sm leading-snug group-hover:text-[#CDA032] transition-colors">
-                      {m.displayName}
-                    </h2>
-                    <p className={`mt-2 text-sm font-bold ${isLight ? 'text-black/70' : 'text-white/70'}`}>
-                      From {formatGhsPlain(m.priceFrom)}
-                    </p>
-                  </div>
-                </Link>
-              ))}
-            </div>
+            {!loading && filtered.length > 0 && (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {pageItems.map((m) => (
+                    <Link
+                      key={m.modelFamily}
+                      to="/ipads/$modelSlug"
+                      params={{ modelSlug: m.modelFamily } as any}
+                      className={`group rounded-2xl border overflow-hidden transition-all ${
+                        isLight
+                          ? 'bg-white border-black/5 hover:border-[#CDA032]/40'
+                          : 'bg-[#0a0a0a] border-white/5 hover:border-[#CDA032]/40'
+                      }`}
+                    >
+                      <div className={`aspect-[4/3] flex items-center justify-center ${isLight ? 'bg-black/[0.03]' : 'bg-white/[0.03]'}`}>
+                        {m.imageUrl ? (
+                          <img src={m.imageUrl} alt={m.displayName} className="h-full w-full object-contain p-6" />
+                        ) : (
+                          <Tablet size={48} className="opacity-25" />
+                        )}
+                      </div>
+                      <div className="p-4">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-[#CDA032] mb-1">
+                          {SERIES_LABELS[m.series] ?? m.series}
+                          {m.chip ? ` · ${m.chip}` : ''}
+                        </p>
+                        <h2 className="font-black text-sm leading-snug group-hover:text-[#CDA032] transition-colors">
+                          {m.displayName}
+                        </h2>
+                        <p className={`mt-2 text-sm font-bold ${isLight ? 'text-black/70' : 'text-white/70'}`}>
+                          From {formatGhsPlain(m.priceFrom)}
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+                <Pagination
+                  page={page}
+                  pageCount={pageCount}
+                  onPageChange={setPage}
+                  total={total}
+                  pageSize={PAGE_SIZES.catalog}
+                  isLight={isLight}
+                />
+              </>
+            )}
           </div>
         </div>
       </div>

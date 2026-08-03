@@ -118,9 +118,15 @@ export function countActiveStoreFilters(opts: {
   priceMin: number;
   priceMax: number;
   promotionsOnly: boolean;
+  /**
+   * When browsing a single category via the shop flow, that category is
+   * navigation scope — not an “extra” filter (avoids “Clear 1 active filter”
+   * while only viewing iPhone / New / etc.).
+   */
+  categoryIsBrowseScope?: boolean;
 }): number {
   return [
-    opts.selectedCategories.length > 0,
+    opts.categoryIsBrowseScope ? false : opts.selectedCategories.length > 0,
     opts.priceMin > 0,
     opts.priceMax < STORE_PRICE_SLIDER_MAX,
     opts.promotionsOnly,

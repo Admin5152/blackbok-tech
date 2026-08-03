@@ -16,6 +16,7 @@ import type { TradeAestheticOverrideRow, TradeDeviceRow } from '../../../types/s
 import { useAppContext } from '../../../lib/appContext';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { Link } from '@tanstack/react-router';
+import { ListSkeleton } from '../../../components/Skeleton';
 
 type Pair = { model: string; a1: number | null; a2: number | null };
 type PendingClear =
@@ -138,7 +139,7 @@ export const TradeAdminAesthetics: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="text-center py-16 text-white/30 text-sm">Loading appearance amounts…</div>;
+    return <ListSkeleton count={6} />;
   }
   if (error) {
     return (

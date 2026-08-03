@@ -32,6 +32,7 @@ import { sortProductsStockFirst } from '../lib/productOptions';
 import { lockPageScroll } from '../lib/pageScrollLock';
 import { PAGE_SIZES, usePagination } from '../lib/pagination';
 import { Pagination } from '../components/Pagination';
+import { ProductGridSkeleton, ListSkeleton } from '../components/Skeleton';
 import {
   buildOrderedStoreCategoryKeys,
   countActiveStoreFilters,
@@ -285,6 +286,7 @@ export const Store: React.FC<StoreProps> = ({
   const [desktopMaxInput, setDesktopMaxInput] = useState(String(STORE_PRICE_SLIDER_MAX));
   /** GIN textSearch hits — null means use full catalog (no active search query) */
   const [searchHitIds, setSearchHitIds] = useState<Set<string> | null>(null);
+  const [searchPending, setSearchPending] = useState(false);
   const navigate = useNavigate();
   const isLight = theme === 'light';
   const browseAll = browseFromUrl === 'all';
@@ -574,9 +576,11 @@ export const Store: React.FC<StoreProps> = ({
     const q = searchTerm.trim();
     if (!q) {
       setSearchHitIds(null);
+      setSearchPending(false);
       return;
     }
     let cancelled = false;
+    setSearchPending(true);
     const t = window.setTimeout(() => {
       void fetchStoreSearchProducts(q)
         .then((rows) => {
@@ -589,6 +593,9 @@ export const Store: React.FC<StoreProps> = ({
         })
         .catch(() => {
           if (!cancelled) setSearchHitIds(null);
+        })
+        .finally(() => {
+          if (!cancelled) setSearchPending(false);
         });
     }, 320);
     return () => {
@@ -618,11 +625,54 @@ export const Store: React.FC<StoreProps> = ({
     [catalogForFilters, baseFilterOpts],
   );
 
+  const filteredProducts = useMemo(() => {
+    const results = baseFilteredProducts.filter(
+      (p) =>
+        productMatchesStoreCategories(p, selectedCategories) &&
+        productMatchesStoreSeries(p, activeSeries) &&
+        productMatchesStoreSubcategoryFilter(p, subcategoryFilter) &&
+        (!browseDeals || isDealOfTheDayProduct(p)),
+    );
+    return sortProductsStockFirst(results);
+  }, [baseFilteredProducts, selectedCategories, activeSeries, subcategoryFilter, browseDeals]);
+
   const categoryOptions: StoreCategoryRow[] = useMemo(() => {
     const ordered = buildOrderedStoreCategoryKeys(products);
+    /** Counts respect series + condition so chip totals match “N results”. */
     const countInBucket = (bucket: string) =>
-      baseFilteredProducts.filter((p) => normalizeProductCategory(p.category) === bucket).length;
-    const dealCount = baseFilteredProducts.filter((p) => isDealOfTheDayProduct(p)).length;
+      baseFilteredProducts.filter((p) => {
+        if (normalizeProductCategory(p.category) !== bucket) return false;
+        if (activeSeries && categoryUsesSeriesStep(bucket)) {
+          const seriesOk = getCategorySeriesOptions(bucket).some((o) => o.value === activeSeries);
+          if (seriesOk && !productMatchesStoreSeries(p, activeSeries)) return false;
+        }
+        if (subcategoryFilter) {
+          const supported = getCategorySubcategoryOptions(bucket).some(
+            (o) => o.kind === subcategoryFilter.kind && o.value === subcategoryFilter.value,
+          );
+          if (supported && !productMatchesStoreSubcategoryFilter(p, subcategoryFilter)) {
+            return false;
+          }
+        }
+        return true;
+      }).length;
+    const dealCount = baseFilteredProducts.filter((p) => {
+      if (!isDealOfTheDayProduct(p)) return false;
+      const bucket = normalizeProductCategory(p.category);
+      if (activeSeries && categoryUsesSeriesStep(bucket)) {
+        const seriesOk = getCategorySeriesOptions(bucket).some((o) => o.value === activeSeries);
+        if (seriesOk && !productMatchesStoreSeries(p, activeSeries)) return false;
+      }
+      if (subcategoryFilter) {
+        const supported = getCategorySubcategoryOptions(bucket).some(
+          (o) => o.kind === subcategoryFilter.kind && o.value === subcategoryFilter.value,
+        );
+        if (supported && !productMatchesStoreSubcategoryFilter(p, subcategoryFilter)) {
+          return false;
+        }
+      }
+      return true;
+    }).length;
 
     return [
       {
@@ -637,10 +687,21 @@ export const Store: React.FC<StoreProps> = ({
         label: cat,
         value: cat as Category,
         icon: categoryIcon(cat),
-        count: countInBucket(cat),
+        // Active category: always show the live result total (same as header).
+        count:
+          selectedCategories.length === 1 && String(selectedCategories[0]) === cat
+            ? filteredProducts.length
+            : countInBucket(cat),
       })),
     ];
-  }, [products, baseFilteredProducts]);
+  }, [
+    products,
+    baseFilteredProducts,
+    filteredProducts.length,
+    selectedCategories,
+    activeSeries,
+    subcategoryFilter,
+  ]);
 
   const categoryPickerCards = useMemo(() => {
     const ordered = buildOrderedStoreCategoryKeys(products);
@@ -685,17 +746,6 @@ export const Store: React.FC<StoreProps> = ({
     }));
   }, [activeCategory, activeSeries, subcategoryOptions, products, openSubcategory]);
 
-  const filteredProducts = useMemo(() => {
-    const results = baseFilteredProducts.filter(
-      (p) =>
-        productMatchesStoreCategories(p, selectedCategories) &&
-        productMatchesStoreSeries(p, activeSeries) &&
-        productMatchesStoreSubcategoryFilter(p, subcategoryFilter) &&
-        (!browseDeals || isDealOfTheDayProduct(p)),
-    );
-    return sortProductsStockFirst(results);
-  }, [baseFilteredProducts, selectedCategories, activeSeries, subcategoryFilter, browseDeals]);
-
   const storePageResetKey = [
     searchTerm,
     selectedCategories.join(','),
@@ -729,6 +779,8 @@ export const Store: React.FC<StoreProps> = ({
     priceMin: priceRange.min,
     priceMax: priceRange.max,
     promotionsOnly: showPromotionsOnly,
+    // Single category from shop browse = scope, not an extra refine chip.
+    categoryIsBrowseScope: !browseFlat && selectedCategories.length === 1,
   });
 
   const clearAllFilters = () => {
@@ -763,9 +815,20 @@ export const Store: React.FC<StoreProps> = ({
       return;
     }
     setSelectedCategories([cat]);
+    const search: Record<string, string> = { category: String(cat) };
+    // Stay on the product grid when possible: All series + keep New/Used if supported.
+    if (categoryUsesSeriesStep(cat)) {
+      search.series = 'all';
+    }
+    if (subcategoryFilter?.kind === 'condition') {
+      const opts = getCategorySubcategoryOptions(cat);
+      if (opts.some((o) => o.kind === 'condition' && o.value === subcategoryFilter.value)) {
+        Object.assign(search, encodeStoreSubcategorySearch(subcategoryFilter));
+      }
+    }
     navigate({
       to: '/store',
-      search: { category: String(cat) } as never,
+      search: search as never,
       replace: true,
     });
   };
@@ -1451,6 +1514,37 @@ export const Store: React.FC<StoreProps> = ({
                 ))}
               </div>
             )}
+
+            <div
+              className="bb-scrollbar flex gap-1.5 overflow-x-auto pb-0.5 [-webkit-overflow-scrolling:touch]"
+              role="toolbar"
+              aria-label="Filter by price"
+            >
+              {(
+                [
+                  { label: 'Any price', range: { min: 0, max: STORE_PRICE_SLIDER_MAX } },
+                  { label: 'Under 5k', range: { min: 0, max: 5000 } },
+                  { label: '5k – 10k', range: { min: 5000, max: 10000 } },
+                  { label: '10k+', range: { min: 10000, max: STORE_PRICE_SLIDER_MAX } },
+                ] as const
+              ).map(({ label, range }) => {
+                const active = priceRange.min === range.min && priceRange.max === range.max;
+                return (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => handlePriceRangeChange(range)}
+                    className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${
+                      active
+                        ? 'border-transparent bg-[#CDA032] text-black'
+                        : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:border-[#CDA032]/40'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
@@ -1487,15 +1581,17 @@ export const Store: React.FC<StoreProps> = ({
           <div data-store-products className="flex-1 min-w-0 w-full">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm text-[color:var(--bb-muted)]">
-                {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'}
-                {browseDeals
+                {searchPending
+                  ? 'Searching…'
+                  : `${filteredProducts.length} ${filteredProducts.length === 1 ? 'item' : 'items'}`}
+                {!searchPending && (browseDeals
                   ? ' · Deal of the Day'
                   : selectedCategories.length === 1
                     ? ` in ${selectedCategories[0]}`
-                    : ''}
-                {seriesLabel ? ` · ${seriesLabel}` : seriesIsAll ? ' · All series' : ''}
-                {subLabel ? ` · ${subLabel}` : ''}
-                {showPromotionsOnly ? ' on sale' : ''}
+                    : '')}
+                {!searchPending && (seriesLabel ? ` · ${seriesLabel}` : seriesIsAll ? ' · All series' : '')}
+                {!searchPending && (subLabel ? ` · ${subLabel}` : '')}
+                {!searchPending && (showPromotionsOnly ? ' on sale' : '')}
               </p>
               <div className="flex items-center gap-3">
                 {seriesOptions.length > 0 && (
@@ -1526,7 +1622,15 @@ export const Store: React.FC<StoreProps> = ({
               </div>
             </div>
 
-            {filteredProducts.length > 0 && viewMode === 'grid' && (
+            {searchPending && (
+              viewMode === 'list' ? (
+                <ListSkeleton isLight={isLight} count={6} />
+              ) : (
+                <ProductGridSkeleton isLight={isLight} count={8} compact className={gridCols} />
+              )
+            )}
+
+            {!searchPending && filteredProducts.length > 0 && viewMode === 'grid' && (
               <div className={`bb-store-product-grid grid gap-2 sm:gap-2.5 lg:gap-2.5 ${gridCols}`}>
                 {pageProducts.map((product, index) => (
                   <div
@@ -1548,7 +1652,7 @@ export const Store: React.FC<StoreProps> = ({
               </div>
             )}
 
-            {filteredProducts.length > 0 && viewMode === 'list' && (
+            {!searchPending && filteredProducts.length > 0 && viewMode === 'list' && (
               <div className="space-y-3 sm:space-y-4">
                 {pageProducts.map((product) => (
                   <StoreProductListRow
@@ -1563,7 +1667,7 @@ export const Store: React.FC<StoreProps> = ({
               </div>
             )}
 
-            {filteredProducts.length > 0 && (
+            {!searchPending && filteredProducts.length > 0 && (
               <Pagination
                 page={storePage}
                 pageCount={storePageCount}
@@ -1574,7 +1678,7 @@ export const Store: React.FC<StoreProps> = ({
               />
             )}
 
-            {filteredProducts.length === 0 && (
+            {!searchPending && filteredProducts.length === 0 && (
               <div className="bb-store-empty">
                 <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--bb-border)] bg-[var(--bb-surface-2)]">
                   <Search size={22} className="text-[#CDA032] opacity-70" />

@@ -14,6 +14,7 @@ import {
 } from '../lib/ipadApi';
 import { formatGhsPlain } from '../lib/money';
 import { PageBackButton } from '../components/PageBackButton';
+import { ProductDetailSkeleton } from '../components/Skeleton';
 import type { Product } from '../types';
 import { getProductForPdp } from '../lib/catalogApi';
 
@@ -304,7 +305,7 @@ export const IpadModelPage: React.FC<Props> = ({ modelSlug, theme = 'dark', addT
     <div className={`min-h-screen ${isLight ? 'bg-[#F0F0F0] text-black' : 'bg-black text-white'}`}>
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 pb-32 sm:pb-8">
         <PageBackButton fallbackTo="/ipads" />
-        {loading && <p className="mt-8 text-sm opacity-50">Loading…</p>}
+        {loading && <div className="mt-8"><ProductDetailSkeleton isLight={isLight} /></div>}
         {error && <p className="mt-8 text-sm text-red-400">{error}</p>}
         {!loading && !error && combos.length === 0 && (
           <div className="mt-8 text-center">

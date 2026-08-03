@@ -37,6 +37,7 @@ import {
 } from '../../../lib/adminWorkflow';
 import type { ProductVariant } from '../../../types';
 import { toDbTradeStatus, tradeAdminStatusLabel } from './tradeAdminShared';
+import { ListSkeleton } from '../../../components/Skeleton';
 
 const CONDITION_OPTIONS = ['Like New', 'Excellent', 'Good', 'Fair', 'Poor'];
 
@@ -420,9 +421,7 @@ export const TradeAdminRequestDetail: React.FC = () => {
   const editLog = sel ? parseAnswersSnapshot(sel.answers_snapshot).editLog : [];
 
   if (loading) {
-    return (
-      <div className={`text-center py-16 text-sm ${muted}`}>Loading request…</div>
-    );
+    return <ListSkeleton count={6} />;
   }
 
   if (error || !sel) {

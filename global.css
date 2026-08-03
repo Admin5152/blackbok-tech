@@ -821,8 +821,85 @@ html[data-theme='light'] .bb-store-filter-footer-btn--ghost {
   margin-bottom: 0.75rem;
 }
 
+.bb-store-filter-range-summary--lg {
+  font-size: 1.05rem;
+  font-weight: 800;
+  margin-bottom: 0.85rem;
+}
+
+.bb-store-filter-price-presets {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.bb-store-filter-preset--tap {
+  min-height: 2.35rem;
+  padding: 0.45rem 0.35rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  justify-content: center;
+  text-align: center;
+}
+
+.bb-store-filter-price-inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+}
+
+.bb-store-filter-price-field__label {
+  display: block;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  opacity: 0.45;
+  margin-bottom: 0.35rem;
+}
+
+.bb-store-filter-price-field__row {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.bb-store-filter-price-field__prefix {
+  position: absolute;
+  left: 0.7rem;
+  font-size: 10px;
+  font-weight: 800;
+  opacity: 0.45;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.bb-store-filter-input--price {
+  width: 100%;
+  padding-left: 2.5rem !important;
+}
+
+.bb-store-filter-slider__wrap--lg {
+  height: 2.75rem;
+}
+
+.bb-store-filter-slider__wrap--lg .bb-store-filter-slider__track {
+  height: 8px;
+}
+
+.bb-store-filter-slider__wrap--lg .bb-store-filter-slider__input::-webkit-slider-thumb {
+  width: 1.4rem;
+  height: 1.4rem;
+  margin-top: -8px;
+}
+
+.bb-store-filter-slider__wrap--lg .bb-store-filter-slider__input::-moz-range-thumb {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
 .bb-store-filter-slider {
-  margin-bottom: 1rem;
+  margin-bottom: 0.35rem;
 }
 
 .bb-store-filter-slider__labels {
@@ -1171,6 +1248,22 @@ html[data-theme='light'] .bb-store-filter-step {
   font-weight: 700 !important;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+/* Auth card — compact back that sits in the brand row */
+.bb-auth-back {
+  height: 2rem;
+  min-width: 2rem;
+  padding-left: 0.65rem !important;
+  padding-right: 0.75rem !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  border-radius: 0.65rem !important;
+  font-size: 0.7rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  box-shadow: none !important;
 }
 
 .bb-store-toolbar {

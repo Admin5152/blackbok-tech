@@ -20,6 +20,7 @@ import { useTradeFlow } from '../../lib/tradeFlowContext';
 import { TradePhasePills } from '../../components/trade/TradePhasePills';
 import { PageBackButton } from '../../components/PageBackButton';
 import { Pagination } from '../../components/Pagination';
+import { ProductGridSkeleton } from '../../components/Skeleton';
 import { usePagination } from '../../lib/pagination';
 import { getTradeTargets } from '../../lib/tradeApi';
 import { getProductPageRow } from '../../lib/catalogApi';
@@ -562,11 +563,7 @@ export function TradeTargetScreen() {
   if (!state.deviceLock) return null;
 
   if (loading) {
-    return (
-      <p className="text-center py-16 text-sm text-[color:var(--bb-muted)]">
-        {TRADE_COPY.states.loading}
-      </p>
-    );
+    return <ProductGridSkeleton isLight={isLight} count={6} className="py-6" />;
   }
 
   if (error) {

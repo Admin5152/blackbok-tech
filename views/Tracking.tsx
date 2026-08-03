@@ -26,6 +26,7 @@ import {
 } from '../lib/api';
 import { formatCustomerStatusShort } from '../lib/customerStatusLabels';
 import { PageBackButton } from '../components/PageBackButton';
+import { ListSkeleton } from '../components/Skeleton';
 import { tradeOfferAmount } from '../lib/tradeOffer';
 import { TRADE_COPY } from '../lib/tradeCopy';
 import { TradeOfferRespondButtons } from '../components/TradeOfferRespondButtons';
@@ -412,13 +413,13 @@ export const Tracking: React.FC = () => {
   if (type === 'trade' && !tradeLookupDone) {
     return (
       <div
-        className={`min-h-screen flex items-center justify-center px-4 ${
+        className={`min-h-screen px-4 py-16 ${
           isLight ? 'bg-[#F0F0F0]' : 'bg-gradient-to-b from-[#050508] to-[#08080f]'
         }`}
       >
-        <p className={`text-sm font-bold ${isLight ? 'text-black/40' : 'text-white/40'}`}>
-          {TRADE_COPY.states.loading}
-        </p>
+        <div className="mx-auto max-w-lg">
+          <ListSkeleton isLight={isLight} count={4} />
+        </div>
       </div>
     );
   }

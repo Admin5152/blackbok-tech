@@ -15,6 +15,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Info } from 'lucide-react';
 import { useTradeFlow } from '../../lib/tradeFlowContext';
+import { ListSkeleton } from '../../components/Skeleton';
 import { getAppleColorsForModel } from '../../lib/appleColors';
 import {
   distinctSimsFromRows,
@@ -142,11 +143,7 @@ export function TradeConfigScreen() {
   if (!state.model) return null;
 
   if (loading) {
-    return (
-      <p className="text-center py-16 text-sm text-[color:var(--bb-muted)]">
-        {TRADE_COPY.states.loading}
-      </p>
-    );
+    return <ListSkeleton count={5} className="py-6 max-w-lg mx-auto" />;
   }
 
   if (error) {

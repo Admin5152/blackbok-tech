@@ -14,6 +14,7 @@ import { useAppContext } from '../App';
 import { useReturns, type ReturnStatus, type ReturnCondition, type RefundMethod, type Return } from '../hooks/useReturns';
 import { formatCurrency } from '../lib/utils';
 import { PageBackButton } from '../components/PageBackButton';
+import { ListSkeleton } from '../components/Skeleton';
 import { lockPageScroll } from '../lib/pageScrollLock';
 import { PAGE_SIZES, usePagination } from '../lib/pagination';
 import { Pagination } from '../components/Pagination';
@@ -194,21 +195,7 @@ export const ReturnsPage: React.FC = () => {
 
         {/* Body */}
         {loading && returns.length === 0 ? (
-          <div className="py-24 text-center">
-            <Loader2
-              size={28}
-              className={`mx-auto mb-3 animate-spin ${
-                isLight ? 'text-black/30' : 'text-white/30'
-              }`}
-            />
-            <p
-              className={`text-[10px] font-black uppercase tracking-widest ${
-                isLight ? 'text-black/40' : 'text-white/40'
-              }`}
-            >
-              Loading your returns…
-            </p>
-          </div>
+          <ListSkeleton isLight={isLight} count={4} className="py-6" />
         ) : error ? (
           <div
             className={`p-6 rounded-2xl border ${

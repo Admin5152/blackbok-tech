@@ -46,6 +46,7 @@ import { Footer } from './components/Footer';
 import { NotificationContainer, type Notification } from './components/Notification';
 import { Home } from './views/Home';
 import { ProductDetail } from './views/ProductDetail';
+import { ProductDetailSkeleton } from './components/Skeleton';
 import { Repair } from './views/Repair';
 import { Store } from './views/Store';
 import { Ipads } from './views/Ipads';
@@ -393,14 +394,7 @@ const productDetailRoute = createRoute({
     }, [products, product]);
 
     if (loading) {
-      return (
-        <div className="min-h-screen bg-black text-white flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-8 h-8 rounded-full border-2 border-t-[#B38B21] border-white/10 animate-spin mx-auto mb-4" />
-            <p className="text-sm text-white/60">Loading product...</p>
-          </div>
-        </div>
-      );
+      return <ProductDetailSkeleton isLight={theme === 'light'} />;
     }
 
     if (error || !product) {
@@ -612,8 +606,17 @@ const RouteSessionSpinner: React.FC<{
 }> = ({ theme, label = 'Verifying access…' }) => {
   const isLight = theme === 'light';
   return (
-    <div className={`min-h-screen flex flex-col items-center justify-center gap-4 p-8 ${isLight ? 'bg-[#F0F0F0] text-black' : 'bg-black text-white'}`}>
-      <Activity className={`h-10 w-10 animate-pulse ${isLight ? 'text-black/30' : 'text-[#CDA032]'}`} />
+    <div
+      className={`min-h-screen flex flex-col items-center justify-center gap-6 p-8 ${isLight ? 'bg-[#F0F0F0] text-black' : 'bg-black text-white'}`}
+      role="status"
+      aria-label={label}
+    >
+      <div className="w-full max-w-sm space-y-3">
+        <div className={`h-3 w-1/3 rounded-lg animate-pulse ${isLight ? 'bg-black/10' : 'bg-white/10'}`} />
+        <div className={`h-40 w-full rounded-2xl animate-pulse ${isLight ? 'bg-black/[0.06]' : 'bg-white/[0.08]'}`} />
+        <div className={`h-3 w-2/3 rounded-lg animate-pulse ${isLight ? 'bg-black/10' : 'bg-white/10'}`} />
+        <div className={`h-3 w-1/2 rounded-lg animate-pulse ${isLight ? 'bg-black/10' : 'bg-white/10'}`} />
+      </div>
       <p className={`text-xs font-black uppercase tracking-[0.25em] ${isLight ? 'text-black/50' : 'text-white/40'}`}>
         {label}
       </p>

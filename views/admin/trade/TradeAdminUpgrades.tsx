@@ -24,6 +24,7 @@ import { formatGhs } from '../../../lib/money';
 import type { Product } from '../../../types';
 import type { TradeDeviceRow } from '../../../types/supabase';
 import { lockPageScroll } from '../../../lib/pageScrollLock';
+import { ListSkeleton } from '../../../components/Skeleton';
 
 function isUpgradeCandidate(product: Product): boolean {
   const name = (product.name || '').toLowerCase();
@@ -283,7 +284,7 @@ export const TradeAdminUpgrades: React.FC = () => {
   };
 
   if (loading) {
-    return <p className="text-sm opacity-60 py-8">Loading upgrade phones…</p>;
+    return <ListSkeleton count={6} />;
   }
 
   return (

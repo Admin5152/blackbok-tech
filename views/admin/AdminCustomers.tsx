@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Eye, Mail, Phone, MapPin, Calendar, DollarSign, Package, ArrowUpDown } from 'lucide-react';
 import { SearchInput, EmptyState } from './adminUtils';
+import { ListSkeleton } from '../../components/Skeleton';
 import { getOrders, getUsers } from '../../lib/api';
 import type { Order, User } from '../../types';
 import { formatCurrency } from '../../lib/utils';
@@ -233,7 +234,7 @@ export const AdminCustomers: React.FC = () => {
 
             {/* Content */}
             {loading ? (
-                <div className="text-center py-12 text-white/30 text-sm">Loading...</div>
+                <ListSkeleton count={6} />
             ) : filtered.length === 0 ? (
                 <EmptyState icon={<Users size={40} />} message="No customers found" />
             ) : viewMode === 'table' ? (

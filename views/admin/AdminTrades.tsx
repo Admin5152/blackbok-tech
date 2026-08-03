@@ -12,6 +12,9 @@ import {
 } from '../../lib/tradeUpgradePicks';
 import type { TradeRequest, ProductVariant } from '../../types';
 import { formatCurrency } from '../../lib/utils';
+import { ListSkeleton } from '../../components/Skeleton';
+import { PAGE_SIZES, usePagination } from '../../lib/pagination';
+import { Pagination } from '../../components/Pagination';
 import { parseOfferInput, tradeHasValidOffer, tradeOfferAmount } from '../../lib/tradeOffer';
 import {
   DEFAULT_TRADE_DEVICES,
@@ -305,6 +308,12 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
         return matchQ && matchS;
     });
 
+    const tradesPaging = usePagination(
+      filtered,
+      PAGE_SIZES.list,
+      `${q}|${statusF}`,
+    );
+
     const offerDisplay = (t: TradeRequest) => {
         const v = t.finalValue ?? (t as any).offeredPrice;
         return v != null && Number.isFinite(Number(v)) ? formatCurrency(Number(v)) : 'Not set';
@@ -560,18 +569,19 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
 
             {/* Table */}
             {loading ? (
-                <div className="text-center py-12 text-white/30 text-sm">Loading trade requests...</div>
+                <ListSkeleton count={6} />
             ) : trades.length === 0 ? (
                 <EmptyState icon={<RefreshCcw size={40} />} message="No trade-in requests yet" />
             ) : filtered.length === 0 ? (
                 <EmptyState icon={<RefreshCcw size={40} />} message="No trade-in requests match your filters" />
             ) : (
+                <>
                 <TableWrapper>
                     <thead><tr>
                         <Th>Device</Th><Th>Customer</Th><Th>Target</Th><Th>Est. credit</Th><Th>Offer</Th><Th>Date</Th><Th>Status</Th><Th></Th>
                     </tr></thead>
                     <tbody>
-                        {filtered.map(t => (
+                        {tradesPaging.pageItems.map(t => (
                             <tr key={t.id} className="hover:bg-white/[0.02] transition-all">
                                 <Td><p className="text-xs font-black text-white">{t.device}</p></Td>
                                 <Td>
@@ -606,6 +616,14 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
                         ))}
                     </tbody>
                 </TableWrapper>
+                <Pagination
+                  page={tradesPaging.page}
+                  pageCount={tradesPaging.pageCount}
+                  onPageChange={tradesPaging.setPage}
+                  total={tradesPaging.total}
+                  pageSize={PAGE_SIZES.list}
+                />
+                </>
             )}
 
             {/* Detail Modal */}

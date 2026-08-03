@@ -21,6 +21,7 @@ import {
 } from '../../../lib/tradeAdminCopy';
 import { UPGRADE_TARGET_CONFIG_KEY } from '../../../lib/tradeUpgradePicks';
 import { Link } from '@tanstack/react-router';
+import { ListSkeleton } from '../../../components/Skeleton';
 
 const HIDDEN_CONFIG_KEYS = new Set([UPGRADE_TARGET_CONFIG_KEY]);
 
@@ -183,7 +184,7 @@ export const TradeAdminConfig: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="text-center py-16 text-white/30 text-sm">Loading business rules…</div>;
+    return <ListSkeleton count={6} />;
   }
   if (error) {
     return (

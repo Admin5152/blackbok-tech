@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Tag, Minus, Plus, SlidersHorizontal } from 'lucide-react';
+import { X, Tag, SlidersHorizontal } from 'lucide-react';
 import { Category } from '../types';
 import { formatCurrency } from '../lib/utils';
 import { STORE_PRICE_SLIDER_MAX, STORE_PRICE_SLIDER_STEP } from '../lib/storeFilters';
@@ -11,9 +11,10 @@ export type StoreCategoryRow =
   | { key: string; label: string; value: Category; icon: React.ReactNode; count: number };
 
 const PRICE_PRESETS = [
-  { label: 'Under GH₵5k', range: { min: 0, max: 5000 } },
-  { label: 'GH₵5k – 10k', range: { min: 5000, max: 10000 } },
-  { label: 'GH₵10k+', range: { min: 10000, max: STORE_PRICE_SLIDER_MAX } },
+  { label: 'Any', range: { min: 0, max: STORE_PRICE_SLIDER_MAX } },
+  { label: 'Under 5k', range: { min: 0, max: 5000 } },
+  { label: '5k – 10k', range: { min: 5000, max: 10000 } },
+  { label: '10k+', range: { min: 10000, max: STORE_PRICE_SLIDER_MAX } },
 ] as const;
 
 export interface StoreFilterPanelProps {
@@ -73,11 +74,7 @@ function StorePriceRangeSlider({
 
   return (
     <div className="bb-store-filter-slider" aria-label="Price range slider">
-      <div className="bb-store-filter-slider__labels">
-        <span>GH₵0</span>
-        <span>GH₵{STORE_PRICE_SLIDER_MAX.toLocaleString()}</span>
-      </div>
-      <div className="bb-store-filter-slider__wrap">
+      <div className="bb-store-filter-slider__wrap bb-store-filter-slider__wrap--lg">
         <div className="bb-store-filter-slider__track" aria-hidden>
           <div
             className="bb-store-filter-slider__fill"
@@ -142,8 +139,8 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
   onMinInputChange,
   onMaxInputChange,
   onCommitPrice,
-  onAdjustMin,
-  onAdjustMax,
+  onAdjustMin: _onAdjustMin,
+  onAdjustMax: _onAdjustMax,
   onPriceRangeChange,
   activeFiltersCount,
   onClearAll,
@@ -165,27 +162,143 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
 
   const body = (
   <>
-      {/* Categories */}
+      {/* Price — quick presets + simple slider */}
       <section className="bb-store-filter-section">
-        <h3 className="bb-store-filter-section__title">Categories</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {categoryOptions.map((cat) => {
-            const active = isCategoryRowActive(cat);
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h3 className="bb-store-filter-section__title mb-0">Price</h3>
+          {(priceRange.min > 0 || priceRange.max < STORE_PRICE_SLIDER_MAX) && (
+            <button
+              type="button"
+              onClick={() => onPriceRangeChange({ min: 0, max: STORE_PRICE_SLIDER_MAX })}
+              className="text-[10px] font-black uppercase tracking-widest text-[#CDA032] hover:underline"
+            >
+              Reset
+            </button>
+          )}
+        </div>
+
+        <p className="bb-store-filter-range-summary bb-store-filter-range-summary--lg">
+          {formatCurrency(priceRange.min)}
+          <span className="opacity-40 mx-1.5">–</span>
+          {formatCurrency(priceRange.max)}
+          {priceRange.max >= STORE_PRICE_SLIDER_MAX ? '+' : ''}
+        </p>
+
+        <div className="bb-store-filter-price-presets mb-4">
+          {PRICE_PRESETS.map(({ label, range }) => {
+            const active = isPresetActive(range.min, range.max);
             return (
               <button
-                key={cat.key}
+                key={label}
                 type="button"
-                onClick={() => onCategoryClick(cat)}
-                className={`${chipClass(active, isLight)} w-full text-left`}
+                onClick={() => onPriceRangeChange(range)}
+                className={`bb-store-filter-preset bb-store-filter-preset--tap ${
+                  active
+                    ? 'bb-store-filter-preset--active'
+                    : isLight
+                      ? 'bb-store-filter-preset--light'
+                      : 'bb-store-filter-preset--dark'
+                }`}
               >
-                <span className="bb-store-filter-chip__icon">{cat.icon}</span>
-                <span className="bb-store-filter-chip__label min-w-0 truncate">{cat.label}</span>
-                <span className="bb-store-filter-chip__count">{cat.count}</span>
+                {label}
               </button>
             );
           })}
         </div>
+
+        <StorePriceRangeSlider
+          min={priceRange.min}
+          max={priceRange.max}
+          onChange={onPriceRangeChange}
+        />
+
+        <div className="bb-store-filter-price-inputs mt-3">
+          <label className="bb-store-filter-price-field">
+            <span className="bb-store-filter-price-field__label">Min</span>
+            <div className="bb-store-filter-price-field__row">
+              <span className="bb-store-filter-price-field__prefix" aria-hidden>
+                GH₵
+              </span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={STORE_PRICE_SLIDER_MAX}
+                step={STORE_PRICE_SLIDER_STEP}
+                value={minInput}
+                onChange={(e) => onMinInputChange(e.target.value)}
+                onBlur={onCommitPrice}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    onCommitPrice();
+                  }
+                }}
+                className="bb-store-filter-input bb-store-filter-input--price"
+                style={{
+                  backgroundColor: inputBg,
+                  borderColor: borderSubtle,
+                  color: isLight ? '#000' : '#fff',
+                }}
+                aria-label="Minimum price in Ghana cedis"
+              />
+            </div>
+          </label>
+          <label className="bb-store-filter-price-field">
+            <span className="bb-store-filter-price-field__label">Max</span>
+            <div className="bb-store-filter-price-field__row">
+              <span className="bb-store-filter-price-field__prefix" aria-hidden>
+                GH₵
+              </span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={STORE_PRICE_SLIDER_MAX}
+                step={STORE_PRICE_SLIDER_STEP}
+                value={maxInput}
+                onChange={(e) => onMaxInputChange(e.target.value)}
+                onBlur={onCommitPrice}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    onCommitPrice();
+                  }
+                }}
+                className="bb-store-filter-input bb-store-filter-input--price"
+                style={{
+                  backgroundColor: inputBg,
+                  borderColor: borderSubtle,
+                  color: isLight ? '#000' : '#fff',
+                }}
+                aria-label="Maximum price in Ghana cedis"
+              />
+            </div>
+          </label>
+        </div>
       </section>
+
+      {conditionOptions && conditionOptions.length > 0 && onConditionClick && (
+        <section className="bb-store-filter-section">
+          <h3 className="bb-store-filter-section__title">
+            {conditionOptions.every((o) => o.value === 'new' || o.value === 'used')
+              ? 'Condition'
+              : 'Type'}
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {conditionOptions.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => onConditionClick(opt.value)}
+                className={chipClass(activeCondition === opt.value, isLight)}
+              >
+                <span className="bb-store-filter-chip__label">{opt.label}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       {seriesOptions && seriesOptions.length > 0 && onSeriesClick && (
         <section className="bb-store-filter-section">
@@ -204,28 +317,6 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
                 type="button"
                 onClick={() => onSeriesClick(opt.value)}
                 className={chipClass(activeSeries === opt.value, isLight)}
-              >
-                <span className="bb-store-filter-chip__label">{opt.label}</span>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {conditionOptions && conditionOptions.length > 0 && onConditionClick && (
-        <section className="bb-store-filter-section">
-          <h3 className="bb-store-filter-section__title">
-            {conditionOptions.every((o) => o.value === 'new' || o.value === 'used')
-              ? 'Condition'
-              : 'Type'}
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            {conditionOptions.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => onConditionClick(opt.value)}
-                className={chipClass(activeCondition === opt.value, isLight)}
               >
                 <span className="bb-store-filter-chip__label">{opt.label}</span>
               </button>
@@ -261,89 +352,28 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
         </button>
       </section>
 
-      {/* Price */}
+      {/* Categories */}
       <section className="bb-store-filter-section">
-        <h3 className="bb-store-filter-section__title">Price</h3>
-        <p className="bb-store-filter-range-summary">
-          {formatCurrency(priceRange.min)} – {formatCurrency(priceRange.max)}
-        </p>
-
-        <div className="flex flex-wrap gap-2 mb-4">
-          {PRICE_PRESETS.map(({ label, range }) => {
-            const active = isPresetActive(range.min, range.max);
+        <h3 className="bb-store-filter-section__title">Categories</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {categoryOptions.map((cat) => {
+            const active = isCategoryRowActive(cat);
             return (
               <button
-                key={label}
+                key={cat.key}
                 type="button"
-                onClick={() => onPriceRangeChange(range)}
-                className={`bb-store-filter-preset ${active ? 'bb-store-filter-preset--active' : isLight ? 'bb-store-filter-preset--light' : 'bb-store-filter-preset--dark'}`}
+                onClick={() => onCategoryClick(cat)}
+                className={`${chipClass(active, isLight)} w-full text-left`}
               >
-                {label}
+                <span className="bb-store-filter-chip__icon">{cat.icon}</span>
+                <span className="bb-store-filter-chip__label min-w-0 truncate">{cat.label}</span>
+                <span className="bb-store-filter-chip__count">{cat.count}</span>
               </button>
             );
           })}
         </div>
-
-        <StorePriceRangeSlider
-          min={priceRange.min}
-          max={priceRange.max}
-          onChange={onPriceRangeChange}
-        />
-
-        <p className="text-[10px] font-bold uppercase tracking-[0.16em] opacity-50 mb-3">Custom range</p>
-        <div className="space-y-3">
-          {(['Min', 'Max'] as const).map((kind) => {
-            const isMin = kind === 'Min';
-            return (
-              <div key={kind}>
-                <label className="text-[10px] font-bold uppercase tracking-wider opacity-50 mb-1.5 block">
-                  {kind} (GH₵)
-                </label>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => (isMin ? onAdjustMin(-100) : onAdjustMax(-100))}
-                    className="bb-store-filter-step"
-                    aria-label={`Decrease ${kind.toLowerCase()} price`}
-                  >
-                    <Minus size={16} />
-                  </button>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    min={0}
-                    max={15000}
-                    step={100}
-                    value={isMin ? minInput : maxInput}
-                    onChange={(e) => (isMin ? onMinInputChange(e.target.value) : onMaxInputChange(e.target.value))}
-                    onBlur={onCommitPrice}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        onCommitPrice();
-                      }
-                    }}
-                    className="bb-store-filter-input flex-1"
-                    style={{
-                      backgroundColor: inputBg,
-                      borderColor: borderSubtle,
-                      color: isLight ? '#000' : '#fff',
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => (isMin ? onAdjustMin(100) : onAdjustMax(100))}
-                    className="bb-store-filter-step"
-                    aria-label={`Increase ${kind.toLowerCase()} price`}
-                  >
-                    <Plus size={16} />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
       </section>
+
     </>
   );
 

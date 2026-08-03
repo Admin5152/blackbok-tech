@@ -17,6 +17,7 @@ import { getModelsForType } from '../../lib/tradePricingStore';
 import type { TradeBaseValueRow, TradeFaultDeductionRow } from '../../types/supabase';
 import { useAppContext } from '../../lib/appContext';
 import { useNavigate } from '@tanstack/react-router';
+import { ListSkeleton } from '../../components/Skeleton';
 
 interface Props {
   open: boolean;
@@ -124,7 +125,7 @@ export const AdminTradePricingModal: React.FC<Props> = ({ open, onClose }) => {
             </div>
             <div className="max-h-[40vh] overflow-y-auto divide-y divide-white/[0.04]">
               {loading ? (
-                <p className="p-6 text-center text-white/30 text-sm">Loading…</p>
+                <div className="p-6"><ListSkeleton count={4} /></div>
               ) : deviceRows.length === 0 ? (
                 <p className="p-6 text-center text-white/30 text-sm">No models found.</p>
               ) : (

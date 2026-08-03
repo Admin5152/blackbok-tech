@@ -28,6 +28,7 @@ import { PageBackButton } from '../../components/PageBackButton';
 import { TradeOfferRespondButtons } from '../../components/TradeOfferRespondButtons';
 import { CancelRequestButton } from '../../components/CancelRequestButton';
 import { canCancelTrade } from '../../lib/customerCancel';
+import { ListSkeleton } from '../../components/Skeleton';
 import { PAGE_SIZES, usePagination } from '../../lib/pagination';
 import { Pagination } from '../../components/Pagination';
 
@@ -108,9 +109,7 @@ export function MyTradeInsPage() {
       </div>
 
       {!authReady || (loading && rows.length === 0) ? (
-        <p className="text-sm text-[color:var(--bb-muted)] py-12 text-center">
-          {TRADE_COPY.states.loading}
-        </p>
+        <ListSkeleton isLight={isLight} count={5} className="py-4" />
       ) : !user ? (
         <div className="text-center py-12 space-y-4">
           <p className="text-sm">{TRADE_COPY.myTrades.signIn}</p>

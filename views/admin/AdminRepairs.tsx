@@ -7,6 +7,9 @@ import { friendlyError } from '../../lib/friendlyErrors';
 import { useAdminRepairs } from '../../hooks/useAdminRepairs';
 import type { RepairRequest } from '../../types';
 import { formatCurrency } from '../../lib/utils';
+import { ListSkeleton } from '../../components/Skeleton';
+import { PAGE_SIZES, usePagination } from '../../lib/pagination';
+import { Pagination } from '../../components/Pagination';
 import {
   formatDeviceTypeLabel,
   formatPricingModeLabel,
@@ -192,6 +195,12 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
         return matchQ && matchS && matchP;
     });
 
+    const repairsPaging = usePagination(
+      filtered,
+      PAGE_SIZES.list,
+      `${q}|${statusF}|${pricingF}`,
+    );
+
     const repairCustomerName = (r: RepairRequest) =>
         r.contact_name || r.userName || r.user_name || '—';
     const repairCustomerPhone = (r: RepairRequest) =>
@@ -306,12 +315,13 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
 
             {/* Table */}
             {loading ? (
-                <div className="text-center py-12 text-white/30 text-sm">Loading repair requests...</div>
+                <ListSkeleton count={6} />
             ) : repairs.length === 0 ? (
                 <EmptyState icon={<Wrench size={40} />} message="No repair requests yet. Customers can submit from the Repair page while signed in." />
             ) : filtered.length === 0 ? (
                 <EmptyState icon={<Wrench size={40} />} message="No repair requests match your filters." />
             ) : (
+                <>
                 <TableWrapper>
                     <thead>
                         <tr>
@@ -327,7 +337,7 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
                         </tr>
                     </thead>
                     <tbody>
-                        {filtered.map((r) => (
+                        {repairsPaging.pageItems.map((r) => (
                             <tr key={r.id} className="hover:bg-white/[0.02] transition-all">
                                 <Td>
                                     <p className="text-xs font-black text-white">{r.device}</p>
@@ -381,6 +391,14 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
                         ))}
                     </tbody>
                 </TableWrapper>
+                <Pagination
+                  page={repairsPaging.page}
+                  pageCount={repairsPaging.pageCount}
+                  onPageChange={repairsPaging.setPage}
+                  total={repairsPaging.total}
+                  pageSize={PAGE_SIZES.list}
+                />
+                </>
             )}
 
             {/* Repair Detail Modal */}
