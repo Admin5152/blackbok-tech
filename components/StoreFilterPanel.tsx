@@ -160,8 +160,97 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
   const isPresetActive = (min: number, max: number) =>
     priceRange.min === min && priceRange.max === max;
 
+  const hasSeries = Boolean(seriesOptions && seriesOptions.length > 0 && onSeriesClick);
+  const hasCondition = Boolean(conditionOptions && conditionOptions.length > 0 && onConditionClick);
+  const activeCategoryLabel =
+    categoryOptions.find((cat) => isCategoryRowActive(cat) && cat.value !== 'All')?.label ?? null;
+  const conditionTitle =
+    conditionOptions?.every((o) => o.value === 'new' || o.value === 'used') ? 'Condition' : 'Type';
+
   const body = (
   <>
+      {/* Browse: category first, then series/condition nested under the pick */}
+      <section className="bb-store-filter-section">
+        <h3 className="bb-store-filter-section__title">Category</h3>
+        <div className="bb-store-filter-category-list">
+          {categoryOptions.map((cat) => {
+            const active = isCategoryRowActive(cat);
+            return (
+              <button
+                key={cat.key}
+                type="button"
+                onClick={() => onCategoryClick(cat)}
+                className={`${chipClass(active, isLight)} bb-store-filter-category-row w-full text-left`}
+                aria-pressed={active}
+              >
+                <span className="bb-store-filter-chip__icon">{cat.icon}</span>
+                <span className="bb-store-filter-chip__label min-w-0 truncate">{cat.label}</span>
+                <span className="bb-store-filter-chip__count">{cat.count}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {(hasSeries || hasCondition) && (
+          <div className="bb-store-filter-nested">
+            {activeCategoryLabel && (
+              <p className="bb-store-filter-nested__eyebrow">
+                In {activeCategoryLabel}
+              </p>
+            )}
+
+            {hasSeries && (
+              <div className="bb-store-filter-nested__block">
+                <h4 className="bb-store-filter-nested__title">Series</h4>
+                <div className="bb-store-filter-series-list">
+                  <button
+                    type="button"
+                    onClick={() => onSeriesClick!('')}
+                    className={`${chipClass(!activeSeries, isLight)} bb-store-filter-series-row w-full text-left`}
+                    aria-pressed={!activeSeries}
+                  >
+                    <span className="bb-store-filter-chip__label">All series</span>
+                  </button>
+                  {seriesOptions!.map((opt) => {
+                    const selected = activeSeries === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => onSeriesClick!(opt.value)}
+                        className={`${chipClass(selected, isLight)} bb-store-filter-series-row w-full text-left`}
+                        aria-pressed={selected}
+                      >
+                        <span className="bb-store-filter-chip__label">{opt.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {hasCondition && (
+              <div className="bb-store-filter-nested__block">
+                <h4 className="bb-store-filter-nested__title">{conditionTitle}</h4>
+                <div className="bb-store-filter-chip-row">
+                  {conditionOptions!.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => onConditionClick!(opt.value)}
+                      className={chipClass(activeCondition === opt.value, isLight)}
+                      aria-pressed={activeCondition === opt.value}
+                    >
+                      <span className="bb-store-filter-chip__label">{opt.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
       {/* Price — quick presets + simple slider */}
       <section className="bb-store-filter-section">
         <div className="mb-3 flex items-center justify-between gap-2">
@@ -278,53 +367,6 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
         </div>
       </section>
 
-      {conditionOptions && conditionOptions.length > 0 && onConditionClick && (
-        <section className="bb-store-filter-section">
-          <h3 className="bb-store-filter-section__title">
-            {conditionOptions.every((o) => o.value === 'new' || o.value === 'used')
-              ? 'Condition'
-              : 'Type'}
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            {conditionOptions.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => onConditionClick(opt.value)}
-                className={chipClass(activeCondition === opt.value, isLight)}
-              >
-                <span className="bb-store-filter-chip__label">{opt.label}</span>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {seriesOptions && seriesOptions.length > 0 && onSeriesClick && (
-        <section className="bb-store-filter-section">
-          <h3 className="bb-store-filter-section__title">Series</h3>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => onSeriesClick('')}
-              className={chipClass(!activeSeries, isLight)}
-            >
-              <span className="bb-store-filter-chip__label">All</span>
-            </button>
-            {seriesOptions.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => onSeriesClick(opt.value)}
-                className={chipClass(activeSeries === opt.value, isLight)}
-              >
-                <span className="bb-store-filter-chip__label">{opt.label}</span>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
       {/* Promotions */}
       <section className="bb-store-filter-section">
         <button
@@ -350,28 +392,6 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
             <span className="bb-store-filter-switch__thumb" />
           </span>
         </button>
-      </section>
-
-      {/* Categories */}
-      <section className="bb-store-filter-section">
-        <h3 className="bb-store-filter-section__title">Categories</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {categoryOptions.map((cat) => {
-            const active = isCategoryRowActive(cat);
-            return (
-              <button
-                key={cat.key}
-                type="button"
-                onClick={() => onCategoryClick(cat)}
-                className={`${chipClass(active, isLight)} w-full text-left`}
-              >
-                <span className="bb-store-filter-chip__icon">{cat.icon}</span>
-                <span className="bb-store-filter-chip__label min-w-0 truncate">{cat.label}</span>
-                <span className="bb-store-filter-chip__count">{cat.count}</span>
-              </button>
-            );
-          })}
-        </div>
       </section>
 
     </>

@@ -1350,8 +1350,8 @@ export const Store: React.FC<StoreProps> = ({
   return (
     <div className="bb-store-page">
       <div className="bb-store-toolbar">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3">
-          <div className="flex min-w-0 flex-col gap-2">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-1.5 sm:py-2">
+          <div className="flex min-w-0 flex-col gap-1.5">
             <div className="bb-store-toolbar-row flex min-w-0 items-center gap-1.5 sm:gap-2">
               <PageBackButton
                 isLight={isLight}
@@ -1440,111 +1440,93 @@ export const Store: React.FC<StoreProps> = ({
               </div>
             </div>
 
-            {activeFiltersCount > 0 && (
-              <div className={`flex items-center gap-2 ${showDesktopFilters ? 'lg:hidden' : ''}`}>
-                <div className="flex items-center gap-2 rounded-full border border-[#CDA032]/30 bg-[#CDA032]/15 px-3 py-1">
-                  <span className="text-xs font-bold text-[#CDA032]">
-                    {activeFiltersCount} active filter{activeFiltersCount === 1 ? '' : 's'}
-                  </span>
+            {/* One compact chip row: series · condition · price (hidden on lg when sidebar open) */}
+            <div
+              className={`bb-store-chip-rail bb-scrollbar ${showDesktopFilters ? 'lg:hidden' : ''}`}
+              role="toolbar"
+              aria-label="Quick filters"
+            >
+                {seriesOptions.length > 0 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => applySeriesFilter('')}
+                      className={`bb-store-chip ${!activeSeries ? 'bb-store-chip--active' : ''}`}
+                    >
+                      All
+                    </button>
+                    {seriesOptions.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => applySeriesFilter(opt.value)}
+                        className={`bb-store-chip ${activeSeries === opt.value ? 'bb-store-chip--active' : ''}`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </>
+                )}
+
+                {seriesOptions.length > 0 &&
+                  subcategoryOptions.length > 0 &&
+                  subcategoryFilter && (
+                    <span className="bb-store-chip-rail__sep" aria-hidden />
+                  )}
+
+                {subcategoryOptions.length > 0 &&
+                  subcategoryFilter &&
+                  subcategoryOptions.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => applyConditionFilter(opt.value)}
+                      className={`bb-store-chip ${
+                        subcategoryFilter?.value === opt.value ? 'bb-store-chip--active' : ''
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+
+                {(seriesOptions.length > 0 ||
+                  (subcategoryOptions.length > 0 && subcategoryFilter)) && (
+                  <span className="bb-store-chip-rail__sep" aria-hidden />
+                )}
+
+                {(
+                  [
+                    { label: 'Any', range: { min: 0, max: STORE_PRICE_SLIDER_MAX } },
+                    { label: '<5k', range: { min: 0, max: 5000 } },
+                    { label: '5–10k', range: { min: 5000, max: 10000 } },
+                    { label: '10k+', range: { min: 10000, max: STORE_PRICE_SLIDER_MAX } },
+                  ] as const
+                ).map(({ label, range }) => {
+                  const active = priceRange.min === range.min && priceRange.max === range.max;
+                  return (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => handlePriceRangeChange(range)}
+                      className={`bb-store-chip ${active ? 'bb-store-chip--active' : ''}`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+
+                {activeFiltersCount > 0 && (
                   <button
                     type="button"
                     onClick={clearAllFilters}
-                    className="text-[#CDA032] hover:text-black transition-colors"
+                    className="bb-store-chip bb-store-chip--clear"
                     aria-label="Clear all filters"
                   >
-                    <X size={12} />
+                    Clear
+                    <X size={11} />
                   </button>
-                </div>
+                )}
               </div>
-            )}
-
-            {seriesOptions.length > 0 && (
-              <div
-                className="bb-scrollbar flex gap-1.5 overflow-x-auto pb-0.5 [-webkit-overflow-scrolling:touch]"
-                role="toolbar"
-                aria-label="Filter by series"
-              >
-                <button
-                  type="button"
-                  onClick={() => applySeriesFilter('')}
-                  className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${
-                    !activeSeries
-                      ? 'border-transparent bg-[#CDA032] text-black'
-                      : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:border-[#CDA032]/40'
-                  }`}
-                >
-                  All
-                </button>
-                {seriesOptions.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => applySeriesFilter(opt.value)}
-                    className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${
-                      activeSeries === opt.value
-                        ? 'border-transparent bg-[#CDA032] text-black'
-                        : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:border-[#CDA032]/40'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {subcategoryOptions.length > 0 && subcategoryFilter && (
-              <div
-                className="bb-scrollbar flex gap-1.5 overflow-x-auto pb-0.5 [-webkit-overflow-scrolling:touch]"
-                role="toolbar"
-                aria-label="Filter by type"
-              >
-                {subcategoryOptions.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => applyConditionFilter(opt.value)}
-                    className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${
-                      subcategoryFilter?.value === opt.value
-                        ? 'border-transparent bg-[#CDA032] text-black'
-                        : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:border-[#CDA032]/40'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div
-              className="bb-scrollbar flex gap-1.5 overflow-x-auto pb-0.5 [-webkit-overflow-scrolling:touch]"
-              role="toolbar"
-              aria-label="Filter by price"
-            >
-              {(
-                [
-                  { label: 'Any price', range: { min: 0, max: STORE_PRICE_SLIDER_MAX } },
-                  { label: 'Under 5k', range: { min: 0, max: 5000 } },
-                  { label: '5k – 10k', range: { min: 5000, max: 10000 } },
-                  { label: '10k+', range: { min: 10000, max: STORE_PRICE_SLIDER_MAX } },
-                ] as const
-              ).map(({ label, range }) => {
-                const active = priceRange.min === range.min && priceRange.max === range.max;
-                return (
-                  <button
-                    key={label}
-                    type="button"
-                    onClick={() => handlePriceRangeChange(range)}
-                    className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${
-                      active
-                        ? 'border-transparent bg-[#CDA032] text-black'
-                        : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:border-[#CDA032]/40'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
           </div>
         </div>
       </div>
