@@ -156,10 +156,38 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
           >
             <div className="space-y-6 pb-2">
               <div className="space-y-3">
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="rounded-full border border-[#CDA032]/20 bg-[#CDA032]/10 px-3 py-1 text-[8px] font-black uppercase tracking-widest text-[#CDA032]">
                     {product.category}
                   </span>
+                  {(() => {
+                    const c = String(product.condition || '').toLowerCase();
+                    const isUsed =
+                      c === 'preowned' ||
+                      c === 'used' ||
+                      c === 'refurbished' ||
+                      (c !== 'new' && product.is_new === false);
+                    if (!isUsed && c !== 'new' && product.is_new !== true && !c) return null;
+                    const label =
+                      c === 'refurbished'
+                        ? 'Refurbished'
+                        : isUsed
+                          ? 'Pre-owned'
+                          : 'New';
+                    return (
+                      <span
+                        className={`rounded-full border px-3 py-1 text-[8px] font-black uppercase tracking-widest ${
+                          isUsed
+                            ? isLight
+                              ? 'border-black/15 bg-black/[0.06] text-black/70'
+                              : 'border-white/20 bg-white/10 text-white/75'
+                            : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+                        }`}
+                      >
+                        {label}
+                      </span>
+                    );
+                  })()}
                 </div>
 
                 <h2 className="select-none text-2xl sm:text-3xl font-black uppercase italic leading-[0.95] tracking-tighter">
@@ -191,13 +219,6 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
                   </p>
                 )}
               </div>
-
-              <p
-                className="border-l-2 border-[#CDA032]/30 pl-5 text-sm font-medium italic leading-relaxed"
-                style={{ color: 'var(--bb-muted)' }}
-              >
-                {product.description}
-              </p>
 
               <div className="space-y-5">
                 {groupedVariants.length === 0 ? (
