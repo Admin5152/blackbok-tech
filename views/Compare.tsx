@@ -5,11 +5,17 @@ import { useAppContext } from '../App';
 import { formatCurrency } from '../lib/utils';
 import { PageBackButton } from '../components/PageBackButton';
 import {
+  buildCompareRows,
   buildCompareWinsByProductId,
+  buildForkForProduct,
+  buildRuling,
   COMPARE_MAX_ITEMS,
   COMPARE_PICKER_PAGE_SIZE,
   filterComparePickerProducts,
+  groupCompareRows,
   resolveCompareProducts,
+  scoreCompareProducts,
+  type CompareRow,
 } from '../lib/compareProducts';
 import { usePagination } from '../lib/pagination';
 import { Pagination } from '../components/Pagination';
@@ -52,136 +58,476 @@ const CompareAddPanel: React.FC<CompareAddPanelProps> = ({
   );
 
   return (
-  <div
-    id="compare-add-panel"
-    className={`mb-8 p-6 sm:p-8 rounded-2xl border ${containerClass} ${
-      sticky ? 'sticky top-20 sm:top-24 z-20 shadow-lg' : ''
-    }`}
-  >
-    <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-      <div>
-        <p className="text-sm font-bold">Add a device to compare</p>
-        <p className="text-xs text-[color:var(--bb-muted)] mt-0.5">
-          {compareCount} of {COMPARE_MAX_ITEMS} selected — tap a product below to add it.
-        </p>
-      </div>
-      <button
-        type="button"
-        onClick={onClose}
-        className={`p-2 rounded-lg transition-colors ${
-          isLight ? 'hover:bg-black/5' : 'hover:bg-white/10'
-        }`}
-        aria-label="Close add panel"
-      >
-        <X size={18} />
-      </button>
-    </div>
-
-    <div className="relative mb-4">
-      <Search
-        size={18}
-        className="absolute left-4 top-1/2 -translate-y-1/2 text-[color:var(--bb-muted)]"
-      />
-      <input
-        type="search"
-        placeholder="Search by name, brand, or category…"
-        value={searchTerm}
-        onChange={(e) => onSearchChange(e.target.value)}
-        autoFocus
-        className="w-full pl-12 pr-4 py-3.5 bg-transparent border border-[var(--bb-border)] rounded-xl text-sm outline-none focus:border-[#CDA032] transition-colors"
-      />
-    </div>
-
-    {categories.length > 1 && (
-      <div className="flex flex-wrap gap-2 mb-5">
+    <div
+      id="compare-add-panel"
+      className={`mb-8 p-6 sm:p-8 rounded-2xl border ${containerClass} ${
+        sticky ? 'sticky top-20 sm:top-24 z-20 shadow-lg' : ''
+      }`}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div>
+          <p className="text-sm font-bold">Add a device to compare</p>
+          <p className="text-xs text-[color:var(--bb-muted)] mt-0.5">
+            {compareCount} of {COMPARE_MAX_ITEMS} selected — tap a product below to add it.
+          </p>
+        </div>
         <button
           type="button"
-          onClick={() => onCategoryChange('all')}
-          className={`px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wide transition-colors ${
-            categoryFilter === 'all'
-              ? 'bg-[#CDA032] text-black'
-              : isLight
-                ? 'bg-black/5 text-black/70 hover:bg-black/10'
-                : 'bg-white/5 text-white/70 hover:bg-white/10'
+          onClick={onClose}
+          className={`p-2 rounded-lg transition-colors ${
+            isLight ? 'hover:bg-black/5' : 'hover:bg-white/10'
           }`}
+          aria-label="Close add panel"
         >
-          All
+          <X size={18} />
         </button>
-        {categories.map((cat) => (
+      </div>
+
+      <div className="relative mb-4">
+        <Search
+          size={18}
+          className="absolute left-4 top-1/2 -translate-y-1/2 text-[color:var(--bb-muted)]"
+        />
+        <input
+          type="search"
+          placeholder="Search by name, brand, or category…"
+          value={searchTerm}
+          onChange={(e) => onSearchChange(e.target.value)}
+          autoFocus
+          className="w-full pl-12 pr-4 py-3.5 bg-transparent border border-[var(--bb-border)] rounded-xl text-sm outline-none focus:border-[#CDA032] transition-colors"
+        />
+      </div>
+
+      {categories.length > 1 && (
+        <div className="flex flex-wrap gap-2 mb-5">
           <button
-            key={cat}
             type="button"
-            onClick={() => onCategoryChange(cat)}
+            onClick={() => onCategoryChange('all')}
             className={`px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wide transition-colors ${
-              categoryFilter === cat
+              categoryFilter === 'all'
                 ? 'bg-[#CDA032] text-black'
                 : isLight
                   ? 'bg-black/5 text-black/70 hover:bg-black/10'
                   : 'bg-white/5 text-white/70 hover:bg-white/10'
             }`}
           >
-            {cat}
+            All
           </button>
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => onCategoryChange(cat)}
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wide transition-colors ${
+                categoryFilter === cat
+                  ? 'bg-[#CDA032] text-black'
+                  : isLight
+                    ? 'bg-black/5 text-black/70 hover:bg-black/10'
+                    : 'bg-white/5 text-white/70 hover:bg-white/10'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {products.length === 0 ? (
+        <div className="py-8 text-center">
+          <p className="text-sm font-medium mb-1">No matching products</p>
+          <p className="text-xs text-[color:var(--bb-muted)]">
+            Try another search or browse the shop to find more devices.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4 max-h-[min(60vh,420px)] overflow-y-auto bb-scrollbar pr-1">
+            {pickerPaging.pageItems.map((product) => {
+              const displayPrice = product.price_from ?? product.price;
+              const inStock = (product.total_stock ?? product.stock ?? 0) > 0;
+              return (
+                <button
+                  key={product.id}
+                  type="button"
+                  onClick={() => onAdd(product.id)}
+                  className={`p-3 sm:p-4 rounded-xl border transition-all text-left flex flex-col gap-3 group ${
+                    isLight
+                      ? 'border-black/8 hover:border-black/20 hover:bg-black/[0.03]'
+                      : 'border-[var(--bb-border)] hover:border-[#CDA032]/40 hover:bg-white/[0.03]'
+                  }`}
+                >
+                  <div className="aspect-square bg-black rounded-lg p-2 flex items-center justify-center group-hover:scale-105 transition-transform">
+                    <img
+                      src={product.image || product.image_url || ''}
+                      alt={product.name}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold leading-snug line-clamp-2 mb-1">{product.name}</p>
+                    <p className="text-[10px] font-bold text-[#CDA032] tabular-nums">
+                      {formatCurrency(displayPrice)}
+                    </p>
+                    <p className={`text-[9px] mt-1 ${inStock ? 'text-emerald-600' : 'text-[color:var(--bb-muted)]'}`}>
+                      {inStock ? 'In stock' : 'Out of stock'}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <Pagination
+            page={pickerPaging.page}
+            pageCount={pickerPaging.pageCount}
+            onPageChange={pickerPaging.setPage}
+            total={pickerPaging.total}
+            pageSize={COMPARE_PICKER_PAGE_SIZE}
+            isLight={isLight}
+            className="pt-2"
+          />
+        </div>
+      )}
+    </div>
+  );
+};
+
+function productImage(p: Product): string {
+  return p.image || p.image_url || '';
+}
+
+function productPrice(p: Product): number {
+  return p.price_from ?? p.price;
+}
+
+function truncateName(name: string, max = 28): string {
+  const t = name.trim();
+  if (t.length <= max) return t;
+  return `${t.slice(0, max - 1)}…`;
+}
+
+type ProductColumnHeaderProps = {
+  product: Product;
+  isLight: boolean;
+  badges: { key: string; label: string; highlight?: boolean }[];
+  score?: number;
+  showScore?: boolean;
+  onRemove: () => void;
+  onAddToCart: () => void;
+  onOpen: () => void;
+};
+
+const ProductColumnHeader: React.FC<ProductColumnHeaderProps> = ({
+  product,
+  isLight,
+  badges,
+  score,
+  showScore,
+  onRemove,
+  onAddToCart,
+  onOpen,
+}) => {
+  const inStock = (product.total_stock ?? product.stock ?? 0) > 0;
+  return (
+    <div className="bb-compare-col-head">
+      <button
+        type="button"
+        onClick={onRemove}
+        className="bb-compare-col-head__remove"
+        aria-label={`Remove ${product.name} from compare`}
+      >
+        <Trash2 size={14} />
+      </button>
+      <button type="button" onClick={onOpen} className="bb-compare-col-head__product">
+        <div className="bb-compare-col-head__img">
+          <img src={productImage(product)} alt="" />
+        </div>
+        <h3 className="bb-compare-col-head__name">{product.name}</h3>
+        <p className="bb-compare-col-head__cat">{product.category}</p>
+        <p className="bb-compare-col-head__price">{formatCurrency(productPrice(product))}</p>
+        {showScore && typeof score === 'number' && (
+          <p className="bb-compare-col-head__score">
+            <span>{score}</span>
+            <em>wins</em>
+          </p>
+        )}
+      </button>
+      {badges.length > 0 && (
+        <div className="bb-compare-col-head__badges">
+          {badges.map((b) => (
+            <span
+              key={b.key}
+              className={`bb-compare-badge ${b.highlight ? 'bb-compare-badge--hot' : ''}`}
+            >
+              {b.label}
+            </span>
+          ))}
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={onAddToCart}
+        disabled={!inStock}
+        className={`bb-compare-col-head__cart ${isLight ? 'bb-compare-col-head__cart--light' : ''}`}
+      >
+        <ShoppingCart size={14} />
+        {inStock ? 'Add to cart' : 'Out of stock'}
+      </button>
+    </div>
+  );
+};
+
+type SpecMatrixProps = {
+  products: Product[];
+  rows: CompareRow[];
+  isLight: boolean;
+  winsById: Map<string, { key: string; label: string; highlight?: boolean }[]>;
+  scoresById?: Map<string, number>;
+  showScores?: boolean;
+  atLimit: boolean;
+  onRemove: (id: string) => void;
+  onAddToCart: (p: Product) => void;
+  onOpen: (p: Product) => void;
+  onAddSlot: () => void;
+};
+
+const SpecMatrix: React.FC<SpecMatrixProps> = ({
+  products,
+  rows,
+  isLight,
+  winsById,
+  scoresById,
+  showScores,
+  atLimit,
+  onRemove,
+  onAddToCart,
+  onOpen,
+  onAddSlot,
+}) => {
+  const groups = useMemo(() => groupCompareRows(rows), [rows]);
+  const colCount = products.length + (atLimit ? 0 : 1);
+
+  return (
+    <div className={`bb-compare-matrix ${isLight ? 'bb-compare-matrix--light' : ''}`}>
+      <div
+        className="bb-compare-matrix__scroll bb-scrollbar"
+        style={{ ['--bb-compare-cols' as string]: colCount }}
+      >
+        <div className="bb-compare-matrix__sticky">
+          <div className="bb-compare-matrix__label-cell bb-compare-matrix__label-cell--head">
+            <span>At a glance</span>
+          </div>
+          {products.map((p) => (
+            <ProductColumnHeader
+              key={p.id}
+              product={p}
+              isLight={isLight}
+              badges={winsById.get(p.id) ?? []}
+              score={scoresById?.get(p.id)}
+              showScore={showScores}
+              onRemove={() => onRemove(p.id)}
+              onAddToCart={() => onAddToCart(p)}
+              onOpen={() => onOpen(p)}
+            />
+          ))}
+          {!atLimit && (
+            <button type="button" onClick={onAddSlot} className="bb-compare-add-slot">
+              <Plus size={22} />
+              <span>Add device</span>
+            </button>
+          )}
+        </div>
+
+        {groups.map((g) => (
+          <div key={g.group} className="bb-compare-matrix__group">
+            <div className="bb-compare-matrix__group-title" style={{ gridColumn: '1 / -1' }}>
+              {g.group}
+            </div>
+            {g.rows.map((row) => (
+              <React.Fragment key={row.key}>
+                <div className="bb-compare-matrix__label-cell">{row.label}</div>
+                {products.map((p) => {
+                  const isWin = row.winnerIds.includes(p.id);
+                  const isEven = row.winnerIds.length === 0 && products.length > 1;
+                  return (
+                    <div
+                      key={`${row.key}-${p.id}`}
+                      className={`bb-compare-matrix__cell ${
+                        isWin ? 'bb-compare-matrix__cell--win' : ''
+                      } ${isEven ? 'bb-compare-matrix__cell--even' : ''}`}
+                    >
+                      <span>{row.values[p.id] ?? '—'}</span>
+                      {isWin && products.length === 2 && (
+                        <em className="bb-compare-matrix__verdict">Wins</em>
+                      )}
+                      {isEven && products.indexOf(p) === 0 && (
+                        <em className="bb-compare-matrix__verdict bb-compare-matrix__verdict--even">
+                          Even
+                        </em>
+                      )}
+                    </div>
+                  );
+                })}
+                {!atLimit && <div className="bb-compare-matrix__cell bb-compare-matrix__cell--empty" />}
+              </React.Fragment>
+            ))}
+          </div>
         ))}
       </div>
-    )}
+    </div>
+  );
+};
 
-    {products.length === 0 ? (
-      <div className="py-8 text-center">
-        <p className="text-sm font-medium mb-1">No matching products</p>
-        <p className="text-xs text-[color:var(--bb-muted)]">
-          Try another search or browse the shop to find more devices.
-        </p>
-      </div>
-    ) : (
-      <div className="space-y-3">
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4 max-h-[min(60vh,420px)] overflow-y-auto bb-scrollbar pr-1">
-          {pickerPaging.pageItems.map((product) => {
-            const displayPrice = product.price_from ?? product.price;
-            const inStock = (product.total_stock ?? product.stock ?? 0) > 0;
-            return (
-              <button
-                key={product.id}
-                type="button"
-                onClick={() => onAdd(product.id)}
-                className={`p-3 sm:p-4 rounded-xl border transition-all text-left flex flex-col gap-3 group ${
-                  isLight
-                    ? 'border-black/8 hover:border-black/20 hover:bg-black/[0.03]'
-                    : 'border-[var(--bb-border)] hover:border-[#CDA032]/40 hover:bg-white/[0.03]'
-                }`}
-              >
-                <div className="aspect-square bg-black rounded-lg p-2 flex items-center justify-center group-hover:scale-105 transition-transform">
-                  <img
-                    src={product.image || product.image_url || ''}
-                    alt={product.name}
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[11px] font-bold leading-snug line-clamp-2 mb-1">{product.name}</p>
-                  <p className="text-[10px] font-bold text-[#CDA032] tabular-nums">
-                    {formatCurrency(displayPrice)}
-                  </p>
-                  <p className={`text-[9px] mt-1 ${inStock ? 'text-emerald-600' : 'text-[color:var(--bb-muted)]'}`}>
-                    {inStock ? 'In stock' : 'Out of stock'}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
+type VersusDuelProps = {
+  products: [Product, Product];
+  rows: CompareRow[];
+  isLight: boolean;
+  winsById: Map<string, { key: string; label: string; highlight?: boolean }[]>;
+  onRemove: (id: string) => void;
+  onAddToCart: (p: Product) => void;
+  onOpen: (p: Product) => void;
+  onAddSlot: () => void;
+  atLimit: boolean;
+};
+
+const VersusDuel: React.FC<VersusDuelProps> = ({
+  products,
+  rows,
+  isLight,
+  winsById,
+  onRemove,
+  onAddToCart,
+  onOpen,
+  onAddSlot,
+  atLimit,
+}) => {
+  const [a, b] = products;
+  const ruling = useMemo(() => buildRuling(products, rows), [products, rows]);
+  const scores = useMemo(() => scoreCompareProducts(products, rows), [products, rows]);
+  const scoresById = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const s of scores) m.set(s.productId, s.wins);
+    return m;
+  }, [scores]);
+  const forkA = useMemo(() => buildForkForProduct(a, b, rows), [a, b, rows]);
+  const forkB = useMemo(() => buildForkForProduct(b, a, rows), [a, b, rows]);
+
+  return (
+    <div className={`bb-compare-versus ${isLight ? 'bb-compare-versus--light' : ''}`}>
+      <section className="bb-compare-duel">
+        <div className="bb-compare-duel__side">
+          <ProductColumnHeader
+            product={a}
+            isLight={isLight}
+            badges={winsById.get(a.id) ?? []}
+            score={scoresById.get(a.id)}
+            showScore
+            onRemove={() => onRemove(a.id)}
+            onAddToCart={() => onAddToCart(a)}
+            onOpen={() => onOpen(a)}
+          />
         </div>
-        <Pagination
-          page={pickerPaging.page}
-          pageCount={pickerPaging.pageCount}
-          onPageChange={pickerPaging.setPage}
-          total={pickerPaging.total}
-          pageSize={COMPARE_PICKER_PAGE_SIZE}
+        <div className="bb-compare-duel__vs" aria-hidden>
+          <span>vs</span>
+        </div>
+        <div className="bb-compare-duel__side">
+          <ProductColumnHeader
+            product={b}
+            isLight={isLight}
+            badges={winsById.get(b.id) ?? []}
+            score={scoresById.get(b.id)}
+            showScore
+            onRemove={() => onRemove(b.id)}
+            onAddToCart={() => onAddToCart(b)}
+            onOpen={() => onOpen(b)}
+          />
+        </div>
+      </section>
+
+      {ruling && (
+        <section className="bb-compare-ruling">
+          <p className="bb-compare-ruling__eyebrow">The ruling</p>
+          <h2 className="bb-compare-ruling__summary">{ruling.summary}</h2>
+          {ruling.winLabels.length > 0 && (
+            <div className="bb-compare-ruling__chips">
+              {ruling.winLabels.map((label) => (
+                <span key={label} className="bb-compare-badge bb-compare-badge--hot">
+                  {label}
+                </span>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      <section className="bb-compare-fork">
+        <h2 className="bb-compare-section-title">The fork</h2>
+        <div className="bb-compare-fork__grid">
+          <div className="bb-compare-fork__col">
+            <h3>
+              {truncateName(a.name)} — if you care about…
+            </h3>
+            {forkA.length === 0 ? (
+              <p className="bb-compare-fork__empty">No clear edges on the facts we have.</p>
+            ) : (
+              <ul>
+                {forkA.map((item) => (
+                  <li key={item.key}>
+                    <span className="bb-compare-fork__label">{item.label}</span>
+                    <span className="bb-compare-fork__val">
+                      {item.value}
+                      {item.deltaLabel ? (
+                        <em className="bb-compare-fork__delta">{item.deltaLabel}</em>
+                      ) : null}
+                    </span>
+                    <span className="bb-compare-fork__vs">vs {item.opponentValue}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="bb-compare-fork__col">
+            <h3>
+              {truncateName(b.name)} — if you care about…
+            </h3>
+            {forkB.length === 0 ? (
+              <p className="bb-compare-fork__empty">No clear edges on the facts we have.</p>
+            ) : (
+              <ul>
+                {forkB.map((item) => (
+                  <li key={item.key}>
+                    <span className="bb-compare-fork__label">{item.label}</span>
+                    <span className="bb-compare-fork__val">
+                      {item.value}
+                      {item.deltaLabel ? (
+                        <em className="bb-compare-fork__delta">{item.deltaLabel}</em>
+                      ) : null}
+                    </span>
+                    <span className="bb-compare-fork__vs">vs {item.opponentValue}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="bb-compare-record">
+        <h2 className="bb-compare-section-title">The record</h2>
+        <SpecMatrix
+          products={products}
+          rows={rows}
           isLight={isLight}
-          className="pt-2"
+          winsById={winsById}
+          scoresById={scoresById}
+          showScores={false}
+          atLimit={atLimit}
+          onRemove={onRemove}
+          onAddToCart={onAddToCart}
+          onOpen={onOpen}
+          onAddSlot={onAddSlot}
         />
-      </div>
-    )}
-  </div>
+      </section>
+    </div>
   );
 };
 
@@ -207,10 +553,19 @@ export const Compare: React.FC = () => {
     [allProducts, compareIds],
   );
 
+  const compareRows = useMemo(() => buildCompareRows(compareProducts), [compareProducts]);
+
   const compareWinsById = useMemo(
     () => buildCompareWinsByProductId(compareProducts),
     [compareProducts],
   );
+
+  const scoresById = useMemo(() => {
+    const scores = scoreCompareProducts(compareProducts, compareRows);
+    const m = new Map<string, number>();
+    for (const s of scores) m.set(s.productId, s.wins);
+    return m;
+  }, [compareProducts, compareRows]);
 
   const shopProducts = useMemo(
     () =>
@@ -256,6 +611,13 @@ export const Compare: React.FC = () => {
     onToggleCompare(productId);
   };
 
+  const openProduct = (product: Product) => {
+    navigate({
+      to: '/product/$productId' as any,
+      params: { productId: productRouteParam(product) } as any,
+    });
+  };
+
   useEffect(() => {
     if (!showAddPanel) return;
     const t = window.setTimeout(() => {
@@ -266,8 +628,12 @@ export const Compare: React.FC = () => {
 
   const containerClass = isLight ? 'bg-white border-black/10' : 'bg-[var(--bb-surface)] border-[var(--bb-border)]';
   const textMuted = 'text-[color:var(--bb-muted)]';
-  const cardBg = isLight ? 'bg-black/[0.02]' : 'bg-white/[0.02]';
   const atLimit = compareIds.length >= COMPARE_MAX_ITEMS;
+
+  const pageTitle =
+    compareProducts.length >= 2
+      ? `${truncateName(compareProducts[0].name, 22)} vs ${truncateName(compareProducts[1].name, 22)}`
+      : 'Compare products';
 
   const addPanelProps = {
     isLight,
@@ -300,15 +666,17 @@ export const Compare: React.FC = () => {
               <GitCompare size={28} />
             </div>
             <div>
-              <h1 className="text-3xl sm:text-5xl font-black tracking-tight">Compare products</h1>
-              <p className="text-sm text-[color:var(--bb-muted)] mt-1">
-                Side-by-side specs and pricing — up to {COMPARE_MAX_ITEMS} devices.
+              <h1 className="text-3xl sm:text-5xl font-black tracking-tight">{pageTitle}</h1>
+              <p className={`text-sm mt-1 ${textMuted}`}>
+                {compareProducts.length === 2
+                  ? 'Head-to-head specs, ruling, and the full record.'
+                  : `Side-by-side specs and pricing — up to ${COMPARE_MAX_ITEMS} devices.`}
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-[color:var(--bb-muted)] tabular-nums">
+            <span className={`text-xs font-bold uppercase tracking-wider tabular-nums ${textMuted}`}>
               {compareIds.length}/{COMPARE_MAX_ITEMS}
             </span>
             {!atLimit && (
@@ -354,146 +722,32 @@ export const Compare: React.FC = () => {
               </button>
             )}
           </div>
+        ) : compareProducts.length === 2 ? (
+          <VersusDuel
+            products={[compareProducts[0], compareProducts[1]]}
+            rows={compareRows}
+            isLight={isLight}
+            winsById={compareWinsById}
+            onRemove={onToggleCompare}
+            onAddToCart={onAddToCart}
+            onOpen={openProduct}
+            onAddSlot={openAddPanel}
+            atLimit={atLimit}
+          />
         ) : (
-          <div className="overflow-x-auto pb-8 bb-scrollbar">
-            <div className="flex gap-4 sm:gap-6 min-w-max px-1">
-              {compareProducts.map((product) => {
-                const wins = compareWinsById.get(product.id) ?? [];
-                const inStock = (product.total_stock ?? product.stock ?? 0) > 0;
-                const displayPrice = product.price_from ?? product.price;
-
-                return (
-                  <article
-                    key={product.id}
-                    className="w-[min(100vw-2rem,320px)] flex flex-col rounded-2xl border transition-shadow hover:shadow-lg"
-                    style={{ borderColor: 'var(--bb-border)', backgroundColor: 'var(--bb-surface)' }}
-                  >
-                    <div className="p-6 border-b border-[var(--bb-border)] relative">
-                      <button
-                        type="button"
-                        onClick={() => onToggleCompare(product.id)}
-                        className="absolute top-4 right-4 p-2 rounded-full text-[color:var(--bb-muted)] hover:text-red-500 hover:bg-red-500/10 transition-colors"
-                        aria-label={`Remove ${product.name} from compare`}
-                      >
-                        <Trash2 size={16} />
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => navigate({ to: '/product/$productId' as any, params: { productId: productRouteParam(product) } as any })}
-                        className="flex flex-col items-center text-center gap-4 pt-2 w-full hover:opacity-90 transition-opacity"
-                      >
-                        <div className="w-28 h-28 rounded-2xl bg-black p-4 flex items-center justify-center">
-                          <img
-                            src={product.image || product.image_url || ''}
-                            alt={product.name}
-                            className="w-full h-full object-contain"
-                          />
-                        </div>
-                        <div>
-                          <h2 className="text-base font-bold leading-snug line-clamp-2">{product.name}</h2>
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-[#CDA032] mt-1">
-                            {product.category}
-                          </p>
-                        </div>
-                        <p className="text-xl font-black tabular-nums">{formatCurrency(displayPrice)}</p>
-                      </button>
-                    </div>
-
-                    <div className="p-6 flex-1 flex flex-col gap-6">
-                      {wins.length > 0 && (
-                        <div>
-                          <h3 className={`text-[10px] font-bold uppercase tracking-wider mb-2 ${textMuted}`}>
-                            Highlights
-                          </h3>
-                          <div className="flex flex-wrap gap-1.5">
-                            {wins.map((win) => (
-                              <span
-                                key={win.key}
-                                className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wide ${
-                                  win.highlight
-                                    ? 'bg-[#CDA032] text-black'
-                                    : `${cardBg} border border-[var(--bb-border)]`
-                                }`}
-                              >
-                                {win.label}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      <div>
-                        <h3 className={`text-[10px] font-bold uppercase tracking-wider mb-2 ${textMuted}`}>
-                          Specifications
-                        </h3>
-                        {product.specs && product.specs.length > 0 ? (
-                          <ul className="space-y-1.5">
-                            {product.specs.slice(0, 4).map((spec) => (
-                              <li
-                                key={spec}
-                                className={`px-3 py-2 rounded-lg text-[11px] font-medium ${cardBg} border border-[var(--bb-border)]`}
-                              >
-                                {spec}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className={`text-xs ${textMuted}`}>No specifications listed.</p>
-                        )}
-                      </div>
-
-                      <div className="space-y-2 text-xs">
-                        <div className="flex justify-between gap-2">
-                          <span className={textMuted}>Availability</span>
-                          <span className="font-bold">{inStock ? 'In stock' : 'Out of stock'}</span>
-                        </div>
-                        {(product.rating ?? 0) > 0 && (
-                          <div className="flex justify-between gap-2">
-                            <span className={textMuted}>Rating</span>
-                            <span className="font-bold tabular-nums">
-                              {product.rating?.toFixed(1)} ({product.reviewCount ?? 0})
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="p-6 pt-0 mt-auto">
-                      <button
-                        type="button"
-                        onClick={() => onAddToCart(product)}
-                        disabled={!inStock}
-                        aria-label={inStock ? `Add ${product.name} to cart` : `${product.name} is out of stock`}
-                        className="w-full py-3.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 bg-[#CDA032] text-black hover:bg-[#B38B21] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                        <ShoppingCart size={16} />
-                        {inStock ? 'Add to cart' : 'Out of stock'}
-                      </button>
-                    </div>
-                  </article>
-                );
-              })}
-
-              {!atLimit && (
-                <button
-                  type="button"
-                  onClick={openAddPanel}
-                  className="w-[min(100vw-2rem,320px)] min-h-[280px] self-stretch rounded-2xl border border-dashed border-[var(--bb-border)] flex flex-col items-center justify-center gap-4 hover:border-[#CDA032]/50 hover:bg-[#CDA032]/5 transition-colors active:scale-[0.98]"
-                >
-                  <div className="w-16 h-16 rounded-full border border-dashed border-[var(--bb-border)] flex items-center justify-center text-[color:var(--bb-muted)]">
-                    <Plus size={28} />
-                  </div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-[color:var(--bb-muted)] px-4 text-center">
-                    Add another device
-                  </p>
-                  <p className="text-[10px] text-[color:var(--bb-muted)] px-6 text-center">
-                    Opens the picker above — search and tap to add
-                  </p>
-                </button>
-              )}
-            </div>
-          </div>
+          <SpecMatrix
+            products={compareProducts}
+            rows={compareRows}
+            isLight={isLight}
+            winsById={compareWinsById}
+            scoresById={scoresById}
+            showScores={compareProducts.length > 1}
+            atLimit={atLimit}
+            onRemove={onToggleCompare}
+            onAddToCart={onAddToCart}
+            onOpen={openProduct}
+            onAddSlot={openAddPanel}
+          />
         )}
       </div>
     </div>
