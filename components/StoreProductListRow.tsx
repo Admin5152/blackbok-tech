@@ -6,6 +6,7 @@ import {
   defaultSelectedOptionsForProduct,
   getAvailableStock,
 } from '../lib/productOptions';
+import { productRouteParam } from '../lib/productUrl';
 
 interface Props {
   product: Product;
@@ -36,7 +37,7 @@ export const StoreProductListRow: React.FC<Props> = ({
       <button
         type="button"
         className="bb-product-card-media bb-product-card-media--store-list shrink-0 rounded-lg text-left"
-        onClick={() => onViewDetails(product.id)}
+        onClick={() => onViewDetails(productRouteParam(product))}
       >
         <img
           src={product.image || product.image_url || ''}
@@ -50,7 +51,7 @@ export const StoreProductListRow: React.FC<Props> = ({
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <button
               type="button"
-              onClick={() => onViewDetails(product.id)}
+              onClick={() => onViewDetails(productRouteParam(product))}
               className="font-bold text-base sm:text-lg text-left hover:text-[#CDA032] transition-colors min-w-0 flex-1 basis-[min(100%,12rem)]"
             >
               {product.brand ? `${product.brand} · ` : ''}
@@ -85,7 +86,7 @@ export const StoreProductListRow: React.FC<Props> = ({
           </button>
           <button
             type="button"
-            onClick={() => onViewDetails(product.id)}
+            onClick={() => onViewDetails(productRouteParam(product))}
             className="px-3 sm:px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider border border-[var(--bb-border)] hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
           >
             Details

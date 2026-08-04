@@ -19,6 +19,7 @@ import { getDealDiscountPercentage } from '../lib/dealOfTheDay';
 import { galleryImagesForSelection } from '../lib/productColorImages';
 import { PageBackButton } from '../components/PageBackButton';
 import type { ProductVariant } from '../types';
+import { productRouteParam } from '../lib/productUrl';
 
 interface ProductDetailProps {
   product: Product;
@@ -581,7 +582,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                   type="button"
                   onClick={() => {
                     window.scrollTo(0, 0);
-                    navigateTo('product', item.id);
+                    navigateTo('product', productRouteParam(item));
                   }}
                   className={`group text-left cursor-pointer rounded-xl border transition-all duration-300 overflow-hidden ${isLight ? 'bg-white border-black/5 hover:border-black/20' : 'bg-white/5 border-white/5 hover:border-[#B38B21]/40 hover:bg-white/[0.08]'}`}
                 >

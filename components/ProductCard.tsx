@@ -17,6 +17,7 @@ import {
 } from '../lib/dealOfTheDay';
 import { useAppContext } from '../App';
 import { ProductAvailabilityBadge } from './ProductAvailabilityBadge';
+import { productRouteParam } from '../lib/productUrl';
 
 interface ProductCardProps {
   product: Product;
@@ -197,7 +198,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </button>
       </div>
 
-      <Link to="/product/$productId" params={{ productId: product.id } as any} className="flex-1 flex flex-col relative z-10 min-h-0">
+      <Link to="/product/$productId" params={{ productId: productRouteParam(product) } as any} className="flex-1 flex flex-col relative z-10 min-h-0">
         <div className={`bb-product-card-media bb-product-card-media--store relative ${isCompact ? 'bb-product-card-media--store-compact' : ''}`}>
           <img
             src={product.image || product.image_url || ''}

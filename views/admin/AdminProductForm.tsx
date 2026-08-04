@@ -17,7 +17,8 @@ import { getApf, type AdminProductFormStyles } from './adminProductFormStyles';
 import { getTradeDevices } from '../../lib/tradeApi';
 import { ensureTradeCatalogModel, getAdminDevices } from '../../lib/tradeAdminApi';
 import type { TradeDeviceRow } from '../../types/supabase';
-import { uploadImage, compressImage } from '../../lib/upload';
+import { uploadImage, compressImage, IMAGE_FILE_ACCEPT } from '../../lib/upload';
+import { validateImageFileMeta } from '../../lib/security';
 import {
   addProductImage,
   upsertProductImageForVariant,
@@ -448,9 +449,9 @@ export const AdminProductForm: React.FC<Props> = ({
     opts?: { asMain?: boolean },
   ) => {
     if (!files || (files as FileList).length === 0) return;
-    const list = Array.from(files as FileList).filter((f) => f.type.startsWith('image/'));
+    const list = Array.from(files as FileList).filter((f) => validateImageFileMeta(f).ok);
     if (list.length === 0) {
-      setImgError('Please choose an image file (JPEG, PNG, or WebP).');
+      setImgError('Please choose a JPEG, PNG, WebP, or GIF image.');
       return;
     }
 
@@ -1005,7 +1006,7 @@ export const AdminProductForm: React.FC<Props> = ({
                     {imgBusy ? 'Uploading…' : draft.image ? 'Replace photo' : 'Upload photo'}
                     <input
                       type="file"
-                      accept="image/jpeg,image/png,image/webp,image/gif,image/jpg"
+                      accept={IMAGE_FILE_ACCEPT}
                       className="hidden"
                       disabled={imgBusy}
                       onChange={(e) => {
@@ -1249,7 +1250,7 @@ export const AdminProductForm: React.FC<Props> = ({
                     {imgBusy ? 'Uploading…' : 'Choose photos'}
                     <input
                       type="file"
-                      accept="image/jpeg,image/png,image/webp,image/gif,image/jpg"
+                      accept={IMAGE_FILE_ACCEPT}
                       multiple
                       className="hidden"
                       disabled={imgBusy}

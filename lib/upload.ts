@@ -1,5 +1,7 @@
 import { supabase } from './supabase';
+import { IMAGE_FILE_ACCEPT, sniffImageMagicBytes, validateImageFileMeta } from './security';
 
+export { IMAGE_FILE_ACCEPT };
 export const REPAIR_IMAGES_BUCKET = 'repair-images';
 
 /**
@@ -52,7 +54,10 @@ export async function getSignedRepairImageUrl(
   return data.signedUrl;
 }
 
-export const uploadImage = async (file: File, bucket: string = REPAIR_IMAGES_BUCKET): Promise<string | null> => {
+export const uploadImage = async (
+  file: File,
+  bucket: string = REPAIR_IMAGES_BUCKET,
+): Promise<string | null> => {
   try {
     if (!file) return null;
 
@@ -64,9 +69,10 @@ export const uploadImage = async (file: File, bucket: string = REPAIR_IMAGES_BUC
       );
     }
 
-    if (!file.type.startsWith('image/')) {
-      throw new Error('File must be an image');
-    }
+    // MIME + extension allowlist, then magic-byte sniff (blocks SVG / spoofed files).
+    const sniffed = await sniffImageMagicBytes(file);
+    if (!sniffed.ok) throw new Error(sniffed.error);
+    const { mime, ext } = sniffed;
 
     const {
       data: { user },
@@ -80,17 +86,21 @@ export const uploadImage = async (file: File, bucket: string = REPAIR_IMAGES_BUC
       );
     }
 
-    // Product images: prefer a flat public path so storefront URLs stay short.
-    // Repair images stay under `{user_id}/…` for private RLS.
-    const safeExt = (file.name.split('.').pop() || 'jpg').replace(/[^a-zA-Z0-9]/g, '').slice(0, 8) || 'jpg';
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${safeExt}`;
+    // Extension always from sniffed type — never trust the original filename.
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${ext}`;
     const filePath =
       bucket === 'product-images' ? `catalog/${fileName}` : `${user.id}/${fileName}`;
 
-    const { error } = await supabase.storage.from(bucket).upload(filePath, file, {
+    // Re-wrap with trusted Content-Type so storage metadata matches bytes.
+    const safeFile =
+      file.type === mime
+        ? file
+        : new File([file], fileName, { type: mime, lastModified: file.lastModified });
+
+    const { error } = await supabase.storage.from(bucket).upload(filePath, safeFile, {
       cacheControl: '3600',
       upsert: false,
-      contentType: file.type || 'image/jpeg',
+      contentType: mime,
     });
 
     if (error) {
@@ -129,7 +139,10 @@ export const uploadImage = async (file: File, bucket: string = REPAIR_IMAGES_BUC
   }
 };
 
-export const deleteImage = async (stored: string, bucket: string = REPAIR_IMAGES_BUCKET): Promise<void> => {
+export const deleteImage = async (
+  stored: string,
+  bucket: string = REPAIR_IMAGES_BUCKET,
+): Promise<void> => {
   try {
     let filePath: string | null = null;
     if (bucket === REPAIR_IMAGES_BUCKET) {
@@ -161,43 +174,69 @@ export const deleteImage = async (stored: string, bucket: string = REPAIR_IMAGES
   }
 };
 
-export const compressImage = (file: File, maxWidth: number = 800, quality: number = 0.8): Promise<File> => {
-  return new Promise((resolve) => {
+export const compressImage = (
+  file: File,
+  maxWidth: number = 800,
+  quality: number = 0.8,
+): Promise<File> => {
+  return new Promise((resolve, reject) => {
+    const meta = validateImageFileMeta(file);
+    if (!meta.ok) {
+      reject(new Error(meta.error));
+      return;
+    }
+
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
 
     img.onload = () => {
-      let { width, height } = img;
+      try {
+        let { width, height } = img;
 
-      if (width > maxWidth) {
-        const ratio = maxWidth / width;
-        width = maxWidth;
-        height = height * ratio;
+        if (width > maxWidth) {
+          const ratio = maxWidth / width;
+          width = maxWidth;
+          height = height * ratio;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        // Always emit JPEG/PNG from canvas — never keep a potentially hostile original type.
+        const outMime = meta.mime === 'image/png' || meta.mime === 'image/gif' ? 'image/png' : 'image/jpeg';
+        const outExt = outMime === 'image/png' ? 'png' : 'jpg';
+
+        canvas.toBlob(
+          (blob) => {
+            URL.revokeObjectURL(objectUrl);
+            if (blob) {
+              resolve(
+                new File([blob], `upload.${outExt}`, {
+                  type: outMime,
+                  lastModified: Date.now(),
+                }),
+              );
+            } else {
+              reject(new Error('Could not process image.'));
+            }
+          },
+          outMime,
+          quality,
+        );
+      } catch (e) {
+        URL.revokeObjectURL(objectUrl);
+        reject(e instanceof Error ? e : new Error('Could not process image.'));
       }
-
-      canvas.width = width;
-      canvas.height = height;
-
-      ctx?.drawImage(img, 0, 0, width, height);
-
-      canvas.toBlob(
-        (blob) => {
-          if (blob) {
-            const compressedFile = new File([blob], file.name, {
-              type: file.type,
-              lastModified: Date.now(),
-            });
-            resolve(compressedFile);
-          } else {
-            resolve(file);
-          }
-        },
-        file.type,
-        quality,
-      );
     };
 
-    img.src = URL.createObjectURL(file);
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Could not read image file.'));
+    };
+
+    img.src = objectUrl;
   });
 };

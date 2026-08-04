@@ -6,6 +6,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sendContactConfirmationToCustomer } from '../lib/server/notifyEmail';
 import { parseRequestBody } from '../lib/server/parseRequestBody';
+import { sanitizeUserLabel, sanitizeUserText } from '../lib/security';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') {
@@ -19,10 +20,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const body = parseRequestBody(req.body);
-    const name = String(body.name || '').trim();
-    const email = String(body.email || '').trim();
-    const subject = String(body.subject || '').trim();
-    const message = String(body.message || '').trim();
+    const name = sanitizeUserLabel(body.name, 120);
+    const email = String(body.email || '').trim().slice(0, 254);
+    const subject = sanitizeUserLabel(body.subject, 200);
+    const message = sanitizeUserText(body.message, 4000);
 
     if (!name || !email || !subject || !message) {
       res.status(400).json({ error: 'Name, email, subject, and message are required.' });

@@ -1,5 +1,5 @@
-import React from 'react';
-import { X, Tag, SlidersHorizontal } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, ChevronDown, Tag } from 'lucide-react';
 import { Category } from '../types';
 import { formatCurrency } from '../lib/utils';
 import { STORE_PRICE_SLIDER_MAX, STORE_PRICE_SLIDER_STEP } from '../lib/storeFilters';
@@ -11,10 +11,10 @@ export type StoreCategoryRow =
   | { key: string; label: string; value: Category; icon: React.ReactNode; count: number };
 
 const PRICE_PRESETS = [
-  { label: 'Any', range: { min: 0, max: STORE_PRICE_SLIDER_MAX } },
-  { label: 'Under 5k', range: { min: 0, max: 5000 } },
-  { label: '5k – 10k', range: { min: 5000, max: 10000 } },
-  { label: '10k+', range: { min: 10000, max: STORE_PRICE_SLIDER_MAX } },
+  { label: 'Any price', range: { min: 0, max: STORE_PRICE_SLIDER_MAX } },
+  { label: 'Under GH₵5,000', range: { min: 0, max: 5000 } },
+  { label: 'GH₵5,000 – 10,000', range: { min: 5000, max: 10000 } },
+  { label: 'GH₵10,000 & above', range: { min: 10000, max: STORE_PRICE_SLIDER_MAX } },
 ] as const;
 
 export interface StoreFilterPanelProps {
@@ -38,13 +38,9 @@ export interface StoreFilterPanelProps {
   onClearAll: () => void;
   onClose?: () => void;
   resultCount: number;
-  /** Optional series chips (iPhone / iPad / MacBooks). Empty activeSeries = All. */
   seriesOptions?: { value: string; label: string }[];
-  /** Active series slug, or '' / undefined for All */
   activeSeries?: string;
-  /** Pass '' to clear series (show all in category) */
   onSeriesClick?: (value: string) => void;
-  /** Optional New / Used chips when browsing a condition category */
   conditionOptions?: { value: string; label: string }[];
   activeCondition?: string;
   onConditionClick?: (value: string) => void;
@@ -60,69 +56,73 @@ function clampPriceRange(min: number, max: number): { min: number; max: number }
   return { min: lo, max: hi };
 }
 
-function StorePriceRangeSlider({
-  min,
-  max,
-  onChange,
+function FilterAccordion({
+  title,
+  open,
+  onToggle,
+  children,
+  badge,
 }: {
-  min: number;
-  max: number;
-  onChange: (range: { min: number; max: number }) => void;
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+  badge?: string | number | null;
 }) {
-  const minPct = (min / STORE_PRICE_SLIDER_MAX) * 100;
-  const maxPct = (max / STORE_PRICE_SLIDER_MAX) * 100;
-
   return (
-    <div className="bb-store-filter-slider" aria-label="Price range slider">
-      <div className="bb-store-filter-slider__wrap bb-store-filter-slider__wrap--lg">
-        <div className="bb-store-filter-slider__track" aria-hidden>
-          <div
-            className="bb-store-filter-slider__fill"
-            style={{ left: `${minPct}%`, width: `${Math.max(0, maxPct - minPct)}%` }}
-          />
-        </div>
-        <input
-          type="range"
-          min={0}
-          max={STORE_PRICE_SLIDER_MAX}
-          step={STORE_PRICE_SLIDER_STEP}
-          value={min}
-          onChange={(e) => {
-            const nextMin = Number(e.target.value);
-            onChange(clampPriceRange(nextMin, max));
-          }}
-          className="bb-store-filter-slider__input bb-store-filter-slider__input--min"
-          aria-label="Minimum price"
-          aria-valuemin={0}
-          aria-valuemax={STORE_PRICE_SLIDER_MAX}
-          aria-valuenow={min}
+    <section className="bb-mp-filter-section">
+      <button
+        type="button"
+        className="bb-mp-filter-section__head"
+        onClick={onToggle}
+        aria-expanded={open}
+      >
+        <span className="bb-mp-filter-section__title">{title}</span>
+        {badge != null && badge !== '' && (
+          <span className="bb-mp-filter-section__badge">{badge}</span>
+        )}
+        <ChevronDown
+          size={14}
+          className={`bb-mp-filter-section__chev ${open ? 'bb-mp-filter-section__chev--open' : ''}`}
+          aria-hidden
         />
-        <input
-          type="range"
-          min={0}
-          max={STORE_PRICE_SLIDER_MAX}
-          step={STORE_PRICE_SLIDER_STEP}
-          value={max}
-          onChange={(e) => {
-            const nextMax = Number(e.target.value);
-            onChange(clampPriceRange(min, nextMax));
-          }}
-          className="bb-store-filter-slider__input bb-store-filter-slider__input--max"
-          aria-label="Maximum price"
-          aria-valuemin={0}
-          aria-valuemax={STORE_PRICE_SLIDER_MAX}
-          aria-valuenow={max}
-        />
-      </div>
-    </div>
+      </button>
+      {open && <div className="bb-mp-filter-section__body">{children}</div>}
+    </section>
   );
 }
 
-function chipClass(active: boolean, isLight: boolean): string {
-  if (active) {
-    return 'bb-store-filter-chip bb-store-filter-chip--active';
-  }
-  return isLight ? 'bb-store-filter-chip bb-store-filter-chip--light' : 'bb-store-filter-chip bb-store-filter-chip--dark';
+function FilterCheckRow({
+  label,
+  count,
+  checked,
+  onClick,
+  indent,
+}: {
+  label: string;
+  count?: number;
+  checked: boolean;
+  onClick: () => void;
+  indent?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      className={`bb-mp-filter-row ${indent ? 'bb-mp-filter-row--indent' : ''} ${
+        checked ? 'bb-mp-filter-row--active' : ''
+      }`}
+      onClick={onClick}
+      aria-pressed={checked}
+    >
+      <span className={`bb-mp-filter-check ${checked ? 'bb-mp-filter-check--on' : ''}`} aria-hidden>
+        {checked ? '✓' : ''}
+      </span>
+      <span className="bb-mp-filter-row__label">{label}</span>
+      {typeof count === 'number' && (
+        <span className="bb-mp-filter-row__count">({count})</span>
+      )}
+    </button>
+  );
 }
 
 export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
@@ -154,295 +154,250 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
   onConditionClick,
 }) => {
   const isDrawer = variant === 'drawer';
-  const borderSubtle = isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)';
+  const borderSubtle = isLight ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.12)';
   const inputBg = isLight ? '#ffffff' : '#0a0a0a';
+
+  const hasSeries = Boolean(seriesOptions && seriesOptions.length > 0 && onSeriesClick);
+  const hasCondition = Boolean(conditionOptions && conditionOptions.length > 0 && onConditionClick);
+  const conditionTitle =
+    conditionOptions?.every((o) => o.value === 'new' || o.value === 'used') ? 'Condition' : 'Type';
+
+  const activeCat = categoryOptions.find((c) => isCategoryRowActive(c) && c.value !== 'All');
+
+  const [openSections, setOpenSections] = useState({
+    category: true,
+    series: true,
+    condition: true,
+    price: true,
+    deals: true,
+  });
+
+  const toggleSection = (key: keyof typeof openSections) => {
+    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   const isPresetActive = (min: number, max: number) =>
     priceRange.min === min && priceRange.max === max;
 
-  const hasSeries = Boolean(seriesOptions && seriesOptions.length > 0 && onSeriesClick);
-  const hasCondition = Boolean(conditionOptions && conditionOptions.length > 0 && onConditionClick);
-  const activeCategoryLabel =
-    categoryOptions.find((cat) => isCategoryRowActive(cat) && cat.value !== 'All')?.label ?? null;
-  const conditionTitle =
-    conditionOptions?.every((o) => o.value === 'new' || o.value === 'used') ? 'Condition' : 'Type';
-
   const body = (
-  <>
-      {/* Browse: category first, then series/condition nested under the pick */}
-      <section className="bb-store-filter-section">
-        <h3 className="bb-store-filter-section__title">Category</h3>
-        <div className="bb-store-filter-category-list">
+    <div className="bb-mp-filter">
+      <FilterAccordion
+        title="Category"
+        open={openSections.category}
+        onToggle={() => toggleSection('category')}
+        badge={activeCat?.label}
+      >
+        <div className="bb-mp-filter-list">
           {categoryOptions.map((cat) => {
             const active = isCategoryRowActive(cat);
             return (
-              <button
-                key={cat.key}
-                type="button"
-                onClick={() => onCategoryClick(cat)}
-                className={`${chipClass(active, isLight)} bb-store-filter-category-row w-full text-left`}
-                aria-pressed={active}
-              >
-                <span className="bb-store-filter-chip__icon">{cat.icon}</span>
-                <span className="bb-store-filter-chip__label min-w-0 truncate">{cat.label}</span>
-                <span className="bb-store-filter-chip__count">{cat.count}</span>
-              </button>
+              <React.Fragment key={cat.key}>
+                <FilterCheckRow
+                  label={cat.label.replace(/^🔥\s*/, '')}
+                  count={cat.count}
+                  checked={active}
+                  onClick={() => onCategoryClick(cat)}
+                />
+                {active && cat.value !== 'All' && hasSeries && (
+                  <div className="bb-mp-filter-tree">
+                    {seriesOptions!.slice(0, 6).map((opt) => (
+                      <FilterCheckRow
+                        key={opt.value}
+                        label={opt.label}
+                        checked={activeSeries === opt.value}
+                        indent
+                        onClick={() => onSeriesClick!(opt.value)}
+                      />
+                    ))}
+                    {seriesOptions!.length > 6 && (
+                      <p className="bb-mp-filter-more">+{seriesOptions!.length - 6} more in Series</p>
+                    )}
+                  </div>
+                )}
+              </React.Fragment>
             );
           })}
         </div>
+      </FilterAccordion>
 
-        {(hasSeries || hasCondition) && (
-          <div className="bb-store-filter-nested">
-            {activeCategoryLabel && (
-              <p className="bb-store-filter-nested__eyebrow">
-                In {activeCategoryLabel}
-              </p>
-            )}
-
-            {hasSeries && (
-              <div className="bb-store-filter-nested__block">
-                <h4 className="bb-store-filter-nested__title">Series</h4>
-                <div className="bb-store-filter-series-list">
-                  <button
-                    type="button"
-                    onClick={() => onSeriesClick!('')}
-                    className={`${chipClass(!activeSeries, isLight)} bb-store-filter-series-row w-full text-left`}
-                    aria-pressed={!activeSeries}
-                  >
-                    <span className="bb-store-filter-chip__label">All series</span>
-                  </button>
-                  {seriesOptions!.map((opt) => {
-                    const selected = activeSeries === opt.value;
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => onSeriesClick!(opt.value)}
-                        className={`${chipClass(selected, isLight)} bb-store-filter-series-row w-full text-left`}
-                        aria-pressed={selected}
-                      >
-                        <span className="bb-store-filter-chip__label">{opt.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {hasCondition && (
-              <div className="bb-store-filter-nested__block">
-                <h4 className="bb-store-filter-nested__title">{conditionTitle}</h4>
-                <div className="bb-store-filter-chip-row">
-                  {conditionOptions!.map((opt) => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => onConditionClick!(opt.value)}
-                      className={chipClass(activeCondition === opt.value, isLight)}
-                      aria-pressed={activeCondition === opt.value}
-                    >
-                      <span className="bb-store-filter-chip__label">{opt.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+      {hasSeries && (
+        <FilterAccordion
+          title="Series"
+          open={openSections.series}
+          onToggle={() => toggleSection('series')}
+          badge={
+            activeSeries
+              ? seriesOptions!.find((o) => o.value === activeSeries)?.label
+              : null
+          }
+        >
+          <div className="bb-mp-filter-list bb-mp-filter-list--scroll">
+            {seriesOptions!.map((opt) => (
+              <FilterCheckRow
+                key={opt.value}
+                label={opt.label}
+                checked={activeSeries === opt.value}
+                onClick={() => onSeriesClick!(opt.value)}
+              />
+            ))}
           </div>
-        )}
-      </section>
+        </FilterAccordion>
+      )}
 
-      {/* Price — quick presets + simple slider */}
-      <section className="bb-store-filter-section">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <h3 className="bb-store-filter-section__title mb-0">Price</h3>
-          {(priceRange.min > 0 || priceRange.max < STORE_PRICE_SLIDER_MAX) && (
-            <button
-              type="button"
-              onClick={() => onPriceRangeChange({ min: 0, max: STORE_PRICE_SLIDER_MAX })}
-              className="text-[10px] font-black uppercase tracking-widest text-[#CDA032] hover:underline"
-            >
-              Reset
+      {hasCondition && (
+        <FilterAccordion
+          title={conditionTitle}
+          open={openSections.condition}
+          onToggle={() => toggleSection('condition')}
+          badge={
+            activeCondition
+              ? conditionOptions!.find((o) => o.value === activeCondition)?.label
+              : null
+          }
+        >
+          <div className="bb-mp-filter-list">
+            {conditionOptions!.map((opt) => (
+              <FilterCheckRow
+                key={opt.value}
+                label={opt.label}
+                checked={activeCondition === opt.value}
+                onClick={() => onConditionClick!(opt.value)}
+              />
+            ))}
+          </div>
+        </FilterAccordion>
+      )}
+
+      <FilterAccordion
+        title="Price (GH₵)"
+        open={openSections.price}
+        onToggle={() => toggleSection('price')}
+      >
+        <div className="bb-mp-filter-price">
+          <div className="bb-mp-filter-price__inputs">
+            <input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={STORE_PRICE_SLIDER_MAX}
+              step={STORE_PRICE_SLIDER_STEP}
+              value={minInput}
+              onChange={(e) => onMinInputChange(e.target.value)}
+              onBlur={onCommitPrice}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  onCommitPrice();
+                }
+              }}
+              className="bb-mp-filter-price__input"
+              style={{ backgroundColor: inputBg, borderColor: borderSubtle }}
+              aria-label="Minimum price"
+              placeholder="Min"
+            />
+            <span className="bb-mp-filter-price__dash">–</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={STORE_PRICE_SLIDER_MAX}
+              step={STORE_PRICE_SLIDER_STEP}
+              value={maxInput}
+              onChange={(e) => onMaxInputChange(e.target.value)}
+              onBlur={onCommitPrice}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  onCommitPrice();
+                }
+              }}
+              className="bb-mp-filter-price__input"
+              style={{ backgroundColor: inputBg, borderColor: borderSubtle }}
+              aria-label="Maximum price"
+              placeholder="Max"
+            />
+            <button type="button" className="bb-mp-filter-price__go" onClick={onCommitPrice}>
+              Go
             </button>
+          </div>
+
+          <div className="bb-mp-filter-list">
+            {PRICE_PRESETS.map(({ label, range }) => (
+              <FilterCheckRow
+                key={label}
+                label={label}
+                checked={isPresetActive(range.min, range.max)}
+                onClick={() => onPriceRangeChange(clampPriceRange(range.min, range.max))}
+              />
+            ))}
+          </div>
+
+          {(priceRange.min > 0 || priceRange.max < STORE_PRICE_SLIDER_MAX) && (
+            <p className="bb-mp-filter-price__summary">
+              {formatCurrency(priceRange.min)} – {formatCurrency(priceRange.max)}
+              {priceRange.max >= STORE_PRICE_SLIDER_MAX ? '+' : ''}
+            </p>
           )}
         </div>
+      </FilterAccordion>
 
-        <p className="bb-store-filter-range-summary bb-store-filter-range-summary--lg">
-          {formatCurrency(priceRange.min)}
-          <span className="opacity-40 mx-1.5">–</span>
-          {formatCurrency(priceRange.max)}
-          {priceRange.max >= STORE_PRICE_SLIDER_MAX ? '+' : ''}
-        </p>
-
-        <div className="bb-store-filter-price-presets mb-4">
-          {PRICE_PRESETS.map(({ label, range }) => {
-            const active = isPresetActive(range.min, range.max);
-            return (
-              <button
-                key={label}
-                type="button"
-                onClick={() => onPriceRangeChange(range)}
-                className={`bb-store-filter-preset bb-store-filter-preset--tap ${
-                  active
-                    ? 'bb-store-filter-preset--active'
-                    : isLight
-                      ? 'bb-store-filter-preset--light'
-                      : 'bb-store-filter-preset--dark'
-                }`}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
-
-        <StorePriceRangeSlider
-          min={priceRange.min}
-          max={priceRange.max}
-          onChange={onPriceRangeChange}
-        />
-
-        <div className="bb-store-filter-price-inputs mt-3">
-          <label className="bb-store-filter-price-field">
-            <span className="bb-store-filter-price-field__label">Min</span>
-            <div className="bb-store-filter-price-field__row">
-              <span className="bb-store-filter-price-field__prefix" aria-hidden>
-                GH₵
-              </span>
-              <input
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={STORE_PRICE_SLIDER_MAX}
-                step={STORE_PRICE_SLIDER_STEP}
-                value={minInput}
-                onChange={(e) => onMinInputChange(e.target.value)}
-                onBlur={onCommitPrice}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    onCommitPrice();
-                  }
-                }}
-                className="bb-store-filter-input bb-store-filter-input--price"
-                style={{
-                  backgroundColor: inputBg,
-                  borderColor: borderSubtle,
-                  color: isLight ? '#000' : '#fff',
-                }}
-                aria-label="Minimum price in Ghana cedis"
-              />
-            </div>
-          </label>
-          <label className="bb-store-filter-price-field">
-            <span className="bb-store-filter-price-field__label">Max</span>
-            <div className="bb-store-filter-price-field__row">
-              <span className="bb-store-filter-price-field__prefix" aria-hidden>
-                GH₵
-              </span>
-              <input
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={STORE_PRICE_SLIDER_MAX}
-                step={STORE_PRICE_SLIDER_STEP}
-                value={maxInput}
-                onChange={(e) => onMaxInputChange(e.target.value)}
-                onBlur={onCommitPrice}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    onCommitPrice();
-                  }
-                }}
-                className="bb-store-filter-input bb-store-filter-input--price"
-                style={{
-                  backgroundColor: inputBg,
-                  borderColor: borderSubtle,
-                  color: isLight ? '#000' : '#fff',
-                }}
-                aria-label="Maximum price in Ghana cedis"
-              />
-            </div>
-          </label>
-        </div>
-      </section>
-
-      {/* Promotions */}
-      <section className="bb-store-filter-section">
-        <button
-          type="button"
+      <FilterAccordion
+        title="Deals"
+        open={openSections.deals}
+        onToggle={() => toggleSection('deals')}
+      >
+        <FilterCheckRow
+          label="On sale only"
+          checked={showPromotionsOnly}
           onClick={onTogglePromotions}
-          className={`bb-store-filter-promo w-full ${showPromotionsOnly ? 'bb-store-filter-promo--on' : isLight ? 'bb-store-filter-promo--off-light' : 'bb-store-filter-promo--off-dark'}`}
-        >
-          <span className="flex items-center gap-2.5 min-w-0">
-            <span className="bb-store-filter-promo__icon">
-              <Tag size={15} />
-            </span>
-            <span className="text-left">
-              <span className="block text-[11px] font-black uppercase tracking-[0.14em]">On sale</span>
-              <span className={`block text-[10px] font-medium ${showPromotionsOnly ? 'text-black/60' : isLight ? 'text-black/45' : 'text-white/45'}`}>
-                Show discounted items only
-              </span>
-            </span>
-          </span>
-          <span
-            className={`bb-store-filter-switch ${showPromotionsOnly ? 'bb-store-filter-switch--on' : ''}`}
-            aria-hidden
-          >
-            <span className="bb-store-filter-switch__thumb" />
-          </span>
-        </button>
-      </section>
-
-    </>
+        />
+        <p className="bb-mp-filter-hint">
+          <Tag size={11} aria-hidden /> Discounted items
+        </p>
+      </FilterAccordion>
+    </div>
   );
 
   if (isDrawer) {
     return (
       <div
-        className="bb-store-filter-panel bb-store-filter-panel--drawer flex h-full min-h-0 flex-col"
+        className={`bb-store-filter-panel bb-store-filter-panel--drawer bb-mp-filter-panel flex h-full min-h-0 flex-col ${
+          isLight ? 'bb-mp-filter-panel--light' : ''
+        }`}
         data-lenis-prevent
       >
-        <header className="bb-store-filter-panel__header shrink-0">
-          <div className="flex items-start gap-3">
-            <span className="bb-store-filter-panel__badge">
-              <SlidersHorizontal size={18} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-lg font-black uppercase tracking-[0.12em]">Filters</h2>
-              <p className="text-[11px] font-medium opacity-55 mt-0.5">
-                {resultCount} {resultCount === 1 ? 'item' : 'items'} match
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="bb-store-filter-close"
-              aria-label="Close filters"
-            >
-              <X size={20} />
-            </button>
+        <header className="bb-mp-filter-panel__header shrink-0">
+          <div className="min-w-0 flex-1">
+            <h2 className="bb-mp-filter-panel__title">Filter</h2>
+            <p className="bb-mp-filter-panel__meta">
+              {resultCount} {resultCount === 1 ? 'item' : 'items'}
+            </p>
           </div>
+          {activeFiltersCount > 0 && (
+            <button type="button" onClick={onClearAll} className="bb-mp-filter-clear">
+              Clear all
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="bb-store-filter-close"
+            aria-label="Close filters"
+          >
+            <X size={20} />
+          </button>
         </header>
 
         <div
-          className="bb-store-filter-panel__body bb-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 py-5 space-y-6 [-webkit-overflow-scrolling:touch]"
+          className="bb-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]"
           data-lenis-prevent
         >
           {body}
         </div>
 
-        <footer className="bb-store-filter-panel__footer shrink-0 grid grid-cols-2 gap-2 p-4">
-          <button
-            type="button"
-            onClick={onClearAll}
-            disabled={activeFiltersCount === 0}
-            className="bb-store-filter-footer-btn bb-store-filter-footer-btn--ghost disabled:opacity-35"
-          >
-            Clear all
-          </button>
-          <button type="button" onClick={onClose} className="bb-store-filter-footer-btn bb-store-filter-footer-btn--primary">
-            View {resultCount}
+        <footer className="bb-mp-filter-panel__footer shrink-0">
+          <button type="button" onClick={onClose} className="bb-mp-filter-apply">
+            Show {resultCount} {resultCount === 1 ? 'result' : 'results'}
           </button>
         </footer>
       </div>
@@ -451,29 +406,26 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
 
   return (
     <div
-      className={`bb-store-filter-panel bb-store-filter-panel--sidebar ${isLight ? 'bb-store-filter-panel--sidebar-light' : ''}`}
+      className={`bb-store-filter-panel bb-store-filter-panel--sidebar bb-mp-filter-panel ${
+        isLight ? 'bb-store-filter-panel--sidebar-light bb-mp-filter-panel--light' : ''
+      }`}
       data-lenis-prevent
     >
-      <header className="mb-5 pb-4 border-b border-black/5 dark:border-white/10">
-        <div className="flex items-center gap-2.5">
-          <span className="bb-store-filter-panel__badge">
-            <SlidersHorizontal size={16} />
-          </span>
-          <div>
-            <h2 className="text-sm font-black uppercase tracking-[0.18em]">Refine</h2>
-            <p className="text-[10px] font-medium opacity-50 mt-0.5">
-              {resultCount} {resultCount === 1 ? 'result' : 'results'}
-            </p>
-          </div>
+      <header className="bb-mp-filter-panel__header bb-mp-filter-panel__header--sidebar">
+        <div className="min-w-0 flex-1">
+          <h2 className="bb-mp-filter-panel__title">Filter</h2>
+          <p className="bb-mp-filter-panel__meta">
+            {resultCount} {resultCount === 1 ? 'result' : 'results'}
+          </p>
         </div>
         {activeFiltersCount > 0 && (
-          <button type="button" onClick={onClearAll} className="mt-3 text-[10px] font-black uppercase tracking-[0.2em] text-[#CDA032] hover:underline">
-            Clear {activeFiltersCount} active filter{activeFiltersCount === 1 ? '' : 's'}
+          <button type="button" onClick={onClearAll} className="bb-mp-filter-clear">
+            Clear all
           </button>
         )}
       </header>
       <div
-        className="bb-scrollbar min-h-0 max-h-[min(calc(100dvh-9rem),42rem)] overflow-y-auto overscroll-y-contain pr-1 space-y-6 [-webkit-overflow-scrolling:touch]"
+        className="bb-scrollbar min-h-0 max-h-[min(calc(100dvh-9rem),48rem)] overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]"
         data-lenis-prevent
       >
         {body}

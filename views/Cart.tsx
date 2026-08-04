@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { CartItem, Product, User } from "../types";
 import { formatCurrency } from "../lib/utils";
+import { productRouteParam } from "../lib/productUrl";
 import { formatGHS, pesewasToGhs } from "../lib/promotions";
 import { ProductCard } from "../components/ProductCard";
 import { PageBackButton } from "../components/PageBackButton";
@@ -218,7 +219,7 @@ export const Cart: React.FC<CartProps> = ({
                     {/* Image */}
                     <div
                       className="bb-product-card-media bb-product-card-media--cart rounded-xl sm:rounded-[2rem] bg-black/5 dark:bg-white/5 relative overflow-hidden shrink-0 group hover:shadow-2xl transition-all duration-700 cursor-pointer"
-                      onClick={() => navigateTo('product', item.id)}
+                      onClick={() => navigateTo('product', productRouteParam(item))}
                     >
                       <div className="absolute inset-0 bg-gradient-to-tr from-black/10 dark:from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                       <img
@@ -237,7 +238,7 @@ export const Cart: React.FC<CartProps> = ({
                           <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#CDA032] opacity-80">
                             {item.category}
                           </p>
-                          <h3 className="text-lg sm:text-2xl lg:text-3xl font-black uppercase tracking-tighter leading-none hover:text-[#CDA032] transition-colors cursor-pointer" onClick={() => navigateTo('product', item.id)}>
+                          <h3 className="text-lg sm:text-2xl lg:text-3xl font-black uppercase tracking-tighter leading-none hover:text-[#CDA032] transition-colors cursor-pointer" onClick={() => navigateTo('product', productRouteParam(item))}>
                             {item.name}
                           </h3>
 

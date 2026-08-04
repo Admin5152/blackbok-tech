@@ -1,6 +1,11 @@
 import { friendlyError } from './friendlyErrors';
 import { supabase } from './supabase';
 import {
+  sanitizeHttpUrl,
+  sanitizeUserLabel,
+  sanitizeUserText,
+} from './security';
+import {
   assertRepairPricingConstraint,
   parseDeviceType,
   PRICING_MODE,
@@ -305,12 +310,18 @@ export const createProduct = async (product: Partial<Product>) => {
     (product as Product & { specifications?: unknown }).specifications,
   );
   const payload = stripUndefined({
-    name: product.name,
-    description: product.description,
+    name: product.name != null ? sanitizeUserLabel(product.name, 200) : undefined,
+    description:
+      product.description != null ? sanitizeUserText(product.description, 8000) : undefined,
     price: Number.isFinite(priceNum) ? priceNum : undefined,
-    image_url: product.image || product.image_url,
-    category: product.category,
-    brand: product.brand,
+    image_url: (() => {
+      const raw = product.image || product.image_url;
+      if (raw == null || raw === '') return raw;
+      const safe = sanitizeHttpUrl(raw, { allowHttp: true });
+      return safe === null ? undefined : safe || undefined;
+    })(),
+    category: product.category != null ? sanitizeUserLabel(product.category, 80) : undefined,
+    brand: product.brand != null ? sanitizeUserLabel(product.brand, 80) : undefined,
     subcategory:
       product.subcategory !== undefined
         ? product.subcategory || null
@@ -354,12 +365,19 @@ export const updateProduct = async (id: string, updates: Partial<Product>) => {
     (updates as Product & { specifications?: unknown }).specifications,
   );
   const payload = stripUndefined({
-    name: updates.name,
-    description: updates.description,
+    name: updates.name != null ? sanitizeUserLabel(updates.name, 200) : undefined,
+    description:
+      updates.description != null ? sanitizeUserText(updates.description, 8000) : undefined,
     price: priceNum !== undefined && Number.isFinite(priceNum) ? priceNum : undefined,
-    image_url: updates.image || updates.image_url,
-    category: updates.category,
-    brand: updates.brand,
+    image_url: (() => {
+      if (updates.image === undefined && updates.image_url === undefined) return undefined;
+      const raw = updates.image || updates.image_url;
+      if (raw == null || raw === '') return raw;
+      const safe = sanitizeHttpUrl(raw, { allowHttp: true });
+      return safe === null ? undefined : safe || null;
+    })(),
+    category: updates.category != null ? sanitizeUserLabel(updates.category, 80) : undefined,
+    brand: updates.brand != null ? sanitizeUserLabel(updates.brand, 80) : undefined,
     subcategory:
       updates.subcategory !== undefined
         ? updates.subcategory || null
@@ -1211,7 +1229,14 @@ export const getReviews = async (productId: string): Promise<Review[]> => {
 };
 
 export const addReview = async (review: Omit<Review, 'id' | 'created_at'>) => {
-  const { data, error } = await supabase.from('reviews').insert(review).select().single();
+  const payload = {
+    ...review,
+    title: review.title != null ? sanitizeUserLabel(review.title, 200) : review.title,
+    body: review.body != null ? sanitizeUserText(review.body, 2000) : review.body,
+    user_name:
+      review.user_name != null ? sanitizeUserLabel(review.user_name, 120) : review.user_name,
+  };
+  const { data, error } = await supabase.from('reviews').insert(payload).select().single();
   if (error) throw error;
   return data;
 };
@@ -1809,6 +1834,27 @@ const normalizeRepairPayload = (repair: Partial<RepairRequest>) => {
   for (const k of Object.keys(normalized)) {
     if (!REPAIR_DB_COLUMNS.has(k)) {
       delete normalized[k];
+    }
+  }
+
+  // Strip HTML / control chars from free-text fields before insert.
+  const textFields: Array<{ key: string; max: number }> = [
+    { key: 'issue_description', max: 4000 },
+    { key: 'issue_type', max: 200 },
+    { key: 'device_brand', max: 120 },
+    { key: 'device_model', max: 120 },
+    { key: 'admin_note', max: 4000 },
+    { key: 'technician_notes', max: 4000 },
+    { key: 'user_name', max: 120 },
+    { key: 'contact_name', max: 120 },
+    { key: 'contact_phone', max: 40 },
+    { key: 'contact_email', max: 254 },
+    { key: 'ai_diagnosis', max: 4000 },
+    { key: 'assigned_technician', max: 120 },
+  ];
+  for (const { key, max } of textFields) {
+    if (normalized[key] != null && normalized[key] !== '') {
+      normalized[key] = sanitizeUserText(normalized[key], max);
     }
   }
 

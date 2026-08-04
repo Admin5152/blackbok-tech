@@ -111,6 +111,7 @@ import { WelcomeScreen } from './components/WelcomeScreen';
 import { generateId } from './lib/utils';
 import { COMPARE_MAX_ITEMS } from './lib/compareProducts';
 import { getProduct } from './lib/api';
+import { productMatchesRouteParam, productRouteParam } from './lib/productUrl';
 import { SessionTimeoutProvider } from './components/SessionTimeoutProvider';
 import {
   clearLastActivityMs,
@@ -340,10 +341,11 @@ const productDetailRoute = createRoute({
   path: '/product/$productId',
   component: () => {
     const { productId } = useParams({ from: productDetailRoute.id } as any);
+    const navigate = useNavigate();
     const { products, theme, ...context } = useAppContext();
-    
+
     // Start with local state for instant render, then refresh from database
-    const localProduct = products.find((p: Product) => p.id === productId);
+    const localProduct = products.find((p: Product) => productMatchesRouteParam(p, productId));
     const [product, setProduct] = useState<Product | null>(localProduct || null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -376,6 +378,28 @@ const productDetailRoute = createRoute({
         cancelled = true;
       };
     }, [productId, localProduct?.id, localProduct?.price, localProduct?.price_from]);
+
+    // Browser tab / share title — show product name, not a UUID.
+    useEffect(() => {
+      if (!product?.name) return;
+      const prev = document.title;
+      document.title = `${product.name} | BlackBox Ghana`;
+      return () => {
+        document.title = prev;
+      };
+    }, [product?.name]);
+
+    // Prefer readable slug URLs; rewrite legacy UUID links without a history entry.
+    useEffect(() => {
+      if (!product) return;
+      const canonical = productRouteParam(product);
+      if (!canonical || canonical === productId) return;
+      void navigate({
+        to: '/product/$productId',
+        params: { productId: canonical },
+        replace: true,
+      } as any);
+    }, [product, productId, navigate]);
 
     // Stable related picks — must run before early returns (Rules of Hooks).
     const relatedProducts = useMemo(() => {

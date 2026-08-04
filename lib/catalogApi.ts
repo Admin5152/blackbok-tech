@@ -10,6 +10,8 @@ import type { Product, ProductImage, ProductVariant } from '../types';
 import type { ProductPageRow } from '../types/supabase';
 import { normalizeProductCategory, normalizeProductImages, normalizeProductCondition } from './api';
 import { resolveSkuEffectivePrice } from './skuPrice';
+import { isProductUuid } from './productUrl';
+import { buildIlikeOrFilter, sanitizeSearchQuery } from './security';
 
 /** Map one v_product_page row → UI Product (card-ready; no variants). */
 export function mapProductPageRow(row: ProductPageRow): Product {
@@ -104,7 +106,7 @@ export async function getDealOfTheDayFromView(): Promise<Product[]> {
  * Returns matching product ids, then hydrates from v_product_page.
  */
 export async function searchCatalogText(query: string): Promise<Product[]> {
-  const q = query.trim();
+  const q = sanitizeSearchQuery(query);
   if (!q) return getCatalogFromView();
 
   // Hit the GIN index via textSearch on name (english config matches migration).
@@ -117,12 +119,14 @@ export async function searchCatalogText(query: string): Promise<Product[]> {
     .textSearch('name', q, { type: 'websearch', config: 'english' });
 
   if (error) {
-    // Fallback: ilike when fts rejects the query string
+    // Fallback: ilike when fts rejects the query — never interpolate raw user input.
+    const orFilter = buildIlikeOrFilter(['name', 'brand', 'description'], q);
+    if (!orFilter) return [];
     const { data: soft, error: softErr } = await supabase
       .from('v_product_page')
       .select('*')
       .eq('status', 'active')
-      .or(`name.ilike.%${q}%,brand.ilike.%${q}%,description.ilike.%${q}%`);
+      .or(orFilter);
     if (softErr) throw softErr;
     return (soft || []).map((r) => mapProductPageRow(r as ProductPageRow));
   }
@@ -139,16 +143,60 @@ export async function searchCatalogText(query: string): Promise<Product[]> {
   return (rows || []).map((r) => mapProductPageRow(r as ProductPageRow));
 }
 
-/** PDP shell from the view (one row). */
-export async function getProductPageRow(id: string): Promise<Product | null> {
-  const { data, error } = await supabase
+/** PDP shell from the view (one row). Accepts product UUID or slug. */
+export async function getProductPageRow(idOrSlug: string): Promise<Product | null> {
+  const key = decodeURIComponent(String(idOrSlug || '').trim());
+  if (!key) return null;
+
+  if (isProductUuid(key)) {
+    const { data, error } = await supabase
+      .from('v_product_page')
+      .select('*')
+      .eq('id', key)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? mapProductPageRow(data as ProductPageRow) : null;
+  }
+
+  const bySlug = await supabase
     .from('v_product_page')
     .select('*')
-    .eq('id', id)
+    .eq('slug', key)
     .maybeSingle();
-  if (error) throw error;
-  if (!data) return null;
-  return mapProductPageRow(data as ProductPageRow);
+  if (bySlug.error) throw bySlug.error;
+  if (bySlug.data) return mapProductPageRow(bySlug.data as ProductPageRow);
+
+  // Generated URLs: `{name-slug}--{uuid-prefix}`
+  const sep = key.lastIndexOf('--');
+  if (sep > 0) {
+    const idPrefix = key.slice(sep + 2).trim();
+    if (/^[0-9a-f]{8}$/i.test(idPrefix)) {
+      const { data, error } = await supabase
+        .from('v_product_page')
+        .select('*')
+        .ilike('id', `${idPrefix}%`)
+        .limit(2);
+      if (error) throw error;
+      const rows = (data || []) as ProductPageRow[];
+      if (rows.length === 1) return mapProductPageRow(rows[0]);
+      if (rows.length > 1) {
+        const nameSlug = key.slice(0, sep);
+        const hit =
+          rows.find((r) => String(r.slug || '') === key) ||
+          rows.find((r) => {
+            const n = String(r.name || '')
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, '-')
+              .replace(/^-+|-+$/g, '');
+            return n === nameSlug || n.startsWith(nameSlug) || nameSlug.startsWith(n);
+          }) ||
+          rows[0];
+        return mapProductPageRow(hit);
+      }
+    }
+  }
+
+  return null;
 }
 
 /** Active SKU rows for PDP picker — separate from the card view query. */
@@ -195,10 +243,12 @@ export async function getProductImages(productId: string): Promise<ProductImage[
 /**
  * PDP payload: view row + variants + images.
  * WHY not one join for cards: acceptance requires cards from view only.
+ * `idOrSlug` may be a UUID, DB slug, or generated `{name}--{idPrefix}` URL.
  */
-export async function getProductForPdp(id: string): Promise<Product | null> {
-  const page = await getProductPageRow(id);
+export async function getProductForPdp(idOrSlug: string): Promise<Product | null> {
+  const page = await getProductPageRow(idOrSlug);
   if (!page) return null;
+  const id = page.id;
   const [variants, images, baseRes] = await Promise.all([
     getProductVariants(id),
     getProductImages(id),

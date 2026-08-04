@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { Upload, Link2 } from 'lucide-react';
+import { IMAGE_FILE_ACCEPT, sanitizeImageUrl, validateImageFileMeta } from '../../lib/security';
 
 type Props = {
   colors: string[];
@@ -65,12 +66,19 @@ export const ProductColorImageUploader: React.FC<Props> = ({
                     inputRefs.current[color] = el;
                   }}
                   type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif,image/jpg"
+                  accept={IMAGE_FILE_ACCEPT}
                   className="hidden"
                   disabled={busy}
                   onChange={(e) => {
                     const file = e.target.files?.[0];
-                    if (file) void onUpload(color, file);
+                    if (file) {
+                      const meta = validateImageFileMeta(file);
+                      if (!meta.ok) {
+                        window.alert(meta.error);
+                      } else {
+                        void onUpload(color, file);
+                      }
+                    }
                     e.target.value = '';
                   }}
                 />
@@ -79,9 +87,34 @@ export const ProductColorImageUploader: React.FC<Props> = ({
                 <Link2 size={12} className={`shrink-0 mt-2 ${muted}`} />
                 <input
                   type="url"
-                  placeholder="Or paste image URL"
+                  inputMode="url"
+                  placeholder="Or paste https image URL"
                   value={url}
-                  onChange={(e) => onUrlChange(color, e.target.value)}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    if (!next.trim()) {
+                      onUrlChange(color, '');
+                      return;
+                    }
+                    const safe = sanitizeImageUrl(next);
+                    // Allow typing mid-edit; only commit when empty or valid http(s).
+                    if (safe === null && next.length > 12) return;
+                    onUrlChange(color, safe === null ? next : safe);
+                  }}
+                  onBlur={(e) => {
+                    const next = e.target.value.trim();
+                    if (!next) {
+                      onUrlChange(color, '');
+                      return;
+                    }
+                    const safe = sanitizeImageUrl(next);
+                    if (safe === null) {
+                      window.alert('Image URL must start with https:// or http://');
+                      onUrlChange(color, '');
+                      return;
+                    }
+                    onUrlChange(color, safe);
+                  }}
                   className={inputCls}
                 />
               </div>

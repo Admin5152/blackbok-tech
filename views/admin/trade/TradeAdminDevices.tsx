@@ -194,8 +194,14 @@ export const TradeAdminDevices: React.FC = () => {
   };
 
   const uploadDevicePhoto = async (row: TradeDeviceRow, file: File | null) => {
-    if (!file || !file.type.startsWith('image/')) {
-      notify?.('Choose a JPEG, PNG, or WebP image.', 'error');
+    if (!file) {
+      notify?.('Choose a JPEG, PNG, WebP, or GIF image.', 'error');
+      return;
+    }
+    const { validateImageFileMeta } = await import('../../../lib/security');
+    const meta = validateImageFileMeta(file);
+    if (!meta.ok) {
+      notify?.(meta.error, 'error');
       return;
     }
     setSaving(row.model);

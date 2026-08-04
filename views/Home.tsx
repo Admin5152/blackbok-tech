@@ -12,6 +12,7 @@ import { normalizeProductCategory } from '../lib/api';
 import { scrollHomeRail } from '../lib/homeCarouselScroll';
 import { useHomeRailScroll } from '../hooks/useHomeRailScroll';
 import { useAutoHomeRails } from '../hooks/useAutoHomeRails';
+import { productRouteParam } from '../lib/productUrl';
 
 /** Editorial overlap positions (sizes bumped so flyers fill the hero). Rotation = CSS animation per tile. */
 const HERO_COLLAGE_FRAMES = [
@@ -394,7 +395,7 @@ export const Home: React.FC<HomeProps> = ({
               {phoneLeadProduct ? (
                 <Link
                   to="/product/$productId"
-                  params={{ productId: phoneLeadProduct.id } as any}
+                  params={{ productId: productRouteParam(phoneLeadProduct) } as any}
                   className="absolute inset-0 z-10"
                   aria-label={`View ${phoneLeadProduct.name}`}
                 >
@@ -428,7 +429,7 @@ export const Home: React.FC<HomeProps> = ({
               <Link
                 key={p.id}
                 to="/product/$productId"
-                params={{ productId: p.id } as any}
+                params={{ productId: productRouteParam(p) } as any}
                 data-home-rail-item
                 className={`w-[260px] md:w-[300px] h-[360px] md:h-[420px] rounded-[2rem] flex-shrink-0 flex flex-col group cursor-pointer overflow-hidden relative shadow-lg ${theme === 'dark' ? 'bg-[#14141c] border border-white/[0.07] shadow-[0_20px_48px_-14px_rgba(0,0,0,0.6)]' : 'bg-[#ffffff] border border-black/[0.08]'} ${homeProductCardHover}`}
               >
@@ -475,7 +476,7 @@ export const Home: React.FC<HomeProps> = ({
 
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={(e) => { e.stopPropagation(); if (navigateTo) navigateTo('product', p.id); }}
+                        onClick={(e) => { e.stopPropagation(); if (navigateTo) navigateTo('product', productRouteParam(p)); }}
                         className={`w-10 h-10 rounded-full backdrop-blur-md transition-all flex items-center justify-center border hover:border-transparent hover:scale-110 hover:shadow-[0_0_0_1px_rgba(212,175,55,0.45)] active:scale-95 group/nav ${theme === 'dark' ? 'bg-black/40 text-white hover:bg-[#CDA032] border-white/20' : 'bg-white/40 text-black hover:bg-[#CDA032] border-black/10 shadow-sm'} ${TW_DARK_BTN_DEPTH}`}
                       >
                         <ArrowRight size={16} className="group-hover/nav:-rotate-45 transition-transform" />
@@ -544,7 +545,7 @@ export const Home: React.FC<HomeProps> = ({
               {laptopLeadProduct ? (
                 <Link
                   to="/product/$productId"
-                  params={{ productId: laptopLeadProduct.id } as any}
+                  params={{ productId: productRouteParam(laptopLeadProduct) } as any}
                   className="absolute inset-0 z-10"
                   aria-label={`View ${laptopLeadProduct.name}`}
                 >
@@ -580,7 +581,7 @@ export const Home: React.FC<HomeProps> = ({
               <Link
                 key={p.id}
                 to="/product/$productId"
-                params={{ productId: p.id } as any}
+                params={{ productId: productRouteParam(p) } as any}
                 data-home-rail-item
                 className={`w-[260px] md:w-[300px] h-[360px] md:h-[420px] rounded-[2rem] flex-shrink-0 flex flex-col group cursor-pointer overflow-hidden relative shadow-lg ${theme === 'dark' ? 'bg-[#14141c] border border-white/[0.07] shadow-[0_20px_48px_-14px_rgba(0,0,0,0.6)]' : 'bg-[#ffffff] border border-black/[0.08]'} ${homeProductCardHover}`}
               >
@@ -627,7 +628,7 @@ export const Home: React.FC<HomeProps> = ({
 
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={(e) => { e.stopPropagation(); if (navigateTo) navigateTo('product', p.id); }}
+                        onClick={(e) => { e.stopPropagation(); if (navigateTo) navigateTo('product', productRouteParam(p)); }}
                         className={`w-10 h-10 rounded-full backdrop-blur-md transition-all flex items-center justify-center border hover:border-transparent hover:scale-110 hover:shadow-[0_0_0_1px_rgba(212,175,55,0.45)] active:scale-95 group/nav ${theme === 'dark' ? 'bg-black/40 text-white hover:bg-[#CDA032] border-white/20' : 'bg-white/40 text-black hover:bg-[#CDA032] border-black/10 shadow-sm'} ${TW_DARK_BTN_DEPTH}`}
                       >
                         <ArrowRight size={16} className="group-hover/nav:-rotate-45 transition-transform" />
@@ -964,7 +965,7 @@ export const Home: React.FC<HomeProps> = ({
                       <Link
                         key={p.id}
                         to="/product/$productId"
-                        params={{ productId: p.id } as any}
+                        params={{ productId: productRouteParam(p) } as any}
                         className={`min-w-[45%] h-28 rounded-2xl overflow-hidden relative group/mini cursor-pointer ${theme === 'light' ? 'bg-gray-100 border border-black/10' : 'bg-[#050505] border border-white/10'} ${homeMiniCardHover}`}
                       >
                         <div className="bb-product-card-media bb-product-card-media--mini">

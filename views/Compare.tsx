@@ -14,6 +14,7 @@ import {
 import { usePagination } from '../lib/pagination';
 import { Pagination } from '../components/Pagination';
 import type { Product } from '../types';
+import { productRouteParam } from '../lib/productUrl';
 
 type CompareAddPanelProps = {
   isLight: boolean;
@@ -379,7 +380,7 @@ export const Compare: React.FC = () => {
 
                       <button
                         type="button"
-                        onClick={() => navigate({ to: '/product/$productId' as any, params: { productId: product.id } as any })}
+                        onClick={() => navigate({ to: '/product/$productId' as any, params: { productId: productRouteParam(product) } as any })}
                         className="flex flex-col items-center text-center gap-4 pt-2 w-full hover:opacity-90 transition-opacity"
                       >
                         <div className="w-28 h-28 rounded-2xl bg-black p-4 flex items-center justify-center">

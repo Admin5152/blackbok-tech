@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Upload, X, Camera, AlertCircle, Check } from 'lucide-react';
-import { uploadImage, compressImage } from '../lib/upload';
+import { uploadImage, compressImage, IMAGE_FILE_ACCEPT } from '../lib/upload';
+import { validateImageFileMeta } from '../lib/security';
 import { RepairStorageImage } from './RepairStorageImage';
 
 interface ImageUploadProps {
@@ -45,9 +46,9 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
           throw new Error(`File ${file.name} is larger than ${maxSize}MB`);
         }
 
-        // Validate file type
-        if (!file.type.startsWith('image/')) {
-          throw new Error(`File ${file.name} is not an image`);
+        const meta = validateImageFileMeta(file);
+        if (!meta.ok) {
+          throw new Error(`${file.name}: ${meta.error}`);
         }
 
         // Compress image
@@ -89,7 +90,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
             ref={fileInputRef}
             type="file"
             multiple
-            accept="image/*"
+            accept={IMAGE_FILE_ACCEPT}
             onChange={handleFileSelect}
             disabled={uploading}
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"

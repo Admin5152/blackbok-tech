@@ -5,6 +5,8 @@ export type FlowBreadcrumbItem = {
   label: string;
   /** When set, renders as a link; otherwise plain text (current step). */
   to?: string;
+  /** Prefer for in-app search/state navigation (shop refine trail). */
+  onClick?: () => void;
 };
 
 interface FlowBreadcrumbProps {
@@ -13,7 +15,7 @@ interface FlowBreadcrumbProps {
 }
 
 /**
- * Compact trail for multi-step flows (trade-in, repair).
+ * Compact trail for multi-step flows (shop, trade-in, repair).
  * Sentence case; current step is not a link.
  */
 export const FlowBreadcrumb: React.FC<FlowBreadcrumbProps> = ({
@@ -24,10 +26,11 @@ export const FlowBreadcrumb: React.FC<FlowBreadcrumbProps> = ({
   return (
     <nav
       aria-label="Breadcrumb"
-      className={`flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] sm:text-xs tracking-wide ${className}`}
+      className={`bb-store-breadcrumb flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] sm:text-xs tracking-wide ${className}`}
     >
       {items.map((item, i) => {
         const isLast = i === items.length - 1;
+        const canNavigate = !isLast && Boolean(item.onClick || item.to);
         return (
           <React.Fragment key={`${item.label}-${i}`}>
             {i > 0 && (
@@ -35,7 +38,15 @@ export const FlowBreadcrumb: React.FC<FlowBreadcrumbProps> = ({
                 /
               </span>
             )}
-            {item.to && !isLast ? (
+            {canNavigate && item.onClick ? (
+              <button
+                type="button"
+                onClick={item.onClick}
+                className="opacity-50 hover:opacity-100 hover:text-[#CDA032] transition-colors"
+              >
+                {item.label}
+              </button>
+            ) : canNavigate && item.to ? (
               <Link
                 to={item.to}
                 className="opacity-50 hover:opacity-100 hover:text-[#CDA032] transition-colors"

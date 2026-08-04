@@ -22,6 +22,7 @@ import {
   type PromoUsagePreset,
 } from '../../../lib/promotions';
 import { hairlineCard, promoRpcErrorMessage } from './promoAdminShared';
+import { buildIlikeOrFilter, sanitizeSearchQuery } from '../../../lib/security';
 
 type ChipMode = 'cash' | 'percentage';
 type AppliesChoice = 'order' | 'product' | 'category' | 'services' | 'audience';
@@ -532,10 +533,15 @@ export const AdminPromotionBuilder: React.FC<BuilderProps> = ({ previewMode = fa
       );
       return;
     }
+    const needle = sanitizeSearchQuery(q);
+    if (!needle) {
+      setProductOptions([]);
+      return;
+    }
     const { data } = await supabase
       .from('products')
       .select('id, name')
-      .ilike('name', `%${q.trim()}%`)
+      .ilike('name', `%${needle}%`)
       .limit(12);
     setProductOptions(
       (data || []).map((r: { id: string; name: string }) => ({
@@ -563,10 +569,20 @@ export const AdminPromotionBuilder: React.FC<BuilderProps> = ({ previewMode = fa
       );
       return;
     }
+    const needle = sanitizeSearchQuery(q);
+    if (!needle) {
+      setCustomerHits([]);
+      return;
+    }
+    const orFilter = buildIlikeOrFilter(['email', 'name'], needle);
+    if (!orFilter) {
+      setCustomerHits([]);
+      return;
+    }
     let query = supabase
       .from('profiles')
       .select('id, email, name, role')
-      .or(`email.ilike.%${q.trim()}%,name.ilike.%${q.trim()}%`)
+      .or(orFilter)
       .limit(10);
 
     if (audienceStaff && !audienceCustomers) {

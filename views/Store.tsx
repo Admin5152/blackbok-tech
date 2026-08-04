@@ -33,6 +33,7 @@ import { lockPageScroll } from '../lib/pageScrollLock';
 import { PAGE_SIZES, usePagination } from '../lib/pagination';
 import { Pagination } from '../components/Pagination';
 import { ProductGridSkeleton, ListSkeleton } from '../components/Skeleton';
+import { FlowBreadcrumb, type FlowBreadcrumbItem } from '../components/FlowBreadcrumb';
 import {
   buildOrderedStoreCategoryKeys,
   countActiveStoreFilters,
@@ -521,6 +522,90 @@ export const Store: React.FC<StoreProps> = ({
     navigate({ to: '/store', search: scope as never, replace: true });
   }, [navigate, resetLocalStoreFilters, categoryScopeSearch, activeSeries, seriesOptions.length]);
 
+  /** Shop trail: Shop › Category › Series › Condition */
+  const storeBreadcrumbItems = useMemo((): FlowBreadcrumbItem[] => {
+    const items: FlowBreadcrumbItem[] = [];
+
+    if (showCategoryPicker) {
+      return [{ label: 'Shop' }];
+    }
+
+    items.push({ label: 'Shop', onClick: goToCategoryPicker });
+
+    if (browseDeals) {
+      items.push({ label: 'Deal of the Day' });
+      return items;
+    }
+
+    if (!activeCategory) {
+      items.push({ label: 'All products' });
+      return items;
+    }
+
+    // On series step: Shop / iPhone (current)
+    if (showSeriesPicker) {
+      items.push({ label: String(activeCategory) });
+      return items;
+    }
+
+    // Past series picker (or no series step)
+    if (seriesOptions.length > 0) {
+      items.push({
+        label: String(activeCategory),
+        onClick: goToSeriesPicker,
+      });
+      const seriesCrumbLabel = activeSeries
+        ? seriesFilterLabel(activeSeries, activeCategory)
+        : seriesIsAll
+          ? 'All series'
+          : 'Series';
+      if (showSubcategoryPicker) {
+        items.push({ label: seriesCrumbLabel });
+        return items;
+      }
+      items.push({
+        label: seriesCrumbLabel,
+        onClick: goToSubcategoryPicker,
+      });
+    } else {
+      if (showSubcategoryPicker) {
+        items.push({ label: String(activeCategory) });
+        return items;
+      }
+      items.push({
+        label: String(activeCategory),
+        onClick: goToSubcategoryPicker,
+      });
+    }
+
+    if (subcategoryFilter) {
+      const sub = subcategoryFilterLabel(subcategoryFilter, activeCategory);
+      if (sub) items.push({ label: sub });
+    } else if (showSubcategoryPicker) {
+      items.push({
+        label: subcategoryOptions.every((o) => o.kind === 'condition')
+          ? 'Condition'
+          : 'Type',
+      });
+    }
+
+    return items;
+  }, [
+    showCategoryPicker,
+    showSeriesPicker,
+    showSubcategoryPicker,
+    browseDeals,
+    activeCategory,
+    seriesOptions.length,
+    activeSeries,
+    seriesIsAll,
+    subcategoryFilter,
+    subcategoryOptions,
+    goToCategoryPicker,
+    goToSeriesPicker,
+    goToSubcategoryPicker,
+  ]);
+
   const openCategory = useCallback(
     (cat: Category) => {
       resetLocalStoreFilters();
@@ -959,7 +1044,8 @@ export const Store: React.FC<StoreProps> = ({
                 </button>
               </div>
             </div>
-            <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-[color:var(--bb-muted)]">
+            <FlowBreadcrumb items={storeBreadcrumbItems} className="mt-2.5" />
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-[color:var(--bb-muted)]">
               Pick a category to see products. You can still search or filter once you are in a section.
             </p>
           </div>
@@ -1087,80 +1173,15 @@ export const Store: React.FC<StoreProps> = ({
                 Choose a series
               </h1>
             </div>
-            <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-[color:var(--bb-muted)]">
-              Pick a series (or All), then choose Brand new or Used.
+            <FlowBreadcrumb items={storeBreadcrumbItems} className="mt-2.5" />
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-[color:var(--bb-muted)]">
+              Pick a series, then choose Brand new or Used.
             </p>
           </div>
         </header>
 
         <div className="max-w-7xl mx-auto px-3 sm:px-4 pt-6 sm:pt-8 pb-10">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-            {(() => {
-              const allCount = baseFilteredProducts.filter((p) =>
-                productMatchesStoreCategories(p, [activeCategory as Category]),
-              ).length;
-              const allCover = categoryCoverImage(products, normalizeProductCategory(activeCategory));
-              const isPhoneSeries = normalizeProductCategory(activeCategory) === 'iPhone';
-              return (
-                <button
-                  key="all-series"
-                  type="button"
-                  onClick={() => openSeries('all')}
-                  className="group relative flex min-h-[8.5rem] flex-col overflow-hidden rounded-2xl border border-[var(--bb-border)] bg-[var(--bb-surface)] text-left transition-all hover:border-[#CDA032]/50 hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032]/50"
-                >
-                  <div className="absolute inset-0">
-                    <img
-                      src={allCover}
-                      alt=""
-                      className={
-                        isPhoneSeries
-                          ? 'absolute inset-y-0 right-0 h-full w-[68%] sm:w-[62%] object-cover object-[center_8%] opacity-90 sm:opacity-95 transition-transform duration-500 group-hover:scale-110'
-                          : 'h-full w-full object-cover opacity-80 sm:opacity-85 transition-transform duration-500 group-hover:scale-105 group-hover:opacity-95'
-                      }
-                    />
-                    <div
-                      className={`absolute inset-0 to-transparent ${
-                        isPhoneSeries
-                          ? isLight
-                            ? 'bg-gradient-to-r from-white via-white/80 to-white/10'
-                            : 'bg-gradient-to-r from-[#060605] via-[#060605]/75 to-transparent'
-                          : isLight
-                            ? 'bg-gradient-to-t from-white via-white/55'
-                            : 'bg-gradient-to-t from-[#060605] via-[#060605]/55'
-                      }`}
-                    />
-                  </div>
-                  <div className="relative z-[1] flex flex-1 flex-col justify-between p-4 sm:p-5">
-                    <span
-                      className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border text-[#CDA032] ${
-                        isLight
-                          ? 'border-black/10 bg-white/90 shadow-sm'
-                          : 'border-white/15 bg-black/50 backdrop-blur-sm'
-                      }`}
-                    >
-                      {categoryIconLg(activeCategory)}
-                    </span>
-                    <div>
-                      <span
-                        className={`block text-sm sm:text-base font-bold tracking-tight ${
-                          isLight
-                            ? 'text-black drop-shadow-[0_1px_1px_rgba(255,255,255,0.9)]'
-                            : 'text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.65)]'
-                        }`}
-                      >
-                        All {activeCategory}
-                      </span>
-                      <span className={`mt-1 block text-xs ${isLight ? 'text-black/60' : 'text-white/65'}`}>
-                        Every series in this category
-                      </span>
-                      <span className="mt-2 block text-[10px] font-black uppercase tracking-widest text-[#CDA032]/80">
-                        {allCount} model{allCount === 1 ? '' : 's'}
-                      </span>
-                    </div>
-                  </div>
-                </button>
-              );
-            })()}
             {seriesOptions.map((opt: StoreSeriesOption) => {
               const count = getSeriesCount(baseFilteredProducts, activeCategory, opt.value);
               const cover = seriesCoverImage(products, activeCategory, opt.value);
@@ -1263,7 +1284,8 @@ export const Store: React.FC<StoreProps> = ({
                 {title}
               </h1>
             </div>
-            <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-[color:var(--bb-muted)]">{blurb}</p>
+            <FlowBreadcrumb items={storeBreadcrumbItems} className="mt-2.5" />
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-[color:var(--bb-muted)]">{blurb}</p>
           </div>
         </header>
 
@@ -1337,8 +1359,6 @@ export const Store: React.FC<StoreProps> = ({
     );
   }
 
-  const subLabel = subcategoryFilterLabel(subcategoryFilter, activeCategory);
-  const seriesLabel = seriesFilterLabel(activeSeries, activeCategory);
   const canChangeSubcategory =
     Boolean(activeCategory) && getCategorySubcategoryOptions(activeCategory!).length > 0;
   const onProductGridBack = canChangeSubcategory
@@ -1440,12 +1460,15 @@ export const Store: React.FC<StoreProps> = ({
               </div>
             </div>
 
-            {/* One compact chip row: series · condition · price (hidden on lg when sidebar open) */}
-            <div
-              className={`bb-store-chip-rail bb-scrollbar ${showDesktopFilters ? 'lg:hidden' : ''}`}
-              role="toolbar"
-              aria-label="Quick filters"
-            >
+            {/* Series + condition only (price stays in the side filter) */}
+            {(seriesOptions.length > 0 ||
+              (subcategoryOptions.length > 0 && subcategoryFilter) ||
+              activeFiltersCount > 0) && (
+              <div
+                className={`bb-store-chip-rail bb-scrollbar ${showDesktopFilters ? 'lg:hidden' : ''}`}
+                role="toolbar"
+                aria-label="Category filters"
+              >
                 {seriesOptions.length > 0 && (
                   <>
                     <button
@@ -1489,32 +1512,6 @@ export const Store: React.FC<StoreProps> = ({
                     </button>
                   ))}
 
-                {(seriesOptions.length > 0 ||
-                  (subcategoryOptions.length > 0 && subcategoryFilter)) && (
-                  <span className="bb-store-chip-rail__sep" aria-hidden />
-                )}
-
-                {(
-                  [
-                    { label: 'Any', range: { min: 0, max: STORE_PRICE_SLIDER_MAX } },
-                    { label: '<5k', range: { min: 0, max: 5000 } },
-                    { label: '5–10k', range: { min: 5000, max: 10000 } },
-                    { label: '10k+', range: { min: 10000, max: STORE_PRICE_SLIDER_MAX } },
-                  ] as const
-                ).map(({ label, range }) => {
-                  const active = priceRange.min === range.min && priceRange.max === range.max;
-                  return (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={() => handlePriceRangeChange(range)}
-                      className={`bb-store-chip ${active ? 'bb-store-chip--active' : ''}`}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-
                 {activeFiltersCount > 0 && (
                   <button
                     type="button"
@@ -1527,6 +1524,7 @@ export const Store: React.FC<StoreProps> = ({
                   </button>
                 )}
               </div>
+            )}
           </div>
         </div>
       </div>
@@ -1561,47 +1559,14 @@ export const Store: React.FC<StoreProps> = ({
           )}
 
           <div data-store-products className="flex-1 min-w-0 w-full">
+            <FlowBreadcrumb items={storeBreadcrumbItems} className="mb-3" />
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm text-[color:var(--bb-muted)]">
                 {searchPending
                   ? 'Searching…'
                   : `${filteredProducts.length} ${filteredProducts.length === 1 ? 'item' : 'items'}`}
-                {!searchPending && (browseDeals
-                  ? ' · Deal of the Day'
-                  : selectedCategories.length === 1
-                    ? ` in ${selectedCategories[0]}`
-                    : '')}
-                {!searchPending && (seriesLabel ? ` · ${seriesLabel}` : seriesIsAll ? ' · All series' : '')}
-                {!searchPending && (subLabel ? ` · ${subLabel}` : '')}
                 {!searchPending && (showPromotionsOnly ? ' on sale' : '')}
               </p>
-              <div className="flex items-center gap-3">
-                {seriesOptions.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={goToSeriesPicker}
-                    className="text-xs font-bold uppercase tracking-wider text-[#CDA032] hover:underline"
-                  >
-                    Change series
-                  </button>
-                )}
-                {canChangeSubcategory && (
-                  <button
-                    type="button"
-                    onClick={goToSubcategoryPicker}
-                    className="text-xs font-bold uppercase tracking-wider text-[#CDA032] hover:underline"
-                  >
-                    Change condition
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={goToCategoryPicker}
-                  className="text-xs font-bold uppercase tracking-wider text-[#CDA032] hover:underline"
-                >
-                  All categories
-                </button>
-              </div>
             </div>
 
             {searchPending && (
