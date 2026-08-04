@@ -178,8 +178,8 @@ export type StoreSeriesOption = {
   description: string;
 };
 
-/** Categories that show a Series step before New/Used. */
-export const CATEGORIES_WITH_SERIES = new Set(['iPhone', 'iPad', 'MacBooks']);
+/** Categories that show a Series step before New/Used (iPhone stays New/Used only). */
+export const CATEGORIES_WITH_SERIES = new Set(['iPad', 'MacBooks']);
 
 export const IPAD_SERIES_OPTIONS: StoreSeriesOption[] = [
   { value: 'pro', label: 'iPad Pro', description: 'Pro models with M-series chips' },
