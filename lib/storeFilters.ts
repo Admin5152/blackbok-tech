@@ -259,6 +259,100 @@ export function categoryUsesBrandThenSeries(category: string | null | undefined)
   return CATEGORIES_BRAND_THEN_SERIES.has(normalizeProductCategory(category));
 }
 
+/** Suggested products.brand when staff pick a storefront brand/type tag. */
+export function suggestBrandFromTaxonomy(
+  category: string | null | undefined,
+  taxonomyValue: string | null | undefined,
+): string | null {
+  const v = String(taxonomyValue ?? '').trim();
+  if (!v) return null;
+  const map: Record<string, string> = {
+    AirPods: 'Apple',
+    EarPods: 'Apple',
+    HomePod: 'Apple',
+    JBL: 'JBL',
+    Beats: 'Beats',
+    Sony: 'Sony',
+    HarmanKardon: 'Harman Kardon',
+    HP: 'HP',
+    Dell: 'Dell',
+    PlayStation: 'Sony',
+    Xbox: 'Microsoft',
+    Steam: 'Valve',
+    Nintendo: 'Nintendo',
+    iWatches: 'Apple',
+  };
+  if (map[v]) return map[v];
+  const cat = normalizeProductCategory(category);
+  if (cat === 'Accessories') return null;
+  return v;
+}
+
+/**
+ * Resolve admin Brand/Type picker value from a saved product.
+ * Brand→series categories store series on subcategory, so prefer products.brand.
+ */
+export function resolveAdminTaxonomyValue(
+  p: Pick<Product, 'category' | 'condition' | 'subcategory' | 'is_new' | 'new' | 'brand'>,
+): string {
+  const category = String(p.category || 'iPhone');
+  const opts = getCategorySubcategoryOptions(category);
+  if (opts.length === 0) return '';
+
+  if (categoryUsesConditionSubcategory(category)) {
+    const isNew =
+      p.is_new != null
+        ? Boolean(p.is_new)
+        : p.new != null
+          ? Boolean(p.new)
+          : String(p.condition || 'new').toLowerCase() === 'new';
+    const want = isNew ? 'new' : 'used';
+    return opts.some((o) => o.value === want) ? want : (opts[0]?.value ?? 'new');
+  }
+
+  if (categoryUsesBrandThenSeries(category)) {
+    const brand = String(p.brand ?? '').trim();
+    if (brand) {
+      const byBrand = opts.find(
+        (o) =>
+          o.value.toLowerCase() === brand.toLowerCase() ||
+          o.label.toLowerCase() === brand.toLowerCase() ||
+          o.value.replace(/\s+/g, '').toLowerCase() === brand.replace(/\s+/g, '').toLowerCase(),
+      );
+      if (byBrand) return byBrand.value;
+      // Apple AirPods / Beats under Headphones or Speakers
+      const hay = `${brand} ${p.subcategory ?? ''}`.toLowerCase();
+      if (hay.includes('airpod') && opts.some((o) => o.value === 'AirPods')) return 'AirPods';
+      if (hay.includes('beats') && opts.some((o) => o.value === 'Beats')) return 'Beats';
+      if ((hay.includes('harman') || hay.includes('kardon')) && opts.some((o) => o.value === 'HarmanKardon')) {
+        return 'HarmanKardon';
+      }
+      if (hay.includes('homepod') && opts.some((o) => o.value === 'HomePod')) return 'HomePod';
+    }
+  }
+
+  const sub = String(p.subcategory ?? '').trim();
+  if (sub) {
+    const hit = opts.find(
+      (o) =>
+        o.value.toLowerCase() === sub.toLowerCase() ||
+        o.label.toLowerCase() === sub.toLowerCase() ||
+        o.value.replace(/\s+/g, '').toLowerCase() === sub.replace(/\s+/g, '').toLowerCase(),
+    );
+    if (hit) return hit.value;
+  }
+  return opts[0]?.value ?? '';
+}
+
+/** Catalog key written into products.specifications for seeded/admin rows. */
+export function catalogKeyForCategory(category: string | null | undefined): string | null {
+  const n = normalizeProductCategory(category);
+  if (n === 'iPad' || n === 'Tablet') return 'ipad';
+  if (n === 'Headphones' || n === 'Speakers') return 'audio';
+  if (n === 'Laptops' || n === 'Laptop') return 'laptop';
+  return null;
+}
+
 const HEADPHONE_BRAND_SERIES: Readonly<Record<string, readonly string[]>> = {
   AirPods: ['AirPods'],
   JBL: ['Tune'],

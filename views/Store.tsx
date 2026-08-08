@@ -1196,13 +1196,17 @@ export const Store: React.FC<StoreProps> = ({
                       <img
                         src={card.cover}
                         alt=""
-                        className="h-full w-full object-cover opacity-80 sm:opacity-85 transition-transform duration-500 group-hover:scale-105 group-hover:opacity-95"
+                        className={`h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 ${
+                          isLight
+                            ? 'opacity-100'
+                            : 'opacity-80 sm:opacity-85 group-hover:opacity-95'
+                        }`}
                       />
                       <div
-                        className={`absolute inset-0 bg-gradient-to-t to-transparent ${
+                        className={`pointer-events-none absolute inset-x-0 bottom-0 ${
                           isLight
-                            ? 'from-white via-white/55'
-                            : 'from-[#060605] via-[#060605]/55'
+                            ? 'h-[55%] bg-gradient-to-t from-white via-white/50 to-transparent'
+                            : 'inset-0 h-auto bg-gradient-to-t from-[#060605] via-[#060605]/55 to-transparent'
                         }`}
                       />
                     </div>
@@ -1214,7 +1218,7 @@ export const Store: React.FC<StoreProps> = ({
                     <span
                       className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border text-[#CDA032] transition-colors group-hover:border-[#CDA032]/40 ${
                         isLight
-                          ? 'border-black/10 bg-white/90 shadow-sm'
+                          ? 'border-black/10 bg-white shadow-sm'
                           : 'border-white/15 bg-black/50 backdrop-blur-sm'
                       }`}
                     >
@@ -1224,7 +1228,7 @@ export const Store: React.FC<StoreProps> = ({
                       <span
                         className={`block text-sm sm:text-base font-bold tracking-tight ${
                           isLight
-                            ? 'text-black drop-shadow-[0_1px_1px_rgba(255,255,255,0.9)]'
+                            ? 'text-black'
                             : 'text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.65)]'
                         }`}
                       >
@@ -1292,19 +1296,25 @@ export const Store: React.FC<StoreProps> = ({
                         alt=""
                         className={
                           isPhoneSeries
-                            ? 'absolute inset-y-0 right-0 h-full w-[68%] sm:w-[62%] object-cover object-[center_8%] opacity-90 sm:opacity-95 transition-transform duration-500 group-hover:scale-110'
-                            : 'h-full w-full object-cover opacity-80 sm:opacity-85 transition-transform duration-500 group-hover:scale-105 group-hover:opacity-95'
+                            ? `absolute inset-y-0 right-0 h-full w-[68%] sm:w-[62%] object-cover object-[center_8%] transition-transform duration-500 group-hover:scale-110 ${
+                                isLight ? 'opacity-100' : 'opacity-90 sm:opacity-95'
+                              }`
+                            : `h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 ${
+                                isLight
+                                  ? 'opacity-100'
+                                  : 'opacity-80 sm:opacity-85 group-hover:opacity-95'
+                              }`
                         }
                       />
                       <div
-                        className={`absolute inset-0 to-transparent ${
+                        className={`pointer-events-none absolute ${
                           isPhoneSeries
                             ? isLight
-                              ? 'bg-gradient-to-r from-white via-white/80 to-white/10'
-                              : 'bg-gradient-to-r from-[#060605] via-[#060605]/75 to-transparent'
+                              ? 'inset-y-0 left-0 w-[72%] bg-gradient-to-r from-white via-white/55 to-transparent'
+                              : 'inset-0 bg-gradient-to-r from-[#060605] via-[#060605]/75 to-transparent'
                             : isLight
-                              ? 'bg-gradient-to-t from-white via-white/55'
-                              : 'bg-gradient-to-t from-[#060605] via-[#060605]/55'
+                              ? 'inset-x-0 bottom-0 h-[60%] bg-gradient-to-t from-white via-white/50 to-transparent'
+                              : 'inset-0 bg-gradient-to-t from-[#060605] via-[#060605]/55 to-transparent'
                         }`}
                       />
                     </div>
@@ -1315,7 +1325,7 @@ export const Store: React.FC<StoreProps> = ({
                     <span
                       className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border text-[#CDA032] ${
                         isLight
-                          ? 'border-black/10 bg-white/90 shadow-sm'
+                          ? 'border-black/10 bg-white shadow-sm'
                           : 'border-white/15 bg-black/50 backdrop-blur-sm'
                       }`}
                     >
@@ -1325,7 +1335,7 @@ export const Store: React.FC<StoreProps> = ({
                       <span
                         className={`block text-sm sm:text-base font-bold tracking-tight ${
                           isLight
-                            ? 'text-black drop-shadow-[0_1px_1px_rgba(255,255,255,0.9)]'
+                            ? 'text-black'
                             : 'text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.65)]'
                         }`}
                       >
@@ -1414,13 +1424,17 @@ export const Store: React.FC<StoreProps> = ({
                     <img
                       src={card.cover}
                       alt=""
-                      className="h-full w-full object-cover opacity-80 sm:opacity-85 transition-transform duration-500 group-hover:scale-105 group-hover:opacity-95"
+                      className={`h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 ${
+                        isLight
+                          ? 'opacity-100'
+                          : 'opacity-80 sm:opacity-85 group-hover:opacity-95'
+                      }`}
                     />
                     <div
-                      className={`absolute inset-0 bg-gradient-to-t to-transparent ${
+                      className={`pointer-events-none absolute inset-x-0 bottom-0 ${
                         isLight
-                          ? 'from-white via-white/55'
-                          : 'from-[#060605] via-[#060605]/55'
+                          ? 'h-[55%] bg-gradient-to-t from-white via-white/50 to-transparent'
+                          : 'inset-0 h-auto bg-gradient-to-t from-[#060605] via-[#060605]/55 to-transparent'
                       }`}
                     />
                   </div>
@@ -1431,7 +1445,7 @@ export const Store: React.FC<StoreProps> = ({
                   <span
                     className={`inline-flex h-12 w-12 items-center justify-center rounded-xl border text-[#CDA032] transition-colors group-hover:border-[#CDA032]/40 ${
                       isLight
-                        ? 'border-black/10 bg-white/90 shadow-sm'
+                        ? 'border-black/10 bg-white shadow-sm'
                         : 'border-white/15 bg-black/50 backdrop-blur-sm'
                     }`}
                   >
@@ -1441,7 +1455,7 @@ export const Store: React.FC<StoreProps> = ({
                     <span
                       className={`block text-lg sm:text-xl font-bold tracking-tight ${
                         isLight
-                          ? 'text-black drop-shadow-[0_1px_1px_rgba(255,255,255,0.9)]'
+                          ? 'text-black'
                           : 'text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.65)]'
                       }`}
                     >

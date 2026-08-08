@@ -40,9 +40,11 @@ import {
 } from './adminProductConstants';
 import {
   applyAdminTaxonomyFields,
-  categoryUsesConditionSubcategory,
+  catalogKeyForCategory,
+  categoryUsesBrandThenSeries,
   formatProductClassification,
-  getCategorySubcategoryOptions,
+  getCategorySeriesOptions,
+  resolveAdminTaxonomyValue,
   validateAdminProductTaxonomy,
 } from '../../lib/storeFilters';
 import type { Product } from '../../types';
@@ -65,24 +67,10 @@ const EMPTY: ProductDraft = {
     images: [], specifications: {}, specificationsJson: '{}',
 };
 
-function resolveTaxonomyValueFromProduct(p: Pick<Product, 'category' | 'condition' | 'subcategory' | 'is_new' | 'new'>): string {
-  const opts = getCategorySubcategoryOptions(String(p.category || 'iPhone'));
-  if (categoryUsesConditionSubcategory(String(p.category || ''))) {
-    const isNew = p.is_new != null ? Boolean(p.is_new) : p.new != null ? Boolean(p.new) : String(p.condition || 'new').toLowerCase() === 'new';
-    const want = isNew ? 'new' : 'used';
-    return opts.some((o) => o.value === want) ? want : (opts[0]?.value ?? 'new');
-  }
-  const sub = String(p.subcategory ?? '').trim();
-  if (sub) {
-    const hit = opts.find(
-      (o) =>
-        o.value.toLowerCase() === sub.toLowerCase() ||
-        o.label.toLowerCase() === sub.toLowerCase() ||
-        o.value.replace(/\s+/g, '').toLowerCase() === sub.replace(/\s+/g, '').toLowerCase(),
-    );
-    if (hit) return hit.value;
-  }
-  return opts[0]?.value ?? '';
+function resolveTaxonomyValueFromProduct(
+  p: Pick<Product, 'category' | 'condition' | 'subcategory' | 'is_new' | 'new' | 'brand'>,
+): string {
+  return resolveAdminTaxonomyValue(p);
 }
 
 /** Letter O in a numeric field often means OCR/typo for digit 0. */
@@ -417,6 +405,20 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
           setSaving(false);
           return;
         }
+        if (
+          categoryUsesBrandThenSeries(draft.category) &&
+          !String(draft.series ?? '').trim()
+        ) {
+          const brandOpts = getCategorySeriesOptions(
+            String(draft.category || ''),
+            taxonomyValue,
+          );
+          if (brandOpts.length > 0) {
+            setError('Select a series for this brand (required for Laptops / Headphones / Speakers).');
+            setSaving(false);
+            return;
+          }
+        }
         const taxonomy = applyAdminTaxonomyFields({
           category: draft.category || 'iPhone',
           taxonomyValue,
@@ -434,11 +436,30 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                   ? { ...(specsPayload as Record<string, unknown>) }
                   : {};
               base.series = draft.series;
-              if (taxonomy.category === 'iPad') base.catalog = 'ipad';
-              if (!base.model_family && draft.slug) {
+              const catalog = catalogKeyForCategory(taxonomy.category);
+              if (catalog) base.catalog = catalog;
+              if (catalog === 'audio') {
+                base.audio_type =
+                  taxonomy.category === 'Speakers' ? 'speakers' : 'headphones';
+              }
+              if (catalog === 'ipad' && !base.model_family && draft.slug) {
                 base.model_family = String(draft.slug).replace(/-(new|preowned)$/, '');
               }
               specsPayload = base;
+            } else {
+              const catalog = catalogKeyForCategory(taxonomy.category);
+              if (catalog) {
+                const base =
+                  specsPayload && typeof specsPayload === 'object'
+                    ? { ...(specsPayload as Record<string, unknown>) }
+                    : {};
+                base.catalog = catalog;
+                if (catalog === 'audio') {
+                  base.audio_type =
+                    taxonomy.category === 'Speakers' ? 'speakers' : 'headphones';
+                }
+                specsPayload = base;
+              }
             }
             const productPayload = {
                 name: draft.name,

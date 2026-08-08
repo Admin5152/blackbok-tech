@@ -27,6 +27,7 @@ import {
   setProductImageVariant,
   updateProduct,
   friendlyProductActionError,
+  normalizeProductCategory,
 } from '../../lib/api';
 import { friendlyError } from '../../lib/friendlyErrors';
 import {
@@ -38,10 +39,12 @@ import {
 } from './adminProductConstants';
 import {
   applyAdminTaxonomyFields,
+  categoryUsesBrandThenSeries,
   categoryUsesConditionSubcategory,
   categoryUsesSeriesStep,
   getCategorySeriesOptions,
   getCategorySubcategoryOptions,
+  suggestBrandFromTaxonomy,
 } from '../../lib/storeFilters';
 import { formatSimTypeLabel } from '../../lib/productLabels';
 
@@ -208,6 +211,7 @@ export const AdminProductForm: React.FC<Props> = ({
     [categoryKey],
   );
   const usesConditionTaxonomy = categoryUsesConditionSubcategory(categoryKey);
+  const brandThenSeries = categoryUsesBrandThenSeries(categoryKey);
   const taxonomySelectValue = useMemo(() => {
     const raw = String(draft.taxonomy_value ?? '').trim();
     if (raw && taxonomyOptions.some((o) => o.value === raw)) return raw;
@@ -217,6 +221,27 @@ export const AdminProductForm: React.FC<Props> = ({
         return taxonomyOptions.some((o) => o.value === 'used') ? 'used' : (taxonomyOptions[0]?.value ?? '');
       }
       return taxonomyOptions.some((o) => o.value === 'new') ? 'new' : (taxonomyOptions[0]?.value ?? '');
+    }
+    if (brandThenSeries) {
+      const brand = String(draft.brand ?? '').trim();
+      if (brand) {
+        const byBrand = taxonomyOptions.find(
+          (o) =>
+            o.value.toLowerCase() === brand.toLowerCase() ||
+            o.label.toLowerCase() === brand.toLowerCase() ||
+            o.value.replace(/\s+/g, '').toLowerCase() === brand.replace(/\s+/g, '').toLowerCase(),
+        );
+        if (byBrand) return byBrand.value;
+        const hay = `${brand} ${draft.subcategory ?? ''} ${draft.series ?? ''}`.toLowerCase();
+        if (hay.includes('airpod') && taxonomyOptions.some((o) => o.value === 'AirPods')) return 'AirPods';
+        if (hay.includes('beats') && taxonomyOptions.some((o) => o.value === 'Beats')) return 'Beats';
+        if (
+          (hay.includes('harman') || hay.includes('kardon')) &&
+          taxonomyOptions.some((o) => o.value === 'HarmanKardon')
+        ) {
+          return 'HarmanKardon';
+        }
+      }
     }
     const sub = String(draft.subcategory ?? '').trim();
     if (sub) {
@@ -229,15 +254,37 @@ export const AdminProductForm: React.FC<Props> = ({
       if (hit) return hit.value;
     }
     return '';
-  }, [draft.taxonomy_value, draft.condition, draft.subcategory, taxonomyOptions, usesConditionTaxonomy]);
+  }, [
+    draft.taxonomy_value,
+    draft.condition,
+    draft.subcategory,
+    draft.brand,
+    draft.series,
+    taxonomyOptions,
+    usesConditionTaxonomy,
+    brandThenSeries,
+  ]);
 
   const applyTaxonomySelection = useCallback(
     (category: string, taxonomyValue: string) => {
+      const seriesAllowed = getCategorySeriesOptions(
+        category,
+        categoryUsesBrandThenSeries(category) ? taxonomyValue : undefined,
+      );
+      const keepSeries =
+        draft.series && seriesAllowed.some((o) => o.value === draft.series)
+          ? draft.series
+          : seriesAllowed.length === 1
+            ? seriesAllowed[0].value
+            : null;
       const applied = applyAdminTaxonomyFields({
         category,
         taxonomyValue,
         existingCondition: draft.condition,
+        series: keepSeries,
+        existingSubcategory: draft.subcategory,
       });
+      const suggested = suggestBrandFromTaxonomy(category, taxonomyValue);
       setDraft((prev) => ({
         ...prev,
         category: applied.category,
@@ -246,9 +293,11 @@ export const AdminProductForm: React.FC<Props> = ({
         condition: applied.condition,
         is_new: applied.is_new,
         new: applied.is_new,
+        series: keepSeries,
+        brand: suggested ?? prev.brand,
       }));
     },
-    [draft.condition, setDraft],
+    [draft.condition, draft.series, draft.subcategory, setDraft],
   );
 
   const derivedChips = useMemo(
@@ -261,8 +310,16 @@ export const AdminProductForm: React.FC<Props> = ({
   const displaySimTypes = derivedChips?.sim_types ?? draft.sim_types ?? [];
   const displaySizes = derivedChips?.display_sizes ?? draft.display_sizes ?? [];
   const isTabletCategory = String(draft.category || '').toLowerCase() === 'ipad';
+  const isLaptopCategory =
+    normalizeProductCategory(categoryKey) === 'Laptops';
+  const isAudioCategory =
+    normalizeProductCategory(categoryKey) === 'Headphones' ||
+    normalizeProductCategory(categoryKey) === 'Speakers';
   const seriesOptions = categoryUsesSeriesStep(categoryKey)
-    ? getCategorySeriesOptions(categoryKey)
+    ? getCategorySeriesOptions(
+        categoryKey,
+        brandThenSeries ? taxonomySelectValue || undefined : undefined,
+      )
     : [];
   const simQuickPicks = isTabletCategory ? IPAD_SIM_OPTIONS : PRODUCT_SIM_OPTIONS;
 
@@ -734,7 +791,11 @@ export const AdminProductForm: React.FC<Props> = ({
                 {taxonomyOptions.length > 0 && (
                   <div>
                     <label className={s.label}>
-                      {usesConditionTaxonomy ? 'Condition *' : 'Sub-category *'}
+                      {usesConditionTaxonomy
+                        ? 'Condition *'
+                        : brandThenSeries
+                          ? 'Brand *'
+                          : 'Sub-category *'}
                     </label>
                     <select
                       value={taxonomySelectValue}
@@ -743,7 +804,11 @@ export const AdminProductForm: React.FC<Props> = ({
                       required
                     >
                       <option value="" disabled>
-                        {usesConditionTaxonomy ? 'Select New or Used' : 'Select sub-category'}
+                        {usesConditionTaxonomy
+                          ? 'Select New or Used'
+                          : brandThenSeries
+                            ? 'Select brand'
+                            : 'Select sub-category'}
                       </option>
                       {taxonomyOptions.map((o) => (
                         <option key={o.value} value={o.value}>
@@ -751,16 +816,29 @@ export const AdminProductForm: React.FC<Props> = ({
                         </option>
                       ))}
                     </select>
-                    <p className={`text-[10px] mt-1 ${s.muted}`}>{taxonomyOptions.find((o) => o.value === taxonomySelectValue)?.description}</p>
+                    <p className={`text-[10px] mt-1 ${s.muted}`}>
+                      {taxonomyOptions.find((o) => o.value === taxonomySelectValue)?.description}
+                    </p>
                   </div>
                 )}
                 {seriesOptions.length > 0 && (
                   <div>
-                    <label className={s.label}>Series</label>
+                    <label className={s.label}>
+                      Series{brandThenSeries ? ' *' : ''}
+                    </label>
                     <select
                       value={draft.series ?? ''}
-                      onChange={(e) => setDraft({ ...draft, series: e.target.value || null })}
+                      onChange={(e) => {
+                        const series = e.target.value || null;
+                        setDraft({
+                          ...draft,
+                          series,
+                          // Brand→series categories persist series on subcategory
+                          subcategory: brandThenSeries ? series : draft.subcategory,
+                        });
+                      }}
                       className={s.input}
+                      required={brandThenSeries}
                     >
                       <option value="">Select series</option>
                       {seriesOptions.map((o) => (
@@ -770,7 +848,9 @@ export const AdminProductForm: React.FC<Props> = ({
                       ))}
                     </select>
                     <p className={`text-[10px] mt-1 ${s.muted}`}>
-                      Shown on the shop as Category → Series → New/Used.
+                      {brandThenSeries
+                        ? 'Shop path: Category → Brand → Series → products.'
+                        : 'Shown on the shop as Category → Series → New/Used.'}
                     </p>
                   </div>
                 )}
@@ -1341,6 +1421,103 @@ export const AdminProductForm: React.FC<Props> = ({
 
               <div className={s.card}>
                 <label className={s.label}>Extra product details</label>
+                {(isLaptopCategory || isAudioCategory) && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                    {isAudioCategory && (
+                      <>
+                        <div>
+                          <label className={s.label}>Audio type</label>
+                          <select
+                            className={s.input}
+                            value={String((draft.specifications as Record<string, unknown> | null)?.audio_type ?? (normalizeProductCategory(categoryKey) === 'Speakers' ? 'speakers' : 'headphones'))}
+                            onChange={(e) => {
+                              const next = {
+                                ...(draft.specifications && typeof draft.specifications === 'object'
+                                  ? (draft.specifications as Record<string, unknown>)
+                                  : {}),
+                                catalog: 'audio',
+                                audio_type: e.target.value,
+                                series: draft.series ?? null,
+                              };
+                              setDraft({
+                                ...draft,
+                                specifications: next,
+                                specificationsJson: JSON.stringify(next, null, 2),
+                              });
+                            }}
+                          >
+                            <option value="headphones">Headphones</option>
+                            <option value="speakers">Speakers</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className={s.label}>Catalog series</label>
+                          <input
+                            className={s.input}
+                            value={String((draft.specifications as Record<string, unknown> | null)?.series ?? draft.series ?? '')}
+                            onChange={(e) => {
+                              const series = e.target.value || null;
+                              const next = {
+                                ...(draft.specifications && typeof draft.specifications === 'object'
+                                  ? (draft.specifications as Record<string, unknown>)
+                                  : {}),
+                                catalog: 'audio',
+                                series,
+                              };
+                              setDraft({
+                                ...draft,
+                                series,
+                                subcategory: brandThenSeries ? series : draft.subcategory,
+                                specifications: next,
+                                specificationsJson: JSON.stringify(next, null, 2),
+                              });
+                            }}
+                            placeholder="Tune / Flip / AirPods…"
+                          />
+                        </div>
+                      </>
+                    )}
+                    {isLaptopCategory &&
+                      (
+                        [
+                          ['processor', 'Processor'],
+                          ['generation', 'Generation'],
+                          ['storage_label', 'Storage label'],
+                          ['memory', 'Memory'],
+                          ['graphics', 'Graphics'],
+                          ['display', 'Display'],
+                          ['battery', 'Battery'],
+                          ['os', 'OS'],
+                          ['extras', 'Extras'],
+                        ] as const
+                      ).map(([key, label]) => (
+                        <div key={key} className={key === 'extras' ? 'sm:col-span-2' : ''}>
+                          <label className={s.label}>{label}</label>
+                          <input
+                            className={s.input}
+                            value={String((draft.specifications as Record<string, unknown> | null)?.[key] ?? '')}
+                            onChange={(e) => {
+                              const raw = e.target.value.trim();
+                              const next = {
+                                ...(draft.specifications && typeof draft.specifications === 'object'
+                                  ? (draft.specifications as Record<string, unknown>)
+                                  : {}),
+                                catalog: 'laptop',
+                                series: draft.series ?? null,
+                                [key]: raw || null,
+                              };
+                              setDraft({
+                                ...draft,
+                                specifications: next,
+                                specificationsJson: JSON.stringify(next, null, 2),
+                              });
+                            }}
+                            placeholder={key === 'memory' ? 'e.g. 16GB RAM' : 'Leave blank if unknown'}
+                          />
+                        </div>
+                      ))}
+                  </div>
+                )}
                 <textarea
                   rows={6}
                   value={draft.specificationsJson ?? '{}'}
@@ -1352,7 +1529,11 @@ export const AdminProductForm: React.FC<Props> = ({
                   <p className="text-[10px] text-red-400 mt-1">{specsJsonError}</p>
                 )}
                 <p className={`text-[10px] mt-1 ${s.muted}`}>
-                  Optional extra details for the product page. Ask a manager if you are unsure.
+                  {isLaptopCategory
+                    ? 'Laptop KEY fields (processor, RAM, graphics…) stay blank until you fill them — do not invent specs.'
+                    : isAudioCategory
+                      ? 'Audio catalog fields help the shop Brand → Series filters. Colour SKUs stay on the Options tab.'
+                      : 'Optional extra details for the product page. Ask a manager if you are unsure.'}
                 </p>
               </div>
 

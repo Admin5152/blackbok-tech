@@ -59,6 +59,30 @@ export function normalizeProductCategory(category?: string | null): string {
   const value = raw.toLowerCase();
 
   // Order matters: more specific matches first.
+  // Audio BEFORE generic "phone" — "Headphones" contains the substring "phone".
+  if (
+    value.includes('speaker') ||
+    value.includes('homepod') ||
+    value.includes('home pod') ||
+    value.includes('soundbar') ||
+    value.includes('sound bar')
+  ) {
+    return 'Speakers';
+  }
+  if (
+    value.includes('headphone') ||
+    value.includes('earbud') ||
+    value.includes('airpod') ||
+    value.includes('earpod') ||
+    value.includes('earphone') ||
+    value.includes('headset') ||
+    value === 'headphones' ||
+    value === 'audio'
+  ) {
+    return 'Headphones';
+  }
+  if (value.includes('audio')) return 'Headphones';
+
   if (value.includes('iphone')) return 'iPhone';
   if (
     value.includes('android') ||
@@ -76,7 +100,12 @@ export function normalizeProductCategory(category?: string | null): string {
   if (value.includes('laptop') || value.includes('notebook') || value.includes('computer')) {
     return 'Laptops';
   }
-  if (value.includes('phone') || value.includes('mobile') || value.includes('smartphone')) {
+  // Whole-word phone only (avoids matching Headphones / earphones)
+  if (
+    /\bphones?\b/.test(value) ||
+    value.includes('mobile') ||
+    value.includes('smartphone')
+  ) {
     if (
       value.includes('samsung') ||
       value.includes('xiaomi') ||
@@ -91,29 +120,6 @@ export function normalizeProductCategory(category?: string | null): string {
     return 'iPhone';
   }
   if (value.includes('gam') || value.includes('console')) return 'Gaming';
-  // Speakers before generic audio/headphones
-  if (
-    value.includes('speaker') ||
-    value.includes('homepod') ||
-    value.includes('home pod') ||
-    value.includes('soundbar') ||
-    value.includes('sound bar')
-  ) {
-    return 'Speakers';
-  }
-  if (
-    value.includes('headphone') ||
-    value.includes('earbud') ||
-    value.includes('airpod') ||
-    value.includes('earpod') ||
-    value.includes('earphone') ||
-    value.includes('headset') ||
-    value === 'headphones'
-  ) {
-    return 'Headphones';
-  }
-  // Legacy "Audio" bucket → Headphones (most common)
-  if (value.includes('audio')) return 'Headphones';
   if (value.includes('watch') || value.includes('smartwatch') || value.includes('smart watch')) {
     return 'Smart watches';
   }
