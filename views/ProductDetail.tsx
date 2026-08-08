@@ -43,7 +43,9 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
   const isLight = theme === 'light';
   const [quantity, setQuantity] = useState(1);
   const normalizedVariants = useMemo(() => getProductOptionGroups(product), [product]);
-  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() =>
+    defaultSelectedOptionsForProduct(product),
+  );
   const availableStock = useMemo(
     () => getAvailableStock(product, selectedOptions),
     [product, selectedOptions],

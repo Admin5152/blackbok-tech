@@ -193,10 +193,12 @@ export const Navbar: React.FC<{
               { path: '/store', label: 'Browse all', icon: Box, search: { browse: 'all' } },
               { path: '/store', label: 'iPhone', icon: Smartphone, search: { category: 'iPhone' } },
               { path: '/store', label: 'iPad', icon: Tablet, search: { category: 'iPad' } },
-              { path: '/store', label: 'Laptops', icon: Laptop, search: { category: 'Laptop' } },
+              { path: '/store', label: 'Laptops', icon: Laptop, search: { category: 'Laptops' } },
               { path: '/store', label: 'Accessories', icon: Box, search: { category: 'Accessories' } },
               { path: '/store', label: 'Gaming', icon: Gamepad2, search: { category: 'Gaming' } },
-              { path: '/store', label: 'Audio', icon: Headphones, search: { category: 'Headphones' } },
+              { path: '/store', label: 'Headphones', icon: Headphones, search: { category: 'Headphones' } },
+              { path: '/store', label: 'Speakers', icon: Headphones, search: { category: 'Speakers' } },
+              { path: '/store', label: 'Audio (all)', icon: Headphones, search: { category: 'Audio' } },
               {
                 path: '/history',
                 label: 'Track Orders',
@@ -506,8 +508,17 @@ export const Navbar: React.FC<{
                     <Link to="/store" search={{ category: 'Accessories' } as any} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
                       <Box size={14} className="opacity-40" /> Accessories
                     </Link>
+                    <p className={`px-4 pt-2 pb-1 text-[9px] font-black uppercase tracking-[0.2em] opacity-40 ${isLight ? 'text-black' : 'text-white'}`}>
+                      Audio
+                    </p>
                     <Link to="/store" search={{ category: 'Headphones' } as any} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
-                      <Headphones size={14} className="opacity-40" /> Audio
+                      <Headphones size={14} className="opacity-40" /> Headphones
+                    </Link>
+                    <Link to="/store" search={{ category: 'Speakers' } as any} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
+                      <Headphones size={14} className="opacity-40" /> Speakers
+                    </Link>
+                    <Link to="/store" search={{ category: 'Audio' } as any} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
+                      <Headphones size={14} className="opacity-40" /> All audio
                     </Link>
                     <div className={`my-1 h-px ${isLight ? 'bg-black/5' : 'bg-white/5'}`} />
                     <Link to="/history" search={{ tab: 'orders' } as any} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>

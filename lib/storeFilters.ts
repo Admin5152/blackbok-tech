@@ -98,6 +98,7 @@ export function buildOrderedStoreCategoryKeys(products: Product[]): string[] {
   catalogKeys['Headphones'] = true;
   catalogKeys['Speakers'] = true;
   catalogKeys['Accessories'] = true;
+  catalogKeys['Gaming'] = true;
 
   const remaining = new Set(Object.keys(catalogKeys));
   const ordered: string[] = [];
@@ -139,7 +140,14 @@ export function productMatchesStoreCategories(
 ): boolean {
   if (selectedCategories.length === 0) return true;
   const normalized = normalizeProductCategory(p.category);
-  return selectedCategories.some((sel) => normalizeProductCategory(sel) === normalized);
+  return selectedCategories.some((sel) => {
+    const raw = String(sel ?? '').trim().toLowerCase();
+    // Audio umbrella (nav / legacy) matches Headphones + Speakers
+    if (raw === 'audio') {
+      return normalized === 'Headphones' || normalized === 'Speakers';
+    }
+    return normalizeProductCategory(sel) === normalized;
+  });
 }
 
 /** Storefront “new” flag — prefers `is_new`, falls back to legacy `new`. */
@@ -178,8 +186,20 @@ export type StoreSeriesOption = {
   description: string;
 };
 
-/** Categories that show a Series step before New/Used (iPhone stays New/Used only). */
-export const CATEGORIES_WITH_SERIES = new Set(['iPad', 'MacBooks']);
+/** Categories that show a Series step (before New/Used, or after Brand). */
+export const CATEGORIES_WITH_SERIES = new Set([
+  'iPad',
+  'MacBooks',
+  'Laptops',
+  'Headphones',
+  'Speakers',
+]);
+
+/**
+ * Brand picker first, then series (Audio + Windows laptops).
+ * Opposite of iPad/MacBooks (series → New/Used).
+ */
+export const CATEGORIES_BRAND_THEN_SERIES = new Set(['Laptops', 'Headphones', 'Speakers']);
 
 export const IPAD_SERIES_OPTIONS: StoreSeriesOption[] = [
   { value: 'pro', label: 'iPad Pro', description: 'Pro models with M-series chips' },
@@ -207,16 +227,84 @@ export const MACBOOK_SERIES_OPTIONS: StoreSeriesOption[] = [
   { value: 'other', label: 'Other Mac', description: 'iMac, Mac mini & more' },
 ];
 
+export const LAPTOP_SERIES_OPTIONS: StoreSeriesOption[] = [
+  { value: 'Omen', label: 'Omen', description: 'HP Omen gaming notebooks' },
+  { value: 'Envy', label: 'Envy', description: 'HP Envy notebooks' },
+  { value: 'Victus', label: 'Victus', description: 'HP Victus gaming notebooks' },
+  { value: 'Alienware', label: 'Alienware', description: 'Dell Alienware notebooks' },
+];
+
+export const HEADPHONE_SERIES_OPTIONS: StoreSeriesOption[] = [
+  { value: 'AirPods', label: 'AirPods', description: 'Apple AirPods family' },
+  { value: 'Tune', label: 'Tune', description: 'JBL Tune headphones' },
+  { value: 'Solo', label: 'Solo', description: 'Beats Solo headphones' },
+];
+
+export const SPEAKER_SERIES_OPTIONS: StoreSeriesOption[] = [
+  { value: 'Flip', label: 'Flip', description: 'JBL Flip portable speakers' },
+  { value: 'Charge', label: 'Charge', description: 'JBL Charge speakers' },
+  { value: 'Boombox', label: 'Boombox', description: 'JBL Boombox speakers' },
+  { value: 'Go', label: 'Go', description: 'JBL Go speakers' },
+  { value: 'Onyx', label: 'Onyx', description: 'Harman Kardon Onyx' },
+  { value: 'Pill', label: 'Pill', description: 'Beats Pill speakers' },
+];
+
 export function categoryUsesSeriesStep(category: string | null | undefined): boolean {
   if (!category) return false;
   return CATEGORIES_WITH_SERIES.has(normalizeProductCategory(category));
 }
 
-export function getCategorySeriesOptions(category: string): StoreSeriesOption[] {
+export function categoryUsesBrandThenSeries(category: string | null | undefined): boolean {
+  if (!category) return false;
+  return CATEGORIES_BRAND_THEN_SERIES.has(normalizeProductCategory(category));
+}
+
+const HEADPHONE_BRAND_SERIES: Readonly<Record<string, readonly string[]>> = {
+  AirPods: ['AirPods'],
+  JBL: ['Tune'],
+  Beats: ['Solo'],
+};
+
+const SPEAKER_BRAND_SERIES: Readonly<Record<string, readonly string[]>> = {
+  JBL: ['Flip', 'Charge', 'Boombox', 'Go'],
+  HarmanKardon: ['Onyx'],
+  Beats: ['Pill'],
+};
+
+const LAPTOP_BRAND_SERIES: Readonly<Record<string, readonly string[]>> = {
+  HP: ['Omen', 'Envy', 'Victus'],
+  Dell: ['Alienware'],
+};
+
+export function getCategorySeriesOptions(
+  category: string,
+  brandValue?: string | null,
+): StoreSeriesOption[] {
   const n = normalizeProductCategory(category);
+  const brand = String(brandValue ?? '').trim();
+
   if (n === 'iPad' || n === 'Tablet') return IPAD_SERIES_OPTIONS;
   if (n === 'iPhone') return IPHONE_SERIES_OPTIONS;
-  if (n === 'MacBooks' || n === 'Laptop' || n === 'Laptops') return MACBOOK_SERIES_OPTIONS;
+  if (n === 'MacBooks') return MACBOOK_SERIES_OPTIONS;
+
+  if (n === 'Headphones') {
+    if (!brand) return HEADPHONE_SERIES_OPTIONS;
+    const allowed = HEADPHONE_BRAND_SERIES[brand];
+    if (!allowed) return [];
+    return HEADPHONE_SERIES_OPTIONS.filter((o) => allowed.includes(o.value));
+  }
+  if (n === 'Speakers') {
+    if (!brand) return SPEAKER_SERIES_OPTIONS;
+    const allowed = SPEAKER_BRAND_SERIES[brand];
+    if (!allowed) return [];
+    return SPEAKER_SERIES_OPTIONS.filter((o) => allowed.includes(o.value));
+  }
+  if (n === 'Laptops' || n === 'Laptop') {
+    if (!brand) return LAPTOP_SERIES_OPTIONS;
+    const allowed = LAPTOP_BRAND_SERIES[brand];
+    if (!allowed) return [];
+    return LAPTOP_SERIES_OPTIONS.filter((o) => allowed.includes(o.value));
+  }
   return [];
 }
 
@@ -251,10 +339,29 @@ export function getProductSeriesSlug(p: Product): string | null {
     if (/iphone\s*se/.test(hay)) return 'iphone-se';
     return 'iphone-older';
   }
-  if (cat === 'MacBooks' || cat === 'Laptops' || cat === 'Laptop') {
+  if (cat === 'MacBooks') {
     if (hay.includes('macbook pro') || hay.includes('mac book pro')) return 'pro';
     if (hay.includes('macbook air') || hay.includes('mac book air')) return 'air';
     if (hay.includes('mac')) return 'other';
+  }
+  if (cat === 'Laptops' || cat === 'Laptop') {
+    if (hay.includes('alienware')) return 'alienware';
+    if (hay.includes('omen')) return 'omen';
+    if (hay.includes('envy')) return 'envy';
+    if (hay.includes('victus')) return 'victus';
+  }
+  if (cat === 'Headphones') {
+    if (hay.includes('airpod')) return 'airpods';
+    if (hay.includes('tune')) return 'tune';
+    if (hay.includes('solo')) return 'solo';
+  }
+  if (cat === 'Speakers') {
+    if (hay.includes('flip')) return 'flip';
+    if (hay.includes('charge')) return 'charge';
+    if (hay.includes('boombox')) return 'boombox';
+    if (/\bgo\s*\d|\bgo\b/.test(hay) && hay.includes('jbl')) return 'go';
+    if (hay.includes('onyx')) return 'onyx';
+    if (hay.includes('pill')) return 'pill';
   }
   return null;
 }
@@ -327,13 +434,13 @@ export const CATEGORY_SUBCATEGORY_CONFIG: Readonly<Record<string, SubcategoryOpt
     { kind: 'condition', value: 'used', label: 'Used', description: 'Pre-owned & refurbished MacBooks' },
   ],
   Laptops: [
-    { kind: 'condition', value: 'new',  label: 'New',  description: 'Brand-new Windows & other laptops' },
-    { kind: 'condition', value: 'used', label: 'Used', description: 'Pre-owned & refurbished laptops' },
+    { kind: 'brand', value: 'HP', label: 'HP', description: 'Omen, Envy & Victus notebooks' },
+    { kind: 'brand', value: 'Dell', label: 'Dell', description: 'Alienware gaming notebooks' },
   ],
   // Legacy alias — old ?category=Laptop URLs
   Laptop: [
-    { kind: 'condition', value: 'new',  label: 'New',  description: 'Brand-new laptops & MacBooks' },
-    { kind: 'condition', value: 'used', label: 'Used', description: 'Pre-owned & refurbished laptops' },
+    { kind: 'brand', value: 'HP', label: 'HP', description: 'Omen, Envy & Victus notebooks' },
+    { kind: 'brand', value: 'Dell', label: 'Dell', description: 'Alienware gaming notebooks' },
   ],
   'Smart watches': [
     { kind: 'brand', value: 'iWatches', label: 'iWatches', description: 'Apple Watch series' },
@@ -348,20 +455,25 @@ export const CATEGORY_SUBCATEGORY_CONFIG: Readonly<Record<string, SubcategoryOpt
   Headphones: [
     { kind: 'brand', value: 'AirPods', label: 'AirPods', description: 'Apple AirPods & wireless earbuds' },
     { kind: 'brand', value: 'JBL',     label: 'JBL',     description: 'JBL headphones & earbuds' },
+    { kind: 'brand', value: 'Beats',   label: 'Beats',   description: 'Beats headphones' },
     { kind: 'brand', value: 'Sony',    label: 'Sony',    description: 'Sony headphones & earbuds' },
     { kind: 'brand', value: 'EarPods', label: 'EarPods', description: 'Wired EarPods / earphones' },
   ],
   Speakers: [
-    { kind: 'brand', value: 'HomePod',      label: 'HomePod',       description: 'Apple HomePod speakers' },
     { kind: 'brand', value: 'JBL',          label: 'JBL',           description: 'JBL speakers' },
     { kind: 'brand', value: 'HarmanKardon', label: 'Harman Kardon', description: 'Harman Kardon speakers' },
+    { kind: 'brand', value: 'Beats',        label: 'Beats',         description: 'Beats Pill speakers' },
+    { kind: 'brand', value: 'HomePod',      label: 'HomePod',       description: 'Apple HomePod speakers' },
   ],
-  // Legacy alias — old ?category=Audio URLs → Headphones brands
+  // Legacy alias — old ?category=Audio URLs (umbrella brands)
   Audio: [
     { kind: 'brand', value: 'AirPods', label: 'AirPods', description: 'Apple AirPods & wireless earbuds' },
-    { kind: 'brand', value: 'JBL',     label: 'JBL',     description: 'JBL headphones & earbuds' },
+    { kind: 'brand', value: 'JBL',     label: 'JBL',     description: 'JBL headphones & speakers' },
+    { kind: 'brand', value: 'Beats',   label: 'Beats',   description: 'Beats headphones & speakers' },
+    { kind: 'brand', value: 'HarmanKardon', label: 'Harman Kardon', description: 'Harman Kardon speakers' },
     { kind: 'brand', value: 'Sony',    label: 'Sony',    description: 'Sony headphones & earbuds' },
     { kind: 'brand', value: 'EarPods', label: 'EarPods', description: 'Wired EarPods / earphones' },
+    { kind: 'brand', value: 'HomePod', label: 'HomePod', description: 'Apple HomePod speakers' },
   ],
   Accessories: [
     { kind: 'brand', value: 'PhoneCases',       label: 'Phone Cases',       description: 'Protective & stylish cases' },
@@ -400,8 +512,6 @@ const CONDITION_MAIN_CATEGORIES = new Set([
   'iPhone',
   'iPad',
   'MacBooks',
-  'Laptops',
-  'Laptop',
   'Android phones',
 ]);
 
@@ -475,6 +585,18 @@ export function applyAdminTaxonomyFields(input: {
     existing === 'preowned' || existing === 'refurbished' || existing === 'used'
       ? (existing === 'used' ? 'preowned' : (existing as 'preowned' | 'refurbished'))
       : 'new';
+
+  // Audio + Laptops: series lives on subcategory; brand is products.brand
+  if (categoryUsesBrandThenSeries(category)) {
+    return {
+      category,
+      subcategory: keepSeries,
+      condition: 'new',
+      is_new: true,
+      taxonomyLabel: label,
+    };
+  }
+
   return {
     category,
     subcategory: value,
@@ -663,11 +785,14 @@ export function productMatchesStoreSubcategoryFilter(
   if (v === 'nintendo') return haystack.includes('nintendo') || haystack.includes('switch');
   if (v === 'airpods') return haystack.includes('airpod');
   if (v === 'jbl') return haystack.includes('jbl');
+  if (v === 'beats') return haystack.includes('beats') || haystack.includes('solo') || haystack.includes('pill');
   if (v === 'sony') return haystack.includes('sony');
   if (v === 'homepod') return haystack.includes('homepod');
   if (v === 'harmankardon') {
     return haystack.includes('harman') || haystack.includes('kardon');
   }
+  if (v === 'hp') return haystack.includes('hp') || haystack.includes('omen') || haystack.includes('envy') || haystack.includes('victus');
+  if (v === 'dell') return haystack.includes('dell') || haystack.includes('alienware');
   if (v === 'earpods') {
     return (
       haystack.includes('earpod') ||

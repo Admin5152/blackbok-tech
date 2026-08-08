@@ -1,4 +1,5 @@
 import type { Product } from '../types';
+import { resolveSkuEffectivePrice } from './skuPrice';
 
 /** UI option group for PDP, quick view, and store cards (PDP-04/05/07). */
 export type ProductOptionGroup = { name: string; options: string[] };
@@ -62,7 +63,30 @@ function uniqFromRows(rows: any[], key: 'color' | 'storage' | 'ram' | 'sim_type'
     seen.add(low);
     out.push(s);
   }
+  if (key === 'storage' || key === 'ram' || key === 'display_size') {
+    return sortCapacityLabels(out);
+  }
   return out;
+}
+
+/** Sort 128GB / 256GB / 1TB style labels ascending so defaults aren't max capacity. */
+function sortCapacityLabels(labels: string[]): string[] {
+  const rank = (s: string) => {
+    const n = s.toLowerCase().replace(/\s+/g, '');
+    const tb = n.match(/(\d+(?:\.\d+)?)\s*tb/);
+    if (tb) return parseFloat(tb[1]) * 1024;
+    const gb = n.match(/(\d+(?:\.\d+)?)\s*gb/);
+    if (gb) return parseFloat(gb[1]);
+    const inch = n.match(/(\d+(?:\.\d+)?)/);
+    if (inch) return parseFloat(inch[1]);
+    return Number.POSITIVE_INFINITY;
+  };
+  return [...labels].sort((a, b) => {
+    const ra = rank(a);
+    const rb = rank(b);
+    if (ra !== rb) return ra - rb;
+    return a.localeCompare(b, undefined, { sensitivity: 'base' });
+  });
 }
 
 /**
@@ -189,23 +213,41 @@ function findFirstInStockCombination(
   return walk(0) ? { ...cur } : null;
 }
 
+function rowEffectivePrice(product: Product, row: Record<string, unknown>): number {
+  return resolveSkuEffectivePrice({
+    productPrice: product.price ?? product.price_from,
+    variantPrice: row.price as number | null | undefined,
+    priceModifier: row.price_modifier as number | null | undefined,
+  });
+}
+
+/** Prefer cheapest in-stock SKU, else cheapest overall — matches typical PDP defaults. */
+function pickDefaultVariantRow(product: Product): Record<string, unknown> | null {
+  const rows = skuVariantRows(product);
+  if (rows.length === 0) return null;
+
+  const ranked = [...rows].sort((a, b) => {
+    const stockA = Math.max(0, Math.floor(Number(a.stock ?? 0)));
+    const stockB = Math.max(0, Math.floor(Number(b.stock ?? 0)));
+    const inA = stockA > 0 ? 1 : 0;
+    const inB = stockB > 0 ? 1 : 0;
+    if (inB !== inA) return inB - inA;
+    return rowEffectivePrice(product, a) - rowEffectivePrice(product, b);
+  });
+  return ranked[0] ?? null;
+}
+
 /**
  * Default Color / Storage / RAM when a product has option groups:
- * first variant row with stock, else first in-stock combination, else first chips.
+ * cheapest in-stock SKU (else cheapest overall), so PDP price matches selection
+ * instead of an arbitrary / max-priced row.
  */
 export function defaultSelectedOptionsForProduct(product: Product): Record<string, string> {
   const groups = getProductOptionGroups(product);
   if (groups.length === 0) return {};
 
-  const rows = skuVariantRows(product);
-  for (const row of rows) {
-    const stock = Math.max(0, Math.floor(Number(row.stock ?? 0)));
-    if (stock > 0) return selectionFromVariantRow(row, groups);
-  }
-
-  if (rows.length > 0) {
-    return initialSelectedFromGroups(groups);
-  }
+  const best = pickDefaultVariantRow(product);
+  if (best) return selectionFromVariantRow(best, groups);
 
   const combo = findFirstInStockCombination(product, groups);
   return combo ?? initialSelectedFromGroups(groups);
@@ -238,6 +280,13 @@ export function snapSelectionToInStock(
     const sel = selectionFromVariantRow(row, groups);
     const matches = locked.every(([k, v]) => normOpt(sel[k]) === normOpt(v));
     if (matches) return sel;
+  }
+
+  // Prefer cheapest in-stock SKU when the preferred combo isn't available
+  const cheapestInStock = pickDefaultVariantRow(product);
+  if (cheapestInStock) {
+    const stock = Math.max(0, Math.floor(Number(cheapestInStock.stock ?? 0)));
+    if (stock > 0) return selectionFromVariantRow(cheapestInStock, groups);
   }
 
   for (const row of rows) {
@@ -295,7 +344,9 @@ export function findVariantRowForOptions(
   const rows = skuVariantRows(product);
   if (rows.length === 0) return null;
   const selectedEntries = Object.entries(selectedOptions).filter(([, v]) => toOptionString(v));
-  if (selectedEntries.length === 0) return rows[0] ?? null;
+  if (selectedEntries.length === 0) {
+    return pickDefaultVariantRow(product) ?? rows[0] ?? null;
+  }
 
   for (const row of rows) {
     let ok = true;

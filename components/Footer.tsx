@@ -93,7 +93,9 @@ export const Footer: React.FC<FooterProps> = ({ theme }) => {
                 {item('/store', 'Laptop', { category: 'Laptop' })}
                 {item('/store', 'Gaming', { category: 'Gaming' })}
                 {item('/store', 'Accessories', { category: 'Accessories' })}
-                {item('/store', 'Audio', { category: 'Headphones' })}
+                {item('/store', 'Headphones', { category: 'Headphones' })}
+                {item('/store', 'Speakers', { category: 'Speakers' })}
+                {item('/store', 'Audio', { category: 'Audio' })}
                 {item('/compare', 'Compare')}
                 {item('/promotions', 'Special offers')}
               </>,

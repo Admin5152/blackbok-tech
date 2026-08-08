@@ -1257,6 +1257,20 @@ const router = createRouter({
   history: hashHistory,
 } as any);
 
+// Track SPA navigations so PageBackButton stays on BlackBox (not Google/etc.)
+{
+  let lastPath = '';
+  router.subscribe('onResolved', ({ toLocation }) => {
+    const path = `${toLocation.pathname}${toLocation.searchStr || ''}`;
+    if (path && path !== lastPath) {
+      if (lastPath) {
+        void import('./lib/goBack').then(({ noteSpaNavigation }) => noteSpaNavigation());
+      }
+      lastPath = path;
+    }
+  });
+}
+
 function RootComponent() {
   // Seed with INITIAL_PRODUCTS so Home (and navbar search) render on first paint
   // before getProducts() resolves — avoids an empty <main> and a “footer-only” layout.
