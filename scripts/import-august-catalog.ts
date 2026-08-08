@@ -306,6 +306,20 @@ function main() {
   lines.push('BEGIN;');
   lines.push('');
 
+  lines.push(`-- Widen products.category for Headphones / Speakers / Laptops (and full taxonomy)`);
+  lines.push(`ALTER TABLE public.products DROP CONSTRAINT IF EXISTS products_category_check;`);
+  lines.push(`ALTER TABLE public.products`);
+  lines.push(`  ADD CONSTRAINT products_category_check`);
+  lines.push(`  CHECK (`);
+  lines.push(`    category IS NULL`);
+  lines.push(`    OR category IN (`);
+  lines.push(`      'iPhone', 'Android phones', 'iPad', 'MacBooks', 'Laptops',`);
+  lines.push(`      'Smart watches', 'Gaming', 'Headphones', 'Speakers', 'Accessories',`);
+  lines.push(`      'Laptop', 'Audio', 'Tablet', 'Trades'`);
+  lines.push(`    )`);
+  lines.push(`  );`);
+  lines.push('');
+
   // Widen subcategory check for series slugs used by this seed
   lines.push(`-- Widen products.subcategory for August series slugs`);
   lines.push(`ALTER TABLE public.products DROP CONSTRAINT IF EXISTS products_subcategory_check;`);

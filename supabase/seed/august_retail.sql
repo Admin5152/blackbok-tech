@@ -3,6 +3,19 @@
 -- Idempotent upserts into products + product_variants (Audio + Laptops).
 BEGIN;
 
+-- Widen products.category for Headphones / Speakers / Laptops (and full taxonomy)
+ALTER TABLE public.products DROP CONSTRAINT IF EXISTS products_category_check;
+ALTER TABLE public.products
+  ADD CONSTRAINT products_category_check
+  CHECK (
+    category IS NULL
+    OR category IN (
+      'iPhone', 'Android phones', 'iPad', 'MacBooks', 'Laptops',
+      'Smart watches', 'Gaming', 'Headphones', 'Speakers', 'Accessories',
+      'Laptop', 'Audio', 'Tablet', 'Trades'
+    )
+  );
+
 -- Widen products.subcategory for August series slugs
 ALTER TABLE public.products DROP CONSTRAINT IF EXISTS products_subcategory_check;
 ALTER TABLE public.products
