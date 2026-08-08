@@ -68,40 +68,66 @@ export const FlowStepper: React.FC<FlowStepperProps> = ({ steps, currentStep, cl
 export interface AdminFlowStep {
   key: string;
   label: string;
+  hint?: string;
 }
 
 interface AdminFlowBarProps {
   steps: AdminFlowStep[];
   activeKey: string;
   accent?: string;
+  /** Show active step hint under the rail */
+  showHint?: boolean;
 }
 
 /** Compact workflow rail for admin review modals. */
-export const AdminFlowBar: React.FC<AdminFlowBarProps> = ({ steps, activeKey, accent = '#B38B21' }) => {
+export const AdminFlowBar: React.FC<AdminFlowBarProps> = ({
+  steps,
+  activeKey,
+  accent = '#B38B21',
+  showHint = true,
+}) => {
   const activeIndex = Math.max(0, steps.findIndex((s) => s.key === activeKey));
+  const active = steps[activeIndex];
   return (
-    <div className="flex flex-wrap items-center gap-1 mb-4">
-      {steps.map((s, i) => {
-        const done = i < activeIndex;
-        const active = i === activeIndex;
-        return (
-          <React.Fragment key={s.key}>
-            {i > 0 && <span className="text-white/20 text-[10px]">→</span>}
-            <span
-              className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider ${
-                active
-                  ? 'text-black'
-                  : done
-                    ? 'text-white/70 bg-white/10'
-                    : 'text-white/30 bg-white/[0.03]'
-              }`}
-              style={active ? { backgroundColor: accent } : undefined}
-            >
-              {s.label}
-            </span>
-          </React.Fragment>
-        );
-      })}
+    <div className="mb-4">
+      <div className="flex flex-wrap items-center gap-1.5">
+        {steps.map((s, i) => {
+          const done = i < activeIndex;
+          const isActive = i === activeIndex;
+          return (
+            <React.Fragment key={s.key}>
+              {i > 0 && <span className="text-white/15 text-[10px] select-none">→</span>}
+              <span
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors ${
+                  isActive
+                    ? 'text-black shadow-[0_0_0_1px_rgba(0,0,0,0.15)]'
+                    : done
+                      ? 'text-white/75 bg-white/10'
+                      : 'text-white/28 bg-white/[0.03]'
+                }`}
+                style={isActive ? { backgroundColor: accent } : undefined}
+              >
+                <span
+                  className={`inline-flex h-4 w-4 items-center justify-center rounded-full text-[8px] font-black ${
+                    isActive ? 'bg-black/20 text-black' : done ? 'bg-white/15 text-white/80' : 'bg-white/5 text-white/35'
+                  }`}
+                >
+                  {done ? '✓' : i + 1}
+                </span>
+                {s.label}
+              </span>
+            </React.Fragment>
+          );
+        })}
+      </div>
+      {showHint && active?.hint && (
+        <p className="mt-2.5 text-[11px] leading-snug text-white/50">
+          <span className="font-black uppercase tracking-wider text-[9px] text-white/35 mr-1.5">
+            Now
+          </span>
+          {active.hint}
+        </p>
+      )}
     </div>
   );
 };

@@ -2,11 +2,11 @@ import type { RepairRequest } from '../types';
 import type { PricingMode } from './repairDeviceTypes';
 
 export const REPAIR_ADMIN_WORKFLOW = [
-  { key: 'intake', label: 'Intake' },
-  { key: 'diagnose', label: 'Diagnose' },
-  { key: 'quote', label: 'Quote' },
-  { key: 'repair', label: 'In repair' },
-  { key: 'done', label: 'Done' },
+  { key: 'intake', label: 'Intake', hint: 'Assign a tech and start diagnosis' },
+  { key: 'diagnose', label: 'Diagnose', hint: 'Inspect the device, then prepare a quote' },
+  { key: 'quote', label: 'Quote', hint: 'Waiting for customer to approve the estimate' },
+  { key: 'repair', label: 'In repair', hint: 'Fix the device, then mark ready / complete' },
+  { key: 'done', label: 'Done', hint: 'Job closed — no further action needed' },
 ] as const;
 
 export type RepairWorkflowStage = (typeof REPAIR_ADMIN_WORKFLOW)[number]['key'];
@@ -30,6 +30,88 @@ export function normalizeRepairStatusKey(status?: string): string {
 
 export function getRepairWorkflowStage(status?: string): RepairWorkflowStage {
   return STATUS_TO_STAGE[normalizeRepairStatusKey(status)] ?? 'intake';
+}
+
+/** One clear next action for the repair review modal — reduces status/estimate slip. */
+export function getRepairStageGuidance(input: {
+  status?: string;
+  pricingMode?: PricingMode | null;
+  hasTechnician?: boolean;
+  hasEstimate?: boolean;
+}): {
+  stage: RepairWorkflowStage;
+  title: string;
+  body: string;
+  primaryAction: 'assign' | 'diagnose' | 'send_estimate' | 'await_customer' | 'complete' | 'none';
+} {
+  const stage = getRepairWorkflowStage(input.status);
+  const db = normalizeRepairStatusKey(input.status);
+  const matrix = input.pricingMode === 'apple_matrix';
+
+  if (stage === 'done') {
+    return {
+      stage,
+      title: db === 'rejected' ? 'Repair declined / closed' : 'Repair completed',
+      body: 'No further workflow steps. Review history only.',
+      primaryAction: 'none',
+    };
+  }
+
+  if (stage === 'quote') {
+    return {
+      stage,
+      title: 'Waiting on customer approval',
+      body: 'Estimate is out. Do not mark In repair until the customer approves. You can call them if needed.',
+      primaryAction: 'await_customer',
+    };
+  }
+
+  if (stage === 'repair') {
+    return {
+      stage,
+      title: db === 'ready' ? 'Ready for pickup / handover' : 'Repair in progress',
+      body: 'Finish the work, then mark Completed when the device is returned or collected.',
+      primaryAction: 'complete',
+    };
+  }
+
+  if (stage === 'intake') {
+    if (!input.hasTechnician) {
+      return {
+        stage,
+        title: '1 · Assign a technician',
+        body: 'Pick who will inspect this device before changing status or sending a quote.',
+        primaryAction: 'assign',
+      };
+    }
+    return {
+      stage,
+      title: '2 · Start diagnosis',
+      body: matrix
+        ? 'Confirm the customer’s selected parts after physical check, then move to Diagnosing.'
+        : 'Receive the device and move to Diagnosing once inspection starts.',
+      primaryAction: 'diagnose',
+    };
+  }
+
+  // diagnose
+  if (!input.hasEstimate) {
+    return {
+      stage,
+      title: '3 · Enter & send estimate',
+      body: matrix
+        ? 'Confirm or adjust the matrix total after inspection, then send for customer approval.'
+        : 'Finish inspection, enter the repair cost (GHS), then send the estimate.',
+      primaryAction: 'send_estimate',
+    };
+  }
+
+  return {
+    stage,
+    title: '3 · Send estimate to customer',
+    body: 'Amount is ready. Send it so the customer can approve before repair begins.',
+    primaryAction: 'send_estimate',
+  };
 }
 
 export function parseRepairIssueTypes(issueType?: string | null): string[] {

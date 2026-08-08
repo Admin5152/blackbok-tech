@@ -285,17 +285,45 @@ export const AdminProductForm: React.FC<Props> = ({
         existingSubcategory: draft.subcategory,
       });
       const suggested = suggestBrandFromTaxonomy(category, taxonomyValue);
-      setDraft((prev) => ({
-        ...prev,
-        category: applied.category,
-        taxonomy_value: taxonomyValue || null,
-        subcategory: applied.subcategory,
-        condition: applied.condition,
-        is_new: applied.is_new,
-        new: applied.is_new,
-        series: keepSeries,
-        brand: suggested ?? prev.brand,
-      }));
+      const cat = normalizeProductCategory(category);
+      setDraft((prev) => {
+        const prevSpecs =
+          prev.specifications && typeof prev.specifications === 'object'
+            ? { ...(prev.specifications as Record<string, unknown>) }
+            : {};
+        if (cat === 'Accessories') {
+          prevSpecs.catalog = 'accessories';
+          prevSpecs.accessory_type = taxonomyValue || null;
+        } else if (cat === 'Headphones' || cat === 'Speakers') {
+          prevSpecs.catalog = 'audio';
+          prevSpecs.audio_type = cat === 'Speakers' ? 'speakers' : 'headphones';
+          if (keepSeries) prevSpecs.series = keepSeries;
+        } else if (cat === 'Laptops') {
+          prevSpecs.catalog = 'laptop';
+          if (keepSeries) prevSpecs.series = keepSeries;
+        } else if (cat === 'Gaming') {
+          prevSpecs.catalog = 'gaming';
+          prevSpecs.platform = taxonomyValue || null;
+        } else if (cat === 'Smart watches') {
+          prevSpecs.catalog = 'watches';
+          prevSpecs.watch_group = taxonomyValue || null;
+        }
+        return {
+          ...prev,
+          category: applied.category,
+          taxonomy_value: taxonomyValue || null,
+          subcategory: applied.subcategory,
+          condition: applied.condition,
+          is_new: applied.is_new,
+          new: applied.is_new,
+          series: keepSeries,
+          brand: suggested ?? prev.brand,
+          specifications: Object.keys(prevSpecs).length ? prevSpecs : prev.specifications,
+          specificationsJson: Object.keys(prevSpecs).length
+            ? JSON.stringify(prevSpecs, null, 2)
+            : prev.specificationsJson,
+        };
+      });
     },
     [draft.condition, draft.series, draft.subcategory, setDraft],
   );
@@ -310,17 +338,45 @@ export const AdminProductForm: React.FC<Props> = ({
   const displaySimTypes = derivedChips?.sim_types ?? draft.sim_types ?? [];
   const displaySizes = derivedChips?.display_sizes ?? draft.display_sizes ?? [];
   const isTabletCategory = String(draft.category || '').toLowerCase() === 'ipad';
-  const isLaptopCategory =
-    normalizeProductCategory(categoryKey) === 'Laptops';
+  const normalizedCategory = normalizeProductCategory(categoryKey);
+  const isLaptopCategory = normalizedCategory === 'Laptops';
   const isAudioCategory =
-    normalizeProductCategory(categoryKey) === 'Headphones' ||
-    normalizeProductCategory(categoryKey) === 'Speakers';
+    normalizedCategory === 'Headphones' || normalizedCategory === 'Speakers';
+  const isAccessoryCategory = normalizedCategory === 'Accessories';
+  const isGamingCategory = normalizedCategory === 'Gaming';
+  const isWatchCategory = normalizedCategory === 'Smart watches';
+  const isPhoneCategory =
+    normalizedCategory === 'iPhone' || normalizedCategory === 'Android phones';
+  const isMacCategory = normalizedCategory === 'MacBooks';
+  /** Phone / tablet / Mac keep storage+SIM; laptops keep storage+RAM; audio/accessories are usually colour SKUs. */
+  const showStorageOption =
+    isPhoneCategory || isTabletCategory || isMacCategory || isLaptopCategory || isGamingCategory;
+  const showRamOption = isLaptopCategory || isPhoneCategory || isMacCategory;
+  const showSimOption = isPhoneCategory || isTabletCategory;
   const seriesOptions = categoryUsesSeriesStep(categoryKey)
     ? getCategorySeriesOptions(
         categoryKey,
         brandThenSeries ? taxonomySelectValue || undefined : undefined,
       )
     : [];
+  const taxonomyPathHint = (() => {
+    if (usesConditionTaxonomy && seriesOptions.length > 0) {
+      return `Shop path: ${normalizedCategory} → Series → New/Used → products.`;
+    }
+    if (usesConditionTaxonomy) {
+      return `Shop path: ${normalizedCategory} → New/Used → products.`;
+    }
+    if (brandThenSeries) {
+      return `Shop path: ${normalizedCategory} → Brand → Series → products.`;
+    }
+    if (isAccessoryCategory) {
+      return `Shop path: Accessories → Type (Cases / Protectors / Chargers) → products.`;
+    }
+    if (isGamingCategory || isWatchCategory) {
+      return `Shop path: ${normalizedCategory} → Brand/platform → products.`;
+    }
+    return null;
+  })();
   const simQuickPicks = isTabletCategory ? IPAD_SIM_OPTIONS : PRODUCT_SIM_OPTIONS;
 
   const colorImages = useMemo(() => {
@@ -754,6 +810,20 @@ export const AdminProductForm: React.FC<Props> = ({
               </div>
 
               <div className={`${s.card} grid grid-cols-1 sm:grid-cols-2 gap-4`}>
+                {taxonomyPathHint && (
+                  <div
+                    className={`sm:col-span-2 rounded-xl border px-3 py-2.5 text-[11px] leading-relaxed ${
+                      isLight
+                        ? 'border-[#B38B21]/35 bg-[#B38B21]/8 text-black/70'
+                        : 'border-[#B38B21]/25 bg-[#B38B21]/10 text-white/65'
+                    }`}
+                  >
+                    <span className="font-black uppercase tracking-wider text-[9px] text-[#B38B21] mr-2">
+                      Taxonomy
+                    </span>
+                    {taxonomyPathHint} Set every step below so the product appears in the right shop filters.
+                  </div>
+                )}
                 <div>
                   <label className={s.label}>Price (GH₵) *</label>
                   <input
@@ -795,7 +865,11 @@ export const AdminProductForm: React.FC<Props> = ({
                         ? 'Condition *'
                         : brandThenSeries
                           ? 'Brand *'
-                          : 'Sub-category *'}
+                          : isAccessoryCategory
+                            ? 'Type *'
+                            : isGamingCategory || isWatchCategory
+                              ? 'Platform / brand *'
+                              : 'Sub-category *'}
                     </label>
                     <select
                       value={taxonomySelectValue}
@@ -808,7 +882,9 @@ export const AdminProductForm: React.FC<Props> = ({
                           ? 'Select New or Used'
                           : brandThenSeries
                             ? 'Select brand'
-                            : 'Select sub-category'}
+                            : isAccessoryCategory
+                              ? 'Select accessory type'
+                              : 'Select sub-category'}
                       </option>
                       {taxonomyOptions.map((o) => (
                         <option key={o.value} value={o.value}>
@@ -830,11 +906,28 @@ export const AdminProductForm: React.FC<Props> = ({
                       value={draft.series ?? ''}
                       onChange={(e) => {
                         const series = e.target.value || null;
+                        const nextSpecs = {
+                          ...(draft.specifications && typeof draft.specifications === 'object'
+                            ? (draft.specifications as Record<string, unknown>)
+                            : {}),
+                          series,
+                          ...(isAudioCategory
+                            ? {
+                                catalog: 'audio',
+                                audio_type:
+                                  normalizedCategory === 'Speakers' ? 'speakers' : 'headphones',
+                              }
+                            : isLaptopCategory
+                              ? { catalog: 'laptop' }
+                              : {}),
+                        };
                         setDraft({
                           ...draft,
                           series,
                           // Brand→series categories persist series on subcategory
                           subcategory: brandThenSeries ? series : draft.subcategory,
+                          specifications: nextSpecs,
+                          specificationsJson: JSON.stringify(nextSpecs, null, 2),
                         });
                       }}
                       className={s.input}
@@ -849,20 +942,37 @@ export const AdminProductForm: React.FC<Props> = ({
                     </select>
                     <p className={`text-[10px] mt-1 ${s.muted}`}>
                       {brandThenSeries
-                        ? 'Shop path: Category → Brand → Series → products.'
+                        ? 'Required. Matches the shop Brand → Series filters (incl. Sony, EarPods, HomePod).'
                         : 'Shown on the shop as Category → Series → New/Used.'}
                     </p>
                   </div>
                 )}
                 <div>
-                  <label className={s.label}>Brand</label>
+                  <label className={s.label}>
+                    Brand{brandThenSeries ? ' (auto)' : ''}
+                  </label>
                   <input
                     type="text"
                     value={draft.brand ?? ''}
                     onChange={(e) => setDraft({ ...draft, brand: e.target.value })}
                     className={s.input}
-                    placeholder="Apple"
+                    placeholder={
+                      isAccessoryCategory
+                        ? 'e.g. Spigen, Anker…'
+                        : taxonomySelectValue === 'Others'
+                          ? 'e.g. Samsung, Fitbit…'
+                          : 'Apple'
+                    }
                   />
+                  {(brandThenSeries || isAccessoryCategory || taxonomySelectValue === 'Others') && (
+                    <p className={`text-[10px] mt-1 ${s.muted}`}>
+                      {brandThenSeries
+                        ? 'Filled from the Brand picker above — edit if the listing brand differs.'
+                        : isAccessoryCategory
+                          ? 'Maker / label shown on the product card. Type above sets the shop filter.'
+                          : 'Required when platform is Others — enter the real watch brand.'}
+                    </p>
+                  )}
                 </div>
                 {!usesConditionTaxonomy && (
                   <div>
@@ -887,6 +997,9 @@ export const AdminProductForm: React.FC<Props> = ({
                         </option>
                       ))}
                     </select>
+                    <p className={`text-[10px] mt-1 ${s.muted}`}>
+                      Saved with the product (New / Pre-owned / Refurbished).
+                    </p>
                   </div>
                 )}
                 <div>
@@ -1143,7 +1256,13 @@ export const AdminProductForm: React.FC<Props> = ({
                   ? 'Options are locked to the generated versions below. Edit price and stock on each row — or rebuild from options.'
                   : isTabletCategory
                     ? 'Add Size, Colour, Storage, and Connectivity (Wi‑Fi / Cellular). Generate versions, then set prices and stock.'
-                    : 'Add every Color, Storage, RAM, and SIM option once. Generate versions to auto-build all combinations — then only fill or edit prices and stock.'}
+                    : isAudioCategory || isAccessoryCategory
+                      ? 'These categories usually need Colour only. Skip Storage / RAM / SIM unless this product has real variants.'
+                      : isLaptopCategory
+                        ? 'Add Colour, Storage, and RAM for laptop versions. SIM is hidden for notebooks.'
+                        : isGamingCategory || isWatchCategory
+                          ? 'Add Colour and Storage if needed for variants. SIM is usually not required.'
+                          : 'Add every Color, Storage, RAM, and SIM option once. Generate versions to auto-build all combinations — then only fill or edit prices and stock.'}
               </p>
               {isTabletCategory && (
                 <ChipField
@@ -1191,19 +1310,21 @@ export const AdminProductForm: React.FC<Props> = ({
                 readOnly={chipsLocked}
                 readOnlyNote="Managed by generated versions"
               />
-              <ChipField
-                label="Storage"
-                chips={displayStorage}
-                inputVal={storageIn}
-                setInputVal={setStorageIn}
-                placeholder="e.g. 256GB"
-                onAdd={() => onAddChip('storage', storageIn, () => setStorageIn(''))}
-                onRemove={(v) => onRemoveChip('storage', v)}
-                styles={s}
-                readOnly={chipsLocked}
-                readOnlyNote="Managed by generated versions"
-              />
-              {!isTabletCategory && (
+              {showStorageOption && (
+                <ChipField
+                  label="Storage"
+                  chips={displayStorage}
+                  inputVal={storageIn}
+                  setInputVal={setStorageIn}
+                  placeholder="e.g. 256GB"
+                  onAdd={() => onAddChip('storage', storageIn, () => setStorageIn(''))}
+                  onRemove={(v) => onRemoveChip('storage', v)}
+                  styles={s}
+                  readOnly={chipsLocked}
+                  readOnlyNote="Managed by generated versions"
+                />
+              )}
+              {showRamOption && (
                 <ChipField
                   label="RAM"
                   chips={displayRam}
@@ -1217,46 +1338,50 @@ export const AdminProductForm: React.FC<Props> = ({
                   readOnlyNote="Managed by generated versions"
                 />
               )}
-              <ChipField
-                label={isTabletCategory ? 'Connectivity (Wi‑Fi / Cellular)' : 'SIM type (Physical / eSIM / Wi‑Fi / …)'}
-                chips={displaySimTypes}
-                inputVal={simIn}
-                setInputVal={setSimIn}
-                placeholder={isTabletCategory ? 'wifi or cell_ps' : 'e.g. Physical SIM or eSIM — or pick below'}
-                onAdd={() => onAddChip('sim_types', simIn, () => setSimIn(''))}
-                onRemove={(v) => onRemoveChip('sim_types', v)}
-                styles={s}
-                readOnly={chipsLocked}
-                readOnlyNote="Set per version when generate-versions is on"
-                formatChip={formatSimTypeLabel}
-              />
-              {!chipsLocked && (
-                <div className="flex flex-wrap gap-1.5 px-1">
-                  {simQuickPicks.map((code) => (
-                    <button
-                      key={code}
-                      type="button"
-                      onClick={() => onAddChip('sim_types', code, () => setSimIn(''))}
-                      className={`text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-lg border ${
-                        (displaySimTypes || []).includes(code)
-                          ? 'border-[#B38B21] text-[#B38B21] bg-[#B38B21]/10'
-                          : isLight
-                            ? 'border-black/10 text-black/50'
-                            : 'border-white/10 text-white/45'
-                      }`}
-                    >
-                      {formatSimTypeLabel(code)}
-                    </button>
-                  ))}
-                </div>
+              {showSimOption && (
+                <>
+                  <ChipField
+                    label={isTabletCategory ? 'Connectivity (Wi‑Fi / Cellular)' : 'SIM type (Physical / eSIM / Wi‑Fi / …)'}
+                    chips={displaySimTypes}
+                    inputVal={simIn}
+                    setInputVal={setSimIn}
+                    placeholder={isTabletCategory ? 'wifi or cell_ps' : 'e.g. Physical SIM or eSIM — or pick below'}
+                    onAdd={() => onAddChip('sim_types', simIn, () => setSimIn(''))}
+                    onRemove={(v) => onRemoveChip('sim_types', v)}
+                    styles={s}
+                    readOnly={chipsLocked}
+                    readOnlyNote="Set per version when generate-versions is on"
+                    formatChip={formatSimTypeLabel}
+                  />
+                  {!chipsLocked && (
+                    <div className="flex flex-wrap gap-1.5 px-1">
+                      {simQuickPicks.map((code) => (
+                        <button
+                          key={code}
+                          type="button"
+                          onClick={() => onAddChip('sim_types', code, () => setSimIn(''))}
+                          className={`text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-lg border ${
+                            (displaySimTypes || []).includes(code)
+                              ? 'border-[#B38B21] text-[#B38B21] bg-[#B38B21]/10'
+                              : isLight
+                                ? 'border-black/10 text-black/50'
+                                : 'border-white/10 text-white/45'
+                          }`}
+                        >
+                          {formatSimTypeLabel(code)}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
 
               <div className={s.card}>
                 <ProductSkuMatrix
                   colors={draft.colors || []}
-                  storage={draft.storage || []}
-                  ram={isTabletCategory ? [] : draft.ram || []}
-                  simTypes={draft.sim_types || []}
+                  storage={showStorageOption ? draft.storage || [] : []}
+                  ram={showRamOption ? draft.ram || [] : []}
+                  simTypes={showSimOption ? draft.sim_types || [] : []}
                   displaySizes={draft.display_sizes || []}
                   basePrice={priceNum}
                   enabled={skuMatrixEnabled}
@@ -1421,7 +1546,7 @@ export const AdminProductForm: React.FC<Props> = ({
 
               <div className={s.card}>
                 <label className={s.label}>Extra product details</label>
-                {(isLaptopCategory || isAudioCategory) && (
+                {(isLaptopCategory || isAudioCategory || isAccessoryCategory) && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                     {isAudioCategory && (
                       <>
@@ -1429,7 +1554,7 @@ export const AdminProductForm: React.FC<Props> = ({
                           <label className={s.label}>Audio type</label>
                           <select
                             className={s.input}
-                            value={String((draft.specifications as Record<string, unknown> | null)?.audio_type ?? (normalizeProductCategory(categoryKey) === 'Speakers' ? 'speakers' : 'headphones'))}
+                            value={String((draft.specifications as Record<string, unknown> | null)?.audio_type ?? (normalizedCategory === 'Speakers' ? 'speakers' : 'headphones'))}
                             onChange={(e) => {
                               const next = {
                                 ...(draft.specifications && typeof draft.specifications === 'object'
@@ -1452,9 +1577,13 @@ export const AdminProductForm: React.FC<Props> = ({
                         </div>
                         <div>
                           <label className={s.label}>Catalog series</label>
-                          <input
+                          <select
                             className={s.input}
-                            value={String((draft.specifications as Record<string, unknown> | null)?.series ?? draft.series ?? '')}
+                            value={String(
+                              (draft.specifications as Record<string, unknown> | null)?.series ??
+                                draft.series ??
+                                '',
+                            )}
                             onChange={(e) => {
                               const series = e.target.value || null;
                               const next = {
@@ -1472,10 +1601,41 @@ export const AdminProductForm: React.FC<Props> = ({
                                 specificationsJson: JSON.stringify(next, null, 2),
                               });
                             }}
-                            placeholder="Tune / Flip / AirPods…"
-                          />
+                          >
+                            <option value="">Same as Details → Series</option>
+                            {getCategorySeriesOptions(categoryKey).map((o) => (
+                              <option key={o.value} value={o.value}>
+                                {o.label}
+                              </option>
+                            ))}
+                          </select>
+                          <p className={`text-[10px] mt-1 ${s.muted}`}>
+                            Prefer setting Series on the Details tab — this stays in sync.
+                          </p>
                         </div>
                       </>
+                    )}
+                    {isAccessoryCategory && (
+                      <div className="sm:col-span-2">
+                        <label className={s.label}>Accessory type (shop filter)</label>
+                        <select
+                          className={s.input}
+                          value={String(
+                            (draft.specifications as Record<string, unknown> | null)?.accessory_type ??
+                              draft.taxonomy_value ??
+                              draft.subcategory ??
+                              '',
+                          )}
+                          onChange={(e) => applyTaxonomySelection(categoryKey, e.target.value)}
+                        >
+                          <option value="">Select type</option>
+                          {taxonomyOptions.map((o) => (
+                            <option key={o.value} value={o.value}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     )}
                     {isLaptopCategory &&
                       (
@@ -1533,7 +1693,9 @@ export const AdminProductForm: React.FC<Props> = ({
                     ? 'Laptop KEY fields (processor, RAM, graphics…) stay blank until you fill them — do not invent specs.'
                     : isAudioCategory
                       ? 'Audio catalog fields help the shop Brand → Series filters. Colour SKUs stay on the Options tab.'
-                      : 'Optional extra details for the product page. Ask a manager if you are unsure.'}
+                      : isAccessoryCategory
+                        ? 'Accessory type must match Cases / Protectors / Chargers so shop filters work.'
+                        : 'Optional extra details for the product page. Ask a manager if you are unsure.'}
                 </p>
               </div>
 

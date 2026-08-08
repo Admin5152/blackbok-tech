@@ -8,7 +8,7 @@ import { Link } from '@tanstack/react-router';
 import { Product, Category } from '../types';
 import { HERO_COLLAGE_FILENAMES, getImagesForTheme } from '../data/heroImages';
 import { formatCurrency, TW_DARK_BTN_DEPTH, TW_DARK_GOLD_BTN_DEPTH } from '../lib/utils';
-import { normalizeProductCategory } from '../lib/api';
+import { productMatchesStoreCategories } from '../lib/storeFilters';
 import { scrollHomeRail } from '../lib/homeCarouselScroll';
 import { useHomeRailScroll } from '../hooks/useHomeRailScroll';
 import { useAutoHomeRails } from '../hooks/useAutoHomeRails';
@@ -105,9 +105,12 @@ export const Home: React.FC<HomeProps> = ({
     setHeroSlide((s) => (s + 1) % heroSlideCount);
   };
 
-  /** Same rules as the store and `mapProductFromDb` — DB labels map to one bucket (e.g. "Laptops & Notebooks" → Laptop). */
+  /** Same rules as the store — Audio umbrella matches Headphones + Speakers. */
   const matchesCategory = (productCategory: string | undefined, target: Category): boolean =>
-    normalizeProductCategory(productCategory) === normalizeProductCategory(String(target));
+    productMatchesStoreCategories(
+      { category: productCategory } as Product,
+      [String(target) as Category],
+    );
 
   /** Excluded from home carousels only — may still appear in the store. */
   const isHiddenOnHome = (p: Product) =>

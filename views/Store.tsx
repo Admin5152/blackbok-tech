@@ -1019,24 +1019,68 @@ export const Store: React.FC<StoreProps> = ({
   /** Refine New/Used (or brand) without wiping price / promo local state. */
   const applyConditionFilter = useCallback(
     (value: string) => {
+      // Sidebar "All" — clear New/Used (condition categories only).
+      if (value === 'all' || value === '') {
+        const search: Record<string, string> = {
+          ...categoryScopeSearch(),
+        };
+        if (brandThenSeries) {
+          search.series = 'all';
+        } else if (activeSeries) {
+          search.series = activeSeries;
+        } else if (seriesIsAll || seriesOptions.length > 0) {
+          search.series = 'all';
+        }
+        navigate({
+          to: '/store',
+          search: search as never,
+          replace: true,
+        });
+        return;
+      }
       const kind =
         subcategoryOptions.find((o) => o.value === value)?.kind ??
         (value === 'new' || value === 'used' ? 'condition' : 'brand');
+      const search: Record<string, string> = {
+        ...categoryScopeSearch(),
+        ...encodeStoreSubcategorySearch({ kind, value }),
+      };
+      // Brand → series: keep brand, clear to all series until staff picks one
+      if (brandThenSeries) {
+        search.series = 'all';
+      } else if (activeSeries) {
+        search.series = activeSeries;
+      } else if (seriesIsAll || seriesOptions.length > 0) {
+        search.series = 'all';
+      }
       navigate({
         to: '/store',
-        search: {
-          ...categoryScopeSearch(),
-          ...(activeSeries ? { series: activeSeries } : seriesIsAll || seriesOptions.length > 0 ? { series: 'all' } : {}),
-        ...encodeStoreSubcategorySearch({ kind, value }),
-      } as never,
+        search: search as never,
         replace: true,
       });
     },
-    [navigate, categoryScopeSearch, activeSeries, seriesIsAll, seriesOptions.length, subcategoryOptions],
+    [
+      navigate,
+      categoryScopeSearch,
+      activeSeries,
+      seriesIsAll,
+      seriesOptions.length,
+      subcategoryOptions,
+      brandThenSeries,
+    ],
   );
 
   const isCategoryRowActive = (cat: StoreCategoryRow): boolean => {
     if (cat.value === 'All') return browseDeals;
+    if (selectedCategories.length === 0) return false;
+    // Audio umbrella (Headphones + Speakers both selected)
+    if (
+      selectedCategories.length === 2 &&
+      selectedCategories.includes('Headphones' as Category) &&
+      selectedCategories.includes('Speakers' as Category)
+    ) {
+      return cat.value === 'Headphones' || cat.value === 'Speakers';
+    }
     return selectedCategories.length === 1 && selectedCategories[0] === cat.value;
   };
 
@@ -1073,9 +1117,28 @@ export const Store: React.FC<StoreProps> = ({
     seriesOptions: seriesOptions.map((o) => ({ value: o.value, label: o.label })),
     activeSeries: activeSeries ?? '',
     onSeriesClick: applySeriesFilter,
-    conditionOptions: subcategoryOptions.map((o) => ({ value: o.value, label: o.label })),
-    activeCondition: subcategoryFilter?.value,
+    conditionOptions: (() => {
+      const opts = subcategoryOptions.map((o) => ({ value: o.value, label: o.label }));
+      // Filter sidebar only: All + New + Used for condition categories
+      const isConditionOnly =
+        !brandThenSeries &&
+        subcategoryOptions.length > 0 &&
+        subcategoryOptions.every((o) => o.kind === 'condition');
+      if (isConditionOnly) {
+        return [{ value: 'all', label: 'All' }, ...opts];
+      }
+      return opts;
+    })(),
+    activeCondition: (() => {
+      const isConditionOnly =
+        !brandThenSeries &&
+        subcategoryOptions.length > 0 &&
+        subcategoryOptions.every((o) => o.kind === 'condition');
+      if (isConditionOnly && !subcategoryFilter) return 'all';
+      return subcategoryFilter?.value;
+    })(),
     onConditionClick: applyConditionFilter,
+    brandThenSeries,
   };
 
   const gridCols = showDesktopFilters

@@ -18,6 +18,7 @@ import { AdminRepairPricingModal } from './AdminRepairPricingModal';
 import { AdminFlowBar } from '../../components/FlowStepper';
 import {
     REPAIR_ADMIN_WORKFLOW,
+    getRepairStageGuidance,
     getRepairWorkflowStage,
     parseRepairIssueTypes,
     repairCustomerMatrixTotal,
@@ -215,6 +216,19 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
     const modalEstimateNum = sel ? repairCostNum(sel) : 0;
     const modalHasEstimate = sel != null && modalEstimateNum > 0;
     const showEstimateReviewCard = !!sel && (modalHasEstimate || !!(sel as any).adminNote);
+    const stageGuidance = sel
+        ? getRepairStageGuidance({
+            status: sel.status,
+            pricingMode: sel.pricing_mode,
+            hasTechnician: !!sel.assigned_technician,
+            hasEstimate: modalHasEstimate,
+        })
+        : null;
+    const showEstimateEditor =
+        !!sel &&
+        canEdit &&
+        (stageGuidance?.primaryAction === 'send_estimate' ||
+            ['diagnosing', 'estimate_sent', 'pending'].includes(toDbRepairStatus(sel.status)));
 
     const formatRepairDate = (d?: string) => {
         if (!d) return '—';
@@ -252,17 +266,28 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
                 <span className="text-[#B38B21]">{formatCurrency(repairRevenue)}</span>
             </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="bg-orange-500/5 border border-orange-500/20 rounded-xl p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-orange-400 mb-1">iPhone fixed-price repairs</p>
-                    <p className="text-[10px] text-white/45 leading-relaxed">
-                        Apple iPhone with priced issues → customer sees a quoted total when they submit. Confirm after inspection, then send the estimate for approval.
-                    </p>
+            <div className="bg-orange-500/5 border border-orange-500/20 rounded-xl p-4">
+                <p className="text-[9px] font-black uppercase tracking-widest text-orange-400 mb-2">Repair workflow</p>
+                <p className="text-[10px] text-white/45 leading-relaxed mb-3">
+                    Open Review on a job and follow the next step card. Do not skip ahead — send the estimate and wait for approval before marking In repair.
+                </p>
+                <div className="flex flex-wrap gap-2 text-[9px] font-black uppercase tracking-wider text-white/50 mb-3">
+                    <span className="px-2 py-1 rounded-lg bg-black/30">1 · Assign + intake</span>
+                    <span>→</span>
+                    <span className="px-2 py-1 rounded-lg bg-black/30">2 · Diagnose</span>
+                    <span>→</span>
+                    <span className="px-2 py-1 rounded-lg bg-black/30">3 · Send estimate</span>
+                    <span>→</span>
+                    <span className="px-2 py-1 rounded-lg bg-black/30">4 · Repair → done</span>
                 </div>
-                <div className="bg-white/[0.03] border border-white/10 rounded-xl p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-white/50 mb-1">Diagnostic flow</p>
-                    <p className="text-[10px] text-white/45 leading-relaxed">
-                        Samsung, laptops, tablets, etc. → no fixed price list. Check the device, enter a quote, then send the estimate when ready.
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] text-white/40 leading-relaxed">
+                    <p>
+                        <span className="text-orange-400/90 font-black uppercase tracking-wider text-[9px]">iPhone fixed price · </span>
+                        Customer sees a quoted total at submit — confirm after inspection, then send.
+                    </p>
+                    <p>
+                        <span className="text-white/55 font-black uppercase tracking-wider text-[9px]">Diagnostic · </span>
+                        No fixed list — inspect, enter cost, then send the estimate.
                     </p>
                 </div>
             </div>
@@ -402,33 +427,318 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
             )}
 
             {/* Repair Detail Modal */}
-            {sel && (
+            {sel && stageGuidance && (
                 <Modal onClose={() => setSel(null)}>
                     <ModalClose onClose={() => setSel(null)} />
                     <div className="p-6">
+                        <div className="flex items-start gap-3 mb-4">
+                            <div className="w-10 h-10 bg-orange-500/10 rounded-xl flex items-center justify-center shrink-0">
+                                <Wrench size={16} className="text-orange-400" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <h3 className="text-base font-black text-white truncate">{sel.device}</h3>
+                                <p className="text-[10px] text-white/30">{repairCustomerName(sel)}</p>
+                                {(sel as any).display_id && (
+                                    <p className="text-[9px] text-[#B38B21] font-black uppercase tracking-widest mt-0.5">{(sel as any).display_id}</p>
+                                )}
+                                <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                                    <Badge status={toRepairStatusLabel(sel.status)} />
+                                    <span className="text-[9px] font-black uppercase tracking-wider text-white/35">
+                                        {formatPricingModeLabel(sel.pricing_mode)}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
                         <AdminFlowBar
                             steps={[...REPAIR_ADMIN_WORKFLOW]}
                             activeKey={getRepairWorkflowStage(sel.status)}
                             accent="#f97316"
                         />
 
-                        <div className="flex items-start gap-3 mb-5">
-                            <div className="w-10 h-10 bg-orange-500/10 rounded-xl flex items-center justify-center shrink-0">
-                                <Wrench size={16} className="text-orange-400" />
-                            </div>
-                            <div>
-                                <h3 className="text-base font-black text-white">{sel.device}</h3>
-                                <p className="text-[10px] text-white/30">{repairCustomerName(sel)}</p>
-                                {(sel as any).display_id && (
-                                    <p className="text-[9px] text-[#B38B21] font-black uppercase tracking-widest mt-0.5">{(sel as any).display_id}</p>
-                                )}
-                                <div className="mt-1">
-                                    <Badge status={toRepairStatusLabel(sel.status)} />
-                                </div>
-                            </div>
+                        {/* Next step — primary hierarchy to reduce process slip */}
+                        <div
+                            className={`mb-5 rounded-xl border p-4 ${
+                                stageGuidance.primaryAction === 'none'
+                                    ? 'border-white/10 bg-white/[0.03]'
+                                    : stageGuidance.primaryAction === 'await_customer'
+                                      ? 'border-indigo-500/30 bg-indigo-500/10'
+                                      : 'border-orange-500/35 bg-orange-500/10'
+                            }`}
+                        >
+                            <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">
+                                Next step
+                            </p>
+                            <p className="text-sm font-black text-white leading-snug">{stageGuidance.title}</p>
+                            <p className="text-[11px] text-white/55 leading-relaxed mt-1.5">{stageGuidance.body}</p>
+
+                            {canEdit && stageGuidance.primaryAction === 'diagnose' && (
+                                <button
+                                    type="button"
+                                    disabled={saving}
+                                    onClick={() => patchRepair(sel.id, { status: 'Diagnosing' })}
+                                    className="mt-3 w-full sm:w-auto px-4 py-2.5 rounded-xl bg-orange-500 text-black text-[11px] font-black uppercase tracking-wider hover:bg-orange-400 disabled:opacity-40"
+                                >
+                                    {saving ? 'Updating…' : 'Start diagnosing'}
+                                </button>
+                            )}
+                            {canEdit && stageGuidance.primaryAction === 'complete' && (
+                                <button
+                                    type="button"
+                                    disabled={saving}
+                                    onClick={() => patchRepair(sel.id, { status: 'Completed' })}
+                                    className="mt-3 w-full sm:w-auto px-4 py-2.5 rounded-xl bg-emerald-500 text-black text-[11px] font-black uppercase tracking-wider hover:bg-emerald-400 disabled:opacity-40"
+                                >
+                                    {saving ? 'Updating…' : 'Mark completed'}
+                                </button>
+                            )}
+                            {stageGuidance.primaryAction === 'await_customer' && repairCustomerPhone(sel) ? (
+                                <a
+                                    href={`tel:${repairCustomerPhone(sel)}`}
+                                    className="inline-flex mt-3 px-4 py-2.5 rounded-xl bg-indigo-500/20 border border-indigo-400/30 text-indigo-200 text-[11px] font-black uppercase tracking-wider hover:bg-indigo-500/30"
+                                >
+                                    Call customer · {repairCustomerPhone(sel)}
+                                </a>
+                            ) : null}
+                            {canEdit && stageGuidance.primaryAction === 'assign' && (
+                                <p className="mt-3 text-[10px] text-orange-300/90 font-medium">
+                                    Use the technician picker below — then start diagnosing.
+                                </p>
+                            )}
                         </div>
 
-                        <div className="space-y-2 mb-4">
+                        {canEdit && (
+                            <div className="space-y-4 mb-5">
+                                {/* Technician — elevate when intake */}
+                                <div
+                                    className={`rounded-xl p-4 space-y-3 ${
+                                        stageGuidance.primaryAction === 'assign'
+                                            ? 'bg-orange-500/10 border border-orange-500/30 ring-1 ring-orange-500/20'
+                                            : 'bg-black/40 border border-white/5'
+                                    }`}
+                                >
+                                    <p className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2">
+                                        <UserCheck size={12} className="text-orange-400" /> Technician
+                                    </p>
+                                    {sel.assigned_technician ? (
+                                        <div className="flex items-center justify-between gap-3 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
+                                            <div className="min-w-0">
+                                                <p className="text-xs font-black text-white truncate">
+                                                    {technicianLabel(sel.assigned_technician) || 'Unknown technician'}
+                                                </p>
+                                                <p className="text-[9px] text-white/30 uppercase tracking-widest">Assigned</p>
+                                            </div>
+                                            <button
+                                                onClick={() => handleAssignTechnician(null)}
+                                                disabled={assigning}
+                                                className="shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-red-300/80 hover:text-red-200 hover:bg-red-500/10 transition-colors disabled:opacity-40"
+                                            >
+                                                {assigning ? '…' : 'Unassign'}
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <p className="text-[10px] text-white/35">Not assigned yet</p>
+                                    )}
+                                    <select
+                                        value={sel.assigned_technician ?? ''}
+                                        onChange={(e) => handleAssignTechnician(e.target.value || null)}
+                                        disabled={assigning || technicians.length === 0}
+                                        className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none disabled:opacity-50"
+                                    >
+                                        <option value="">{technicians.length === 0 ? 'No technicians available' : 'Select a technician…'}</option>
+                                        {technicians.map((t) => (
+                                            <option key={t.user_id} value={t.user_id}>
+                                                {t.name || t.email || t.user_id.slice(0, 8)}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Estimate — primary when diagnosing */}
+                                {showEstimateEditor && (
+                                    <div
+                                        className={`rounded-xl p-4 space-y-3 ${
+                                            stageGuidance.primaryAction === 'send_estimate'
+                                                ? 'bg-orange-500/10 border border-orange-500/30 ring-1 ring-orange-500/20'
+                                                : 'bg-black/40 border border-white/5'
+                                        }`}
+                                    >
+                                        <p className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2">
+                                            <Send size={12} className="text-orange-400" />{' '}
+                                            {stageGuidance.primaryAction === 'send_estimate'
+                                                ? 'Send estimate (required before repair)'
+                                                : 'Estimate'}
+                                        </p>
+                                        <p className="text-[9px] text-white/40 leading-relaxed">
+                                            {sel.pricing_mode === PRICING_MODE.APPLE_MATRIX
+                                                ? 'Confirm or adjust the quoted total after inspection, then send for customer approval.'
+                                                : 'Enter diagnosed repair cost (GHS). Sending sets status to Estimate sent.'}
+                                        </p>
+                                        {showEstimateReviewCard && (
+                                            <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-2.5">
+                                                <p className="text-[9px] text-green-400 uppercase tracking-widest">On file</p>
+                                                {modalHasEstimate && (
+                                                    <p className="text-lg font-black text-green-400">{formatCurrency(modalEstimateNum)}</p>
+                                                )}
+                                                {(sel as any).adminNote && (
+                                                    <p className="text-xs text-white/50 mt-0.5">{(sel as any).adminNote}</p>
+                                                )}
+                                            </div>
+                                        )}
+                                        {sel.pricing_mode === PRICING_MODE.APPLE_MATRIX && repairCustomerMatrixTotal(sel) != null && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setEstimate(String(repairCustomerMatrixTotal(sel)!))}
+                                                className="text-[9px] font-black uppercase text-orange-400 hover:text-orange-300"
+                                            >
+                                                Use customer’s quoted total ({formatCurrency(repairCustomerMatrixTotal(sel)!)})
+                                            </button>
+                                        )}
+                                        <div className="relative">
+                                            <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                                            <input
+                                                type="number"
+                                                value={estimate}
+                                                onChange={(e) => setEstimate(e.target.value)}
+                                                placeholder="Repair cost (GHS)"
+                                                className="w-full pl-8 pr-3 py-2 bg-black/50 border border-white/10 rounded-xl text-white text-sm focus:border-[#B38B21]/50 focus:outline-none"
+                                            />
+                                        </div>
+                                        <textarea
+                                            rows={2}
+                                            value={estimateNote}
+                                            onChange={(e) => setEstimateNote(e.target.value)}
+                                            placeholder="Note to customer (optional)…"
+                                            className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs resize-none focus:border-[#B38B21]/50 focus:outline-none"
+                                        />
+                                        <button
+                                            onClick={sendEstimate}
+                                            disabled={!estimate || saving}
+                                            className="w-full py-2.5 bg-[#B38B21] text-black font-black text-xs uppercase tracking-widest rounded-xl hover:bg-[#D4AF37] transition-all disabled:opacity-40 flex items-center justify-center gap-2"
+                                        >
+                                            <Send size={13} /> {saving ? 'Sending…' : 'Send estimate to customer'}
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Status — ordered progression; close actions separated */}
+                                <div className="bg-black/40 border border-white/5 rounded-xl p-4 space-y-3">
+                                    <p className="text-[9px] text-white/30 uppercase tracking-widest">Advance status</p>
+                                    <p className="text-[10px] text-white/40 leading-relaxed -mt-1">
+                                        Follow the rail above. Prefer the Next step button when shown — avoid jumping to Completed before the estimate is approved.
+                                    </p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {(['pending', 'diagnosing', 'in_repair', 'ready'] as const).map((db) => {
+                                            const recommended =
+                                                (stageGuidance.primaryAction === 'diagnose' && db === 'diagnosing') ||
+                                                (stageGuidance.primaryAction === 'complete' && db === 'ready' && toDbRepairStatus(sel.status) === 'in_repair');
+                                            const blockedToRepair =
+                                                db === 'in_repair' &&
+                                                ['pending', 'diagnosing'].includes(toDbRepairStatus(sel.status)) &&
+                                                !modalHasEstimate;
+                                            return (
+                                                <button
+                                                    key={db}
+                                                    type="button"
+                                                    title={blockedToRepair ? 'Send an estimate and get approval before In repair' : undefined}
+                                                    onClick={() => {
+                                                        if (blockedToRepair) {
+                                                            setActionError('Send the estimate and wait for customer approval before marking In repair.');
+                                                            return;
+                                                        }
+                                                        patchRepair(sel.id, { status: REPAIR_STATUS_LABELS[db] });
+                                                    }}
+                                                    disabled={saving}
+                                                    className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${
+                                                        toDbRepairStatus(sel.status) === db
+                                                            ? 'bg-[#B38B21] text-black'
+                                                            : recommended
+                                                              ? 'bg-orange-500/20 text-orange-200 border border-orange-500/40'
+                                                              : blockedToRepair
+                                                                ? 'bg-white/[0.03] text-white/25 border border-white/5 cursor-not-allowed'
+                                                                : 'bg-white/5 text-white/40 hover:text-white border border-white/10'
+                                                    }`}
+                                                >
+                                                    {REPAIR_STATUS_LABELS[db]}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    <div className="pt-2 border-t border-white/5">
+                                        <p className="text-[9px] text-white/25 uppercase tracking-widest mb-2">Close job</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {(['completed', 'rejected'] as const).map((db) => (
+                                                <button
+                                                    key={db}
+                                                    type="button"
+                                                    onClick={() => patchRepair(sel.id, { status: REPAIR_STATUS_LABELS[db] })}
+                                                    disabled={saving}
+                                                    className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${
+                                                        toDbRepairStatus(sel.status) === db
+                                                            ? 'bg-[#B38B21] text-black'
+                                                            : db === 'completed'
+                                                              ? 'bg-emerald-500/10 text-emerald-300/70 hover:text-emerald-200 border border-emerald-500/20'
+                                                              : 'bg-red-500/10 text-red-300/70 hover:text-red-200 border border-red-500/20'
+                                                    }`}
+                                                >
+                                                    {REPAIR_STATUS_LABELS[db]}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-black/30 border border-white/5 rounded-xl p-3">
+                                    <p className="text-[9px] text-white/30 uppercase tracking-widest mb-2">Diagnostic fee</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        <button
+                                            type="button"
+                                            disabled={saving}
+                                            onClick={() => patchRepair(sel.id, { diagnostic_fee: 'accepted' })}
+                                            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${
+                                                sel.diagnostic_fee === 'accepted'
+                                                    ? 'bg-[#B38B21] text-black'
+                                                    : 'bg-white/5 text-white/40 hover:text-white border border-white/10'
+                                            }`}
+                                        >
+                                            Charge
+                                        </button>
+                                        <button
+                                            type="button"
+                                            disabled={saving}
+                                            onClick={() => patchRepair(sel.id, { diagnostic_fee: 'waived' })}
+                                            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${
+                                                sel.diagnostic_fee === 'waived'
+                                                    ? 'bg-[#B38B21] text-black'
+                                                    : 'bg-white/5 text-white/40 hover:text-white border border-white/10'
+                                            }`}
+                                        >
+                                            Waive
+                                        </button>
+                                        <button
+                                            type="button"
+                                            disabled={saving}
+                                            onClick={() => patchRepair(sel.id, { diagnostic_fee: 'pending' })}
+                                            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${
+                                                !sel.diagnostic_fee || sel.diagnostic_fee === 'pending'
+                                                    ? 'bg-[#B38B21] text-black'
+                                                    : 'bg-white/5 text-white/40 hover:text-white border border-white/10'
+                                            }`}
+                                        >
+                                            Pending
+                                        </button>
+                                    </div>
+                                    <p className="text-[10px] text-white/35 mt-1.5">
+                                        Current: {sel.diagnostic_fee || 'pending'}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Request details — secondary */}
+                        <div className="border-t border-white/5 pt-4 space-y-2">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-1">Request details</p>
+
                             <div className="bg-black/40 rounded-xl p-3">
                                 <p className="text-[9px] text-white/30 uppercase tracking-widest mb-2">Customer contact</p>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -458,12 +768,12 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
                             </div>
 
                             <div className="bg-black/40 rounded-xl p-3">
-                                <p className="text-[9px] text-white/30 uppercase tracking-widest mb-1">Issue Description</p>
+                                <p className="text-[9px] text-white/30 uppercase tracking-widest mb-1">Issue description</p>
                                 <p className="text-xs text-white leading-relaxed whitespace-pre-wrap">{sel.issue || '—'}</p>
                             </div>
                             {sel.aiDiagnosis && (
                                 <div className="bg-white/5 rounded-xl p-3">
-                                    <p className="text-[9px] text-white/30 uppercase tracking-widest mb-1">AI Diagnosis</p>
+                                    <p className="text-[9px] text-white/30 uppercase tracking-widest mb-1">AI diagnosis</p>
                                     <p className="text-xs text-white/60 leading-relaxed">{sel.aiDiagnosis}</p>
                                 </div>
                             )}
@@ -515,7 +825,7 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
                                 <div className="bg-white/[0.03] border border-white/10 rounded-xl p-3">
                                     <p className="text-[9px] text-white/40 uppercase tracking-widest mb-1">Diagnostic path</p>
                                     <p className="text-[10px] text-white/45 leading-relaxed">
-                                        No fixed price for this device. Finish checking it, then send a manual estimate below.
+                                        No fixed price for this device. Finish checking it, then send a manual estimate.
                                     </p>
                                 </div>
                             )}
@@ -523,19 +833,7 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
                             {!sel.pricing_mode && (
                                 <div className="bg-white/[0.03] border border-white/10 rounded-xl p-3">
                                     <p className="text-[9px] text-white/40 uppercase tracking-widest">Legacy request</p>
-                                    <p className="text-[10px] text-white/45 mt-1">No fixed price for this job — check the phone, then enter a quote.</p>
-                                </div>
-                            )}
-
-                            {showEstimateReviewCard && (
-                                <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3">
-                                    <p className="text-[9px] text-green-400 uppercase tracking-widest">Current estimate</p>
-                                    {modalHasEstimate && (
-                                        <p className="text-xl font-black text-green-400">{formatCurrency(modalEstimateNum)}</p>
-                                    )}
-                                    {(sel as any).adminNote && (
-                                        <p className="text-xs text-white/50 mt-1">{(sel as any).adminNote}</p>
-                                    )}
+                                    <p className="text-[10px] text-white/45 mt-1">No fixed price for this job — check the device, then enter a quote.</p>
                                 </div>
                             )}
 
@@ -559,156 +857,6 @@ export const AdminRepairs: React.FC<Props> = ({ canEdit = true }) => {
                                 </div>
                             )}
                         </div>
-
-                        {canEdit && (
-                            <div className="border-t border-white/5 pt-4 space-y-4">
-                                <div>
-                                    <p className="text-[9px] text-white/30 uppercase tracking-widest mb-2">Diagnostic fee</p>
-                                    <div className="flex flex-wrap gap-2">
-                                        <button
-                                            type="button"
-                                            disabled={saving}
-                                            onClick={() => patchRepair(sel.id, { diagnostic_fee: 'accepted' })}
-                                            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${
-                                                sel.diagnostic_fee === 'accepted'
-                                                    ? 'bg-[#B38B21] text-black'
-                                                    : 'bg-white/5 text-white/40 hover:text-white border border-white/10'
-                                            }`}
-                                        >
-                                            Charge
-                                        </button>
-                                        <button
-                                            type="button"
-                                            disabled={saving}
-                                            onClick={() => patchRepair(sel.id, { diagnostic_fee: 'waived' })}
-                                            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${
-                                                sel.diagnostic_fee === 'waived'
-                                                    ? 'bg-[#B38B21] text-black'
-                                                    : 'bg-white/5 text-white/40 hover:text-white border border-white/10'
-                                            }`}
-                                        >
-                                            Waive
-                                        </button>
-                                        <button
-                                            type="button"
-                                            disabled={saving}
-                                            onClick={() => patchRepair(sel.id, { diagnostic_fee: 'pending' })}
-                                            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${
-                                                !sel.diagnostic_fee || sel.diagnostic_fee === 'pending'
-                                                    ? 'bg-[#B38B21] text-black'
-                                                    : 'bg-white/5 text-white/40 hover:text-white border border-white/10'
-                                            }`}
-                                        >
-                                            Pending
-                                        </button>
-                                    </div>
-                                    <p className="text-[10px] text-white/40 mt-1.5">
-                                        Current: {sel.diagnostic_fee || 'pending'}
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <p className="text-[9px] text-white/30 uppercase tracking-widest mb-2">Quick status</p>
-                                    <div className="flex flex-wrap gap-2">
-                                        {(['pending', 'diagnosing', 'in_repair', 'completed', 'rejected'] as const).map((db) => (
-                                            <button
-                                                key={db}
-                                                onClick={() => patchRepair(sel.id, { status: REPAIR_STATUS_LABELS[db] })}
-                                                disabled={saving}
-                                                className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${
-                                                    toDbRepairStatus(sel.status) === db ? 'bg-[#B38B21] text-black' : 'bg-white/5 text-white/40 hover:text-white border border-white/10'
-                                                }`}
-                                            >
-                                                {REPAIR_STATUS_LABELS[db]}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="bg-black/40 rounded-xl p-4 space-y-3">
-                                    <p className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2">
-                                        <UserCheck size={12} className="text-orange-400" /> Assigned Technician
-                                    </p>
-                                    {sel.assigned_technician ? (
-                                        <div className="flex items-center justify-between gap-3 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
-                                            <div className="min-w-0">
-                                                <p className="text-xs font-black text-white truncate">
-                                                    {technicianLabel(sel.assigned_technician) || 'Unknown technician'}
-                                                </p>
-                                                <p className="text-[9px] text-white/30 uppercase tracking-widest">Currently assigned</p>
-                                            </div>
-                                            <button
-                                                onClick={() => handleAssignTechnician(null)}
-                                                disabled={assigning}
-                                                className="shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-red-300/80 hover:text-red-200 hover:bg-red-500/10 transition-colors disabled:opacity-40"
-                                            >
-                                                {assigning ? '…' : 'Unassign'}
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <p className="text-[10px] text-white/30 uppercase tracking-widest">Not assigned</p>
-                                    )}
-
-                                    <select
-                                        value={sel.assigned_technician ?? ''}
-                                        onChange={(e) => handleAssignTechnician(e.target.value || null)}
-                                        disabled={assigning || technicians.length === 0}
-                                        className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:border-[#B38B21]/50 focus:outline-none disabled:opacity-50"
-                                    >
-                                        <option value="">{technicians.length === 0 ? 'No technicians available' : 'Select a technician…'}</option>
-                                        {technicians.map((t) => (
-                                            <option key={t.user_id} value={t.user_id}>
-                                                {t.name || t.email || t.user_id.slice(0, 8)}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div className="bg-black/40 rounded-xl p-4 space-y-3">
-                                    <p className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2">
-                                        <Send size={12} className="text-orange-400" /> Send estimate after diagnosis
-                                    </p>
-                                    <p className="text-[9px] text-white/40 leading-relaxed">
-                                        {sel.pricing_mode === PRICING_MODE.APPLE_MATRIX
-                                            ? 'Confirm or adjust the quoted total after inspection, then send for customer approval.'
-                                            : 'Enter your diagnosed repair cost. Sending sets status to Estimate sent.'}
-                                    </p>
-                                    {sel.pricing_mode === PRICING_MODE.APPLE_MATRIX && repairCustomerMatrixTotal(sel) != null && (
-                                        <button
-                                            type="button"
-                                            onClick={() => setEstimate(String(repairCustomerMatrixTotal(sel)!))}
-                                            className="text-[9px] font-black uppercase text-orange-400 hover:text-orange-300"
-                                        >
-                                            Use customer’s quoted total ({formatCurrency(repairCustomerMatrixTotal(sel)!)})
-                                        </button>
-                                    )}
-                                    <div className="relative">
-                                        <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
-                                        <input
-                                            type="number"
-                                            value={estimate}
-                                            onChange={(e) => setEstimate(e.target.value)}
-                                            placeholder="Repair cost (GHS)"
-                                            className="w-full pl-8 pr-3 py-2 bg-black/50 border border-white/10 rounded-xl text-white text-sm focus:border-[#B38B21]/50 focus:outline-none"
-                                        />
-                                    </div>
-                                    <textarea
-                                        rows={2}
-                                        value={estimateNote}
-                                        onChange={(e) => setEstimateNote(e.target.value)}
-                                        placeholder="Note to customer (optional)…"
-                                        className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white text-xs resize-none focus:border-[#B38B21]/50 focus:outline-none"
-                                    />
-                                    <button
-                                        onClick={sendEstimate}
-                                        disabled={!estimate || saving}
-                                        className="w-full py-2.5 bg-[#B38B21] text-black font-black text-xs uppercase tracking-widest rounded-xl hover:bg-[#D4AF37] transition-all disabled:opacity-40 flex items-center justify-center gap-2"
-                                    >
-                                        <Send size={13} /> {saving ? 'Sending…' : 'Send estimate to customer'}
-                                    </button>
-                                </div>
-                            </div>
-                        )}
                     </div>
                 </Modal>
             )}

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, ChevronDown, Tag } from 'lucide-react';
 import { Category } from '../types';
 import { formatCurrency } from '../lib/utils';
-import { STORE_PRICE_SLIDER_MAX, STORE_PRICE_SLIDER_STEP } from '../lib/storeFilters';
+import { STORE_PRICE_SLIDER_MAX, STORE_PRICE_SLIDER_STEP, STORE_CATEGORY_FILTER_GROUPS } from '../lib/storeFilters';
 
 export { STORE_PRICE_SLIDER_MAX, STORE_PRICE_SLIDER_STEP } from '../lib/storeFilters';
 
@@ -14,7 +14,8 @@ const PRICE_PRESETS = [
   { label: 'Any price', range: { min: 0, max: STORE_PRICE_SLIDER_MAX } },
   { label: 'Under GH₵5,000', range: { min: 0, max: 5000 } },
   { label: 'GH₵5,000 – 10,000', range: { min: 5000, max: 10000 } },
-  { label: 'GH₵10,000 & above', range: { min: 10000, max: STORE_PRICE_SLIDER_MAX } },
+  { label: 'GH₵10,000 – 20,000', range: { min: 10000, max: 20000 } },
+  { label: 'GH₵20,000 & above', range: { min: 20000, max: STORE_PRICE_SLIDER_MAX } },
 ] as const;
 
 export interface StoreFilterPanelProps {
@@ -44,6 +45,8 @@ export interface StoreFilterPanelProps {
   conditionOptions?: { value: string; label: string }[];
   activeCondition?: string;
   onConditionClick?: (value: string) => void;
+  /** When true, conditionOptions are brands (Audio / Laptops Brand → Series). */
+  brandThenSeries?: boolean;
 }
 
 function clampPriceRange(min: number, max: number): { min: number; max: number } {
@@ -152,6 +155,7 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
   conditionOptions,
   activeCondition,
   onConditionClick,
+  brandThenSeries = false,
 }) => {
   const isDrawer = variant === 'drawer';
   const borderSubtle = isLight ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.12)';
@@ -159,8 +163,11 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
 
   const hasSeries = Boolean(seriesOptions && seriesOptions.length > 0 && onSeriesClick);
   const hasCondition = Boolean(conditionOptions && conditionOptions.length > 0 && onConditionClick);
-  const conditionTitle =
-    conditionOptions?.every((o) => o.value === 'new' || o.value === 'used') ? 'Condition' : 'Type';
+  const conditionTitle = brandThenSeries
+    ? 'Brand'
+    : conditionOptions?.every((o) => o.value === 'new' || o.value === 'used' || o.value === 'all')
+      ? 'Condition'
+      : 'Type';
 
   const activeCat = categoryOptions.find((c) => isCategoryRowActive(c) && c.value !== 'All');
 
@@ -179,6 +186,33 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
   const isPresetActive = (min: number, max: number) =>
     priceRange.min === min && priceRange.max === max;
 
+  /** Group shop categories for the filter list (Audio, Computers, …). */
+  const groupedCategoryRows = React.useMemo(() => {
+    const deals = categoryOptions.filter((c) => c.value === 'All' || c.key === 'deals');
+    const rest = categoryOptions.filter((c) => c.value !== 'All' && c.key !== 'deals');
+    const byKey = new Map(rest.map((c) => [String(c.value), c]));
+    const used = new Set<string>();
+    const groups: { id: string; label: string | null; rows: StoreCategoryRow[] }[] = [];
+
+    for (const g of STORE_CATEGORY_FILTER_GROUPS) {
+      const rows = g.categories
+        .map((name) => byKey.get(name))
+        .filter((r): r is StoreCategoryRow => Boolean(r));
+      if (rows.length === 0) continue;
+      rows.forEach((r) => used.add(String(r.value)));
+      groups.push({
+        id: g.id,
+        label: rows.length > 1 ? g.label : null,
+        rows,
+      });
+    }
+    const leftovers = rest.filter((r) => !used.has(String(r.value)));
+    if (leftovers.length) {
+      groups.push({ id: 'other', label: null, rows: leftovers });
+    }
+    return { deals, groups };
+  }, [categoryOptions]);
+
   const body = (
     <div className="bb-mp-filter">
       <FilterAccordion
@@ -188,37 +222,95 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
         badge={activeCat?.label}
       >
         <div className="bb-mp-filter-list">
-          {categoryOptions.map((cat) => {
-            const active = isCategoryRowActive(cat);
-            return (
-              <React.Fragment key={cat.key}>
-                <FilterCheckRow
-                  label={cat.label.replace(/^🔥\s*/, '')}
-                  count={cat.count}
-                  checked={active}
-                  onClick={() => onCategoryClick(cat)}
-                />
-                {active && cat.value !== 'All' && hasSeries && (
-                  <div className="bb-mp-filter-tree">
-                    {seriesOptions!.slice(0, 6).map((opt) => (
-                      <FilterCheckRow
-                        key={opt.value}
-                        label={opt.label}
-                        checked={activeSeries === opt.value}
-                        indent
-                        onClick={() => onSeriesClick!(opt.value)}
-                      />
-                    ))}
-                    {seriesOptions!.length > 6 && (
-                      <p className="bb-mp-filter-more">+{seriesOptions!.length - 6} more in Series</p>
+          {groupedCategoryRows.deals.map((cat) => (
+            <FilterCheckRow
+              key={cat.key}
+              label={cat.label.replace(/^🔥\s*/, '')}
+              count={cat.count}
+              checked={isCategoryRowActive(cat)}
+              onClick={() => onCategoryClick(cat)}
+            />
+          ))}
+          {groupedCategoryRows.groups.map((group) => (
+            <div key={group.id} className="bb-mp-filter-group">
+              {group.label && (
+                <p className="bb-mp-filter-group__label">{group.label}</p>
+              )}
+              {group.rows.map((cat) => {
+                const active = isCategoryRowActive(cat);
+                return (
+                  <React.Fragment key={cat.key}>
+                    <FilterCheckRow
+                      label={cat.label.replace(/^🔥\s*/, '')}
+                      count={cat.count}
+                      checked={active}
+                      indent={Boolean(group.label)}
+                      onClick={() => onCategoryClick(cat)}
+                    />
+                    {active && cat.value !== 'All' && hasSeries && !brandThenSeries && (
+                      <div className="bb-mp-filter-tree">
+                        {seriesOptions!.slice(0, 6).map((opt) => (
+                          <FilterCheckRow
+                            key={opt.value}
+                            label={opt.label}
+                            checked={activeSeries === opt.value}
+                            indent
+                            onClick={() => onSeriesClick!(opt.value)}
+                          />
+                        ))}
+                        {seriesOptions!.length > 6 && (
+                          <p className="bb-mp-filter-more">+{seriesOptions!.length - 6} more in Series</p>
+                        )}
+                      </div>
                     )}
-                  </div>
-                )}
-              </React.Fragment>
-            );
-          })}
+                    {active &&
+                      cat.value !== 'All' &&
+                      brandThenSeries &&
+                      hasCondition &&
+                      !activeCondition && (
+                        <div className="bb-mp-filter-tree">
+                          {conditionOptions!.slice(0, 6).map((opt) => (
+                            <FilterCheckRow
+                              key={opt.value}
+                              label={opt.label}
+                              checked={false}
+                              indent
+                              onClick={() => onConditionClick!(opt.value)}
+                            />
+                          ))}
+                        </div>
+                      )}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          ))}
         </div>
       </FilterAccordion>
+
+      {hasCondition && (
+        <FilterAccordion
+          title={conditionTitle}
+          open={openSections.condition}
+          onToggle={() => toggleSection('condition')}
+          badge={
+            activeCondition && activeCondition !== 'all'
+              ? conditionOptions!.find((o) => o.value === activeCondition)?.label
+              : null
+          }
+        >
+          <div className="bb-mp-filter-list">
+            {conditionOptions!.map((opt) => (
+              <FilterCheckRow
+                key={opt.value}
+                label={opt.label}
+                checked={activeCondition === opt.value}
+                onClick={() => onConditionClick!(opt.value)}
+              />
+            ))}
+          </div>
+        </FilterAccordion>
+      )}
 
       {hasSeries && (
         <FilterAccordion
@@ -238,30 +330,6 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
                 label={opt.label}
                 checked={activeSeries === opt.value}
                 onClick={() => onSeriesClick!(opt.value)}
-              />
-            ))}
-          </div>
-        </FilterAccordion>
-      )}
-
-      {hasCondition && (
-        <FilterAccordion
-          title={conditionTitle}
-          open={openSections.condition}
-          onToggle={() => toggleSection('condition')}
-          badge={
-            activeCondition
-              ? conditionOptions!.find((o) => o.value === activeCondition)?.label
-              : null
-          }
-        >
-          <div className="bb-mp-filter-list">
-            {conditionOptions!.map((opt) => (
-              <FilterCheckRow
-                key={opt.value}
-                label={opt.label}
-                checked={activeCondition === opt.value}
-                onClick={() => onConditionClick!(opt.value)}
               />
             ))}
           </div>

@@ -3,7 +3,7 @@ import { normalizeProductCategory } from './api';
 
 export type StoreNewFilter = 'new' | 'used';
 
-export const STORE_PRICE_SLIDER_MAX = 15000;
+export const STORE_PRICE_SLIDER_MAX = 30000;
 export const STORE_PRICE_SLIDER_STEP = 100;
 
 export const STORE_PREFERRED_CATEGORIES = [
@@ -21,6 +21,36 @@ export const STORE_PREFERRED_CATEGORIES = [
   'Trades',
 ] as const;
 
+/**
+ * Filter-panel / search grouping for the shop.
+ * Children render nested under the group label when present in the category list.
+ */
+export const STORE_CATEGORY_FILTER_GROUPS: ReadonlyArray<{
+  id: string;
+  label: string;
+  categories: readonly string[];
+}> = [
+  { id: 'phones', label: 'Phones', categories: ['iPhone', 'Android phones'] },
+  { id: 'tablets', label: 'Tablets', categories: ['iPad', 'Tablet'] },
+  { id: 'computers', label: 'Computers', categories: ['MacBooks', 'Laptops'] },
+  { id: 'wearables', label: 'Wearables', categories: ['Smart watches'] },
+  { id: 'gaming', label: 'Gaming', categories: ['Gaming'] },
+  { id: 'audio', label: 'Audio', categories: ['Headphones', 'Speakers'] },
+  { id: 'accessories', label: 'Accessories', categories: ['Accessories'] },
+  { id: 'trades', label: 'Trades', categories: ['Trades'] },
+];
+
+/** Expand a filter selection that may be an umbrella (Audio) into concrete categories. */
+export function expandStoreCategorySelection(
+  category: string | null | undefined,
+): string[] {
+  const raw = String(category ?? '').trim();
+  if (!raw) return [];
+  if (raw.toLowerCase() === 'audio') return ['Headphones', 'Speakers'];
+  if (raw.toLowerCase() === 'computers') return ['MacBooks', 'Laptops'];
+  return [normalizeProductCategory(raw)];
+}
+
 export function getProductDiscountValue(discount: unknown): number {
   if (typeof discount === 'number') return Number.isFinite(discount) ? discount : 0;
   if (typeof discount === 'string') {
@@ -31,6 +61,10 @@ export function getProductDiscountValue(discount: unknown): number {
 }
 
 function productTextHaystack(p: Product): string {
+  const specs =
+    p.specifications && typeof p.specifications === 'object'
+      ? (p.specifications as Record<string, unknown>)
+      : null;
   return [
     p.name,
     p.description,
@@ -38,7 +72,13 @@ function productTextHaystack(p: Product): string {
     p.model,
     p.sku,
     p.category,
+    p.subcategory,
     p.trade_model,
+    specs?.series,
+    specs?.audio_type,
+    specs?.catalog,
+    specs?.storage_label,
+    specs?.memory,
     Array.isArray(p.specs) ? p.specs.join(' ') : '',
   ]
     .filter(Boolean)
@@ -46,15 +86,40 @@ function productTextHaystack(p: Product): string {
     .toLowerCase();
 }
 
+/** True when a search token should match this product's category bucket. */
+export function searchWordMatchesProductCategory(
+  productCategory: string | null | undefined,
+  word: string,
+): boolean {
+  const raw = word.trim().toLowerCase();
+  if (!raw) return false;
+  const productNorm = normalizeProductCategory(productCategory);
+
+  // Umbrella / synonym tokens (before normalize collapses Audio → Headphones)
+  if (raw === 'audio' || raw === 'sound') {
+    return productNorm === 'Headphones' || productNorm === 'Speakers';
+  }
+  if (raw === 'computers' || raw === 'computer' || raw === 'pc' || raw === 'notebooks') {
+    return productNorm === 'Laptops' || productNorm === 'MacBooks';
+  }
+  if (raw === 'chargers' || raw === 'charger' || raw === 'cables' || raw === 'cable') {
+    return productNorm === 'Accessories';
+  }
+  if (raw === 'cases' || raw === 'case' || raw === 'protectors' || raw === 'protector') {
+    return productNorm === 'Accessories';
+  }
+
+  return normalizeProductCategory(word) === productNorm;
+}
+
 export function productMatchesStoreSearch(p: Product, qRaw: string): boolean {
   const q = qRaw.trim().toLowerCase();
   if (!q) return true;
   const hay = productTextHaystack(p);
-  const productNorm = normalizeProductCategory(p.category);
   const words = q.split(/\s+/).filter(Boolean);
   return words.every((word) => {
     if (hay.includes(word)) return true;
-    return normalizeProductCategory(word) === productNorm;
+    return searchWordMatchesProductCategory(p.category, word);
   });
 }
 
@@ -238,6 +303,8 @@ export const HEADPHONE_SERIES_OPTIONS: StoreSeriesOption[] = [
   { value: 'AirPods', label: 'AirPods', description: 'Apple AirPods family' },
   { value: 'Tune', label: 'Tune', description: 'JBL Tune headphones' },
   { value: 'Solo', label: 'Solo', description: 'Beats Solo headphones' },
+  { value: 'Sony', label: 'Sony', description: 'Sony headphones & earbuds' },
+  { value: 'EarPods', label: 'EarPods', description: 'Wired EarPods / earphones' },
 ];
 
 export const SPEAKER_SERIES_OPTIONS: StoreSeriesOption[] = [
@@ -247,6 +314,13 @@ export const SPEAKER_SERIES_OPTIONS: StoreSeriesOption[] = [
   { value: 'Go', label: 'Go', description: 'JBL Go speakers' },
   { value: 'Onyx', label: 'Onyx', description: 'Harman Kardon Onyx' },
   { value: 'Pill', label: 'Pill', description: 'Beats Pill speakers' },
+  { value: 'HomePod', label: 'HomePod', description: 'Apple HomePod speakers' },
+];
+
+export const ACCESSORY_TYPE_OPTIONS: StoreSeriesOption[] = [
+  { value: 'PhoneCases', label: 'Phone Cases', description: 'Protective & stylish cases' },
+  { value: 'ScreenProtectors', label: 'Screen Protectors', description: 'Tempered glass & films' },
+  { value: 'Chargers', label: 'Chargers', description: 'Cables, adapters & power banks' },
 ];
 
 export function categoryUsesSeriesStep(category: string | null | undefined): boolean {
@@ -285,6 +359,10 @@ export function suggestBrandFromTaxonomy(
   if (map[v]) return map[v];
   const cat = normalizeProductCategory(category);
   if (cat === 'Accessories') return null;
+  // Store tag only — leave products.brand for staff to fill (e.g. Samsung)
+  if (v === 'Others' || v === 'PhoneCases' || v === 'ScreenProtectors' || v === 'Chargers') {
+    return null;
+  }
   return v;
 }
 
@@ -328,6 +406,8 @@ export function resolveAdminTaxonomyValue(
         return 'HarmanKardon';
       }
       if (hay.includes('homepod') && opts.some((o) => o.value === 'HomePod')) return 'HomePod';
+      if (hay.includes('sony') && opts.some((o) => o.value === 'Sony')) return 'Sony';
+      if (hay.includes('earpod') && opts.some((o) => o.value === 'EarPods')) return 'EarPods';
     }
   }
 
@@ -350,6 +430,9 @@ export function catalogKeyForCategory(category: string | null | undefined): stri
   if (n === 'iPad' || n === 'Tablet') return 'ipad';
   if (n === 'Headphones' || n === 'Speakers') return 'audio';
   if (n === 'Laptops' || n === 'Laptop') return 'laptop';
+  if (n === 'Accessories') return 'accessories';
+  if (n === 'Gaming') return 'gaming';
+  if (n === 'Smart watches') return 'watches';
   return null;
 }
 
@@ -357,12 +440,15 @@ const HEADPHONE_BRAND_SERIES: Readonly<Record<string, readonly string[]>> = {
   AirPods: ['AirPods'],
   JBL: ['Tune'],
   Beats: ['Solo'],
+  Sony: ['Sony'],
+  EarPods: ['EarPods'],
 };
 
 const SPEAKER_BRAND_SERIES: Readonly<Record<string, readonly string[]>> = {
   JBL: ['Flip', 'Charge', 'Boombox', 'Go'],
   HarmanKardon: ['Onyx'],
   Beats: ['Pill'],
+  HomePod: ['HomePod'],
 };
 
 const LAPTOP_BRAND_SERIES: Readonly<Record<string, readonly string[]>> = {
@@ -446,10 +532,13 @@ export function getProductSeriesSlug(p: Product): string | null {
   }
   if (cat === 'Headphones') {
     if (hay.includes('airpod')) return 'airpods';
+    if (hay.includes('earpod') || hay.includes('ear pod')) return 'earpods';
     if (hay.includes('tune')) return 'tune';
     if (hay.includes('solo')) return 'solo';
+    if (hay.includes('sony')) return 'sony';
   }
   if (cat === 'Speakers') {
+    if (hay.includes('homepod') || hay.includes('home pod')) return 'homepod';
     if (hay.includes('flip')) return 'flip';
     if (hay.includes('charge')) return 'charge';
     if (hay.includes('boombox')) return 'boombox';
@@ -680,13 +769,14 @@ export function applyAdminTaxonomyFields(input: {
       ? (existing === 'used' ? 'preowned' : (existing as 'preowned' | 'refurbished'))
       : 'new';
 
-  // Audio + Laptops: series lives on subcategory; brand is products.brand
+  // Audio + Laptops: series lives on subcategory; brand is products.brand.
+  // Preserve staff-selected Condition (New / Pre-owned / Refurbished).
   if (categoryUsesBrandThenSeries(category)) {
     return {
       category,
       subcategory: keepSeries,
-      condition: 'new',
-      is_new: true,
+      condition,
+      is_new: condition === 'new',
       taxonomyLabel: label,
     };
   }

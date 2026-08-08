@@ -458,8 +458,27 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                   base.audio_type =
                     taxonomy.category === 'Speakers' ? 'speakers' : 'headphones';
                 }
+                if (catalog === 'accessories') {
+                  base.accessory_type = taxonomyValue || taxonomy.subcategory || null;
+                }
+                if (catalog === 'gaming') {
+                  base.platform = taxonomyValue || taxonomy.subcategory || null;
+                }
+                if (catalog === 'watches') {
+                  base.watch_group = taxonomyValue || taxonomy.subcategory || null;
+                }
                 specsPayload = base;
               }
+            }
+            if (
+              taxonomy.category === 'Accessories' &&
+              specsPayload &&
+              typeof specsPayload === 'object'
+            ) {
+              const base = { ...(specsPayload as Record<string, unknown>) };
+              base.catalog = 'accessories';
+              base.accessory_type = taxonomyValue || taxonomy.subcategory || base.accessory_type || null;
+              specsPayload = base;
             }
             const productPayload = {
                 name: draft.name,
