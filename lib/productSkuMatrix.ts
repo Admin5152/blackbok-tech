@@ -39,6 +39,18 @@ export const IPAD_SIM_OPTIONS = ['wifi', 'cell_ps', 'cell_es'] as const;
 
 const norm = (s: string | undefined | null) => (s ?? '').trim().toLowerCase();
 
+/** Normalize size labels so 10.9" / 10.9″ / 10.9 match in uniqueness checks. */
+const normSize = (s: string | undefined | null) =>
+  norm(s)
+    .replace(/["'`′″]/g, '')
+    .replace(/\s+/g, '');
+
+/** Normalize RAM so blank and N/A are treated as the same empty axis. */
+const normRam = (s: string | undefined | null) => {
+  const n = norm(s);
+  return !n || n === 'n/a' || n === 'na' || n === '-' ? '' : n;
+};
+
 export function skuMatrixKey(row: {
   color?: string;
   storage?: string;
@@ -46,7 +58,7 @@ export function skuMatrixKey(row: {
   sim_type?: string;
   display_size?: string;
 }): string {
-  return `${norm(row.display_size)}|${norm(row.color)}|${norm(row.storage)}|${norm(row.ram)}|${norm(row.sim_type)}`;
+  return `${normSize(row.display_size)}|${norm(row.color)}|${norm(row.storage)}|${normRam(row.ram)}|${norm(row.sim_type)}`;
 }
 
 /** True when variant is a DB SKU row, not legacy `{ name, options }`. */
@@ -120,6 +132,54 @@ export function findDuplicateSkuKeys(rows: SkuMatrixRow[]): string[] {
     if (n === 2) dups.push(k);
   }
   return dups;
+}
+
+/** Row indices that share a combo key or the same item code (case-insensitive). */
+export function findDuplicateSkuRowIndices(rows: SkuMatrixRow[]): number[] {
+  const keyToIndices = new Map<string, number[]>();
+  const skuToIndices = new Map<string, number[]>();
+
+  rows.forEach((r, i) => {
+    const k = skuMatrixKey(r);
+    const keyList = keyToIndices.get(k) ?? [];
+    keyList.push(i);
+    keyToIndices.set(k, keyList);
+
+    const sku = (r.sku || '').trim().toLowerCase();
+    if (!sku) return;
+    const skuList = skuToIndices.get(sku) ?? [];
+    skuList.push(i);
+    skuToIndices.set(sku, skuList);
+  });
+
+  const out = new Set<number>();
+  for (const indices of keyToIndices.values()) {
+    if (indices.length > 1) indices.forEach((i) => out.add(i));
+  }
+  for (const indices of skuToIndices.values()) {
+    if (indices.length > 1) indices.forEach((i) => out.add(i));
+  }
+  return [...out].sort((a, b) => a - b);
+}
+
+/**
+ * Ensure blank/duplicate auto item codes are unique before save
+ * (DB trigger historically omitted display_size and can collide on iPads).
+ */
+export function assignUniqueSkuCodes(rows: SkuMatrixRow[]): SkuMatrixRow[] {
+  const used = new Set<string>();
+  return rows.map((r) => {
+    let sku = (r.sku || '').trim();
+    if (!sku) sku = autoGenerateSku(r);
+    let candidate = sku;
+    let n = 2;
+    while (used.has(candidate.toLowerCase())) {
+      candidate = `${sku}-${n}`;
+      n += 1;
+    }
+    used.add(candidate.toLowerCase());
+    return candidate === r.sku ? r : { ...r, sku: candidate };
+  });
 }
 
 /** Derive product chip arrays from matrix rows (matrix is source of truth when enabled). */

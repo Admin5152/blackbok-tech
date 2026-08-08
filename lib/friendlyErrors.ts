@@ -100,8 +100,11 @@ export function friendlyError(e: unknown, action: FriendlyAction = 'complete tha
     if (/imei|serial/i.test(lower)) {
       return 'An active trade-in already exists for this IMEI or serial number.';
     }
-    if (/sku|variant|color|storage|uq_variant/i.test(lower)) {
-      return 'That combination already exists (duplicate color / storage / RAM / SIM). Change or remove the duplicate first.';
+    if (/uq_variant_sku|(^|[^a-z])sku([^a-z]|$)|item code/i.test(lower)) {
+      return 'That item code already exists. Change the code on the highlighted version, or clear it so a unique one is generated.';
+    }
+    if (/sku|variant|color|storage|uq_variant|combination/i.test(lower)) {
+      return 'That combination already exists (duplicate size / color / storage / RAM / SIM). Change or remove the duplicate first.';
     }
     if (/email|user/i.test(lower)) {
       return 'That email is already registered. Sign in instead, or use a different email.';

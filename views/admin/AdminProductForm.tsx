@@ -138,6 +138,8 @@ type Props = {
   setSkuMatrixEnabled: (v: boolean) => void;
   skuRows: SkuMatrixRow[];
   setSkuRows: Dispatch<SetStateAction<SkuMatrixRow[]>>;
+  skuHighlightIndices?: number[];
+  skuFocusNonce?: number;
   saving: boolean;
   error: string;
   onSubmit: () => void;
@@ -166,6 +168,8 @@ export const AdminProductForm: React.FC<Props> = ({
   setSkuMatrixEnabled,
   skuRows,
   setSkuRows,
+  skuHighlightIndices = [],
+  skuFocusNonce = 0,
   saving,
   error,
   onSubmit,
@@ -180,6 +184,11 @@ export const AdminProductForm: React.FC<Props> = ({
   const [imgBusy, setImgBusy] = useState(false);
   const [imgError, setImgError] = useState('');
   const [specsJsonError, setSpecsJsonError] = useState('');
+
+  useEffect(() => {
+    if (!skuFocusNonce) return;
+    setTab('options');
+  }, [skuFocusNonce]);
 
   const priceNum = Number(draft.price) || 0;
   const chipsLocked = skuMatrixEnabled && skuRows.length > 0;
@@ -1176,6 +1185,8 @@ export const AdminProductForm: React.FC<Props> = ({
                   onRowsChange={setSkuRows}
                   isLight={isLight}
                   tabletMode={isTabletCategory}
+                  highlightIndices={skuHighlightIndices}
+                  focusNonce={skuFocusNonce}
                   onUploadRowImage={async (index, file) => {
                     setImgBusy(true);
                     setImgError('');

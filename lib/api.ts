@@ -623,6 +623,14 @@ export type SkuVariantInput = {
 };
 
 const normSkuDim = (v: string | null | undefined) => (v ?? '').trim().toLowerCase();
+const normSkuSize = (v: string | null | undefined) =>
+  normSkuDim(v)
+    .replace(/["'`′″]/g, '')
+    .replace(/\s+/g, '');
+const normSkuRam = (v: string | null | undefined) => {
+  const n = normSkuDim(v);
+  return !n || n === 'n/a' || n === 'na' || n === '-' ? '' : n;
+};
 
 const skuDimsMatch = (
   a: {
@@ -642,23 +650,33 @@ const skuDimsMatch = (
 ) =>
   normSkuDim(a.color) === normSkuDim(b.color) &&
   normSkuDim(a.storage) === normSkuDim(b.storage) &&
-  normSkuDim(a.ram) === normSkuDim(b.ram) &&
+  normSkuRam(a.ram) === normSkuRam(b.ram) &&
   normSkuDim(a.sim_type) === normSkuDim(b.sim_type) &&
-  normSkuDim(a.display_size) === normSkuDim(b.display_size);
+  normSkuSize(a.display_size) === normSkuSize(b.display_size);
 
 /** Map PostgREST unique-violation into a staff-readable message. */
 const rethrowVariantConstraint = (err: { message?: string; code?: string }): never => {
   const msg = String(err?.message || err || '');
   const code = String(err?.code || '');
   if (code === '23505' || /uq_variant_combo|uq_variant_sku|duplicate key/i.test(msg)) {
+    if (/uq_variant_sku|sku/i.test(msg)) {
+      throw new Error(
+        'Duplicate item code. Two versions share the same item code — change one, or clear both so unique codes are generated.',
+      );
+    }
     throw new Error(
-      'Duplicate combination (size / color / storage / RAM / SIM) or item code. Each combination must be unique.',
+      'Duplicate combination (size / color / storage / RAM / SIM). Change or remove the duplicate first.',
     );
   }
   throw err instanceof Error ? err : new Error(msg || 'Could not save stock versions');
 };
 
-/** Upsert SKU rows and remove combinations no longer in the matrix. */
+/**
+ * Upsert SKU rows and remove combinations no longer in the matrix.
+ *
+ * Order matters: deleting orphans first, then a temp-key pass, then final
+ * values avoids false unique violations when staff swap combos between rows.
+ */
 export const syncProductVariants = async (productId: string, rows: SkuVariantInput[]) => {
   const { data: existing, error: fetchErr } = await supabase
     .from('product_variants')
@@ -666,58 +684,91 @@ export const syncProductVariants = async (productId: string, rows: SkuVariantInp
     .eq('product_id', productId);
   if (fetchErr) throw fetchErr;
 
-  const keptIds = new Set<string>();
   const existingRows = existing || [];
+  const claimedExisting = new Set<string>();
+
+  const resolveId = (row: SkuVariantInput): string | null => {
+    if (row.id) return row.id;
+    const match = existingRows.find((e) => e.id && !claimedExisting.has(e.id) && skuDimsMatch(e, row));
+    return match?.id ?? null;
+  };
+
+  const planned = rows.map((row) => {
+    const id = resolveId(row);
+    if (id) claimedExisting.add(id);
+    return { row, id };
+  });
+
+  const keptIds = new Set(planned.map((p) => p.id).filter(Boolean) as string[]);
+  const toDelete = existingRows.filter((e) => e.id && !keptIds.has(e.id)).map((e) => e.id as string);
+
+  const buildPayload = (row: SkuVariantInput, overrides?: Partial<Record<string, unknown>>) => {
+    const absPrice =
+      row.price != null && Number.isFinite(Number(row.price)) ? Number(row.price) : null;
+    return {
+      product_id: productId,
+      color: row.color?.trim() || null,
+      storage: row.storage?.trim() || null,
+      ram: row.ram?.trim() || null,
+      sim_type: row.sim_type?.trim() || null,
+      display_size: row.display_size?.trim() || null,
+      stock: Math.max(0, Math.floor(Number(row.stock) || 0)),
+      price_modifier: Number(row.price_modifier ?? 0) || 0,
+      price: absPrice,
+      sku: row.sku?.trim() || null,
+      is_active: row.is_active !== false,
+      image_url: row.image_url?.trim() || null,
+      ...overrides,
+    };
+  };
 
   try {
-    for (const row of rows) {
-      const absPrice =
-        row.price != null && Number.isFinite(Number(row.price)) ? Number(row.price) : null;
-      const payload = {
-        product_id: productId,
-        color: row.color?.trim() || null,
-        storage: row.storage?.trim() || null,
-        ram: row.ram?.trim() || null,
-        sim_type: row.sim_type?.trim() || null,
-        display_size: row.display_size?.trim() || null,
-        stock: Math.max(0, Math.floor(Number(row.stock) || 0)),
-        price_modifier: Number(row.price_modifier ?? 0) || 0,
-        price: absPrice,
-        sku: row.sku?.trim() || null,
-        is_active: row.is_active !== false,
-        image_url: row.image_url?.trim() || null,
-      };
-
-      if (row.id) {
-        const { error: uerr } = await supabase.from('product_variants').update(payload).eq('id', row.id);
-        if (uerr) rethrowVariantConstraint(uerr);
-        keptIds.add(row.id);
-        continue;
-      }
-
-      const match = existingRows.find((e) => skuDimsMatch(e, row));
-      if (match?.id) {
-        const { error: uerr } = await supabase.from('product_variants').update(payload).eq('id', match.id);
-        if (uerr) rethrowVariantConstraint(uerr);
-        keptIds.add(match.id);
-      } else {
-        const { data: inserted, error: ierr } = await supabase
-          .from('product_variants')
-          .insert(payload)
-          .select('id')
-          .single();
-        if (ierr) rethrowVariantConstraint(ierr);
-        if (inserted?.id) keptIds.add(inserted.id);
-      }
-    }
-
-    const toDelete = existingRows.filter((e) => e.id && !keptIds.has(e.id)).map((e) => e.id as string);
+    // 1) Drop unused versions first so their combos/codes free up for updates
     if (toDelete.length > 0) {
       const { error: derr } = await supabase.from('product_variants').delete().in('id', toDelete);
       if (derr) throw derr;
     }
+
+    const withIds = planned.filter((p): p is { row: SkuVariantInput; id: string } => Boolean(p.id));
+    const withoutIds = planned.filter((p) => !p.id);
+
+    // 2) Park existing rows on unique temp keys (avoids swap collisions)
+    for (const { row, id } of withIds) {
+      const token = id.replace(/-/g, '').slice(0, 12);
+      const { error: uerr } = await supabase
+        .from('product_variants')
+        .update(
+          buildPayload(row, {
+            color: `__tmp_${token}`,
+            storage: null,
+            ram: null,
+            sim_type: null,
+            display_size: null,
+            sku: `tmp-${token}`,
+          }),
+        )
+        .eq('id', id);
+      if (uerr) rethrowVariantConstraint(uerr);
+    }
+
+    // 3) Write final values for existing rows
+    for (const { row, id } of withIds) {
+      const { error: uerr } = await supabase
+        .from('product_variants')
+        .update(buildPayload(row))
+        .eq('id', id);
+      if (uerr) rethrowVariantConstraint(uerr);
+    }
+
+    // 4) Insert brand-new combinations
+    for (const { row } of withoutIds) {
+      const { error: ierr } = await supabase.from('product_variants').insert(buildPayload(row));
+      if (ierr) rethrowVariantConstraint(ierr);
+    }
   } catch (e) {
-    if (e instanceof Error && /Duplicate combination|Duplicate SKU/.test(e.message)) throw e;
+    if (e instanceof Error && /Duplicate combination|Duplicate item code|Duplicate SKU/.test(e.message)) {
+      throw e;
+    }
     const err = e as { message?: string; code?: string };
     if (err?.code === '23505' || /uq_variant|duplicate key/i.test(String(err?.message || ''))) {
       rethrowVariantConstraint(err);

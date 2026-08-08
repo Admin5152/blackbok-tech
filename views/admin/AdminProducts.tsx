@@ -20,7 +20,8 @@ import {
     canUseSkuMatrix,
     totalSkuStock,
     chipsFromSkuRows,
-    findDuplicateSkuKeys,
+    findDuplicateSkuRowIndices,
+    assignUniqueSkuCodes,
     autoGenerateSku,
     isAppleMissingTradeModel,
     isIphone14PlusMissingSim,
@@ -173,6 +174,8 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
     const [specsIn, setSpecsIn] = useState('');
     const [skuMatrixEnabled, setSkuMatrixEnabled] = useState(false);
     const [skuRows, setSkuRows] = useState<SkuMatrixRow[]>([]);
+    const [skuHighlightIndices, setSkuHighlightIndices] = useState<number[]>([]);
+    const [skuFocusNonce, setSkuFocusNonce] = useState(0);
     const [error, setError] = useState('');
     const [showCsv, setShowCsv] = useState(false);
     const [csvText, setCsvText] = useState('');
@@ -257,6 +260,8 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
         setDraft({ ...EMPTY });
         setColorIn(''); setStorageIn(''); setRamIn(''); setSimIn(''); setSizeIn(''); setSpecsIn('');
         setSkuRows([]); setSkuMatrixEnabled(false);
+        setSkuHighlightIndices([]);
+        setSkuFocusNonce(0);
         priceEditBaselineRef.current = null;
         setError(''); setShowForm(true);
     };
@@ -291,6 +296,8 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
         } as ProductDraft);
         setColorIn(''); setStorageIn(''); setRamIn(''); setSimIn(''); setSizeIn(''); setSpecsIn('');
         resetSkuState({ ...p, sim_types: simTypes, display_sizes: displaySizes } as ProductDraft);
+        setSkuHighlightIndices([]);
+        setSkuFocusNonce(0);
         setError(''); setShowForm(true);
     };
 
@@ -375,14 +382,19 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
             return;
         }
         if (skuMatrixEnabled && skuRows.length > 0) {
-            const dups = findDuplicateSkuKeys(skuRows);
-            if (dups.length) {
-                setError('Duplicate combinations (size / color / storage / RAM / SIM). Fix duplicates before saving.');
+            const dupIndices = findDuplicateSkuRowIndices(skuRows);
+            if (dupIndices.length) {
+                setSkuHighlightIndices(dupIndices);
+                setSkuFocusNonce((n) => n + 1);
+                setError(
+                  `Duplicate versions found (cards #${dupIndices.map((i) => i + 1).join(', #')}). Same size / color / storage / RAM / SIM — or the same item code. Fix the highlighted cards first.`,
+                );
                 return;
             }
         }
 
         setSaving(true); setError('');
+        setSkuHighlightIndices([]);
         const useMatrix = skuMatrixEnabled && skuRows.length > 0;
         const matrixStock = useMatrix ? totalSkuStock(skuRows) : (draft.stock != null ? Number(draft.stock) : 0);
         const derived = useMatrix ? chipsFromSkuRows(skuRows) : null;
@@ -479,7 +491,11 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                       baseline != null && Number.isFinite(baseline) && baseline > 0
                         ? scaleAbsoluteSkuPrices(skuRows, baseline, priceNum)
                         : skuRows;
-                    const variantPayload: SkuVariantInput[] = scaledRows.map((r) => ({
+                    const uniqueCoded = assignUniqueSkuCodes(scaledRows);
+                    if (uniqueCoded.some((r, i) => r.sku !== scaledRows[i]?.sku)) {
+                      setSkuRows(uniqueCoded);
+                    }
+                    const variantPayload: SkuVariantInput[] = uniqueCoded.map((r) => ({
                         id: r.id,
                         color: r.color || null,
                         storage: r.storage || null,
@@ -533,9 +549,19 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
             );
         } catch (e) {
             const msg = friendlyProductActionError(e, 'save');
+            const dupMsg =
+              /Duplicate combination|Duplicate item code|Duplicate SKU|duplicate/i.test(msg) ||
+              /Duplicate combination|Duplicate item code|Duplicate SKU|duplicate/i.test(
+                String((e as Error)?.message || ''),
+              );
+            if (dupMsg && skuMatrixEnabled && skuRows.length > 0) {
+                const indices = findDuplicateSkuRowIndices(skuRows);
+                setSkuHighlightIndices(indices.length ? indices : skuRows.map((_, i) => i).slice(0, 2));
+                setSkuFocusNonce((n) => n + 1);
+            }
             if (/stock versions|product setup|Duplicate/i.test(msg)) {
                 setError(msg);
-            } else if (/Duplicate combination|Duplicate SKU|duplicate/i.test(String((e as Error)?.message || ''))) {
+            } else if (/Duplicate combination|Duplicate SKU|Duplicate item code|duplicate/i.test(String((e as Error)?.message || ''))) {
                 setError(String((e as Error).message));
             } else {
                 setError(msg);
@@ -895,6 +921,8 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                         setSkuMatrixEnabled={setSkuMatrixEnabled}
                         skuRows={skuRows}
                         setSkuRows={setSkuRows}
+                        skuHighlightIndices={skuHighlightIndices}
+                        skuFocusNonce={skuFocusNonce}
                         saving={saving}
                         error={error}
                         onSubmit={() => void submitForm()}

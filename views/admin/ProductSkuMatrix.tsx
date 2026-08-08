@@ -4,7 +4,7 @@
  * WHY: Each Color × Storage × RAM × SIM combo is a product_variants row with
  * its own stock, optional absolute price, sim_type, and active flag.
  */
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { Layers, RefreshCw, Package } from 'lucide-react';
 import type { SkuMatrixRow } from '../../lib/productSkuMatrix';
 import {
@@ -15,6 +15,7 @@ import {
   totalSkuStock,
   autoGenerateSku,
   findDuplicateSkuKeys,
+  findDuplicateSkuRowIndices,
   SKU_SIM_CODES,
 } from '../../lib/productSkuMatrix';
 import { formatSimTypeLabel } from '../../lib/productLabels';
@@ -35,6 +36,10 @@ type Props = {
   onUploadRowImage?: (index: number, file: File) => void | Promise<void>;
   /** When true, hide RAM emphasis and label SIM as Connectivity (iPad). */
   tabletMode?: boolean;
+  /** Highlight these row indices (duplicate / save error). */
+  highlightIndices?: number[];
+  /** Bump to force scroll to the first highlighted card. */
+  focusNonce?: number;
 };
 
 export const ProductSkuMatrix: React.FC<Props> = ({
@@ -51,6 +56,8 @@ export const ProductSkuMatrix: React.FC<Props> = ({
   isLight = false,
   onUploadRowImage,
   tabletMode = false,
+  highlightIndices = [],
+  focusNonce = 0,
 }) => {
   const canMatrix = canUseSkuMatrix(colors, storage, ram, simTypes, displaySizes);
   const chipSignature = useMemo(
@@ -65,12 +72,26 @@ export const ProductSkuMatrix: React.FC<Props> = ({
   }, [colors, storage, ram, simTypes, displaySizes, canMatrix]);
 
   const duplicateKeys = useMemo(() => new Set(findDuplicateSkuKeys(rows)), [rows]);
+  const liveDupIndices = useMemo(() => new Set(findDuplicateSkuRowIndices(rows)), [rows]);
+  const forcedHighlight = useMemo(() => new Set(highlightIndices), [highlightIndices]);
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   useEffect(() => {
     if (!enabled || !canMatrix) return;
     onRowsChange(syncSkuRowsFromChips(colors, storage, ram, rows, simTypes, displaySizes));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chipSignature, enabled, canMatrix]);
+
+  useEffect(() => {
+    if (!focusNonce) return;
+    const target =
+      highlightIndices.find((i) => i >= 0 && i < rows.length) ??
+      findDuplicateSkuRowIndices(rows)[0];
+    if (target == null) return;
+    const el = cardRefs.current[target];
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [focusNonce, highlightIndices, rows]);
 
   const regenerate = () =>
     onRowsChange(syncSkuRowsFromChips(colors, storage, ram, rows, simTypes, displaySizes));
@@ -116,9 +137,12 @@ export const ProductSkuMatrix: React.FC<Props> = ({
   const inputCls = isLight
     ? 'w-full bg-black/[0.04] border border-black/10 rounded-lg px-2 py-1.5 text-black text-sm font-bold focus:border-[#B38B21]/50 focus:outline-none'
     : 'w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-white text-sm font-bold focus:border-[#B38B21]/50 focus:outline-none';
-  const cardCls = (row: SkuMatrixRow) => {
-    const dup = duplicateKeys.has(skuMatrixKey(row));
-    if (dup) return 'border-amber-500/40 bg-amber-500/[0.06]';
+  const cardCls = (row: SkuMatrixRow, index: number) => {
+    const flagged =
+      liveDupIndices.has(index) || forcedHighlight.has(index) || duplicateKeys.has(skuMatrixKey(row));
+    if (flagged) {
+      return 'border-red-500 ring-2 ring-red-500/50 bg-red-500/[0.08] shadow-[0_0_0_1px_rgba(239,68,68,0.35)]';
+    }
     if (row.is_active === false) {
       return isLight
         ? 'border-black/10 bg-black/[0.03] opacity-70'
@@ -207,10 +231,10 @@ export const ProductSkuMatrix: React.FC<Props> = ({
             </span>
           </div>
 
-          {duplicateKeys.size > 0 && (
-            <p className="text-xs text-amber-400 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-2">
-              Duplicate combinations detected (same size / color / storage / RAM / SIM). Fix before
-              saving — each combination must be unique.
+          {(duplicateKeys.size > 0 || liveDupIndices.size > 0) && (
+            <p className="text-xs text-red-400 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2">
+              Duplicate combinations or item codes detected. Highlighted cards share the same size /
+              color / storage / RAM / SIM (or the same item code). Fix those before saving.
             </p>
           )}
 
@@ -228,15 +252,24 @@ export const ProductSkuMatrix: React.FC<Props> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[min(52vh,420px)] overflow-y-auto bb-scrollbar pr-1">
               {rows.map((row, i) => {
                 const priceLbl = linePriceLabel(row);
+                const flagged =
+                  liveDupIndices.has(i) || forcedHighlight.has(i) || duplicateKeys.has(skuMatrixKey(row));
                 return (
                   <div
-                    key={row.id ?? skuMatrixKey(row)}
-                    className={`rounded-xl border p-3 space-y-3 transition-colors ${cardCls(row)}`}
+                    key={row.id ?? `${skuMatrixKey(row)}-${i}`}
+                    ref={(el) => {
+                      cardRefs.current[i] = el;
+                    }}
+                    data-sku-row={i}
+                    className={`rounded-xl border p-3 space-y-3 transition-colors ${cardCls(row, i)}`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className={`text-[9px] font-black uppercase tracking-widest ${muted}`}>
                           Version #{i + 1}
+                          {flagged ? (
+                            <span className="ml-2 text-red-400 normal-case tracking-normal">Duplicate</span>
+                          ) : null}
                         </p>
                         <p className={`text-sm font-bold leading-snug truncate ${title}`}>{rowLabel(row)}</p>
                         <p
@@ -361,8 +394,16 @@ export const ProductSkuMatrix: React.FC<Props> = ({
                         </label>
                         <div className="flex flex-col gap-1.5">
                           {row.image_url ? (
-                            <div className={`h-16 rounded-lg overflow-hidden flex items-center justify-center ${isLight ? 'bg-black/[0.03]' : 'bg-white/5'}`}>
-                              <img src={row.image_url} alt="" className="max-h-full max-w-full object-contain" />
+                            <div
+                              className={`h-16 rounded-lg overflow-hidden flex items-center justify-center ${
+                                isLight ? 'bg-black/[0.03]' : 'bg-white/5'
+                              }`}
+                            >
+                              <img
+                                src={row.image_url}
+                                alt=""
+                                className="max-h-full max-w-full object-contain"
+                              />
                             </div>
                           ) : null}
                           {onUploadRowImage ? (
