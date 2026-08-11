@@ -1812,14 +1812,13 @@ html[data-theme='light'] .bb-store-filter-step {
   }
 }
 
-/* Product card media — theme surface; studio plates blend via mix-blend on img */
+/* Product card media — photo well; images stay untinted in both themes */
 .bb-product-card-media {
   position: relative;
   display: block;
   overflow: hidden;
   flex-shrink: 0;
-  isolation: isolate;
-  background: var(--bb-surface);
+  background: #000000;
 }
 
 .bb-product-card-media--store {
@@ -1890,12 +1889,13 @@ html[data-theme='light'] .bb-store-filter-step {
   }
 }
 
+html[data-theme='light'] .bb-product-card-media,
 html[data-theme='light'] .bb-product-card-media--store,
 html[data-theme='light'] .bb-product-card-media--store-list,
 html[data-theme='light'] .bb-product-card-media--mini,
 html[data-theme='light'] .bb-product-card-media--cart,
 html[data-theme='light'] .bb-home-rail-product-card__media {
-  background: #ffffff;
+  background: #f2f2f4;
 }
 
 .bb-product-card-media--store-list {
@@ -1906,8 +1906,7 @@ html[data-theme='light'] .bb-home-rail-product-card__media {
   padding: 0.4rem;
   overflow: hidden;
   flex-shrink: 0;
-  isolation: isolate;
-  background: var(--bb-surface);
+  background: #000000;
 }
 
 @media (min-width: 640px) {
@@ -1927,8 +1926,7 @@ html[data-theme='light'] .bb-home-rail-product-card__media {
   overflow: hidden;
   padding: 0.75rem;
   pointer-events: none;
-  isolation: isolate;
-  background: var(--bb-surface);
+  background: #000000;
 }
 
 .bb-home-rail-product-card__img {
@@ -1942,7 +1940,6 @@ html[data-theme='light'] .bb-home-rail-product-card__media {
   object-fit: contain;
   object-position: center;
   transform: none;
-  mix-blend-mode: multiply;
 }
 
 .bb-home-rail-product-card__footer {
@@ -1994,14 +1991,7 @@ html[data-theme='light'] .bb-home-rail-product-card__media {
   object-fit: contain;
   object-position: center;
   transform: none;
-  /* Merge white/gray studio plates into the theme media well */
-  mix-blend-mode: multiply;
-}
-
-html:not([data-theme='light']) .bb-product-card-img,
-html:not([data-theme='light']) .bb-home-rail-product-card__img {
-  /* Keep product chrome readable after multiply into dark wells */
-  filter: brightness(1.06) contrast(1.03);
+  /* No mix-blend / filter — product photos must match light and dark mode */
 }
 
 /* One-tap wishlist / compare / cart on touch (avoid sticky-hover swallow) */
