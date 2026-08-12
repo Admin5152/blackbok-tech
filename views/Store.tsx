@@ -44,6 +44,9 @@ import {
   fetchStoreSearchProducts,
   getCategorySubcategoryOptions,
   getCategorySeriesOptions,
+  getStorePickerNestedCategories,
+  storePickerParentCategory,
+  STORE_PICKER_NESTED_CHILD_CATEGORIES,
   categoryUsesSeriesStep,
   categoryUsesBrandThenSeries,
   resolveStoreSubcategoryFilter,
@@ -127,7 +130,7 @@ function subcategoryCardIcon(option: SubcategoryOption): React.ReactNode {
     );
   }
   const v = option.value.toLowerCase();
-  if (v.includes('play') || v.includes('xbox') || v.includes('nintendo') || v.includes('steam')) {
+  if (v.includes('console') || v.includes('controller') || v.includes('play') || v.includes('xbox') || v.includes('nintendo') || v.includes('steam')) {
     return <Gamepad2 size={28} strokeWidth={1.5} />;
   }
   if (v.includes('airpod') || v.includes('ear') || v.includes('jbl') || v.includes('sony') || v.includes('home') || v.includes('harman')) {
@@ -179,6 +182,8 @@ const SUBCATEGORY_COVER_BY_VALUE: Record<string, string> = {
   Xbox: '/ps5and xbox.jpeg',
   Steam: '/ps5.jpeg',
   Nintendo: '/ps5.jpeg',
+  Consoles: '/ps5and xbox.jpeg',
+  Controllers: '/ps5.jpeg',
   AirPods: '/IMG_9011.JPG',
   JBL: '/Headphones111.jpeg',
   Sony: '/Headphones111.jpeg',
@@ -201,9 +206,17 @@ function productImageUrl(p: Product | undefined): string | null {
   return p.image_url || p.image || null;
 }
 
+function countProductsInCategoryBucket(products: Product[], bucket: string): number {
+  const buckets =
+    bucket === 'Gaming' ? ['Gaming', 'Consoles', 'Controllers'] : [bucket];
+  return products.filter((p) => buckets.includes(normalizeProductCategory(p.category))).length;
+}
+
 function categoryCoverImage(products: Product[], cat: string): string {
+  const buckets =
+    cat === 'Gaming' ? ['Gaming', 'Consoles', 'Controllers'] : [cat];
   const match = products.find((p) => {
-    if (normalizeProductCategory(p.category) !== cat) return false;
+    if (!buckets.includes(normalizeProductCategory(p.category))) return false;
     return Boolean(p.image_url || p.image);
   });
   return productImageUrl(match) || CATEGORY_COVER_BY_KEY[cat] || DEFAULT_SHOP_COVER;
@@ -216,11 +229,18 @@ function subcategoryCoverImage(
   seriesValue?: string,
 ): string {
   const catNorm = category ? normalizeProductCategory(category) : undefined;
+  const nestedCat = STORE_PICKER_NESTED_CHILD_CATEGORIES.has(option.value)
+    ? option.value
+    : null;
 
   const hit = products.find((p) => {
-    if (catNorm && normalizeProductCategory(p.category) !== catNorm) return false;
+    if (nestedCat) {
+      if (normalizeProductCategory(p.category) !== nestedCat) return false;
+    } else if (catNorm && normalizeProductCategory(p.category) !== catNorm) {
+      return false;
+    }
     if (seriesValue && !productMatchesStoreSeries(p, seriesValue)) return false;
-    if (!productMatchesStoreSubcategoryFilter(p, option)) return false;
+    if (!nestedCat && !productMatchesStoreSubcategoryFilter(p, option)) return false;
     return Boolean(p.image_url || p.image);
   });
   const live = productImageUrl(hit);
@@ -230,6 +250,7 @@ function subcategoryCoverImage(
     SUBCATEGORY_COVER_BY_VALUE[option.value] || SUBCATEGORY_COVER_BY_VALUE[option.label];
   if (staticCover) return staticCover;
 
+  if (nestedCat) return categoryCoverImage(products, nestedCat);
   if (catNorm) return categoryCoverImage(products, catNorm);
   return DEFAULT_SHOP_COVER;
 }
@@ -310,9 +331,16 @@ export const Store: React.FC<StoreProps> = ({
     [activeCategory, subcategoryFromUrl, conditionFromUrl],
   );
 
-  const subcategoryOptions = useMemo(
-    () => (activeCategory ? getCategorySubcategoryOptions(activeCategory) : []),
-    [activeCategory],
+  const subcategoryOptions = useMemo(() => {
+    if (!activeCategory) return [];
+    const nested = getStorePickerNestedCategories(activeCategory);
+    if (nested.length) return nested;
+    return getCategorySubcategoryOptions(activeCategory);
+  }, [activeCategory]);
+
+  const pickerParentCategory = storePickerParentCategory(activeCategory);
+  const isNestedTypePicker = Boolean(
+    activeCategory && getStorePickerNestedCategories(activeCategory).length > 0,
   );
 
   const brandThenSeries = Boolean(
@@ -527,6 +555,17 @@ export const Store: React.FC<StoreProps> = ({
     navigate({ to: '/store', search: {} as never, replace: true });
   }, [navigate, resetLocalStoreFilters, setSelectedCategories]);
 
+  const goToParentCategoryPicker = useCallback(() => {
+    const parent = storePickerParentCategory(activeCategory);
+    if (!parent) {
+      goToCategoryPicker();
+      return;
+    }
+    resetLocalStoreFilters();
+    setSelectedCategories([parent as Category]);
+    navigate({ to: '/store', search: { category: parent } as never, replace: true });
+  }, [activeCategory, goToCategoryPicker, navigate, resetLocalStoreFilters, setSelectedCategories]);
+
   const goToSeriesPicker = useCallback(() => {
     resetLocalStoreFilters();
     const scope: Record<string, string> = { ...categoryScopeSearch() };
@@ -580,8 +619,20 @@ export const Store: React.FC<StoreProps> = ({
       return items;
     }
 
+    if (pickerParentCategory) {
+      items.push({
+        label: pickerParentCategory,
+        onClick: goToParentCategoryPicker,
+      });
+    }
+
+    if (isNestedTypePicker) {
+      items.push({ label: String(activeCategory) });
+      return items;
+    }
+
     if (brandThenSeries) {
-      // Shop › Category › Brand › Series
+      // Shop › [Gaming] › Category › Brand › Series
       if (showSubcategoryPicker) {
         items.push({ label: String(activeCategory) });
         return items;
@@ -673,7 +724,10 @@ export const Store: React.FC<StoreProps> = ({
     subcategoryFilter,
     subcategoryOptions,
     brandThenSeries,
+    pickerParentCategory,
+    isNestedTypePicker,
     goToCategoryPicker,
+    goToParentCategoryPicker,
     goToSeriesPicker,
     goToSubcategoryPicker,
   ]);
@@ -719,6 +773,16 @@ export const Store: React.FC<StoreProps> = ({
 
   const openSubcategory = useCallback(
     (filter: StoreSubcategoryFilter) => {
+      if (STORE_PICKER_NESTED_CHILD_CATEGORIES.has(filter.value)) {
+        resetLocalStoreFilters();
+        setSelectedCategories([filter.value as Category]);
+        navigate({
+          to: '/store',
+          search: { category: filter.value } as never,
+          replace: true,
+        });
+        return;
+      }
       resetLocalStoreFilters();
       navigate({
         to: '/store',
@@ -740,6 +804,7 @@ export const Store: React.FC<StoreProps> = ({
       navigate,
       categoryScopeSearch,
       resetLocalStoreFilters,
+      setSelectedCategories,
       activeSeries,
       seriesIsAll,
       brandThenSeries,
@@ -879,10 +944,10 @@ export const Store: React.FC<StoreProps> = ({
   ]);
 
   const categoryPickerCards = useMemo(() => {
-    const ordered = buildOrderedStoreCategoryKeys(products);
+    const ordered = buildOrderedStoreCategoryKeys(products).filter(
+      (cat) => !STORE_PICKER_NESTED_CHILD_CATEGORIES.has(cat),
+    );
     const dealProducts = products.filter((p) => isDealOfTheDayProduct(p));
-    const countInBucket = (bucket: string) =>
-      baseFilteredProducts.filter((p) => normalizeProductCategory(p.category) === bucket).length;
     const dealCount = baseFilteredProducts.filter((p) => isDealOfTheDayProduct(p)).length;
 
     return [
@@ -905,7 +970,7 @@ export const Store: React.FC<StoreProps> = ({
         onSelect: () => openCategory(cat as Category),
         icon: categoryIconLg(cat),
         iconSm: categoryIcon(cat),
-        count: countInBucket(cat),
+        count: countProductsInCategoryBucket(baseFilteredProducts, cat),
       })),
     ];
   }, [products, baseFilteredProducts, openDealOfTheDay, openCategory]);
@@ -1025,7 +1090,6 @@ export const Store: React.FC<StoreProps> = ({
   /** Refine New/Used (or brand) without wiping price / promo local state. */
   const applyConditionFilter = useCallback(
     (value: string) => {
-      // Sidebar "All" — clear New/Used (condition categories only).
       if (value === 'all' || value === '') {
         const search: Record<string, string> = {
           ...categoryScopeSearch(),
@@ -1040,6 +1104,15 @@ export const Store: React.FC<StoreProps> = ({
         navigate({
           to: '/store',
           search: search as never,
+          replace: true,
+        });
+        return;
+      }
+      if (STORE_PICKER_NESTED_CHILD_CATEGORIES.has(value)) {
+        setSelectedCategories([value as Category]);
+        navigate({
+          to: '/store',
+          search: { category: value } as never,
           replace: true,
         });
         return;
@@ -1073,6 +1146,7 @@ export const Store: React.FC<StoreProps> = ({
       seriesOptions.length,
       subcategoryOptions,
       brandThenSeries,
+      setSelectedCategories,
     ],
   );
 
@@ -1430,27 +1504,37 @@ export const Store: React.FC<StoreProps> = ({
   if (showSubcategoryPicker) {
     const scopeLabel = activeCategory ?? 'Products';
     const seriesLabel = activeSeries ? seriesFilterLabel(activeSeries, activeCategory) : '';
-    const isConditionStep = subcategoryOptions.every((o) => o.kind === 'condition');
-    const onBack = brandThenSeries
+    const isConditionStep = !isNestedTypePicker && subcategoryOptions.every((o) => o.kind === 'condition');
+    const onBack = isNestedTypePicker
       ? goToCategoryPicker
-      : seriesOptions.length > 0
-        ? goToSeriesPicker
-        : goToCategoryPicker;
-    const backLabel = brandThenSeries
+      : brandThenSeries
+        ? pickerParentCategory
+          ? goToParentCategoryPicker
+          : goToCategoryPicker
+        : seriesOptions.length > 0
+          ? goToSeriesPicker
+          : goToCategoryPicker;
+    const backLabel = isNestedTypePicker
       ? 'Categories'
-      : seriesOptions.length > 0
-        ? 'Series'
-        : 'Categories';
-    const title = isConditionStep
-      ? 'New or used?'
       : brandThenSeries
-        ? 'Choose a brand'
-        : `Choose ${scopeLabel}`;
-    const blurb = isConditionStep
-      ? `Choose condition to see matching ${seriesLabel || scopeLabel} inventory.`
-      : brandThenSeries
-        ? `Pick a brand, then choose a series.`
-        : `Pick a type to browse ${scopeLabel} products.`;
+        ? pickerParentCategory || 'Categories'
+        : seriesOptions.length > 0
+          ? 'Series'
+          : 'Categories';
+    const title = isNestedTypePicker
+      ? 'Consoles or controllers?'
+      : isConditionStep
+        ? 'New or used?'
+        : brandThenSeries
+          ? 'Choose a brand'
+          : `Choose ${scopeLabel}`;
+    const blurb = isNestedTypePicker
+      ? 'Pick a type to browse PlayStation, Xbox, Nintendo, and Steam Deck gear.'
+      : isConditionStep
+        ? `Choose condition to see matching ${seriesLabel || scopeLabel} inventory.`
+        : brandThenSeries
+          ? `Pick a brand, then choose a series.`
+          : `Pick a type to browse ${scopeLabel} products.`;
 
     return (
       <div className="bb-store-page">

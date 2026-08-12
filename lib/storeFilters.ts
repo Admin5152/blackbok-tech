@@ -227,6 +227,14 @@ export function productMatchesStoreCategories(
     if (raw === 'audio') {
       return normalized === 'Headphones' || normalized === 'Speakers';
     }
+    // Gaming umbrella matches Consoles + Controllers + leftover Gaming SKUs
+    if (raw === 'gaming' || normalizeProductCategory(sel) === 'Gaming') {
+      return (
+        normalized === 'Gaming' ||
+        normalized === 'Consoles' ||
+        normalized === 'Controllers'
+      );
+    }
     return normalizeProductCategory(sel) === normalized;
   });
 }
@@ -748,6 +756,45 @@ export const CATEGORY_SUBCATEGORY_CONFIG: Readonly<Record<string, SubcategoryOpt
     { kind: 'brand', value: 'Chargers',         label: 'Chargers',          description: 'Cables, adapters & power banks' },
   ],
 };
+
+/**
+ * Nested type cards after picking an umbrella in Browse by category.
+ * Consoles / Controllers stay real product categories; Gaming is the parent card.
+ */
+export const STORE_PICKER_NESTED_CATEGORIES: Readonly<Record<string, SubcategoryOption[]>> = {
+  Gaming: [
+    {
+      kind: 'brand',
+      value: 'Consoles',
+      label: 'Consoles',
+      description: 'PlayStation, Xbox, Switch, Steam Deck',
+    },
+    {
+      kind: 'brand',
+      value: 'Controllers',
+      label: 'Controllers',
+      description: 'DualSense and Xbox controllers',
+    },
+  ],
+};
+
+/** Categories that appear under a parent card, not on the first Browse by category grid. */
+export const STORE_PICKER_NESTED_CHILD_CATEGORIES = new Set(['Consoles', 'Controllers']);
+
+export function getStorePickerNestedCategories(
+  category: string | null | undefined,
+): SubcategoryOption[] {
+  if (!category) return [];
+  return STORE_PICKER_NESTED_CATEGORIES[normalizeProductCategory(category)] ?? [];
+}
+
+export function storePickerParentCategory(
+  category: string | null | undefined,
+): string | null {
+  const n = normalizeProductCategory(category);
+  if (STORE_PICKER_NESTED_CHILD_CATEGORIES.has(n)) return 'Gaming';
+  return null;
+}
 
 /** Returns subcategory options for a canonical category, or [] if none configured. */
 export function getCategorySubcategoryOptions(category: string): SubcategoryOption[] {
