@@ -68,6 +68,10 @@ export function mapProductPageRow(row: ProductPageRow): Product {
     rating: row.rating != null ? Number(row.rating) : undefined,
     review_count: row.review_count != null ? Number(row.review_count) : undefined,
     reviewCount: row.review_count != null ? Number(row.review_count) : undefined,
+    specifications:
+      row.specifications && typeof row.specifications === 'object' && !Array.isArray(row.specifications)
+        ? (row.specifications as Record<string, unknown>)
+        : null,
   };
 }
 
@@ -216,6 +220,7 @@ export async function getProductVariants(productId: string): Promise<ProductVari
     ram: v.ram != null ? String(v.ram) : undefined,
     storage: v.storage != null ? String(v.storage) : undefined,
     display_size: v.display_size != null ? String(v.display_size) : undefined,
+    edition: v.edition != null ? String(v.edition) : undefined,
     sim_type: v.sim_type != null ? String(v.sim_type) : undefined,
     price_modifier: Number(v.price_modifier ?? 0) || 0,
     price: v.price != null ? Number(v.price) : undefined,

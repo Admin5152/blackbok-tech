@@ -126,6 +126,8 @@ export interface ProductVariant {
   storage?: string;
   /** Screen size for tablets (e.g. 11", 13"). Part of iPad price key. */
   display_size?: string | null;
+  /** Console edition (Digital / Standard / Disc). Part of unique combo with storage. */
+  edition?: string | null;
   /** ps | es | single | wifi | cell_ps | cell_es — matches trade pricing */
   sim_type?: string | null;
   price_modifier?: number;

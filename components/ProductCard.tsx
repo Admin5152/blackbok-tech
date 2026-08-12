@@ -9,6 +9,8 @@ import { Link } from '@tanstack/react-router';
 import { ShoppingCart, Heart, Eye, Scale } from 'lucide-react';
 import { Product } from '../types';
 import { formatCurrency, TW_DARK_BTN_DEPTH, TW_DARK_GOLD_BTN_DEPTH } from '../lib/utils';
+import { formatGhsPlain } from '../lib/money';
+import { isConsoleCatalog } from '../lib/consoleApi';
 import {
   getDealDiscountPercentage,
   getDealDiscountedPrice,
@@ -236,6 +238,24 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             >
               {product.name}
             </h3>
+            {isConsoleCatalog(product) &&
+              (() => {
+                const storage =
+                  String(
+                    (product.specifications as Record<string, unknown> | null | undefined)?.storage_label ??
+                      (Array.isArray(product.storage) ? product.storage[0] : '') ??
+                      '',
+                  ).trim();
+                return storage ? (
+                  <span
+                    className={`inline-flex mt-1 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider ${
+                      isLight ? 'bg-black/5 text-black/60' : 'bg-white/10 text-white/70'
+                    }`}
+                  >
+                    {storage}
+                  </span>
+                ) : null;
+              })()}
             {isDeal && promoText && (
               <p
                 className={`font-semibold leading-snug line-clamp-1 ${
@@ -294,7 +314,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                         : 'text-white'
                   }`}
                 >
-                  {formatCurrency(displayPrice)}
+                  {isConsoleCatalog(product) ? formatGhsPlain(displayPrice) : formatCurrency(displayPrice)}
                 </span>
                 {discountPct > 0 && (
                   <span className={`line-through text-[10px] ${isLight ? 'text-black/40' : 'text-white/35'}`}>

@@ -703,10 +703,13 @@ const AdminRouteShell: React.FC = () => {
         : location.pathname === '/admin/ipads' ||
             location.pathname.startsWith('/admin/ipads/')
           ? ('ipads' as const)
-          : location.pathname === '/admin/products' ||
-              location.pathname.startsWith('/admin/products/')
-            ? ('products' as const)
-            : undefined;
+          : location.pathname === '/admin/consoles' ||
+              location.pathname.startsWith('/admin/consoles/')
+            ? ('consoles' as const)
+            : location.pathname === '/admin/products' ||
+                location.pathname.startsWith('/admin/products/')
+              ? ('products' as const)
+              : undefined;
 
   useEffect(() => {
     if (!authReady) {
@@ -870,6 +873,13 @@ const adminProductsRoute = createRoute({
 const adminIpadsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/admin/ipads',
+  component: AdminRouteShell,
+});
+
+/** Console / controller bulk pricing / stock — Shop → Consoles tab. */
+const adminConsolesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/admin/consoles',
   component: AdminRouteShell,
 });
 
@@ -1209,6 +1219,7 @@ const routeTree = rootRoute.addChildren([
   adminRoute,
   adminProductsRoute,
   adminIpadsRoute,
+  adminConsolesRoute,
   adminPromotionsRoute.addChildren([
     adminPromotionsIndexRoute,
     adminPromotionsNewRoute,

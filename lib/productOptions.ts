@@ -52,7 +52,10 @@ function chipsFromScalar(val: unknown): string[] {
   return coerceOptionStrings(parts.length ? parts : [s]);
 }
 
-function uniqFromRows(rows: any[], key: 'color' | 'storage' | 'ram' | 'sim_type' | 'display_size'): string[] {
+function uniqFromRows(
+  rows: any[],
+  key: 'color' | 'storage' | 'ram' | 'sim_type' | 'display_size' | 'edition',
+): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
   for (const r of rows) {
@@ -115,12 +118,25 @@ export function getProductOptionGroups(product: Product | null | undefined): Pro
   const s = uniqFromRows(rows, 'storage');
   const r = uniqFromRows(rows, 'ram').filter((x) => x.toUpperCase() !== 'N/A');
   const sim = uniqFromRows(rows, 'sim_type');
+  const editions = uniqFromRows(rows, 'edition');
+  const catalog = String(
+    product.specifications && typeof product.specifications === 'object'
+      ? (product.specifications as Record<string, unknown>).catalog ?? ''
+      : '',
+  ).toLowerCase();
+  const isConsoleCatalog =
+    catalog === 'console' ||
+    catalog === 'controller' ||
+    product.category === 'Consoles' ||
+    product.category === 'Controllers';
   // Size first for tablets; Color + Storage next so key picks stay above the fold.
-  if (size.length) skuGroups.push({ name: 'Size', options: size });
+  // Consoles: storage is a spec badge, never a selector. Edition is a PDP card, not a chip row.
+  if (size.length && !isConsoleCatalog) skuGroups.push({ name: 'Size', options: size });
+  if (isConsoleCatalog && editions.length > 1) skuGroups.push({ name: 'Edition', options: editions });
   if (c.length) skuGroups.push({ name: 'Color', options: c });
-  if (s.length) skuGroups.push({ name: 'Storage', options: s });
-  if (r.length) skuGroups.push({ name: 'RAM', options: r });
-  if (sim.length) skuGroups.push({ name: 'SIM', options: sim });
+  if (s.length && !isConsoleCatalog) skuGroups.push({ name: 'Storage', options: s });
+  if (r.length && !isConsoleCatalog) skuGroups.push({ name: 'RAM', options: r });
+  if (sim.length && !isConsoleCatalog) skuGroups.push({ name: 'SIM', options: sim });
   if (skuGroups.length > 0) return skuGroups;
 
   if (Array.isArray(product.variants) && product.variants.length > 0) {
@@ -150,8 +166,8 @@ export function getProductOptionGroups(product: Product | null | undefined): Pro
 
   const chipGroups: ProductOptionGroup[] = [];
   if (fromColors.length) chipGroups.push({ name: 'Color', options: fromColors });
-  if (storageOpts.length) chipGroups.push({ name: 'Storage', options: storageOpts });
-  if (ramOpts.length) chipGroups.push({ name: 'RAM', options: ramOpts });
+  if (storageOpts.length && !isConsoleCatalog) chipGroups.push({ name: 'Storage', options: storageOpts });
+  if (ramOpts.length && !isConsoleCatalog) chipGroups.push({ name: 'RAM', options: ramOpts });
   return chipGroups;
 }
 
@@ -300,13 +316,14 @@ export function snapSelectionToInStock(
 
 function mapOptionGroupToVariantField(
   groupName: string,
-): 'color' | 'storage' | 'ram' | 'sim_type' | 'display_size' | null {
+): 'color' | 'storage' | 'ram' | 'sim_type' | 'display_size' | 'edition' | null {
   const n = groupName.trim().toLowerCase();
   if (n === 'color') return 'color';
   if (n === 'storage') return 'storage';
   if (n === 'ram') return 'ram';
   if (n === 'sim' || n === 'sim type' || n === 'sim_type' || n === 'connectivity') return 'sim_type';
   if (n === 'size' || n === 'display_size' || n === 'display size') return 'display_size';
+  if (n === 'edition') return 'edition';
   return null;
 }
 

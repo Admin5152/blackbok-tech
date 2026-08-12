@@ -15,6 +15,8 @@ export const STORE_PREFERRED_CATEGORIES = [
   'Tablet',
   'Smart watches',
   'Gaming',
+  'Consoles',
+  'Controllers',
   'Headphones',
   'Speakers',
   'Accessories',
@@ -34,7 +36,7 @@ export const STORE_CATEGORY_FILTER_GROUPS: ReadonlyArray<{
   { id: 'tablets', label: 'Tablets', categories: ['iPad', 'Tablet'] },
   { id: 'computers', label: 'Computers', categories: ['MacBooks', 'Laptops'] },
   { id: 'wearables', label: 'Wearables', categories: ['Smart watches'] },
-  { id: 'gaming', label: 'Gaming', categories: ['Gaming'] },
+  { id: 'gaming', label: 'Gaming', categories: ['Consoles', 'Controllers', 'Gaming'] },
   { id: 'audio', label: 'Audio', categories: ['Headphones', 'Speakers'] },
   { id: 'accessories', label: 'Accessories', categories: ['Accessories'] },
   { id: 'trades', label: 'Trades', categories: ['Trades'] },
@@ -48,6 +50,7 @@ export function expandStoreCategorySelection(
   if (!raw) return [];
   if (raw.toLowerCase() === 'audio') return ['Headphones', 'Speakers'];
   if (raw.toLowerCase() === 'computers') return ['MacBooks', 'Laptops'];
+  if (raw.toLowerCase() === 'gaming') return ['Consoles', 'Controllers', 'Gaming'];
   return [normalizeProductCategory(raw)];
 }
 
@@ -101,6 +104,19 @@ export function searchWordMatchesProductCategory(
   }
   if (raw === 'computers' || raw === 'computer' || raw === 'pc' || raw === 'notebooks') {
     return productNorm === 'Laptops' || productNorm === 'MacBooks';
+  }
+  if (
+    raw === 'console' ||
+    raw === 'consoles' ||
+    raw === 'ps5' ||
+    raw === 'xbox' ||
+    raw === 'nintendo' ||
+    raw === 'switch' ||
+    raw === 'controller' ||
+    raw === 'controllers' ||
+    raw === 'dualsense'
+  ) {
+    return productNorm === 'Consoles' || productNorm === 'Controllers' || productNorm === 'Gaming';
   }
   if (raw === 'chargers' || raw === 'charger' || raw === 'cables' || raw === 'cable') {
     return productNorm === 'Accessories';
@@ -258,13 +274,21 @@ export const CATEGORIES_WITH_SERIES = new Set([
   'Laptops',
   'Headphones',
   'Speakers',
+  'Consoles',
+  'Controllers',
 ]);
 
 /**
  * Brand picker first, then series (Audio + Windows laptops).
  * Opposite of iPad/MacBooks (series → New/Used).
  */
-export const CATEGORIES_BRAND_THEN_SERIES = new Set(['Laptops', 'Headphones', 'Speakers']);
+export const CATEGORIES_BRAND_THEN_SERIES = new Set([
+  'Laptops',
+  'Headphones',
+  'Speakers',
+  'Consoles',
+  'Controllers',
+]);
 
 export const IPAD_SERIES_OPTIONS: StoreSeriesOption[] = [
   { value: 'pro', label: 'iPad Pro', description: 'Pro models with M-series chips' },
@@ -317,6 +341,19 @@ export const SPEAKER_SERIES_OPTIONS: StoreSeriesOption[] = [
   { value: 'HomePod', label: 'HomePod', description: 'Apple HomePod speakers' },
 ];
 
+export const CONSOLE_SERIES_OPTIONS: StoreSeriesOption[] = [
+  { value: 'PlayStation 5', label: 'PlayStation 5', description: 'PS5 Slim and Pro' },
+  { value: 'PlayStation Portal', label: 'PlayStation Portal', description: 'Remote play handheld' },
+  { value: 'Xbox Series', label: 'Xbox Series', description: 'Series S and Series X' },
+  { value: 'Switch', label: 'Switch', description: 'Nintendo Switch 2 and OLED' },
+  { value: 'Steam Deck', label: 'Steam Deck', description: 'Valve Steam Deck' },
+];
+
+export const CONTROLLER_SERIES_OPTIONS: StoreSeriesOption[] = [
+  { value: 'DualSense', label: 'DualSense', description: 'PlayStation controllers' },
+  { value: 'Xbox', label: 'Xbox', description: 'Xbox controllers' },
+];
+
 export const ACCESSORY_TYPE_OPTIONS: StoreSeriesOption[] = [
   { value: 'PhoneCases', label: 'Phone Cases', description: 'Protective & stylish cases' },
   { value: 'ScreenProtectors', label: 'Screen Protectors', description: 'Tempered glass & films' },
@@ -354,6 +391,7 @@ export function suggestBrandFromTaxonomy(
     Xbox: 'Microsoft',
     Steam: 'Valve',
     Nintendo: 'Nintendo',
+    Valve: 'Valve',
     iWatches: 'Apple',
   };
   if (map[v]) return map[v];
@@ -432,6 +470,8 @@ export function catalogKeyForCategory(category: string | null | undefined): stri
   if (n === 'Laptops' || n === 'Laptop') return 'laptop';
   if (n === 'Accessories') return 'accessories';
   if (n === 'Gaming') return 'gaming';
+  if (n === 'Consoles') return 'console';
+  if (n === 'Controllers') return 'controller';
   if (n === 'Smart watches') return 'watches';
   return null;
 }
@@ -454,6 +494,18 @@ const SPEAKER_BRAND_SERIES: Readonly<Record<string, readonly string[]>> = {
 const LAPTOP_BRAND_SERIES: Readonly<Record<string, readonly string[]>> = {
   HP: ['Omen', 'Envy', 'Victus'],
   Dell: ['Alienware'],
+};
+
+const CONSOLE_BRAND_SERIES: Readonly<Record<string, readonly string[]>> = {
+  Sony: ['PlayStation 5', 'PlayStation Portal'],
+  Microsoft: ['Xbox Series'],
+  Nintendo: ['Switch'],
+  Valve: ['Steam Deck'],
+};
+
+const CONTROLLER_BRAND_SERIES: Readonly<Record<string, readonly string[]>> = {
+  Sony: ['DualSense'],
+  Microsoft: ['Xbox'],
 };
 
 export function getCategorySeriesOptions(
@@ -484,6 +536,18 @@ export function getCategorySeriesOptions(
     const allowed = LAPTOP_BRAND_SERIES[brand];
     if (!allowed) return [];
     return LAPTOP_SERIES_OPTIONS.filter((o) => allowed.includes(o.value));
+  }
+  if (n === 'Consoles') {
+    if (!brand) return CONSOLE_SERIES_OPTIONS;
+    const allowed = CONSOLE_BRAND_SERIES[brand];
+    if (!allowed) return [];
+    return CONSOLE_SERIES_OPTIONS.filter((o) => allowed.includes(o.value));
+  }
+  if (n === 'Controllers') {
+    if (!brand) return CONTROLLER_SERIES_OPTIONS;
+    const allowed = CONTROLLER_BRAND_SERIES[brand];
+    if (!allowed) return [];
+    return CONTROLLER_SERIES_OPTIONS.filter((o) => allowed.includes(o.value));
   }
   return [];
 }
@@ -536,6 +600,16 @@ export function getProductSeriesSlug(p: Product): string | null {
     if (hay.includes('tune')) return 'tune';
     if (hay.includes('solo')) return 'solo';
     if (hay.includes('sony')) return 'sony';
+  }
+  if (cat === 'Consoles' || cat === 'Controllers') {
+    const series = String(
+      (p.specifications && typeof p.specifications === 'object'
+        ? (p.specifications as Record<string, unknown>).series
+        : '') ||
+        p.subcategory ||
+        '',
+    ).trim();
+    return series ? series.toLowerCase() : null;
   }
   if (cat === 'Speakers') {
     if (hay.includes('homepod') || hay.includes('home pod')) return 'homepod';
@@ -635,6 +709,16 @@ export const CATEGORY_SUBCATEGORY_CONFIG: Readonly<Record<string, SubcategoryOpt
     { kind: 'brand', value: 'Steam',       label: 'Steam',  description: 'Steam Deck & PC gaming gear' },
     { kind: 'brand', value: 'Nintendo',    label: 'Nintendo',    description: 'Nintendo Switch & more' },
   ],
+  Consoles: [
+    { kind: 'brand', value: 'Sony', label: 'Sony', description: 'PlayStation 5 and Portal' },
+    { kind: 'brand', value: 'Microsoft', label: 'Microsoft', description: 'Xbox Series S and Series X' },
+    { kind: 'brand', value: 'Nintendo', label: 'Nintendo', description: 'Switch 2 and Switch OLED' },
+    { kind: 'brand', value: 'Valve', label: 'Valve', description: 'Steam Deck' },
+  ],
+  Controllers: [
+    { kind: 'brand', value: 'Sony', label: 'Sony', description: 'DualSense controllers' },
+    { kind: 'brand', value: 'Microsoft', label: 'Microsoft', description: 'Xbox controllers' },
+  ],
   Headphones: [
     { kind: 'brand', value: 'AirPods', label: 'AirPods', description: 'Apple AirPods & wireless earbuds' },
     { kind: 'brand', value: 'JBL',     label: 'JBL',     description: 'JBL headphones & earbuds' },
@@ -684,6 +768,8 @@ export const ADMIN_MAIN_CATEGORIES = [
   'Laptops',
   'Smart watches',
   'Gaming',
+  'Consoles',
+  'Controllers',
   'Headphones',
   'Speakers',
   'Accessories',

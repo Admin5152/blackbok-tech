@@ -17,6 +17,8 @@ export type SkuMatrixRow = {
   sim_type: string;
   /** Screen size for tablets — product_variants.display_size */
   display_size: string;
+  /** Console edition (Digital / Standard / Disc) — product_variants.edition */
+  edition: string;
   stock: number;
   price_modifier: number;
   /**
@@ -57,8 +59,9 @@ export function skuMatrixKey(row: {
   ram?: string;
   sim_type?: string;
   display_size?: string;
+  edition?: string;
 }): string {
-  return `${normSize(row.display_size)}|${norm(row.color)}|${norm(row.storage)}|${normRam(row.ram)}|${norm(row.sim_type)}`;
+  return `${normSize(row.display_size)}|${norm(row.color)}|${norm(row.storage)}|${normRam(row.ram)}|${norm(row.sim_type)}|${norm(row.edition)}`;
 }
 
 /** True when variant is a DB SKU row, not legacy `{ name, options }`. */
@@ -73,6 +76,7 @@ export function isDbSkuVariant(v: unknown): boolean {
       o.ram ||
       o.sim_type ||
       o.display_size ||
+      o.edition ||
       o.stock != null,
   );
 }
@@ -91,6 +95,7 @@ export function parseSkuVariants(variants: ProductVariant[] | undefined): SkuMat
       ram: String(row.ram ?? '').trim(),
       sim_type: String(row.sim_type ?? '').trim(),
       display_size: String(row.display_size ?? '').trim(),
+      edition: String(row.edition ?? '').trim(),
       stock: Math.max(0, Math.floor(Number(row.stock ?? 0))),
       price_modifier: Number(row.price_modifier ?? 0) || 0,
       price: abs,
@@ -107,9 +112,9 @@ export function totalSkuStock(rows: SkuMatrixRow[]): number {
 
 /** Slug from size-color-storage-sim for auto SKU when staff leave code blank. */
 export function autoGenerateSku(
-  row: Pick<SkuMatrixRow, 'color' | 'storage' | 'ram' | 'sim_type' | 'display_size'>,
+  row: Pick<SkuMatrixRow, 'color' | 'storage' | 'ram' | 'sim_type' | 'display_size' | 'edition'>,
 ): string {
-  const parts = [row.display_size, row.color, row.storage, row.ram, row.sim_type]
+  const parts = [row.display_size, row.color, row.storage, row.ram, row.sim_type, row.edition]
     .map((p) =>
       (p || '')
         .trim()
@@ -212,7 +217,7 @@ export function chipsFromSkuRows(rows: SkuMatrixRow[]): {
   };
 }
 
-type ComboDims = Pick<SkuMatrixRow, 'color' | 'storage' | 'ram' | 'sim_type' | 'display_size'>;
+type ComboDims = Pick<SkuMatrixRow, 'color' | 'storage' | 'ram' | 'sim_type' | 'display_size' | 'edition'>;
 
 /** Cartesian product across whichever chip dimensions exist. */
 export function buildSkuCombinations(
@@ -239,7 +244,7 @@ export function buildSkuCombinations(
     return out;
   };
 
-  return walk(0, { color: '', storage: '', ram: '', sim_type: '', display_size: '' });
+  return walk(0, { color: '', storage: '', ram: '', sim_type: '', display_size: '', edition: '' });
 }
 
 /** Regenerate rows from chips while keeping stock / ids / prices where keys match. */
@@ -254,6 +259,7 @@ export function mergeSkuMatrix(combos: ComboDims[], existing: SkuMatrixRow[]): S
       ram: c.ram ?? '',
       sim_type: c.sim_type ?? '',
       display_size: c.display_size ?? '',
+      edition: c.edition ?? prev?.edition ?? '',
       stock: prev?.stock ?? 0,
       price_modifier: prev?.price_modifier ?? 0,
       price: prev?.price ?? null,
@@ -303,10 +309,15 @@ export function syncSkuRowsFromChips(
   displaySizes: string[] = [],
 ): SkuMatrixRow[] {
   if (!canUseSkuMatrix(colors, storage, ram, simTypes, displaySizes)) return [];
-  return mergeSkuMatrix(
-    buildSkuCombinations(colors, storage, ram, simTypes, displaySizes),
-    existing,
+  const combos = buildSkuCombinations(colors, storage, ram, simTypes, displaySizes);
+  const editions = Array.from(
+    new Set(existing.map((r) => String(r.edition ?? '').trim()).filter(Boolean)),
   );
+  const expanded =
+    editions.length > 0
+      ? combos.flatMap((c) => editions.map((edition) => ({ ...c, edition })))
+      : combos;
+  return mergeSkuMatrix(expanded, existing);
 }
 
 /** Health view 12f — Apple / iPhone / iPad active catalog missing trade bridge. */

@@ -91,6 +91,8 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   'Smart watches': <Watch size={14} />,
   Accessories: <Watch size={14} />,
   Gaming: <Gamepad2 size={14} />,
+  Consoles: <Gamepad2 size={14} />,
+  Controllers: <Gamepad2 size={14} />,
   Headphones: <Headphones size={14} />,
   Speakers: <Headphones size={14} />,
   Audio: <Headphones size={14} />,
@@ -108,6 +110,8 @@ const CATEGORY_ICONS_LG: Record<string, React.ReactNode> = {
   'Smart watches': <Watch size={28} strokeWidth={1.5} />,
   Accessories: <Watch size={28} strokeWidth={1.5} />,
   Gaming: <Gamepad2 size={28} strokeWidth={1.5} />,
+  Consoles: <Gamepad2 size={28} strokeWidth={1.5} />,
+  Controllers: <Gamepad2 size={28} strokeWidth={1.5} />,
   Headphones: <Headphones size={28} strokeWidth={1.5} />,
   Speakers: <Headphones size={28} strokeWidth={1.5} />,
   Audio: <Headphones size={28} strokeWidth={1.5} />,
@@ -158,6 +162,8 @@ const CATEGORY_COVER_BY_KEY: Record<string, string> = {
   Laptop: '/laptop.jpeg',
   'Smart watches': '/iphone_modern.png',
   Gaming: '/ps5and xbox.jpeg',
+  Consoles: '/ps5and xbox.jpeg',
+  Controllers: '/ps5.jpeg',
   Headphones: '/Headphones111.jpeg',
   Audio: '/Headphones111.jpeg',
   Speakers: '/Headphones111.jpeg',
@@ -1815,16 +1821,32 @@ export const Store: React.FC<StoreProps> = ({
                 <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--bb-border)] bg-[var(--bb-surface-2)]">
                   <Search size={22} className="text-[#CDA032] opacity-70" />
                 </div>
-                <h3 className="text-xl sm:text-2xl font-bold mb-2">No products found</h3>
+                <h3 className="text-xl sm:text-2xl font-bold mb-2">
+                  {activeCategory === 'Consoles'
+                    ? 'No consoles match these filters.'
+                    : activeCategory === 'Controllers'
+                      ? 'No controllers match these filters.'
+                      : 'No products found'}
+                </h3>
                 <p className="text-sm text-[color:var(--bb-muted)] max-w-sm mx-auto mb-6">
                   Try a different search term, clear your filters, or browse another category.
                 </p>
                 <button
                   type="button"
-                  onClick={canChangeSubcategory ? goToSubcategoryPicker : goToCategoryPicker}
+                  onClick={
+                    activeCategory === 'Consoles' || activeCategory === 'Controllers'
+                      ? clearAllFilters
+                      : canChangeSubcategory
+                        ? goToSubcategoryPicker
+                        : goToCategoryPicker
+                  }
                   className="px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider border border-[#CDA032]/40 text-[#CDA032] hover:bg-[#CDA032]/10 transition-colors"
                 >
-                  {canChangeSubcategory ? 'Change filter' : 'Browse categories'}
+                  {activeCategory === 'Consoles' || activeCategory === 'Controllers'
+                    ? 'Clear filters'
+                    : canChangeSubcategory
+                      ? 'Change filter'
+                      : 'Browse categories'}
                 </button>
               </div>
             )}

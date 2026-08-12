@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Product, ProductImage } from '../types';
 import { X, Plus, Minus, Heart, Share2, Check, Truck, Shield, RefreshCw, ArrowLeft, Copy, Facebook, Twitter, ChevronRight } from 'lucide-react';
-import { formatGhs } from '../lib/money';
+import { formatGhs, formatGhsPlain } from '../lib/money';
+import { consoleHasColourSkus, isConsoleCatalog } from '../lib/consoleApi';
+import { ConsolePdpBlock } from '../components/product/ConsolePdpBlock';
 import { formatSimTypeLabel } from '../lib/productLabels';
 import { ProductImageGallery } from '../components/product/ProductImageGallery';
 import { ProductAvailabilityBadge } from '../components/ProductAvailabilityBadge';
@@ -41,11 +43,20 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
   theme
 }) => {
   const isLight = theme === 'light';
+  const isConsole = isConsoleCatalog(product);
+  const coloursExist = consoleHasColourSkus(product);
   const [quantity, setQuantity] = useState(1);
   const normalizedVariants = useMemo(() => getProductOptionGroups(product), [product]);
-  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() =>
-    defaultSelectedOptionsForProduct(product),
-  );
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => {
+    const initial = defaultSelectedOptionsForProduct(product);
+    if (isConsoleCatalog(product) && consoleHasColourSkus(product)) {
+      const next = { ...initial };
+      delete next.Color;
+      delete next.color;
+      return next;
+    }
+    return initial;
+  });
   const availableStock = useMemo(
     () => getAvailableStock(product, selectedOptions),
     [product, selectedOptions],
@@ -102,7 +113,12 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
   const specsRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    setSelectedOptions(defaultSelectedOptionsForProduct(product));
+    const next = defaultSelectedOptionsForProduct(product);
+    if (isConsoleCatalog(product) && consoleHasColourSkus(product)) {
+      delete next.Color;
+      delete next.color;
+    }
+    setSelectedOptions(next);
     setQuantity(1);
   }, [normalizedVariants, product.id, product]);
 
@@ -125,7 +141,13 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
     );
   };
 
+  const needsColour = isConsole && coloursExist && !toOptionString(selectedOptions.Color || selectedOptions.color || '');
+
   const handleAddToCart = () => {
+    if (needsColour) {
+      window.alert('Choose a colour');
+      return;
+    }
     if (availableStock <= 0) {
       window.alert('This configuration is out of stock.');
       return;
@@ -256,11 +278,11 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                   key={`${matchedVariant?.id ?? 'base'}-${listPrice}`}
                   className="block text-lg sm:text-xl font-bold text-[#B38B21] tabular-nums"
                 >
-                  {formatGhs(unitPrice)}
+                  {isConsole ? formatGhsPlain(unitPrice) : formatGhs(unitPrice)}
                 </span>
                 {discountPct > 0 && listPrice > unitPrice && (
                   <span className={`text-xs line-through ${isLight ? 'text-black/35' : 'text-white/40'}`}>
-                    {formatGhs(listPrice)}
+                    {isConsole ? formatGhsPlain(listPrice) : formatGhs(listPrice)}
                   </span>
                 )}
               </div>
@@ -294,7 +316,20 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               </button>
             )}
 
-            {normalizedVariants.length > 0 && (
+            {isConsole ? (
+              <div
+                className={`rounded-xl border p-2.5 sm:p-3 ${
+                  isLight ? 'border-black/10 bg-white shadow-sm' : 'border-white/10 bg-white/[0.03]'
+                }`}
+              >
+                <ConsolePdpBlock
+                  product={product}
+                  selectedOptions={selectedOptions}
+                  onOptionsChange={setSelectedOptions}
+                  isLight={isLight}
+                />
+              </div>
+            ) : normalizedVariants.length > 0 ? (
               <div
                 className={`rounded-xl border p-2.5 sm:p-3 space-y-2 ${
                   isLight ? 'border-black/10 bg-white shadow-sm' : 'border-white/10 bg-white/[0.03]'
@@ -403,7 +438,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                   );
                 })}
               </div>
-            )}
+            ) : null}
 
             <div className="flex items-center gap-2 flex-wrap">
               <div
@@ -438,10 +473,10 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             <div className="flex gap-2 flex-wrap">
               <button
                 onClick={handleAddToCart}
-                disabled={availableStock <= 0}
+                disabled={needsColour || availableStock <= 0}
                 className="flex-1 min-w-[10rem] bg-[#B38B21] text-black font-bold py-2.5 rounded-full text-sm hover:opacity-90 transition shadow-md disabled:opacity-40 disabled:pointer-events-none"
               >
-                {availableStock <= 0 ? 'Out of stock' : 'Add to Cart'}
+                {needsColour ? 'Choose a colour' : availableStock <= 0 ? 'Out of stock' : 'Add to Cart'}
               </button>
 
               <button

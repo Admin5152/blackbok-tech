@@ -119,7 +119,13 @@ export function normalizeProductCategory(category?: string | null): string {
     }
     return 'iPhone';
   }
-  if (value.includes('gam') || value.includes('console')) return 'Gaming';
+  if (value === 'controllers' || value.includes('controller') || value.includes('dualsense')) {
+    return 'Controllers';
+  }
+  if (value === 'consoles' || (value.includes('console') && !value.includes('controller'))) {
+    return 'Consoles';
+  }
+  if (value.includes('gam')) return 'Gaming';
   if (value.includes('watch') || value.includes('smartwatch') || value.includes('smart watch')) {
     return 'Smart watches';
   }
@@ -619,6 +625,7 @@ export type SkuVariantInput = {
   ram?: string | null;
   sim_type?: string | null;
   display_size?: string | null;
+  edition?: string | null;
   stock: number;
   price_modifier?: number;
   /** Absolute price; null/undefined → DB null (effective = base + modifier). */
@@ -645,6 +652,7 @@ const skuDimsMatch = (
     ram?: string | null;
     sim_type?: string | null;
     display_size?: string | null;
+    edition?: string | null;
   },
   b: {
     color?: string | null;
@@ -652,13 +660,15 @@ const skuDimsMatch = (
     ram?: string | null;
     sim_type?: string | null;
     display_size?: string | null;
+    edition?: string | null;
   },
 ) =>
   normSkuDim(a.color) === normSkuDim(b.color) &&
   normSkuDim(a.storage) === normSkuDim(b.storage) &&
   normSkuRam(a.ram) === normSkuRam(b.ram) &&
   normSkuDim(a.sim_type) === normSkuDim(b.sim_type) &&
-  normSkuSize(a.display_size) === normSkuSize(b.display_size);
+  normSkuSize(a.display_size) === normSkuSize(b.display_size) &&
+  normSkuDim(a.edition) === normSkuDim(b.edition);
 
 /** Map PostgREST unique-violation into a staff-readable message. */
 const rethrowVariantConstraint = (err: { message?: string; code?: string }): never => {
@@ -671,7 +681,7 @@ const rethrowVariantConstraint = (err: { message?: string; code?: string }): nev
       );
     }
     throw new Error(
-      'Duplicate combination (size / color / storage / RAM / SIM). Change or remove the duplicate first.',
+      'Duplicate combination (size / color / storage / RAM / SIM / edition). Change or remove the duplicate first.',
     );
   }
   throw err instanceof Error ? err : new Error(msg || 'Could not save stock versions');
@@ -686,7 +696,7 @@ const rethrowVariantConstraint = (err: { message?: string; code?: string }): nev
 export const syncProductVariants = async (productId: string, rows: SkuVariantInput[]) => {
   const { data: existing, error: fetchErr } = await supabase
     .from('product_variants')
-    .select('id, color, storage, ram, sim_type, display_size')
+    .select('id, color, storage, ram, sim_type, display_size, edition')
     .eq('product_id', productId);
   if (fetchErr) throw fetchErr;
 
@@ -718,6 +728,7 @@ export const syncProductVariants = async (productId: string, rows: SkuVariantInp
       ram: row.ram?.trim() || null,
       sim_type: row.sim_type?.trim() || null,
       display_size: row.display_size?.trim() || null,
+      edition: row.edition?.trim() || null,
       stock: Math.max(0, Math.floor(Number(row.stock) || 0)),
       price_modifier: Number(row.price_modifier ?? 0) || 0,
       price: absPrice,

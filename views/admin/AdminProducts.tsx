@@ -542,6 +542,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                         ram: r.ram || null,
                         sim_type: r.sim_type || null,
                         display_size: r.display_size || null,
+                        edition: r.edition || null,
                         stock: r.stock,
                         price_modifier: r.price_modifier,
                         price: r.price != null && Number.isFinite(Number(r.price)) ? Number(r.price) : null,

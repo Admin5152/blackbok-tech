@@ -117,6 +117,7 @@ export const ProductSkuMatrix: React.FC<Props> = ({
       row.storage,
       row.ram && row.ram.toUpperCase() !== 'N/A' ? row.ram : '',
       row.sim_type ? formatSimTypeLabel(row.sim_type) : '',
+      row.edition,
     ].filter(Boolean);
     return parts.length ? parts.join(' · ') : 'Default';
   };
