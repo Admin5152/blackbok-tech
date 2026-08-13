@@ -1,5 +1,6 @@
 import { friendlyError } from './friendlyErrors';
 import { supabase } from './supabase';
+import { cartLineKey } from './cartLineKey';
 import {
   sanitizeHttpUrl,
   sanitizeUserLabel,
@@ -1201,58 +1202,228 @@ export const getProduct = async (id: string): Promise<Product | null> => {
 };
 
 // ==========================================
-// CART
+// CART  (public.cart_items — RLS: own rows; guests use localStorage only)
 // ==========================================
 
-export const getCartItems = async (userId: string): Promise<CartItem[]> => {
+type CartItemPersist = Pick<
+  CartItem,
+  'id' | 'variant_id' | 'quantity' | 'selectedOptions' | 'price' | 'name' | 'image' | 'image_url' | 'stock' | 'variants'
+>;
+
+const cartRowToPayload = (userId: string, item: CartItemPersist) => {
+  const productId = String(item.id || '').trim();
+  const options = (item.selectedOptions || {}) as Record<string, string>;
+  const lineKey = cartLineKey({
+    id: productId,
+    variant_id: item.variant_id,
+    selectedOptions: options,
+  });
+  return {
+    user_id: userId,
+    product_id: productId,
+    variant_id: item.variant_id ? String(item.variant_id) : null,
+    quantity: Math.max(1, Math.floor(Number(item.quantity) || 1)),
+    selected_options: options,
+    line_key: lineKey,
+    unit_price:
+      item.price != null && Number.isFinite(Number(item.price)) ? Number(item.price) : null,
+    updated_at: new Date().toISOString(),
+  };
+};
+
+/** Load raw cart rows for a user (no product join required for merge). */
+export const getCartItemRows = async (
+  userId: string,
+): Promise<
+  Array<{
+    id: string;
+    product_id: string;
+    variant_id: string | null;
+    quantity: number;
+    selected_options: Record<string, string>;
+    line_key: string;
+    unit_price: number | null;
+  }>
+> => {
+  const uid = String(userId || '').trim();
+  if (!uid) return [];
   const { data, error } = await supabase
     .from('cart_items')
-    .select('*, products(*), product_variants(*)')
-    .eq('user_id', userId);
+    .select('id, product_id, variant_id, quantity, selected_options, line_key, unit_price')
+    .eq('user_id', uid)
+    .order('updated_at', { ascending: false });
   if (error) throw error;
-  return data.map((item: any) => ({
-    ...item,
-    name: item.products?.name,
-    price: item.product_variants ? (Number(item.products?.price) + Number(item.product_variants.price_modifier)) : Number(item.products?.price),
-    image: item.products?.image_url,
-    selectedOptions: item.product_variants?.sku
-      ? { 'Item code': item.product_variants.sku }
-      : {},
+  return (data ?? []).map((row: Record<string, unknown>) => ({
+    id: String(row.id),
+    product_id: String(row.product_id || ''),
+    variant_id: row.variant_id ? String(row.variant_id) : null,
+    quantity: Math.max(1, Math.floor(Number(row.quantity) || 1)),
+    selected_options:
+      row.selected_options && typeof row.selected_options === 'object'
+        ? (row.selected_options as Record<string, string>)
+        : {},
+    line_key: String(row.line_key || ''),
+    unit_price:
+      row.unit_price != null && Number.isFinite(Number(row.unit_price))
+        ? Number(row.unit_price)
+        : null,
   }));
 };
 
-export const addToCart = async (userId: string, productId: string, variantId?: string, quantity: number = 1) => {
-  const payload: any = { user_id: userId, product_id: productId, quantity };
-  if (variantId) payload.variant_id = variantId;
+export const getCartItems = async (userId: string): Promise<CartItem[]> => {
+  const rows = await getCartItemRows(userId);
+  if (rows.length === 0) return [];
 
+  const productIds = [...new Set(rows.map((r) => r.product_id).filter(Boolean))];
+  const products = await Promise.all(
+    productIds.map(async (pid) => {
+      try {
+        return await getProduct(pid);
+      } catch {
+        return null;
+      }
+    }),
+  );
+  const byId = new Map(
+    products.filter(Boolean).map((p) => [String((p as Product).id), p as Product]),
+  );
+
+  return rows
+    .map((row) => {
+      const product = byId.get(row.product_id);
+      if (!product) return null;
+      const options = row.selected_options || {};
+      return {
+        ...product,
+        quantity: row.quantity,
+        selectedOptions: options,
+        variant_id: row.variant_id || undefined,
+        price: row.unit_price != null ? row.unit_price : product.price,
+        stock: product.stock,
+        configurationLine: undefined,
+      } as CartItem;
+    })
+    .filter(Boolean) as CartItem[];
+};
+
+export const addToCart = async (
+  userId: string,
+  productId: string,
+  variantId?: string,
+  quantity: number = 1,
+  selectedOptions: Record<string, string> = {},
+) => {
+  const payload = cartRowToPayload(userId, {
+    id: productId,
+    variant_id: variantId,
+    quantity,
+    selectedOptions,
+    price: 0,
+    name: '',
+    stock: 0,
+  });
   const { data, error } = await supabase
     .from('cart_items')
-    .insert(payload)
-    .select()
+    .upsert(payload, { onConflict: 'user_id,line_key' })
+    .select('id')
     .single();
   if (error) throw error;
+  if (!data?.id) {
+    throw new Error('Cart item did not save. Sign in again and retry.');
+  }
   return data;
 };
 
 export const updateCartItemQuantity = async (itemId: string, quantity: number) => {
   const { data, error } = await supabase
     .from('cart_items')
-    .update({ quantity })
+    .update({ quantity: Math.max(1, Math.floor(Number(quantity) || 1)), updated_at: new Date().toISOString() })
     .eq('id', itemId)
-    .select()
+    .select('id, quantity')
     .single();
   if (error) throw error;
+  if (!data?.id) {
+    throw new Error('Cart quantity did not save. Sign in again and retry.');
+  }
   return data;
 };
 
 export const removeFromCart = async (itemId: string) => {
-  const { error } = await supabase.from('cart_items').delete().eq('id', itemId);
+  const { data, error } = await supabase
+    .from('cart_items')
+    .delete()
+    .eq('id', itemId)
+    .select('id');
   if (error) throw error;
+  if (!data?.length) {
+    throw new Error('Cart item was not removed from the database.');
+  }
 };
 
 export const clearCartItems = async (userId: string) => {
-  const { error } = await supabase.from('cart_items').delete().eq('user_id', userId);
+  const uid = String(userId || '').trim();
+  if (!uid) return;
+  const { error } = await supabase.from('cart_items').delete().eq('user_id', uid);
   if (error) throw error;
+};
+
+/** Replace the signed-in user's server cart with the current UI basket. */
+export const replaceUserCart = async (userId: string, items: CartItem[]): Promise<void> => {
+  const uid = String(userId || '').trim();
+  if (!uid) return;
+
+  const { error: delErr } = await supabase.from('cart_items').delete().eq('user_id', uid);
+  if (delErr) throw delErr;
+
+  const rows = items
+    .filter((item) => String(item.id || '').trim())
+    .map((item) => cartRowToPayload(uid, item));
+  if (rows.length === 0) return;
+
+  const { data, error } = await supabase.from('cart_items').insert(rows).select('id');
+  if (error) throw error;
+  if (!data?.length) {
+    throw new Error('Cart did not save to the database. Sign in again and retry.');
+  }
+};
+
+/**
+ * Merge guest/local cart with the server cart on sign-in, persist the union,
+ * then return hydrated cart lines for the UI.
+ */
+export const syncCartWithServer = async (
+  userId: string,
+  localItems: CartItem[],
+): Promise<CartItem[]> => {
+  const uid = String(userId || '').trim();
+  if (!uid) return localItems;
+
+  const serverItems = await getCartItems(uid).catch(() => [] as CartItem[]);
+  const merged = new Map<string, CartItem>();
+
+  for (const item of [...serverItems, ...localItems]) {
+    const key = cartLineKey(item);
+    const prev = merged.get(key);
+    if (!prev) {
+      merged.set(key, { ...item, quantity: Math.max(1, Math.floor(Number(item.quantity) || 1)) });
+      continue;
+    }
+    merged.set(key, {
+      ...prev,
+      ...item,
+      quantity: Math.max(
+        Math.floor(Number(prev.quantity) || 1),
+        Math.floor(Number(item.quantity) || 1),
+      ),
+      selectedOptions: item.selectedOptions ?? prev.selectedOptions,
+      variant_id: item.variant_id || prev.variant_id,
+      variants: item.variants?.length ? item.variants : prev.variants,
+    });
+  }
+
+  const next = Array.from(merged.values());
+  await replaceUserCart(uid, next);
+  return next;
 };
 
 // ==========================================
@@ -1389,6 +1560,10 @@ export const addReview = async (review: Omit<Review, 'id' | 'created_at'>) => {
 // ORDERS & CHECKOUT
 // ==========================================
 
+/**
+ * @deprecated Prefer Checkout → `place_order` RPC (variant-aware stock).
+ * Kept for legacy callers only — does not mirror live checkout stock rules.
+ */
 export const placeOrder = async (
   userId: string, 
   customerId: string | null, 
@@ -2102,6 +2277,11 @@ export const updateRepairRequest = async (id: string, updates: Partial<RepairReq
     .select()
     .single();
   if (error) throw error;
+  if (!data?.id) {
+    throw new Error(
+      'Repair update did not save (0 rows). Sign in as the customer or staff/admin and retry.',
+    );
+  }
   return mapRepairFromDb(data);
 };
 
@@ -2478,6 +2658,11 @@ export const updateTradeRequest = async (id: string, updates: Partial<TradeInReq
   }
 
   if (error) throw error;
+  if (!data?.id) {
+    throw new Error(
+      'Trade update did not save (0 rows). Sign in as the customer or staff/admin and retry.',
+    );
+  }
   return mapTradeFromDb(data);
 };
 

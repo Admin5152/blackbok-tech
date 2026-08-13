@@ -620,6 +620,20 @@ products (+ variants)  →  v_product_page  →  catalogApi.getProducts()  →  
 10. `20260813000900_stock_match_variant_id_and_dims.sql` ← checkout stock uses `variant_id` + full dims
 11. `20260813001000_order_items_variant_id_place_order.sql`
 12. `20260813001100_heal_product_variants_staff_write.sql` ← staff can write SKU stock (RLS)
+13. `20260813001200_cart_items_persist.sql` ← signed-in cart rows in DB
+14. `20260813001300_heal_trade_catalog_staff_write.sql` ← staff write trade devices/config/Q&A
+
+### Persistence matrix (Aug 2026)
+
+| Domain | Saved in DB? | Notes |
+|--------|--------------|-------|
+| Products / SKU stock | Yes | Verified writes + `sync_product_stock_from_variants` |
+| Orders | Yes | `place_order` RPC → order_items + stock triggers |
+| Wishlist | Yes | `wishlist_items` on login merge |
+| Cart (signed-in) | Yes | `cart_items` merge on login + debounced replace |
+| Cart (guest) | localStorage only | Until sign-in |
+| Repair / trade requests | Yes | create/update with `.select().single()` asserts |
+| Trade catalog admin | Yes | staff manage RLS heal + threshold/reorder asserts |
 
 After apply: spot-check
 

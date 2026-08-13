@@ -14,7 +14,7 @@ import { X, Activity, Scale, RefreshCcw, Home as HomeIcon, ShoppingBag, Wrench, 
 import { supabase, getSupabaseClient, isSupabaseConfigured } from './lib/supabase';
 import { WhatsAppIcon } from './components/Icons';
 import { Product, User, CartItem, Category, RepairRequest, Order, TradeRequest, ProductVariant } from './types';
-import { getProducts, getProduct, getOrders, getTradeRequests, getRepairRequests, syncWishlistWithServer, addToWishlist, removeFromWishlistByProduct, clearWishlistItems } from './lib/api';
+import { getProducts, getProduct, getOrders, getTradeRequests, getRepairRequests, syncWishlistWithServer, syncCartWithServer, replaceUserCart, addToWishlist, removeFromWishlistByProduct, clearWishlistItems } from './lib/api';
 import { friendlyError } from './lib/friendlyErrors';
 import { fetchTradePricing } from './lib/tradePricingStore';
 import { handleSignOut } from './lib/signOut';
@@ -1298,6 +1298,8 @@ function RootComponent() {
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [cart, setCart] = useState<CartItem[]>([]);
   const cartRef = useRef<CartItem[]>([]);
+  /** Skip server cart writes until sign-in merge finishes (avoids wiping DB with []). */
+  const cartServerReadyRef = useRef(false);
   const wishlistRef = useRef<string[]>([]);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [compareIds, setCompareIds] = useState<string[]>([]);
@@ -1606,6 +1608,18 @@ function RootComponent() {
     localStorage.setItem(STORAGE_KEYS.THEME, theme);
   }, [user, cart, orders, repairs, trades, wishlist, compareIds, theme]);
 
+  // Persist signed-in cart to Supabase (debounced) so baskets survive devices/sessions.
+  useEffect(() => {
+    if (!user?.id || !isSupabaseConfigured() || !cartServerReadyRef.current) return;
+    const uid = user.id;
+    const handle = window.setTimeout(() => {
+      void replaceUserCart(uid, cartRef.current).catch((e) => {
+        console.warn('Cart sync failed:', e);
+      });
+    }, 450);
+    return () => window.clearTimeout(handle);
+  }, [cart, user?.id]);
+
   useEffect(() => {
     cartRef.current = cart;
   }, [cart]);
@@ -1615,12 +1629,13 @@ function RootComponent() {
   }, [wishlist]);
 
   // On sign-out, drop the account wishlist from UI + localStorage so the next
-  // visitor does not see the previous user's saved items.
+  // visitor does not see the previous user's saved items. Guest cart stays local.
   const prevUserIdRef = useRef<string | null>(null);
   useEffect(() => {
     const prev = prevUserIdRef.current;
     const next = user?.id ?? null;
     if (prev && !next) {
+      cartServerReadyRef.current = false;
       setWishlist([]);
       wishlistRef.current = [];
       try {
@@ -1628,6 +1643,9 @@ function RootComponent() {
       } catch {
         /* ignore */
       }
+    }
+    if (next && next !== prev) {
+      cartServerReadyRef.current = false;
     }
     prevUserIdRef.current = next;
   }, [user?.id]);
@@ -1699,7 +1717,7 @@ function RootComponent() {
         ]);
       };
       try {
-        const [ord, tr, rp, wishIds] = await Promise.all([
+        const [ord, tr, rp, wishIds, syncedCart] = await Promise.all([
           getOrders(user.id).catch((e) => {
             pushErr(e, 'load your orders');
             return [];
@@ -1718,6 +1736,12 @@ function RootComponent() {
                 return null;
               })
             : Promise.resolve(null),
+          isSupabaseConfigured()
+            ? syncCartWithServer(user.id, cartRef.current).catch((e) => {
+                pushErr(e, 'load your cart');
+                return null;
+              })
+            : Promise.resolve(null),
         ]);
         if (cancelled) return;
         // Always replace with server truth (incl. empty) so stale localStorage
@@ -1726,9 +1750,15 @@ function RootComponent() {
         if (Array.isArray(tr)) setTrades(tr as any);
         if (Array.isArray(rp)) setRepairs(rp as any);
         if (Array.isArray(wishIds)) setWishlist(wishIds);
+        if (Array.isArray(syncedCart)) {
+          setCart(syncedCart);
+          cartRef.current = syncedCart;
+        }
+        cartServerReadyRef.current = true;
       } catch (e) {
         console.warn('User data hydration failed:', e);
         pushErr(e, 'load your account data');
+        cartServerReadyRef.current = true;
       }
     })();
     return () => { cancelled = true; };

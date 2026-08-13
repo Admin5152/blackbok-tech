@@ -148,8 +148,15 @@ export async function cancelOpenRecordsForAccountDeletion(userId: string): Promi
     .eq('user_id', userId);
   for (const r of repairs ?? []) {
     if (!isTerminalRepairStatus(normalizeRepairStatusForUi(r.status))) {
-      const { error } = await client.from('repair_requests').update({ status: 'cancelled' }).eq('id', r.id);
+      const { data, error } = await client
+        .from('repair_requests')
+        .update({ status: 'cancelled' })
+        .eq('id', r.id)
+        .select('id');
       if (error) return { ok: false, error: error.message, cancelled };
+      if (!data?.length) {
+        return { ok: false, error: `Repair ${r.id} cancel did not save`, cancelled };
+      }
       cancelled.repairs += 1;
     }
   }
@@ -160,8 +167,15 @@ export async function cancelOpenRecordsForAccountDeletion(userId: string): Promi
     .eq('user_id', userId);
   for (const t of trades ?? []) {
     if (!isTerminalTradeStatus(normalizeTradeStatusForUi(t.status))) {
-      const { error } = await client.from('trade_in_requests').update({ status: 'rejected' }).eq('id', t.id);
+      const { data, error } = await client
+        .from('trade_in_requests')
+        .update({ status: 'rejected' })
+        .eq('id', t.id)
+        .select('id');
       if (error) return { ok: false, error: error.message, cancelled };
+      if (!data?.length) {
+        return { ok: false, error: `Trade ${t.id} close did not save`, cancelled };
+      }
       cancelled.trades += 1;
     }
   }

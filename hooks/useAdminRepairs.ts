@@ -158,6 +158,9 @@ export function useAdminRepairs(): UseAdminRepairsResult {
         .select()
         .single();
       if (upErr) throw upErr;
+      if (!data?.id) {
+        throw new Error('Technician assign did not save. Sign in as staff/admin and retry.');
+      }
       const fresh = normalizeRepair(data as Record<string, unknown>);
 
       let mergedRef: AdminRepair | null = null;
@@ -194,6 +197,9 @@ export function useAdminRepairs(): UseAdminRepairsResult {
         .select()
         .single();
       if (upErr) throw upErr;
+      if (!data?.id) {
+        throw new Error('Repair update did not save. Sign in as staff/admin and retry.');
+      }
       const fresh = normalizeRepair(data as Record<string, unknown>);
 
       let mergedRef: AdminRepair | null = null;

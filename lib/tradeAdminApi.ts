@@ -468,10 +468,12 @@ export async function setDeviceActive(
   // Soft-hide pricing when device is removed from the list so it cannot
   // appear via priced-model filters either.
   if (!isActive) {
-    await supabase
+    const { error: baseErr } = await supabase
       .from('trade_base_values')
       .update({ is_active: false })
-      .eq('model', model);
+      .eq('model', model)
+      .select('id');
+    if (baseErr) throw baseErr;
     await bumpTradeCaches();
   }
 
@@ -735,11 +737,18 @@ export async function updateDeviceThreshold(
   model: string,
   thresholdValue: number | null,
 ): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('trade_devices')
     .update({ threshold_value: thresholdValue })
-    .eq('model', model);
+    .eq('model', model)
+    .select('model')
+    .single();
   if (error) throw error;
+  if (!data?.model) {
+    throw new Error(
+      'Threshold did not save (0 rows). Sign in as staff/admin and retry.',
+    );
+  }
 }
 
 // ─── Config ────────────────────────────────────────────────────────────────
@@ -912,11 +921,17 @@ export async function reorderQuestions(
 ): Promise<void> {
   // Sequential updates — no drag library; up/down buttons pass new order
   for (let i = 0; i < orderedIds.length; i++) {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('trade_questions')
       .update({ display_order: i + 1 })
-      .eq('id', orderedIds[i]);
+      .eq('id', orderedIds[i])
+      .select('id');
     if (error) throw error;
+    if (!data?.length) {
+      throw new Error(
+        'Question order did not save (0 rows). Sign in as staff/admin and retry.',
+      );
+    }
   }
 }
 
@@ -961,11 +976,17 @@ export async function deleteAnswer(id: string): Promise<void> {
 
 export async function reorderAnswers(orderedIds: string[]): Promise<void> {
   for (let i = 0; i < orderedIds.length; i++) {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('trade_answers')
       .update({ display_order: i + 1 })
-      .eq('id', orderedIds[i]);
+      .eq('id', orderedIds[i])
+      .select('id');
     if (error) throw error;
+    if (!data?.length) {
+      throw new Error(
+        'Answer order did not save (0 rows). Sign in as staff/admin and retry.',
+      );
+    }
   }
 }
 
