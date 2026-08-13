@@ -12,7 +12,6 @@ import { getEffectiveRepairPricing } from '../lib/repairPricingStore';
 import {
   type RepairIssueKey,
   supportsAppleComponentPricing,
-  getIssuesForDevice,
   filterAppleIssuesForModel,
   getIssueLabel,
   getAppleIssuePrice,
@@ -22,6 +21,14 @@ import {
   getAccessoryOptions,
   getSerialFieldLabel,
 } from '../lib/repairIssueCatalog';
+import {
+  clearRepairWizardDraft,
+  getCachedIssuesForDevice,
+  loadRepairWizardDraft,
+  prefetchRepairCatalog,
+  saveRepairWizardDraft,
+} from '../lib/repairSessionCache';
+import { scrollTradeFocusIntoView } from '../lib/scrollTradeFocus';
 import { buildRepairDeviceFields, PRICING_MODE } from '../lib/repairDeviceTypes';
 import {
   buildAppleIphoneSeriesGroups,
@@ -60,6 +67,7 @@ import { formatGHS, promoReserveRepair } from '../lib/promotions';
 import { promoFriendlyMessage } from '../lib/promoErrors';
 import { BrandLogo } from '../components/BrandLogo';
 import { getBrandsForDeviceType } from '../data/deviceBrands';
+import { FlowChoiceCard, FlowExpandSection } from '../components/FlowExpandSection';
 
 export const Repair: React.FC = () => {
   const { user, repairs, setRepairs, notify, theme, products } = useAppContext();
@@ -73,6 +81,9 @@ export const Repair: React.FC = () => {
   const [appliedRepairPromo, setAppliedRepairPromo] = useState<AppliedPromoQuote | null>(null);
   const [selectedIssueKeys, setSelectedIssueKeys] = useState<Set<RepairIssueKey>>(new Set());
   const [selectedSeries, setSelectedSeries] = useState<string>('');
+  /** Review step: keep authorization visible by default — easy to miss when collapsed. */
+  const [authSectionOpen, setAuthSectionOpen] = useState(true);
+  const [termsSectionOpen, setTermsSectionOpen] = useState(true);
   const [formData, setFormData] = useState({
     deviceType: '',
     brand: '',
@@ -115,7 +126,66 @@ export const Repair: React.FC = () => {
 
   const formRef = useRef<HTMLDivElement>(null);
   const repairRestoreDone = useRef(false);
+  const draftHydrated = useRef(false);
   const prevDeviceSelection = useRef({ deviceType: '', brand: '' });
+
+  useEffect(() => {
+    prefetchRepairCatalog();
+  }, []);
+
+  // Restore mid-flow draft (session) so back/refresh keeps progress without re-scrolling from scratch.
+  useEffect(() => {
+    if (draftHydrated.current) return;
+    draftHydrated.current = true;
+    const draft = loadRepairWizardDraft();
+    if (!draft) return;
+    if (typeof draft.step === 'number' && draft.step >= 1 && draft.step <= 6) setStep(draft.step);
+    if (typeof draft.subStep === 'number' && draft.subStep >= 1) setSubStep(draft.subStep);
+    if (draft.issuePhase >= 1 && draft.issuePhase <= 3) setIssuePhase(draft.issuePhase);
+    if (draft.bookingPhase >= 1 && draft.bookingPhase <= 3) setBookingPhase(draft.bookingPhase);
+    if (typeof draft.transitionKey === 'number') setTransitionKey(draft.transitionKey);
+    if (typeof draft.selectedSeries === 'string') setSelectedSeries(draft.selectedSeries);
+    if (Array.isArray(draft.selectedIssueKeys)) {
+      const valid = draft.selectedIssueKeys.filter(isRepairIssueKey);
+      setSelectedIssueKeys(new Set(valid));
+    }
+    if (draft.formData && typeof draft.formData === 'object') {
+      setFormData((prev) => ({
+        ...prev,
+        ...(draft.formData as typeof prev),
+        photos: Array.isArray((draft.formData as { photos?: unknown }).photos)
+          ? ((draft.formData as { photos: string[] }).photos || [])
+          : [],
+      }));
+    }
+  }, []);
+
+  // Autosave draft while filling (debounced).
+  useEffect(() => {
+    if (!draftHydrated.current) return;
+    const t = window.setTimeout(() => {
+      saveRepairWizardDraft({
+        step,
+        subStep,
+        issuePhase,
+        bookingPhase,
+        transitionKey,
+        selectedSeries,
+        selectedIssueKeys: [...selectedIssueKeys],
+        formData: { ...formData, photos: formData.photos?.slice(0, 8) ?? [] },
+      });
+    }, 350);
+    return () => window.clearTimeout(t);
+  }, [
+    step,
+    subStep,
+    issuePhase,
+    bookingPhase,
+    transitionKey,
+    selectedSeries,
+    selectedIssueKeys,
+    formData,
+  ]);
 
   // Prefill contact from logged-in profile; keep editable (only fill empty fields).
   useEffect(() => {
@@ -167,17 +237,13 @@ export const Repair: React.FC = () => {
 
   useEffect(() => {
     // Scroll to the active form section whenever step or substep changes
-    if (formRef.current) {
-      const activeSection = formRef.current.querySelector('.active-form-section');
-      if (activeSection) {
-        // We use a small delay to ensure the DOM layout has settled after the conditional render
-        setTimeout(() => {
-          const offset = 140; // Account for the folded headers above
-          const top = activeSection.getBoundingClientRect().top + window.pageYOffset - offset;
-          window.scrollTo({ top, behavior: 'smooth' });
-        }, 80);
-      }
-    }
+    if (!formRef.current) return;
+    const activeSection = formRef.current.querySelector('.active-form-section');
+    if (!activeSection) return;
+    const t = window.setTimeout(() => {
+      scrollTradeFocusIntoView(activeSection, { offset: 140 });
+    }, 80);
+    return () => window.clearTimeout(t);
   }, [step, subStep, issuePhase, bookingPhase]);
 
   const usesApplePricing = supportsAppleComponentPricing(
@@ -203,7 +269,7 @@ export const Repair: React.FC = () => {
     if (!usesApplePricing || !formData.model) return;
     const allowed = new Set(
       filterAppleIssuesForModel(
-        getIssuesForDevice(formData.deviceType, formData.brand),
+        getCachedIssuesForDevice(formData.deviceType, formData.brand),
         formData.model,
       ).map((i) => i.key),
     );
@@ -363,6 +429,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
         date: created.date || new Date().toISOString(),
       };
       setRepairs([newRepair, ...repairs]);
+      clearRepairWizardDraft();
       const refLabel = created.display_id ? ` (${created.display_id})` : '';
       notify(
         dbSavedMessage(`Repair request submitted${refLabel}. We’ll review and confirm your booking.`),
@@ -404,13 +471,11 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
   const advanceIssuePhase = (next: 2 | 3) => {
     setIssuePhase(next);
     setTransitionKey((k) => k + 1);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const advanceBookingPhase = (next: 2 | 3) => {
     setBookingPhase(next);
     setTransitionKey((k) => k + 1);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const validateBookingSchedule = (): boolean => {
@@ -497,7 +562,6 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
       setSubStep(1);
     }
     setTransitionKey((k) => k + 1);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const openRepairStep = (n: number) => {
@@ -505,7 +569,6 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
     if (n === 2) setIssuePhase(1);
     if (n === 3) setBookingPhase(1);
     setTransitionKey((k) => k + 1);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const deviceTypes = [
@@ -549,7 +612,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
   );
 
   const availableIssues = React.useMemo(() => {
-    const base = getIssuesForDevice(formData.deviceType, formData.brand);
+    const base = getCachedIssuesForDevice(formData.deviceType, formData.brand);
     if (usesApplePricing) {
       return filterAppleIssuesForModel(base, formData.model);
     }
@@ -1665,82 +1728,178 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                   </div>
                 </div>
 
-                {/* --- Step 4.B: Diagnostic & Repair Authorization --- */}
-                <div className="space-y-6 pt-6">
-                  <h3 className="text-xl font-bold tracking-tight">Diagnostic &amp; Repair Authorization</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-[var(--bb-surface)] border border-[var(--bb-border)] p-6 rounded-3xl shadow-lg">
-                    {/* Diagnostic fee — admin-only; customer cannot waive */}
-                    <div className="space-y-3">
-                      <h4 className="text-[10px] font-black uppercase tracking-widest opacity-60">Diagnostic Fee</h4>
+                {/* --- Step 4.B: Diagnostic & Repair Authorization (expand tag) --- */}
+                <FlowExpandSection
+                  title="Diagnostic & repair authorization"
+                  emphasize
+                  open={authSectionOpen}
+                  onToggle={() => setAuthSectionOpen((v) => !v)}
+                  tagLabel="Required"
+                  summary={
+                    formData.repairApproval === 'authorize'
+                      ? `Auto-authorize up to GHC ${formData.repairApprovalLimit || '…'} · Data: ${
+                          formData.dataBackup === 'requests' ? 'backup requested' : 'risk acknowledged'
+                        }`
+                      : `Require quote approval · Data: ${
+                          formData.dataBackup === 'requests' ? 'backup requested' : 'risk acknowledged'
+                        }`
+                  }
+                >
+                  <div className="space-y-5">
+                    <div className="space-y-2">
+                      <h4 className="text-[10px] font-black uppercase tracking-widest opacity-60">
+                        Diagnostic fee
+                      </h4>
                       <p className="text-sm opacity-70 leading-relaxed">
-                        Diagnostic fee is set by BlackBox staff after they review your device. You cannot waive it here.
+                        Diagnostic fee is set by BlackBox staff after they review your device. You
+                        cannot waive it here.
                       </p>
                     </div>
 
-                    {/* Repair Costs Approval */}
                     <div className="space-y-3">
-                      <h4 className="text-[10px] font-black uppercase tracking-widest opacity-60">Approval for Repair Costs</h4>
-                      <select value={formData.repairApproval} onChange={e => setFormData({ ...formData, repairApproval: e.target.value as any })} className="w-full border border-[var(--bb-border)] rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface-2)] outline-none h-12 appearance-none cursor-pointer">
-                        <option value="quote">Require quote approval</option>
-                        <option value="authorize">Auto-authorize limit</option>
-                      </select>
+                      <h4 className="text-[10px] font-black uppercase tracking-widest opacity-60">
+                        Approval for repair costs
+                      </h4>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <FlowChoiceCard
+                          selected={formData.repairApproval === 'quote'}
+                          title="Require quote approval"
+                          description="We’ll send a quote after inspection. You approve before any paid repair work."
+                          onClick={() =>
+                            setFormData({ ...formData, repairApproval: 'quote', repairApprovalLimit: '' })
+                          }
+                        />
+                        <FlowChoiceCard
+                          selected={formData.repairApproval === 'authorize'}
+                          title="Auto-authorize a limit"
+                          description="Approve repairs up to a max amount so work can proceed without another call."
+                          onClick={() =>
+                            setFormData({ ...formData, repairApproval: 'authorize' })
+                          }
+                        />
+                      </div>
                       {formData.repairApproval === 'authorize' && (
-                        <input placeholder="Limit Amount (GHC)" value={formData.repairApprovalLimit} onChange={e => setFormData({ ...formData, repairApprovalLimit: e.target.value })} className="w-full border border-[#CDA032]/50 rounded-lg px-4 py-2 text-sm bg-[var(--bb-surface-2)] outline-none animate-in fade-in" />
+                        <input
+                          placeholder="Limit amount (GHC)"
+                          value={formData.repairApprovalLimit}
+                          onChange={(e) =>
+                            setFormData({ ...formData, repairApprovalLimit: e.target.value })
+                          }
+                          inputMode="decimal"
+                          className="w-full border border-[#CDA032]/50 rounded-xl px-4 py-3 text-sm bg-[var(--bb-surface-2)] outline-none animate-in fade-in"
+                        />
                       )}
                     </div>
 
-                    {/* Data Backup */}
-                    <div className="space-y-3 md:col-span-2 pt-2 border-t border-[var(--bb-border)]/50">
-                      <h4 className="text-[10px] font-black uppercase tracking-widest opacity-60">Data Backup Responsibility</h4>
+                    <div className="space-y-3 pt-2 border-t border-[var(--bb-border)]/50">
+                      <h4 className="text-[10px] font-black uppercase tracking-widest opacity-60">
+                        Data backup responsibility
+                      </h4>
                       <div className="flex flex-col sm:flex-row gap-3">
-                        <button onClick={() => setFormData({ ...formData, dataBackup: 'acknowledges' })} className={`flex-1 p-3 text-left border rounded-xl transition-all ${formData.dataBackup === 'acknowledges' ? 'bg-[#CDA032]/10 border-[#CDA032]' : 'bg-[var(--bb-surface-2)] border-[var(--bb-border)] opacity-70 hover:opacity-100'}`}>
-                          <p className={`text-xs font-bold ${formData.dataBackup === 'acknowledges' ? 'text-[#CDA032]' : ''}`}>I Acknowledge Risk</p>
-                          <p className="text-[9px] mt-1">I understand there is potential data loss during repairs.</p>
-                        </button>
-                        <button onClick={() => setFormData({ ...formData, dataBackup: 'requests' })} className={`flex-1 p-3 text-left border rounded-xl transition-all ${formData.dataBackup === 'requests' ? 'bg-[#CDA032]/10 border-[#CDA032]' : 'bg-[var(--bb-surface-2)] border-[var(--bb-border)] opacity-70 hover:opacity-100'}`}>
-                          <p className={`text-xs font-bold ${formData.dataBackup === 'requests' ? 'text-[#CDA032]' : ''}`}>Request Backup</p>
-                          <p className="text-[9px] mt-1">Additional fees may apply. Subject to device state.</p>
-                        </button>
+                        <FlowChoiceCard
+                          selected={formData.dataBackup === 'acknowledges'}
+                          title="I acknowledge risk"
+                          description="I understand there is potential data loss during repairs."
+                          onClick={() =>
+                            setFormData({ ...formData, dataBackup: 'acknowledges' })
+                          }
+                        />
+                        <FlowChoiceCard
+                          selected={formData.dataBackup === 'requests'}
+                          title="Request backup"
+                          description="Additional fees may apply. Subject to device state."
+                          onClick={() => setFormData({ ...formData, dataBackup: 'requests' })}
+                        />
                       </div>
                     </div>
                   </div>
-                </div>
+                </FlowExpandSection>
 
                 {/* --- Step 4.C: Terms & Conditions --- */}
-                <div className="bg-[var(--bb-surface)] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-1 h-full bg-[#CDA032]" />
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-[#CDA032] mb-4">Terms &amp; Conditions</h3>
-                  <div className="text-xs opacity-60 space-y-3 leading-relaxed mb-6 font-medium">
-                    <p><strong className="text-white">Liability:</strong> BLACKBOX is not responsible for data loss, pre-existing damage, or issues unrelated to the repair.</p>
-                    <p><strong className="text-white">Warranty:</strong> Repairs are covered under warranty for 7 days / 1 week unless tampered with.</p>
-                    <p><strong className="text-white">Unclaimed Devices:</strong> Devices not collected within 2 weeks after completion of repairs may incur storage fees or be disposed of.</p>
-                    <p><strong className="text-white">Passwords:</strong> Passwords will be treated with strict confidentiality and only authorized staff will have access.</p>
+                <FlowExpandSection
+                  title="Terms & conditions"
+                  open={termsSectionOpen}
+                  onToggle={() => setTermsSectionOpen((v) => !v)}
+                  tagLabel="Required"
+                  summary={
+                    formData.agreesToTerms
+                      ? 'Agreed — ready to submit'
+                      : 'Read and tick the box before submitting'
+                  }
+                  emphasize={!formData.agreesToTerms}
+                >
+                  <div className="text-xs opacity-60 space-y-3 leading-relaxed mb-5 font-medium">
+                    <p>
+                      <strong className="text-[color:var(--bb-text)]">Liability:</strong> BLACKBOX
+                      is not responsible for data loss, pre-existing damage, or issues unrelated to
+                      the repair.
+                    </p>
+                    <p>
+                      <strong className="text-[color:var(--bb-text)]">Warranty:</strong> Repairs are
+                      covered under warranty for 7 days / 1 week unless tampered with.
+                    </p>
+                    <p>
+                      <strong className="text-[color:var(--bb-text)]">Unclaimed devices:</strong>{' '}
+                      Devices not collected within 2 weeks after completion may incur storage fees
+                      or be disposed of.
+                    </p>
+                    <p>
+                      <strong className="text-[color:var(--bb-text)]">Passwords:</strong> Passwords
+                      are treated with strict confidentiality; only authorized staff have access.
+                    </p>
                   </div>
-                  
+
                   <div className="pt-4 border-t border-[var(--bb-border)] flex items-start gap-3">
-                    <div onClick={() => setFormData({ ...formData, agreesToTerms: !formData.agreesToTerms })} className={`w-5 h-5 rounded flex items-center justify-center shrink-0 cursor-pointer border transition-all mt-0.5 ${formData.agreesToTerms ? 'bg-[#CDA032] border-[#CDA032]' : 'border-[var(--bb-border)] hover:border-[#CDA032]/50'}`}>
-                      {formData.agreesToTerms && <Check size={14} className="text-black stroke-[3]" />}
+                    <div
+                      onClick={() =>
+                        setFormData({ ...formData, agreesToTerms: !formData.agreesToTerms })
+                      }
+                      className={`w-5 h-5 rounded flex items-center justify-center shrink-0 cursor-pointer border transition-all mt-0.5 ${
+                        formData.agreesToTerms
+                          ? 'bg-[#CDA032] border-[#CDA032]'
+                          : 'border-[var(--bb-border)] hover:border-[#CDA032]/50'
+                      }`}
+                    >
+                      {formData.agreesToTerms && (
+                        <Check size={14} className="text-black stroke-[3]" />
+                      )}
                     </div>
-                    <div className="cursor-pointer" onClick={() => setFormData({ ...formData, agreesToTerms: !formData.agreesToTerms })}>
+                    <div
+                      className="cursor-pointer"
+                      onClick={() =>
+                        setFormData({ ...formData, agreesToTerms: !formData.agreesToTerms })
+                      }
+                    >
                       <p className="text-sm font-bold">I agree to the Terms &amp; Conditions</p>
                     </div>
                   </div>
-                </div>
+                </FlowExpandSection>
 
-                <div className="pt-4 pb-12">
+                <div className="pt-2 pb-12">
                   <button
                     onClick={() => {
-                      if (!formData.agreesToTerms) { notify('You must agree to the Terms & Conditions.', 'error'); return; }
+                      if (!formData.agreesToTerms) {
+                        setTermsSectionOpen(true);
+                        notify('You must agree to the Terms & Conditions.', 'error');
+                        return;
+                      }
+                      if (!authSectionOpen) setAuthSectionOpen(true);
                       // Use full name as fallback signature to avoid blocking submission.
                       if (!formData.clientSignature.trim() && formData.name.trim()) {
-                        setFormData(prev => ({ ...prev, clientSignature: prev.name.trim() }));
+                        setFormData((prev) => ({ ...prev, clientSignature: prev.name.trim() }));
                       }
                       submitRepairRequest();
                     }}
                     disabled={submitting}
                     className="w-full sm:w-auto flex items-center justify-center gap-3 px-10 py-5 rounded-2xl text-sm font-black uppercase tracking-widest text-[#111] bg-gradient-to-r from-[#CDA032] to-[#FCE69B] hover:scale-[1.02] shadow-[0_0_30px_rgba(205,160,50,0.3)] transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {submitting ? 'Submitting...' : <><span>Confirm &amp; Request Repair</span> <Send size={18} /></>}
+                    {submitting ? (
+                      'Submitting...'
+                    ) : (
+                      <>
+                        <span>Confirm &amp; Request Repair</span> <Send size={18} />
+                      </>
+                    )}
                   </button>
                 </div>
               </div>

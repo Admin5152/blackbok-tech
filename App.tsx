@@ -29,7 +29,6 @@ import { SmoothScroll } from './components/SmoothScroll';
 import { ScrollReveal } from './components/ScrollReveal';
 import { whatsAppUrl } from './lib/contact';
 import { formatCustomerStatusShort } from './lib/customerStatusLabels';
-import { INITIAL_PRODUCTS } from './constants';
 import {
   getAvailableStock,
   defaultSelectedOptionsForProduct,
@@ -360,9 +359,14 @@ const productDetailRoute = createRoute({
     const navigate = useNavigate();
     const { products, theme, ...context } = useAppContext();
 
-    // Start with local state for instant render, then refresh from database
+    // Instant paint from catalog context, then always refresh from Supabase.
+    // Demo/seed ids (BB-…) must never stay on the PDP if the DB row is missing.
     const localProduct = products.find((p: Product) => productMatchesRouteParam(p, productId));
-    const [product, setProduct] = useState<Product | null>(localProduct || null);
+    const isDemoLocal =
+      Boolean(localProduct?.id) && /^BB-\d+$/i.test(String(localProduct?.id ?? ''));
+    const [product, setProduct] = useState<Product | null>(
+      localProduct && !isDemoLocal ? localProduct : null,
+    );
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -376,16 +380,16 @@ const productDetailRoute = createRoute({
           if (cancelled) return;
           if (remoteProduct) {
             setProduct(remoteProduct);
-          } else if (!localProduct) {
+          } else {
+            setProduct(null);
             setError('Item not found');
           }
         })
         .catch((err) => {
           if (cancelled) return;
           console.error('Failed to fetch product:', err);
-          if (!localProduct) {
-            setError('Item not found');
-          }
+          setProduct(null);
+          setError('Item not found');
         })
         .finally(() => {
           if (!cancelled) setLoading(false);
@@ -393,7 +397,7 @@ const productDetailRoute = createRoute({
       return () => {
         cancelled = true;
       };
-    }, [productId, localProduct?.id, localProduct?.price, localProduct?.price_from, localProduct?.total_stock, localProduct?.stock]);
+    }, [productId]);
 
     // Browser tab / share title — show product name, not a UUID.
     useEffect(() => {
@@ -722,13 +726,19 @@ const AdminRouteShell: React.FC = () => {
           : location.pathname === '/admin/consoles' ||
               location.pathname.startsWith('/admin/consoles/')
             ? ('consoles' as const)
-            : location.pathname === '/admin/deals' ||
-                location.pathname.startsWith('/admin/deals/')
-              ? ('deals' as const)
-              : location.pathname === '/admin/products' ||
-                  location.pathname.startsWith('/admin/products/')
-                ? ('products' as const)
-                : undefined;
+            : location.pathname === '/admin/audio' ||
+                location.pathname.startsWith('/admin/audio/')
+              ? ('audio' as const)
+              : location.pathname === '/admin/accessories' ||
+                  location.pathname.startsWith('/admin/accessories/')
+                ? ('accessories' as const)
+                : location.pathname === '/admin/deals' ||
+                    location.pathname.startsWith('/admin/deals/')
+                  ? ('deals' as const)
+                  : location.pathname === '/admin/products' ||
+                      location.pathname.startsWith('/admin/products/')
+                    ? ('products' as const)
+                    : undefined;
 
   useEffect(() => {
     if (!authReady) {
@@ -899,6 +909,20 @@ const adminIpadsRoute = createRoute({
 const adminConsolesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/admin/consoles',
+  component: AdminRouteShell,
+});
+
+/** Headphones / Speakers catalogue CRUD — Shop → Audio tab. */
+const adminAudioRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/admin/audio',
+  component: AdminRouteShell,
+});
+
+/** Accessories catalogue CRUD — Shop → Accessories tab. */
+const adminAccessoriesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/admin/accessories',
   component: AdminRouteShell,
 });
 
@@ -1246,6 +1270,8 @@ const routeTree = rootRoute.addChildren([
   adminProductsRoute,
   adminIpadsRoute,
   adminConsolesRoute,
+  adminAudioRoute,
+  adminAccessoriesRoute,
   adminDealsRoute,
   adminPromotionsRoute.addChildren([
     adminPromotionsIndexRoute,
@@ -1310,9 +1336,10 @@ const router = createRouter({
 }
 
 function RootComponent() {
-  // Seed with INITIAL_PRODUCTS so Home (and navbar search) render on first paint
-  // before getProducts() resolves — avoids an empty <main> and a “footer-only” layout.
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
+  // Catalog starts empty — stock/price/variants always come from Supabase
+  // (v_product_page / products). Never seed sellable demo rows into the shop.
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productsLoading, setProductsLoading] = useState(true);
   const [cart, setCart] = useState<CartItem[]>([]);
   const cartRef = useRef<CartItem[]>([]);
   /** Skip server cart writes until sign-in merge finishes (avoids wiping DB with []). */
@@ -1386,24 +1413,19 @@ function RootComponent() {
   // — see the listener below) to update the global product list after
   // a mutation (e.g. starring a product as featured for HOME-03).
   //
-  // APP-05: if Supabase is unreachable or misconfigured we fall back to
-  // INITIAL_PRODUCTS so the app still renders something instead of an
-  // empty store.
+  // APP-05: catalogue is Supabase-only. Empty remote = empty shop (no demo stock/price).
   const refreshProducts = React.useCallback(async () => {
+    setProductsLoading(true);
     try {
       const productsData = await getProducts();
-      if (Array.isArray(productsData) && productsData.length > 0) {
-        setProducts(productsData);
-      } else {
-        // Remote returned an empty list — keep the UX populated with the
-        // built-in catalogue so the home/store pages stay useful (APP-05).
-        setProducts(INITIAL_PRODUCTS);
-      }
+      setProducts(Array.isArray(productsData) ? productsData : []);
     } catch (error) {
-      console.error('Failed to fetch products from Supabase, using INITIAL_PRODUCTS fallback:', error);
-      setProducts(INITIAL_PRODUCTS);
+      console.error('Failed to fetch products from Supabase:', error);
+      setProducts([]);
       // Public storefront bootstrap: never toast “staff/admin” permission copy.
       // Catalogue errors for staff tools are handled inside admin views.
+    } finally {
+      setProductsLoading(false);
     }
   }, []);
 
@@ -1889,6 +1911,12 @@ function RootComponent() {
   const addToCart = async (product: Product, options: Record<string, string> = {}, qty: number = 1) => {
     const safeQty = Math.max(1, Math.floor(Number(qty) || 1));
 
+    // Demo/seed catalog ids are never sellable — shop stock lives in Supabase only.
+    if (/^BB-\d+$/i.test(String(product.id ?? ''))) {
+      notify('This item is not available in the live catalog.', 'error');
+      return;
+    }
+
     // Listing cards come from v_product_page without SKU rows — hydrate so
     // Color×Storage stock and variant_id resolve correctly.
     let resolvedProduct = product;
@@ -2082,7 +2110,7 @@ function RootComponent() {
   };
 
   const contextValues: AppContextType = {
-    products, cart, wishlist, compareIds, user, orders, repairs, trades,
+    products, productsLoading, cart, wishlist, compareIds, user, orders, repairs, trades,
     searchQuery, setSearchQuery,
     selectedCategories, setSelectedCategories,
     setUser, setCart, setOrders,
@@ -2249,9 +2277,30 @@ function RootComponent() {
               <div className="flex-1 min-h-0 overflow-auto py-4 px-3 space-y-1 [-webkit-overflow-scrolling:touch]" data-lenis-prevent>
                 {[
                   { id: 'home', label: 'Home', icon: HomeIcon, path: '/' },
-                  { id: 'store', label: 'Shop', icon: ShoppingBag, path: '/store', subItems: ['iPhone', 'Android phones', 'iPad', 'MacBooks', 'Laptops', 'Smart watches', 'Headphones', 'Speakers', 'Gaming', 'Accessories', 'Track Orders'] },
-                  { id: 'trades', label: 'Trades', icon: RefreshCcw, path: '/trade', subItems: ['Initiate Trade', 'Track Trade-In'] },
-                  { id: 'repair', label: 'Repairs', icon: Wrench, path: '/repair', subItems: ['Schedule Repair', 'Repair Status'] },
+                  { id: 'store', label: 'Shop', icon: ShoppingBag, path: '/store', subItems: [
+                    { label: 'iPhone', search: { category: 'iPhone', series: 'all' } },
+                    { label: 'Android phones', search: { category: 'Android phones', series: 'all' } },
+                    { label: 'iPad', search: { category: 'iPad', series: 'all' } },
+                    { label: 'MacBooks', search: { category: 'MacBooks', series: 'all' } },
+                    { label: 'Laptops', search: { category: 'Laptops', series: 'all' } },
+                    { label: 'Smart watches', search: { category: 'Smart watches', series: 'all' } },
+                    { label: 'Headphones', search: { category: 'Headphones', series: 'all' } },
+                    { label: 'Apple AirPods', search: { category: 'Headphones', subcategory: 'Apple', series: 'all' } },
+                    { label: 'Speakers', search: { category: 'Speakers', series: 'all' } },
+                    { label: 'Gaming', search: { category: 'Gaming' } },
+                    { label: 'Accessories', search: { category: 'Accessories', series: 'all' } },
+                    { label: 'Chargers', search: { category: 'Accessories', subcategory: 'Chargers', series: 'all' } },
+                    { label: 'Covers', search: { category: 'Accessories', subcategory: 'Covers', series: 'all' } },
+                    { label: 'Track Orders', path: '/history', search: { tab: 'orders' } },
+                  ] },
+                  { id: 'trades', label: 'Trades', icon: RefreshCcw, path: '/trade', subItems: [
+                    { label: 'Initiate Trade', path: '/trade' },
+                    { label: 'Track Trade-In', path: '/account/trade-ins' },
+                  ] },
+                  { id: 'repair', label: 'Repairs', icon: Wrench, path: '/repair', subItems: [
+                    { label: 'Schedule Repair', path: '/repair' },
+                    { label: 'Repair Status', path: '/history', search: { tab: 'repairs' } },
+                  ] },
                   { id: 'cart', label: 'Cart', icon: ShoppingCart, path: '/cart', count: cart.length },
                   { id: 'profile', label: 'Account', icon: UserIcon, path: '/profile' },
                   { id: 'about', label: 'About Us', icon: Sparkles, path: '/about' },
@@ -2285,11 +2334,15 @@ function RootComponent() {
                         </summary>
 
                         <div className="flex flex-col gap-1 pl-12 pr-4 pt-2 pb-4 animate-in fade-in slide-in-from-top-2">
-                          {item.subItems.map((sub: string) => (
+                          {item.subItems.map((sub: { label: string; path?: string; search?: Record<string, string> } | string) => {
+                            const label = typeof sub === 'string' ? sub : sub.label;
+                            return (
                             <button
-                              key={sub}
+                              key={label}
                               onClick={() => {
-                                if (sub === 'Track Orders') {
+                                if (typeof sub !== 'string') {
+                                  navigateTo(sub.path || '/store', sub.search ? { search: sub.search } : undefined);
+                                } else if (sub === 'Track Orders') {
                                   navigateTo('/history', { search: { tab: 'orders' } } as any);
                                 } else if (sub === 'Track Trade-In') {
                                   navigateTo('/account/trade-ins');
@@ -2306,9 +2359,10 @@ function RootComponent() {
                               }}
                               className={`text-left py-3 text-[10px] font-black uppercase tracking-[0.2em] transition-colors rounded-lg px-3 ${isLight ? 'text-black/50 hover:text-black hover:bg-black/5' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
                             >
-                              {sub}
+                              {label}
                             </button>
-                          ))}
+                            );
+                          })}
                         </div>
                       </details>
                     );
@@ -2391,6 +2445,7 @@ export default function App() {
 
   const fallbackContext: AppContextType = {
     products: [],
+    productsLoading: false,
     cart: [],
     wishlist: [],
     compareIds: [],

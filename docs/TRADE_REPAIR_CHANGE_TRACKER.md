@@ -622,6 +622,8 @@ products (+ variants)  →  v_product_page  →  catalogApi.getProducts()  →  
 12. `20260813001100_heal_product_variants_staff_write.sql` ← staff can write SKU stock (RLS)
 13. `20260813001200_cart_items_persist.sql` ← signed-in cart rows in DB
 14. `20260813001300_heal_trade_catalog_staff_write.sql` ← staff write trade devices/config/Q&A
+15. `20260813001400_headphones_apple_airpods_series.sql` ← Headphones → Apple → AirPods/Pro/Max
+16. `20260813001500_accessories_august_taxonomy.sql` ← Accessories types from August PDF
 
 ### Persistence matrix (Aug 2026)
 

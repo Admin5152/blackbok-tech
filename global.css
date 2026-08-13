@@ -2358,6 +2358,47 @@ html {
   color: #000;
 }
 
+.bb-invoice__phase {
+  margin: 0 0 1.25rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.65rem;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.bb-invoice__phase--estimate {
+  background: #fff8e8;
+  border-color: rgba(180, 120, 20, 0.35);
+}
+
+.bb-invoice__phase--final {
+  background: #eef8f0;
+  border-color: rgba(30, 120, 60, 0.28);
+}
+
+.bb-invoice__phase-badge {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #000;
+}
+
+.bb-invoice__phase--estimate .bb-invoice__phase-badge {
+  color: #8a5a00;
+}
+
+.bb-invoice__phase--final .bb-invoice__phase-badge {
+  color: #166534;
+}
+
+.bb-invoice__phase-copy {
+  margin: 0.35rem 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(0, 0, 0, 0.72);
+}
+
 .bb-invoice__kind {
   margin-top: 6px;
   font-size: 10px;

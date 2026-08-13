@@ -314,10 +314,11 @@ export const CATEGORIES_WITH_SERIES = new Set([
   'Smart watches',
   'Apple Watches',
   'Android phones',
+  'Accessories',
 ]);
 
 /**
- * Brand picker first, then series (Audio + Windows laptops + watches + Android).
+ * Brand picker first, then series (Audio + Windows laptops + watches + Android + Accessories types).
  * Opposite of iPad/MacBooks (series → New/Used).
  */
 export const CATEGORIES_BRAND_THEN_SERIES = new Set([
@@ -329,6 +330,7 @@ export const CATEGORIES_BRAND_THEN_SERIES = new Set([
   'Smart watches',
   'Apple Watches',
   'Android phones',
+  'Accessories',
 ]);
 
 export const IPAD_SERIES_OPTIONS: StoreSeriesOption[] = [
@@ -395,11 +397,13 @@ export const LAPTOP_SERIES_OPTIONS: StoreSeriesOption[] = [
 ];
 
 export const HEADPHONE_SERIES_OPTIONS: StoreSeriesOption[] = [
-  { value: 'AirPods', label: 'AirPods', description: 'Apple AirPods family' },
+  { value: 'AirPods', label: 'AirPods', description: 'Standard AirPods (incl. AirPods 4)' },
+  { value: 'AirPods Pro', label: 'AirPods Pro', description: 'AirPods Pro with ANC' },
+  { value: 'AirPods Max', label: 'AirPods Max', description: 'Over-ear AirPods Max' },
+  { value: 'EarPods', label: 'EarPods', description: 'Wired EarPods / earphones' },
   { value: 'Tune', label: 'Tune', description: 'JBL Tune headphones' },
   { value: 'Solo', label: 'Solo', description: 'Beats Solo headphones' },
   { value: 'Sony', label: 'Sony', description: 'Sony headphones & earbuds' },
-  { value: 'EarPods', label: 'EarPods', description: 'Wired EarPods / earphones' },
 ];
 
 export const SPEAKER_SERIES_OPTIONS: StoreSeriesOption[] = [
@@ -426,9 +430,35 @@ export const CONTROLLER_SERIES_OPTIONS: StoreSeriesOption[] = [
 ];
 
 export const ACCESSORY_TYPE_OPTIONS: StoreSeriesOption[] = [
-  { value: 'PhoneCases', label: 'Phone Cases', description: 'Protective & stylish cases' },
-  { value: 'ScreenProtectors', label: 'Screen Protectors', description: 'Tempered glass & films' },
-  { value: 'Chargers', label: 'Chargers', description: 'Cables, adapters & power banks' },
+  { value: 'Chargers', label: 'Chargers', description: 'Apple, iPhone, Watch, Samsung, laptop & more' },
+  { value: 'ScreenProtectors', label: 'Screen Protectors', description: 'Glass, ceramic, clear & privacy' },
+  { value: 'Covers', label: 'Covers', description: 'iPhone, iPad & MacBook cases' },
+  { value: 'AirTags', label: 'AirTags', description: 'Single pack & packs of 4' },
+  { value: 'AppleWatchAccessories', label: 'Apple Watch', description: 'Straps, protectors & covers' },
+  { value: 'MagicKeyboard', label: 'Magic Keyboard', description: 'iPad Magic Keyboard' },
+  { value: 'ApplePencil', label: 'Apple Pencil', description: 'Pro, Gen 2, Gen 1 & USB-C' },
+  { value: 'PowerBanks', label: 'Power Banks', description: 'Portable power banks' },
+  { value: 'Keyboards', label: 'Keyboards', description: 'External keyboards' },
+  { value: 'Mouse', label: 'Mouse', description: 'Mice & trackpads' },
+  { value: 'FlashDrives', label: 'Flash Drives', description: 'USB / flash storage' },
+];
+
+/** Device / line series under each Accessories type (August pricelist). */
+export const ACCESSORY_SERIES_OPTIONS: StoreSeriesOption[] = [
+  { value: 'iPhone', label: 'iPhone', description: 'iPhone chargers, protectors & covers' },
+  { value: 'MacBook', label: 'MacBook', description: 'MacBook chargers & hard shells' },
+  { value: 'AppleWatch', label: 'Apple Watch', description: 'Watch chargers & straps' },
+  { value: 'Samsung', label: 'Samsung', description: 'Samsung device chargers' },
+  { value: 'Laptops', label: 'Laptops', description: 'Windows / other laptop chargers' },
+  { value: 'Others', label: 'Others', description: 'Other device chargers' },
+  { value: 'iPad', label: 'iPad', description: 'iPad protectors, covers & keyboards' },
+  { value: 'Straps', label: 'Straps', description: 'Rubber sports & leather straps' },
+  { value: 'Single', label: 'Single pack', description: '1 AirTag' },
+  { value: 'PackOf4', label: 'Pack of 4', description: '4 AirTags' },
+  { value: 'Pro', label: 'Apple Pencil Pro', description: 'Apple Pencil Pro' },
+  { value: 'Gen2', label: 'Gen 2', description: 'Apple Pencil (2nd generation)' },
+  { value: 'Gen1', label: 'Gen 1', description: 'Apple Pencil (1st generation)' },
+  { value: 'USBC', label: 'USB-C', description: 'Apple Pencil USB-C' },
 ];
 
 export function categoryUsesSeriesStep(category: string | null | undefined): boolean {
@@ -441,6 +471,12 @@ export function categoryUsesBrandThenSeries(category: string | null | undefined)
   return CATEGORIES_BRAND_THEN_SERIES.has(normalizeProductCategory(category));
 }
 
+/** Accessories use Type (Chargers, Covers, …) instead of Brand on the first step. */
+export function categoryUsesTypeThenSeries(category: string | null | undefined): boolean {
+  if (!category) return false;
+  return normalizeProductCategory(category) === 'Accessories';
+}
+
 /** Suggested products.brand when staff pick a storefront brand/type tag. */
 export function suggestBrandFromTaxonomy(
   category: string | null | undefined,
@@ -449,13 +485,24 @@ export function suggestBrandFromTaxonomy(
   const v = String(taxonomyValue ?? '').trim();
   if (!v) return null;
   const map: Record<string, string> = {
+    Apple: 'Apple',
     AirPods: 'Apple',
+    'AirPods Pro': 'Apple',
+    'AirPods Max': 'Apple',
     EarPods: 'Apple',
     HomePod: 'Apple',
     JBL: 'JBL',
+    Tune: 'JBL',
     Beats: 'Beats',
+    Solo: 'Beats',
+    Pill: 'Beats',
     Sony: 'Sony',
     HarmanKardon: 'Harman Kardon',
+    Flip: 'JBL',
+    Charge: 'JBL',
+    Boombox: 'JBL',
+    Go: 'JBL',
+    Onyx: 'Harman Kardon',
     HP: 'HP',
     Dell: 'Dell',
     PlayStation: 'Sony',
@@ -466,7 +513,6 @@ export function suggestBrandFromTaxonomy(
     iWatches: 'Apple',
     Ultra: 'Apple',
     Series: 'Apple',
-    Apple: 'Apple',
     Samsung: 'Samsung',
     Google: 'Google',
     Motorola: 'Motorola',
@@ -480,7 +526,9 @@ export function suggestBrandFromTaxonomy(
   }
   if (cat === 'Accessories') return null;
   // Store tag only — leave products.brand for staff to fill (e.g. Samsung)
-  if (v === 'Others' || v === 'PhoneCases' || v === 'ScreenProtectors' || v === 'Chargers') {
+  if (v === 'Others' || v === 'PhoneCases' || v === 'Covers' || v === 'ScreenProtectors' || v === 'Chargers'
+    || v === 'AirTags' || v === 'AppleWatchAccessories' || v === 'MagicKeyboard' || v === 'ApplePencil'
+    || v === 'PowerBanks' || v === 'Keyboards' || v === 'Mouse' || v === 'FlashDrives') {
     return null;
   }
   return v;
@@ -509,6 +557,56 @@ export function resolveAdminTaxonomyValue(
   }
 
   if (categoryUsesBrandThenSeries(category)) {
+    // Accessories: type lives in specifications.accessory_type (series on subcategory)
+    if (normalizeProductCategory(category) === 'Accessories') {
+      const specs =
+        'specifications' in p && p.specifications && typeof p.specifications === 'object'
+          ? (p.specifications as Record<string, unknown>)
+          : null;
+      const accessoryType = String(specs?.accessory_type ?? '').trim();
+      if (accessoryType) {
+        const byType = opts.find(
+          (o) =>
+            o.value.toLowerCase() === accessoryType.toLowerCase() ||
+            o.label.toLowerCase() === accessoryType.toLowerCase() ||
+            (accessoryType.toLowerCase() === 'phonecases' && o.value === 'Covers'),
+        );
+        if (byType) return byType.value;
+      }
+      const subRaw = String(p.subcategory ?? '').trim();
+      if (subRaw) {
+        const bySubType = opts.find(
+          (o) =>
+            o.value.toLowerCase() === subRaw.toLowerCase() ||
+            (subRaw.toLowerCase() === 'phonecases' && o.value === 'Covers'),
+        );
+        if (bySubType) return bySubType.value;
+      }
+      const productName = 'name' in p ? String((p as { name?: string }).name ?? '') : '';
+      const hay = `${productName} ${p.brand ?? ''}`.toLowerCase();
+      if (hay.includes('charger') || hay.includes('cable') || hay.includes('adapter')) {
+        if (opts.some((o) => o.value === 'Chargers')) return 'Chargers';
+      }
+      if (hay.includes('protector') || hay.includes('tempered') || hay.includes('privacy glass')) {
+        if (opts.some((o) => o.value === 'ScreenProtectors')) return 'ScreenProtectors';
+      }
+      if (hay.includes('case') || hay.includes('cover') || hay.includes('magsafe') || hay.includes('silicon')) {
+        if (opts.some((o) => o.value === 'Covers')) return 'Covers';
+      }
+      if (hay.includes('airtag')) {
+        if (opts.some((o) => o.value === 'AirTags')) return 'AirTags';
+      }
+      if (hay.includes('pencil')) {
+        if (opts.some((o) => o.value === 'ApplePencil')) return 'ApplePencil';
+      }
+      if (hay.includes('magic keyboard')) {
+        if (opts.some((o) => o.value === 'MagicKeyboard')) return 'MagicKeyboard';
+      }
+      if ((hay.includes('watch') && (hay.includes('strap') || hay.includes('band'))) || hay.includes('sports strap')) {
+        if (opts.some((o) => o.value === 'AppleWatchAccessories')) return 'AppleWatchAccessories';
+      }
+    }
+
     const brand = String(p.brand ?? '').trim();
     if (brand) {
       const byBrand = opts.find(
@@ -518,15 +616,23 @@ export function resolveAdminTaxonomyValue(
           o.value.replace(/\s+/g, '').toLowerCase() === brand.replace(/\s+/g, '').toLowerCase(),
       );
       if (byBrand) return byBrand.value;
-      // Apple AirPods / Beats under Headphones or Speakers
-      const hay = `${brand} ${p.subcategory ?? ''}`.toLowerCase();
-      if (hay.includes('airpod') && opts.some((o) => o.value === 'AirPods')) return 'AirPods';
+      // Apple audio lines → Apple brand card (not a fake "AirPods" brand)
+      const hay = `${brand} ${p.subcategory ?? ''} ${'name' in p ? String((p as { name?: string }).name ?? '') : ''}`.toLowerCase();
+      if (
+        (hay.includes('airpod') || hay.includes('earpod') || hay.includes('homepod') || brand.toLowerCase() === 'apple') &&
+        opts.some((o) => o.value === 'Apple')
+      ) {
+        return 'Apple';
+      }
       if (hay.includes('beats') && opts.some((o) => o.value === 'Beats')) return 'Beats';
       if ((hay.includes('harman') || hay.includes('kardon')) && opts.some((o) => o.value === 'HarmanKardon')) {
         return 'HarmanKardon';
       }
-      if (hay.includes('homepod') && opts.some((o) => o.value === 'HomePod')) return 'HomePod';
+      if (hay.includes('jbl') && opts.some((o) => o.value === 'JBL')) return 'JBL';
       if (hay.includes('sony') && opts.some((o) => o.value === 'Sony')) return 'Sony';
+      // Legacy brand tags still on old products / URLs
+      if (hay.includes('airpod') && opts.some((o) => o.value === 'AirPods')) return 'AirPods';
+      if (hay.includes('homepod') && opts.some((o) => o.value === 'HomePod')) return 'HomePod';
       if (hay.includes('earpod') && opts.some((o) => o.value === 'EarPods')) return 'EarPods';
     }
   }
@@ -606,17 +712,21 @@ export function catalogKeyForCategory(category: string | null | undefined): stri
 }
 
 const HEADPHONE_BRAND_SERIES: Readonly<Record<string, readonly string[]>> = {
-  AirPods: ['AirPods'],
+  Apple: ['AirPods', 'AirPods Pro', 'AirPods Max', 'EarPods'],
+  // Legacy brand keys (old URLs / admin drafts) → still show Apple lines
+  AirPods: ['AirPods', 'AirPods Pro', 'AirPods Max'],
+  EarPods: ['EarPods'],
   JBL: ['Tune'],
   Beats: ['Solo'],
   Sony: ['Sony'],
-  EarPods: ['EarPods'],
 };
 
 const SPEAKER_BRAND_SERIES: Readonly<Record<string, readonly string[]>> = {
   JBL: ['Flip', 'Charge', 'Boombox', 'Go'],
   HarmanKardon: ['Onyx'],
   Beats: ['Pill'],
+  Apple: ['HomePod'],
+  // Legacy brand key
   HomePod: ['HomePod'],
 };
 
@@ -661,6 +771,23 @@ const CONSOLE_BRAND_SERIES: Readonly<Record<string, readonly string[]>> = {
 const CONTROLLER_BRAND_SERIES: Readonly<Record<string, readonly string[]>> = {
   Sony: ['DualSense'],
   Microsoft: ['Xbox'],
+};
+
+/** Accessories “brand” step is the PDF type (Chargers, Covers, …). */
+const ACCESSORY_TYPE_SERIES: Readonly<Record<string, readonly string[]>> = {
+  Chargers: ['iPhone', 'MacBook', 'AppleWatch', 'Samsung', 'Laptops', 'Others'],
+  ScreenProtectors: ['iPhone', 'iPad'],
+  Covers: ['iPhone', 'iPad', 'MacBook'],
+  // Legacy alias
+  PhoneCases: ['iPhone', 'iPad', 'MacBook'],
+  AirTags: ['Single', 'PackOf4'],
+  AppleWatchAccessories: ['Straps', 'ScreenProtectors', 'Covers'],
+  MagicKeyboard: ['iPad'],
+  ApplePencil: ['Pro', 'Gen2', 'Gen1', 'USBC'],
+  PowerBanks: [],
+  Keyboards: [],
+  Mouse: [],
+  FlashDrives: [],
 };
 
 export function getCategorySeriesOptions(
@@ -719,6 +846,13 @@ export function getCategorySeriesOptions(
     if (!allowed) return [];
     return CONTROLLER_SERIES_OPTIONS.filter((o) => allowed.includes(o.value));
   }
+  if (n === 'Accessories') {
+    if (!brand) return ACCESSORY_SERIES_OPTIONS;
+    const allowed = ACCESSORY_TYPE_SERIES[brand];
+    if (!allowed) return [];
+    if (allowed.length === 0) return [];
+    return ACCESSORY_SERIES_OPTIONS.filter((o) => allowed.includes(o.value));
+  }
   return [];
 }
 
@@ -729,7 +863,25 @@ export function getProductSeriesSlug(p: Product): string | null {
     const s = String((specs as Record<string, unknown>).series ?? '').trim().toLowerCase();
     if (s) return s.replace(/\s+/g, ' ');
   }
+  const cat = normalizeProductCategory(p.category);
   const sub = String(p.subcategory ?? '').trim().toLowerCase();
+  const hay = `${p.name || ''} ${p.model || ''} ${p.brand || ''}`.toLowerCase();
+
+  const accessoryTypeTags = new Set([
+    'chargers',
+    'screenprotectors',
+    'covers',
+    'phonecases',
+    'airtags',
+    'applewatchaccessories',
+    'magickeyboard',
+    'applepencil',
+    'powerbanks',
+    'keyboards',
+    'mouse',
+    'flashdrives',
+  ]);
+
   // Keep spaces for series like "Fold 7" / "PlayStation 5" (do not hyphenate —
   // that broke Android Brand → Series matching).
   if (
@@ -737,13 +889,11 @@ export function getProductSeriesSlug(p: Product): string | null {
     sub !== 'new' &&
     sub !== 'used' &&
     sub !== 'preowned' &&
-    sub !== 'refurbished'
+    sub !== 'refurbished' &&
+    !(cat === 'Accessories' && accessoryTypeTags.has(sub.replace(/\s+/g, '')))
   ) {
     return sub.replace(/\s+/g, ' ').trim();
   }
-
-  const cat = normalizeProductCategory(p.category);
-  const hay = `${p.name || ''} ${p.model || ''} ${p.brand || ''}`.toLowerCase();
 
   if (cat === 'iPad' || cat === 'Tablet') {
     if (hay.includes('ipad pro')) return 'pro';
@@ -815,11 +965,14 @@ export function getProductSeriesSlug(p: Product): string | null {
     if (hay.includes('victus')) return 'victus';
   }
   if (cat === 'Headphones') {
+    // Most specific first — Max / Pro before generic AirPods
+    if (hay.includes('airpods max') || hay.includes('airpod max')) return 'airpods max';
+    if (hay.includes('airpods pro') || hay.includes('airpod pro')) return 'airpods pro';
     if (hay.includes('airpod')) return 'airpods';
     if (hay.includes('earpod') || hay.includes('ear pod')) return 'earpods';
     if (hay.includes('tune')) return 'tune';
     if (hay.includes('solo')) return 'solo';
-    if (hay.includes('sony')) return 'sony';
+    if (hay.includes('sony') || hay.includes('wh-1000') || hay.includes('wf-1000')) return 'sony';
   }
   if (cat === 'Consoles' || cat === 'Controllers') {
     const series = String(
@@ -839,6 +992,32 @@ export function getProductSeriesSlug(p: Product): string | null {
     if (/\bgo\s*\d|\bgo\b/.test(hay) && hay.includes('jbl')) return 'go';
     if (hay.includes('onyx')) return 'onyx';
     if (hay.includes('pill')) return 'pill';
+  }
+  if (cat === 'Accessories') {
+    const specsSeries = specs && typeof specs === 'object'
+      ? String((specs as Record<string, unknown>).series ?? '').trim()
+      : '';
+    if (specsSeries) return specsSeries.toLowerCase();
+    const subKey = sub.replace(/\s+/g, '');
+    // Device / line tags on subcategory — ignore old type tags (Chargers, Covers, …)
+    if (sub && !accessoryTypeTags.has(subKey)) return sub;
+    if (hay.includes('airtag') && hay.includes('4')) return 'packof4';
+    if (hay.includes('airtag')) return 'single';
+    if (hay.includes('pencil pro')) return 'pro';
+    if (hay.includes('pencil') && (hay.includes('2nd') || hay.includes('gen 2') || hay.includes('gen2'))) {
+      return 'gen2';
+    }
+    if (hay.includes('pencil') && (hay.includes('1st') || hay.includes('gen 1') || hay.includes('gen1'))) {
+      return 'gen1';
+    }
+    if (hay.includes('pencil') && (hay.includes('usb-c') || hay.includes('usb c') || hay.includes('type c'))) {
+      return 'usbc';
+    }
+    if (hay.includes('macbook') || hay.includes('mac book')) return 'macbook';
+    if (hay.includes('ipad')) return 'ipad';
+    if (hay.includes('watch') || hay.includes('strap')) return 'applewatch';
+    if (hay.includes('samsung')) return 'samsung';
+    if (hay.includes('iphone')) return 'iphone';
   }
   return null;
 }
@@ -957,32 +1136,37 @@ export const CATEGORY_SUBCATEGORY_CONFIG: Readonly<Record<string, SubcategoryOpt
     { kind: 'brand', value: 'Microsoft', label: 'Microsoft', description: 'Xbox controllers' },
   ],
   Headphones: [
-    { kind: 'brand', value: 'AirPods', label: 'AirPods', description: 'Apple AirPods & wireless earbuds' },
-    { kind: 'brand', value: 'JBL',     label: 'JBL',     description: 'JBL headphones & earbuds' },
-    { kind: 'brand', value: 'Beats',   label: 'Beats',   description: 'Beats headphones' },
-    { kind: 'brand', value: 'Sony',    label: 'Sony',    description: 'Sony headphones & earbuds' },
-    { kind: 'brand', value: 'EarPods', label: 'EarPods', description: 'Wired EarPods / earphones' },
+    { kind: 'brand', value: 'Apple', label: 'Apple', description: 'AirPods, AirPods Pro, AirPods Max & EarPods' },
+    { kind: 'brand', value: 'JBL',   label: 'JBL',   description: 'JBL Tune headphones & earbuds' },
+    { kind: 'brand', value: 'Beats', label: 'Beats', description: 'Beats Solo headphones' },
+    { kind: 'brand', value: 'Sony',  label: 'Sony',  description: 'Sony headphones & earbuds' },
   ],
   Speakers: [
-    { kind: 'brand', value: 'JBL',          label: 'JBL',           description: 'JBL speakers' },
+    { kind: 'brand', value: 'JBL',          label: 'JBL',           description: 'JBL Flip, Charge, Boombox & Go' },
     { kind: 'brand', value: 'HarmanKardon', label: 'Harman Kardon', description: 'Harman Kardon speakers' },
     { kind: 'brand', value: 'Beats',        label: 'Beats',         description: 'Beats Pill speakers' },
-    { kind: 'brand', value: 'HomePod',      label: 'HomePod',       description: 'Apple HomePod speakers' },
+    { kind: 'brand', value: 'Apple',        label: 'Apple',         description: 'Apple HomePod speakers' },
   ],
   // Legacy alias — old ?category=Audio URLs (umbrella brands)
   Audio: [
-    { kind: 'brand', value: 'AirPods', label: 'AirPods', description: 'Apple AirPods & wireless earbuds' },
-    { kind: 'brand', value: 'JBL',     label: 'JBL',     description: 'JBL headphones & speakers' },
-    { kind: 'brand', value: 'Beats',   label: 'Beats',   description: 'Beats headphones & speakers' },
+    { kind: 'brand', value: 'Apple', label: 'Apple', description: 'AirPods & HomePod' },
+    { kind: 'brand', value: 'JBL',   label: 'JBL',   description: 'JBL headphones & speakers' },
+    { kind: 'brand', value: 'Beats', label: 'Beats', description: 'Beats headphones & speakers' },
     { kind: 'brand', value: 'HarmanKardon', label: 'Harman Kardon', description: 'Harman Kardon speakers' },
-    { kind: 'brand', value: 'Sony',    label: 'Sony',    description: 'Sony headphones & earbuds' },
-    { kind: 'brand', value: 'EarPods', label: 'EarPods', description: 'Wired EarPods / earphones' },
-    { kind: 'brand', value: 'HomePod', label: 'HomePod', description: 'Apple HomePod speakers' },
+    { kind: 'brand', value: 'Sony',  label: 'Sony',  description: 'Sony headphones & earbuds' },
   ],
   Accessories: [
-    { kind: 'brand', value: 'PhoneCases',       label: 'Phone Cases',       description: 'Protective & stylish cases' },
-    { kind: 'brand', value: 'ScreenProtectors', label: 'Screen Protectors', description: 'Tempered glass & films' },
-    { kind: 'brand', value: 'Chargers',         label: 'Chargers',          description: 'Cables, adapters & power banks' },
+    { kind: 'brand', value: 'Chargers', label: 'Chargers', description: 'iPhone, MacBook, Watch, Samsung & more' },
+    { kind: 'brand', value: 'ScreenProtectors', label: 'Screen Protectors', description: 'Glass, ceramic, clear & privacy' },
+    { kind: 'brand', value: 'Covers', label: 'Covers', description: 'iPhone, iPad & MacBook cases' },
+    { kind: 'brand', value: 'AirTags', label: 'AirTags', description: 'Single pack & pack of 4' },
+    { kind: 'brand', value: 'AppleWatchAccessories', label: 'Apple Watch', description: 'Straps, protectors & covers' },
+    { kind: 'brand', value: 'MagicKeyboard', label: 'Magic Keyboard', description: 'iPad Magic Keyboard' },
+    { kind: 'brand', value: 'ApplePencil', label: 'Apple Pencil', description: 'Pro, Gen 2, Gen 1 & USB-C' },
+    { kind: 'brand', value: 'PowerBanks', label: 'Power Banks', description: 'Portable power banks' },
+    { kind: 'brand', value: 'Keyboards', label: 'Keyboards', description: 'External keyboards' },
+    { kind: 'brand', value: 'Mouse', label: 'Mouse', description: 'Mice & trackpads' },
+    { kind: 'brand', value: 'FlashDrives', label: 'Flash Drives', description: 'USB / flash storage' },
   ],
 };
 
@@ -1453,21 +1637,95 @@ export function productMatchesStoreSubcategoryFilter(
         (haystack.includes('earphone') || haystack.includes('headphone')))
     );
   }
-  if (v === 'phonecases') {
-    return haystack.includes('case') || haystack.includes('cover');
+
+  // Accessories types (August pricelist) — prefer specifications.accessory_type
+  const accessoryType = String(specs?.accessory_type ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '');
+  if (v === 'chargers') {
+    return (
+      accessoryType === 'chargers' ||
+      tagged === 'chargers' ||
+      haystack.includes('charg') ||
+      haystack.includes('cable') ||
+      haystack.includes('adapter')
+    );
+  }
+  if (v === 'covers' || v === 'phonecases') {
+    return (
+      accessoryType === 'covers' ||
+      accessoryType === 'phonecases' ||
+      tagged === 'covers' ||
+      tagged === 'phonecases' ||
+      haystack.includes('case') ||
+      haystack.includes('cover') ||
+      haystack.includes('magsafe') ||
+      haystack.includes('hard shell')
+    );
   }
   if (v === 'screenprotectors') {
     return (
-      (haystack.includes('screen') || haystack.includes('protector')) &&
-      (haystack.includes('protector') || haystack.includes('tempered') || haystack.includes('glass'))
+      accessoryType === 'screenprotectors' ||
+      tagged === 'screenprotectors' ||
+      ((haystack.includes('screen') || haystack.includes('protector')) &&
+        (haystack.includes('protector') || haystack.includes('tempered') || haystack.includes('glass') || haystack.includes('ceramic') || haystack.includes('privacy')))
     );
   }
-  if (v === 'chargers') {
+  if (v === 'airtags') {
+    return accessoryType === 'airtags' || tagged === 'airtags' || haystack.includes('airtag');
+  }
+  if (v === 'applewatchaccessories') {
     return (
-      haystack.includes('charg') ||
-      haystack.includes('cable') ||
-      haystack.includes('adapter') ||
-      haystack.includes('power bank')
+      accessoryType === 'applewatchaccessories' ||
+      tagged === 'applewatchaccessories' ||
+      haystack.includes('watch strap') ||
+      haystack.includes('sports strap') ||
+      haystack.includes('leather strap') ||
+      (haystack.includes('watch') && (haystack.includes('strap') || haystack.includes('band') || haystack.includes('cover')))
+    );
+  }
+  if (v === 'magickeyboard') {
+    return (
+      accessoryType === 'magickeyboard' ||
+      tagged === 'magickeyboard' ||
+      haystack.includes('magic keyboard')
+    );
+  }
+  if (v === 'applepencil') {
+    return (
+      accessoryType === 'applepencil' ||
+      tagged === 'applepencil' ||
+      haystack.includes('apple pencil') ||
+      haystack.includes('pencil pro')
+    );
+  }
+  if (v === 'powerbanks') {
+    return (
+      accessoryType === 'powerbanks' ||
+      tagged === 'powerbanks' ||
+      haystack.includes('power bank') ||
+      haystack.includes('powerbank')
+    );
+  }
+  if (v === 'keyboards') {
+    return (
+      accessoryType === 'keyboards' ||
+      tagged === 'keyboards' ||
+      (haystack.includes('keyboard') && !haystack.includes('magic keyboard'))
+    );
+  }
+  if (v === 'mouse') {
+    return accessoryType === 'mouse' || tagged === 'mouse' || haystack.includes('mouse') || haystack.includes('trackpad');
+  }
+  if (v === 'flashdrives') {
+    return (
+      accessoryType === 'flashdrives' ||
+      tagged === 'flashdrives' ||
+      haystack.includes('flash drive') ||
+      haystack.includes('flashdrive') ||
+      haystack.includes('usb drive') ||
+      haystack.includes('thumb drive')
     );
   }
 

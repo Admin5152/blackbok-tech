@@ -94,14 +94,93 @@ export function formatInvoiceNumber(displayId: string | null | undefined, fallba
  * (purchases, repair service amounts, trade-in valuations). Keep URLs as
  * `/receipt/...` for routing; customer-facing words should say Invoice.
  */
+export type InvoiceDocumentPhase = 'estimate' | 'final';
+
+/** Repair: estimate until ready/completed or a locked final_cost exists. */
+export function repairInvoicePhase(repair: {
+  status?: string | null;
+  final_cost?: number | string | null;
+  estimatedCost?: string | null;
+}): InvoiceDocumentPhase {
+  const finalRaw = repair.final_cost;
+  const hasFinal =
+    finalRaw != null &&
+    finalRaw !== '' &&
+    Number.isFinite(Number(String(finalRaw).replace(/[^\d.]/g, ''))) &&
+    Number(String(finalRaw).replace(/[^\d.]/g, '')) > 0;
+  const st = String(repair.status || '')
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, ' ');
+  if (hasFinal) return 'final';
+  if (
+    st === 'completed' ||
+    st === 'ready' ||
+    st === 'in repair' ||
+    st === 'in_repair'
+  ) {
+    return 'final';
+  }
+  return 'estimate';
+}
+
+/**
+ * Trade-in: online estimate until staff send an offer (or the trade is accepted /
+ * scheduled / completed). Then it is the final valuation / offer.
+ */
+export function tradeInvoicePhase(trade: {
+  status?: string | null;
+  finalValue?: number | null;
+  final_value?: number | null;
+  offeredPrice?: number | null;
+  offered_price?: number | null;
+}): InvoiceDocumentPhase {
+  const offerRaw =
+    trade.finalValue ?? trade.final_value ?? trade.offeredPrice ?? trade.offered_price;
+  const n = offerRaw == null ? NaN : Number(offerRaw);
+  const hasOffer = Number.isFinite(n) && n > 0;
+  const st = String(trade.status || '')
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, ' ');
+  if (hasOffer) return 'final';
+  if (
+    st === 'accepted' ||
+    st === 'scheduled' ||
+    st === 'completed' ||
+    st === 'offer made' ||
+    st === 'offer sent' ||
+    st === 'awaiting user' ||
+    st === 'awaiting_user'
+  ) {
+    return 'final';
+  }
+  return 'estimate';
+}
+
 export const INVOICE_COPY = {
   /** Mini-printer / letterhead secondary label under INVOICE */
   purchaseKind: 'Purchase',
   repairKind: 'Repair service',
   tradeKind: 'Trade-in valuation',
+  titleEstimate: 'ESTIMATE',
+  titleFinal: 'INVOICE',
+  phaseEstimateBadge: 'Estimate — not final',
+  phaseFinalBadge: 'Final invoice',
+  phaseEstimateBanner:
+    'This is an estimate only. Amounts may change after inspection. It is not a final invoice.',
+  phaseFinalBanner: 'This is the final invoice for this request.',
+  phaseEstimateTerms: 'Estimate — subject to confirmation',
+  phaseFinalTerms: 'Due on Receipt',
+  balanceEstimateLabel: 'Estimated amount',
+  balanceFinalLabel: 'Balance Due',
+  dateEstimateLabel: 'Estimate Date :',
+  dateFinalLabel: 'Invoice Date :',
   /** Buttons / history / profile */
   view: 'View Invoice',
   download: 'Download invoice',
+  downloadShort: 'Print / PDF',
+  share: 'Share',
   loadingPurchase: 'Loading invoice…',
   loadingRepair: 'Loading repair invoice…',
   loadingTrade: 'Loading trade-in invoice…',
@@ -111,6 +190,17 @@ export const INVOICE_COPY = {
   missingTradeHint: 'This trade-in invoice could not be loaded, or you do not have access.',
   /** Repair printable notes when staff have not locked a final amount */
   repairEstimateNote:
-    'Repair service invoice — amount shown is the current estimate and may be updated after diagnostics.',
+    'ESTIMATE — Repair service amounts shown are provisional and may be updated after diagnostics. This is not a final invoice.',
+  repairFinalNote:
+    'FINAL INVOICE — Repair service amount as confirmed by BlackBox.',
+  tradeEstimateNote:
+    'ESTIMATE — Online trade-in valuation only. Final offer comes after BlackBox inspects your device. This is not a final invoice.',
+  tradeFinalNote:
+    'FINAL — Trade-in valuation / offer from BlackBox. Credit applies toward an eligible upgrade.',
   tradeNote: 'Trade-in valuation invoice — credit applies toward an eligible upgrade.',
+  settingsHeading: 'Invoices & receipts',
+  settingsHint:
+    'View, print, or share invoices for orders, repairs, and trade-ins. Use Print / PDF for a physical copy or to save on your phone.',
+  settingsEmpty: 'No invoices yet — they appear after you place an order, repair, or trade-in.',
+  settingsViewAll: 'Full history',
 } as const;

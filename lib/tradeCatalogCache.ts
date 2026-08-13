@@ -81,15 +81,19 @@ export async function getPricedActiveModelsCached(
   }
 }
 
+import { invalidateTradeQueryCache, prefetchTradeSessionCaches } from './tradeQueryCache';
+
 /** Warm cache for both types when entering /trade (non-blocking). */
 export function prefetchTradeCatalog(): void {
   void getPricedActiveModelsCached('iphone').catch(() => undefined);
   void getPricedActiveModelsCached('ipad').catch(() => undefined);
+  prefetchTradeSessionCaches();
 }
 
 export function invalidateTradeCatalogCache(): void {
   cache.clear();
   inflight.clear();
+  invalidateTradeQueryCache();
 }
 
 /** Sync read when cache is warm — used to skip loading flash on series/model. */

@@ -5,7 +5,11 @@ import { supabase } from '../lib/supabase';
 import { mapRepairFromDb } from '../lib/api';
 import { formatCustomerStatusShort } from '../lib/customerStatusLabels';
 import { InvoiceDocument } from '../components/invoice/InvoiceDocument';
-import { formatInvoiceDate, INVOICE_COPY } from '../lib/invoiceFormat';
+import {
+  formatInvoiceDate,
+  INVOICE_COPY,
+  repairInvoicePhase,
+} from '../lib/invoiceFormat';
 
 export const RepairReceipt: React.FC = () => {
   const { repairId } = useParams({ from: '/receipt/repair/$repairId' });
@@ -52,10 +56,12 @@ export const RepairReceipt: React.FC = () => {
   }, [loading, repair]);
 
   const refLabel = repair?.display_id || (repair ? `#${repair.id.slice(-8).toUpperCase()}` : '—');
+  const phase = repair ? repairInvoicePhase(repair) : 'estimate';
 
   const model = useMemo(() => {
     if (!repair) return null;
 
+    const docPhase = repairInvoicePhase(repair);
     const finalCostRaw = (repair as { final_cost?: number | string | null }).final_cost;
     const estimateRaw = repair.estimatedCost;
     const parseMoney = (v: unknown): number => {
@@ -64,18 +70,23 @@ export const RepairReceipt: React.FC = () => {
       const n = Number(String(v).replace(/[^\d.]/g, ''));
       return Number.isFinite(n) ? n : 0;
     };
-    const rate =
-      parseMoney(finalCostRaw) ||
-      parseMoney(estimateRaw) ||
-      0;
+    const finalAmt = parseMoney(finalCostRaw);
+    const estimateAmt = parseMoney(estimateRaw);
+    const rate = docPhase === 'final' ? finalAmt || estimateAmt : estimateAmt || finalAmt;
 
     const descParts = [
+      docPhase === 'estimate' ? 'Document: ESTIMATE (not final)' : 'Document: FINAL INVOICE',
       repair.issue ? `Issue: ${repair.issue}` : null,
       repair.fulfillmentMethod ? `Fulfillment: ${repair.fulfillmentMethod}` : null,
       `Status: ${formatCustomerStatusShort('repair', repair.status) || '—'}`,
     ].filter(Boolean) as string[];
 
+    const defaultNote =
+      docPhase === 'estimate' ? INVOICE_COPY.repairEstimateNote : INVOICE_COPY.repairFinalNote;
+    const notes = [defaultNote, repair.adminNote].filter(Boolean).join('\n\n');
+
     return {
+      documentPhase: docPhase,
       billToName: repair.userName || 'Customer',
       billToLines: [] as string[],
       invoiceDate: formatInvoiceDate(repair.date),
@@ -93,7 +104,11 @@ export const RepairReceipt: React.FC = () => {
         paymentMade: 0,
         balanceDue: rate,
       },
-      notes: repair.adminNote || INVOICE_COPY.repairEstimateNote,
+      notes,
+      terms:
+        docPhase === 'estimate'
+          ? INVOICE_COPY.phaseEstimateTerms
+          : INVOICE_COPY.phaseFinalTerms,
     };
   }, [repair]);
 
@@ -126,6 +141,7 @@ export const RepairReceipt: React.FC = () => {
   return (
     <InvoiceDocument
       kindLabel={INVOICE_COPY.repairKind}
+      documentPhase={model.documentPhase}
       invoiceId={repair.id}
       displayId={repair.display_id}
       billToName={model.billToName}
@@ -133,28 +149,15 @@ export const RepairReceipt: React.FC = () => {
       meta={{
         invoiceDate: model.invoiceDate,
         dueDate: model.invoiceDate,
-        terms:
-          repair.status === 'Estimate Sent' || repair.status === 'Pending' || repair.status === 'Diagnosing'
-            ? 'Service estimate — payable on approval'
-            : 'Due on Receipt',
+        terms: model.terms,
       }}
       items={model.items}
       totals={model.totals}
       notes={model.notes}
       onBack={() => navigate({ to: '/profile' })}
       onPrint={() => window.print()}
-      onShare={async () => {
-        if (!navigator.share) return;
-        try {
-          await navigator.share({
-            title: `BlackBox repair invoice ${refLabel}`,
-            text: `${repair.device} — ${formatCustomerStatusShort('repair', repair.status)}`,
-            url: window.location.href,
-          });
-        } catch {
-          /* cancelled */
-        }
-      }}
+      shareTitle={`BlackBox repair ${phase === 'estimate' ? 'estimate' : 'invoice'} ${refLabel}`}
+      shareText={`${repair.device} — ${phase === 'estimate' ? 'Estimate' : 'Final'} — ${formatCustomerStatusShort('repair', repair.status)}`}
     />
   );
 };

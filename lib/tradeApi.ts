@@ -13,6 +13,13 @@ import {
   getPricedActiveModelsCached,
   modelsInCategoryFromPriced,
 } from './tradeCatalogCache';
+import {
+  getTradeBaseValuesForModelCached,
+  getTradeConfigCached,
+  getTradeDeviceCached,
+  getTradeQuestionsCached,
+  getTradeTargetsCached,
+} from './tradeQueryCache';
 import type {
   SimVariant,
   TradeAnswerInput,
@@ -59,13 +66,7 @@ export async function getTradeDevices(
 
 /** Single device row (incl. biometric) — Screen 6 Face ID / Touch ID label */
 export async function getTradeDevice(model: string): Promise<TradeDeviceRow | null> {
-  const { data, error } = await supabase
-    .from('trade_devices')
-    .select('*')
-    .eq('model', model)
-    .maybeSingle();
-  if (error) throw error;
-  return data as TradeDeviceRow | null;
+  return getTradeDeviceCached(model);
 }
 
 /**
@@ -128,14 +129,7 @@ export async function getTradeModelsInSeries(
 export async function getTradeBaseValuesForModel(
   model: string,
 ): Promise<TradeBaseValueRow[]> {
-  const { data, error } = await supabase
-    .from('trade_base_values')
-    .select('*')
-    .eq('model', model)
-    .eq('is_active', true);
-
-  if (error) throw error;
-  return (data ?? []) as TradeBaseValueRow[];
+  return getTradeBaseValuesForModelCached(model);
 }
 
 /** Distinct storage tiers that exist for this model (sorted). */
@@ -192,6 +186,7 @@ export function lookupBaseValueFromRows(
 /**
  * Prefer Yes before No for binary gates (display_order in DB may be inverted).
  * Other answers keep display_order.
+ * (Kept for any local callers; questionnaire load uses tradeQueryCache.)
  */
 function sortAnswersYesFirst<T extends { answer_text: string; display_order: number }>(
   answers: T[],
@@ -217,58 +212,18 @@ function sortAnswersYesFirst<T extends { answer_text: string; display_order: num
 export async function getTradeQuestions(
   deviceType: TradeDeviceType,
 ): Promise<TradeQuestionWithAnswers[]> {
-  const { data: questions, error: qErr } = await supabase
-    .from('trade_questions')
-    .select('*')
-    .eq('device_type', deviceType)
-    .eq('is_active', true)
-    .order('display_order', { ascending: true });
-
-  if (qErr) throw qErr;
-  if (!questions?.length) return [];
-
-  const ids = questions.map((q: { id: string }) => q.id);
-  const { data: answers, error: aErr } = await supabase
-    .from('trade_answers')
-    .select('*')
-    .in('question_id', ids)
-    .order('display_order', { ascending: true });
-
-  if (aErr) throw aErr;
-
-  const byQuestion = new Map<string, TradeQuestionWithAnswers['answers']>();
-  for (const a of answers ?? []) {
-    const list = byQuestion.get(a.question_id) ?? [];
-    list.push(a);
-    byQuestion.set(a.question_id, list);
-  }
-
-  return questions.map((q) => ({
-    ...q,
-    answers: sortAnswersYesFirst(byQuestion.get(q.id) ?? []),
-  }));
+  return getTradeQuestionsCached(deviceType);
 }
 
 /** Business rules from trade_config — threshold message, validity days, etc. */
 export async function getTradeConfig(): Promise<Map<string, string>> {
-  const { data, error } = await supabase.from('trade_config').select('*');
-  if (error) throw error;
-  const map = new Map<string, string>();
-  for (const row of (data ?? []) as TradeConfigRow[]) {
-    map.set(row.key, row.value);
-  }
-  return map;
+  return getTradeConfigCached();
 }
 
 /** Single config value with fallback */
 export async function getTradeConfigValue(key: string, fallback = ''): Promise<string> {
-  const { data, error } = await supabase
-    .from('trade_config')
-    .select('value')
-    .eq('key', key)
-    .maybeSingle();
-  if (error) throw error;
-  return data?.value ?? fallback;
+  const map = await getTradeConfigCached();
+  return map.get(key) ?? fallback;
 }
 
 /**
@@ -293,34 +248,8 @@ export async function getTradeTargets(filters?: {
   /** Defaults to true — Screen 5 never lists out-of-stock colours */
   inStockOnly?: boolean;
 }): Promise<TradeTargetRow[]> {
-  const inStockOnly = filters?.inStockOnly !== false;
-
   try {
-    const rows: TradeTargetRow[] = [];
-    let from = 0;
-    for (;;) {
-      let query = supabase
-        .from('v_trade_targets')
-        .select('*')
-        // Upgrade step only needs linked shop phones — shrinks page count.
-        .not('trade_model', 'is', null)
-        .neq('trade_model', '');
-      if (filters?.tradeModel) query = query.eq('trade_model', filters.tradeModel);
-      if (filters?.category) query = query.eq('category', filters.category);
-      if (inStockOnly) query = query.gt('variant_stock', 0);
-
-      const { data, error } = await query
-        .order('name')
-        .order('product_id')
-        .range(from, from + TRADE_TARGET_PAGE - 1);
-      if (error) throw error;
-
-      const batch = (data ?? []) as TradeTargetRow[];
-      rows.push(...batch);
-      if (batch.length < TRADE_TARGET_PAGE) break;
-      from += TRADE_TARGET_PAGE;
-    }
-    return rows;
+    return await getTradeTargetsCached(filters);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.warn(

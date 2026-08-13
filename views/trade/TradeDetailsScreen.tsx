@@ -10,7 +10,7 @@
  * IMEI / serial are confirmed at BlackBox — not collected online.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { Info, Mail, MapPin, Phone, User } from 'lucide-react';
 import { useTradeFlow } from '../../lib/tradeFlowContext';
 import { useAppContext } from '../../lib/appContext';
@@ -30,6 +30,7 @@ import {
 import { formatGHS, promoReserveTrade } from '../../lib/promotions';
 import { promoFriendlyMessage } from '../../lib/promoErrors';
 import { isValidContactPhone } from '../../lib/phoneMask';
+import { FlowExpandSection } from '../../components/FlowExpandSection';
 
 const AUTH_RETURN = '/trade/details';
 const DETAILS_DRAFT_KEY = 'trade_v2_details_draft';
@@ -118,6 +119,7 @@ export function TradeDetailsScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [storeLocation, setStoreLocation] = useState<string>(TRADE_COPY.details.storeLocation);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldKey, string>>>({});
+  const [termsOpen, setTermsOpen] = useState(true);
   const [formError, setFormError] = useState<string | null>(null);
   const [appliedTradePromo, setAppliedTradePromo] = useState<AppliedPromoQuote | null>(null);
 
@@ -347,8 +349,20 @@ export function TradeDetailsScreen() {
       </div>
 
       {!user?.id && authReady && (
-        <p className={`text-xs ${isLight ? 'text-black/50' : 'text-white/45'}`}>
-          {TRADE_COPY.details.signInToContinue}
+        <p className={`text-xs leading-snug ${isLight ? 'text-black/60' : 'text-white/60'}`}>
+          {TRADE_COPY.details.signInLinkPrompt}{' '}
+          <Link
+            to="/auth"
+            search={{ returnTo: AUTH_RETURN } as any}
+            onClick={() => {
+              saveDraft({ name, phone, email, terms, pendingSubmit: false });
+              saveReturnTo(AUTH_RETURN);
+            }}
+            className="font-black text-[#CDA032] underline underline-offset-2"
+          >
+            {TRADE_COPY.details.signInLinkCta}
+          </Link>{' '}
+          {TRADE_COPY.details.signInLinkRest}
         </p>
       )}
 
@@ -496,35 +510,55 @@ export function TradeDetailsScreen() {
         </div>
       )}
 
-      <div>
-        <label
-          className={`flex items-start gap-2 text-xs cursor-pointer rounded-lg px-1 py-1 ${
-            fieldErrors.terms ? 'bg-red-500/[0.06] ring-1 ring-red-500/40' : ''
-          }`}
-        >
-          <input
-            ref={termsRef}
-            type="checkbox"
-            checked={terms}
-            onChange={(e) => {
-              setTerms(e.target.checked);
-              clearFieldError('terms');
-            }}
-            className="mt-0.5"
-            aria-invalid={Boolean(fieldErrors.terms)}
-          />
-          <span className="leading-snug opacity-80">{TRADE_COPY.details.terms}</span>
-        </label>
-        <FieldError message={fieldErrors.terms} />
-      </div>
+      <FlowExpandSection
+        title="Trade-in terms"
+        open={termsOpen}
+        onToggle={() => setTermsOpen((v) => !v)}
+        tagLabel="Required"
+        emphasize={!terms}
+        summary={
+          terms
+            ? 'Agreed — you can submit'
+            : 'Confirm ownership and terms before submitting'
+        }
+      >
+        <div>
+          <label
+            className={`flex items-start gap-2 text-xs cursor-pointer rounded-lg px-1 py-1 ${
+              fieldErrors.terms ? 'bg-red-500/[0.06] ring-1 ring-red-500/40' : ''
+            }`}
+          >
+            <input
+              ref={termsRef}
+              type="checkbox"
+              checked={terms}
+              onChange={(e) => {
+                setTerms(e.target.checked);
+                clearFieldError('terms');
+              }}
+              className="mt-0.5"
+              aria-invalid={Boolean(fieldErrors.terms)}
+            />
+            <span className="leading-snug opacity-80">{TRADE_COPY.details.terms}</span>
+          </label>
+          <FieldError message={fieldErrors.terms} />
+        </div>
+      </FlowExpandSection>
 
       <button
         type="button"
         disabled={submitting || !authReady}
-        onClick={() => void onSubmit()}
+        onClick={() => {
+          if (!terms) setTermsOpen(true);
+          void onSubmit();
+        }}
         className="flex items-center justify-center gap-2 w-full sm:w-auto min-w-[12rem] rounded-xl bg-[#CDA032] text-black font-black uppercase tracking-wider text-xs sm:text-sm px-8 py-3.5 disabled:opacity-40 hover:bg-[#B38B21] active:scale-[0.98] transition-all"
       >
-        {submitting ? TRADE_COPY.details.submitting : TRADE_COPY.details.submit}
+        {submitting
+          ? TRADE_COPY.details.submitting
+          : !user?.id
+            ? TRADE_COPY.details.submitGuest
+            : TRADE_COPY.details.submit}
       </button>
     </section>
   );

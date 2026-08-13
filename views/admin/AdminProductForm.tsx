@@ -233,8 +233,16 @@ export const AdminProductForm: React.FC<Props> = ({
         );
         if (byBrand) return byBrand.value;
         const hay = `${brand} ${draft.subcategory ?? ''} ${draft.series ?? ''}`.toLowerCase();
+        if (
+          (hay.includes('airpod') || hay.includes('earpod') || hay.includes('homepod') || brand.toLowerCase() === 'apple') &&
+          taxonomyOptions.some((o) => o.value === 'Apple')
+        ) {
+          return 'Apple';
+        }
         if (hay.includes('airpod') && taxonomyOptions.some((o) => o.value === 'AirPods')) return 'AirPods';
         if (hay.includes('beats') && taxonomyOptions.some((o) => o.value === 'Beats')) return 'Beats';
+        if (hay.includes('jbl') && taxonomyOptions.some((o) => o.value === 'JBL')) return 'JBL';
+        if (hay.includes('sony') && taxonomyOptions.some((o) => o.value === 'Sony')) return 'Sony';
         if (
           (hay.includes('harman') || hay.includes('kardon')) &&
           taxonomyOptions.some((o) => o.value === 'HarmanKardon')
@@ -385,7 +393,7 @@ export const AdminProductForm: React.FC<Props> = ({
           : `Shop path: ${normalizedCategory} → Brand → Series → products.`;
     }
     if (isAccessoryCategory) {
-      return `Shop path: Accessories → Type (Cases / Protectors / Chargers) → products.`;
+      return `Shop path: Accessories → Type (Chargers / Covers / Protectors / AirTags / …) → Device series → products.`;
     }
     if (isWatchCategory) {
       return `Shop path: Smart watches → Brand (Apple / Samsung / Others) → Series → products.`;
@@ -972,7 +980,7 @@ export const AdminProductForm: React.FC<Props> = ({
                       {brandThenSeries
                         ? isWatchCategory
                           ? 'Required. Shop path: Brand → Series (Ultra / Series / Galaxy).'
-                          : 'Required. Matches the shop Brand → Series filters (incl. Sony, EarPods, HomePod).'
+                          : 'Required. Matches the shop Brand → Series filters (Apple → AirPods / Pro / Max, JBL, Beats, Sony).'
                         : 'Shown on the shop as Category → Series → New/Used.'}
                     </p>
                   </div>

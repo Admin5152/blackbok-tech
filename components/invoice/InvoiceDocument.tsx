@@ -8,7 +8,10 @@ import {
   formatInvoicePlain,
   formatInvoiceQty,
   formatInvoiceGhcPlain,
+  INVOICE_COPY,
+  type InvoiceDocumentPhase,
 } from '../../lib/invoiceFormat';
+import { shareInvoiceLink } from '../../lib/invoiceShare';
 
 export type InvoiceLineItem = {
   name: string;
@@ -42,6 +45,8 @@ export type TradeInValuationLine = {
 
 export type InvoiceDocumentProps = {
   kindLabel?: string;
+  /** Estimate vs final — drives title, banner, and labels (defaults to final). */
+  documentPhase?: InvoiceDocumentPhase;
   invoiceId: string;
   displayId?: string | null;
   billToName: string;
@@ -53,7 +58,10 @@ export type InvoiceDocumentProps = {
   tradeInValuation?: TradeInValuationLine[];
   onBack: () => void;
   onPrint: () => void;
-  onShare?: () => void;
+  onShare?: () => void | Promise<void>;
+  /** When true, built-in share uses the current page URL (clipboard fallback). */
+  shareTitle?: string;
+  shareText?: string;
 };
 
 /**
@@ -61,6 +69,7 @@ export type InvoiceDocumentProps = {
  */
 export const InvoiceDocument: React.FC<InvoiceDocumentProps> = ({
   kindLabel,
+  documentPhase = 'final',
   invoiceId,
   displayId,
   billToName,
@@ -73,6 +82,8 @@ export const InvoiceDocument: React.FC<InvoiceDocumentProps> = ({
   onBack,
   onPrint,
   onShare,
+  shareTitle,
+  shareText,
 }) => {
   const invNo = formatInvoiceNumber(displayId, invoiceId);
   const balance = totals.balanceDue;
@@ -81,6 +92,26 @@ export const InvoiceDocument: React.FC<InvoiceDocumentProps> = ({
   const shipping = totals.shipping ?? 0;
   const tradeInTotal =
     tradeInValuation?.reduce((sum, row) => sum + (Number(row.amount) || 0), 0) ?? 0;
+  const isEstimate = documentPhase === 'estimate';
+  const docTitle = isEstimate ? INVOICE_COPY.titleEstimate : INVOICE_COPY.titleFinal;
+  const balanceLabel = isEstimate
+    ? INVOICE_COPY.balanceEstimateLabel
+    : INVOICE_COPY.balanceFinalLabel;
+  const dateLabel = isEstimate
+    ? INVOICE_COPY.dateEstimateLabel
+    : INVOICE_COPY.dateFinalLabel;
+
+  const handleShare = async () => {
+    if (onShare) {
+      await onShare();
+      return;
+    }
+    await shareInvoiceLink({
+      title: shareTitle || `BlackBox ${isEstimate ? 'estimate' : 'invoice'} ${invNo}`,
+      text: shareText || shareTitle || `BlackBox ${isEstimate ? 'estimate' : 'invoice'} ${invNo}`,
+      url: typeof window !== 'undefined' ? window.location.href : '',
+    });
+  };
 
   return (
     <div className="bb-invoice-shell flex min-h-0 flex-1 flex-col bg-[#dcdcdc] text-black print:min-h-0 print:bg-white">
@@ -95,16 +126,14 @@ export const InvoiceDocument: React.FC<InvoiceDocumentProps> = ({
             Back
           </button>
           <div className="flex items-center gap-2">
-            {onShare ? (
-              <button
-                type="button"
-                onClick={onShare}
-                className="rounded-lg border border-black/10 bg-black/[0.04] p-2 hover:bg-black/[0.08]"
-                aria-label="Share invoice"
-              >
-                <Share2 size={18} />
-              </button>
-            ) : null}
+            <button
+              type="button"
+              onClick={() => void handleShare()}
+              className="rounded-lg border border-black/10 bg-black/[0.04] p-2 hover:bg-black/[0.08]"
+              aria-label={INVOICE_COPY.share}
+            >
+              <Share2 size={18} />
+            </button>
             <button
               type="button"
               onClick={onPrint}
@@ -113,7 +142,7 @@ export const InvoiceDocument: React.FC<InvoiceDocumentProps> = ({
             >
               <span className="inline-flex items-center gap-1.5">
                 <Download size={16} />
-                Print / PDF
+                {INVOICE_COPY.downloadShort}
               </span>
             </button>
           </div>
@@ -125,6 +154,18 @@ export const InvoiceDocument: React.FC<InvoiceDocumentProps> = ({
           id="invoice-content"
           className="bb-invoice receipt-print-root invoice-print-root bg-white px-8 py-9 shadow-sm sm:px-12 sm:py-11 print:px-10 print:py-6 print:shadow-none"
         >
+          <div
+            className={`bb-invoice__phase ${isEstimate ? 'bb-invoice__phase--estimate' : 'bb-invoice__phase--final'}`}
+            role="status"
+          >
+            <p className="bb-invoice__phase-badge">
+              {isEstimate ? INVOICE_COPY.phaseEstimateBadge : INVOICE_COPY.phaseFinalBadge}
+            </p>
+            <p className="bb-invoice__phase-copy">
+              {isEstimate ? INVOICE_COPY.phaseEstimateBanner : INVOICE_COPY.phaseFinalBanner}
+            </p>
+          </div>
+
           <header className="bb-invoice__header flex items-start justify-between gap-6">
             <div className="min-w-0">
               <BlackBoxInvoiceMark className="bb-invoice__mark h-[4.5rem] w-[4.5rem] text-black" />
@@ -138,11 +179,11 @@ export const InvoiceDocument: React.FC<InvoiceDocumentProps> = ({
             </div>
 
             <div className="bb-invoice__title-block shrink-0 text-right">
-              <h1 className="bb-invoice__title">INVOICE</h1>
-              {kindLabel ? <p className="bb-invoice__kind no-print">{kindLabel}</p> : null}
+              <h1 className="bb-invoice__title">{docTitle}</h1>
+              {kindLabel ? <p className="bb-invoice__kind">{kindLabel}</p> : null}
               <p className="bb-invoice__number">{invNo}</p>
               <div className="bb-invoice__balance-top">
-                <p>Balance Due</p>
+                <p>{balanceLabel}</p>
                 <p className="bb-invoice__balance-top-amt">{formatInvoiceMoney(balance)}</p>
               </div>
             </div>
@@ -160,16 +201,23 @@ export const InvoiceDocument: React.FC<InvoiceDocumentProps> = ({
             </div>
             <div className="bb-invoice__dates sm:justify-self-end">
               <div className="bb-invoice__date-row">
-                <span>Invoice Date :</span>
+                <span>{dateLabel}</span>
                 <span>{meta.invoiceDate}</span>
               </div>
               <div className="bb-invoice__date-row">
                 <span>Terms :</span>
-                <span>{meta.terms || 'Due on Receipt'}</span>
+                <span>
+                  {meta.terms ||
+                    (isEstimate ? INVOICE_COPY.phaseEstimateTerms : INVOICE_COPY.phaseFinalTerms)}
+                </span>
               </div>
               <div className="bb-invoice__date-row">
                 <span>Due Date :</span>
                 <span>{meta.dueDate || meta.invoiceDate}</span>
+              </div>
+              <div className="bb-invoice__date-row">
+                <span>Document :</span>
+                <span>{isEstimate ? 'Estimate' : 'Final invoice'}</span>
               </div>
             </div>
           </div>
@@ -246,7 +294,7 @@ export const InvoiceDocument: React.FC<InvoiceDocumentProps> = ({
                 </div>
               ) : null}
               <div className="bb-invoice__balance-bar">
-                <span>Balance Due</span>
+                <span>{balanceLabel}</span>
                 <span>{formatInvoiceMoney(balance)}</span>
               </div>
             </dl>

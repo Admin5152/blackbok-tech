@@ -35,6 +35,7 @@ import { TradeOfferRespondButtons } from '../components/TradeOfferRespondButtons
 import { CancelRequestButton } from '../components/CancelRequestButton';
 import { canCancelOrder, canCancelTrade } from '../lib/customerCancel';
 import type { Order, RepairRequest, TradeRequest } from '../types';
+import { InvoiceActions } from '../components/invoice/InvoiceActions';
 
 interface TimelineStep {
   id: string;
@@ -610,28 +611,34 @@ export const Tracking: React.FC = () => {
 
         <div className="flex flex-wrap items-center gap-4 -mt-4">
           {type === 'order' && entityId && (
-            <Link
-              to={`/receipt/${entityId}` as any}
-              className="inline-flex px-4 py-2 rounded-xl bg-[#CDA032]/10 text-[#CDA032] border border-[#CDA032]/20 text-[9px] font-black uppercase tracking-widest hover:bg-[#CDA032]/20 transition-colors"
-            >
-              View Invoice
-            </Link>
+            <InvoiceActions
+              kind="order"
+              id={entityId}
+              displayId={(order as Order | null)?.id}
+              shareText={trackingData.title}
+              isLight={isLight}
+              notify={notify}
+            />
           )}
           {type === 'repair' && entityId && (
-            <Link
-              to={`/receipt/repair/${entityId}` as any}
-              className="inline-flex px-4 py-2 rounded-xl bg-[#CDA032]/10 text-[#CDA032] border border-[#CDA032]/20 text-[9px] font-black uppercase tracking-widest hover:bg-[#CDA032]/20 transition-colors"
-            >
-              View Invoice
-            </Link>
+            <InvoiceActions
+              kind="repair"
+              id={entityId}
+              displayId={repair?.display_id}
+              shareText={repair?.device || trackingData.title}
+              isLight={isLight}
+              notify={notify}
+            />
           )}
           {type === 'trade' && entityId && (
-            <Link
-              to={`/receipt/trade/${entityId}` as any}
-              className="inline-flex px-4 py-2 rounded-xl bg-[#CDA032]/10 text-[#CDA032] border border-[#CDA032]/20 text-[9px] font-black uppercase tracking-widest hover:bg-[#CDA032]/20 transition-colors"
-            >
-              View Invoice
-            </Link>
+            <InvoiceActions
+              kind="trade"
+              id={entityId}
+              displayId={trade?.display_id}
+              shareText={trade?.device || trackingData.title}
+              isLight={isLight}
+              notify={notify}
+            />
           )}
           {type === 'order' &&
             trackingData.originalData &&

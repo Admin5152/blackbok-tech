@@ -1163,6 +1163,7 @@ export const getProducts = async (): Promise<Product[]> => {
     const { data, error } = await supabase
       .from('products')
       .select('*, product_variants(*), product_images(*)')
+      .eq('status', 'active')
       .order('created_at', { ascending: false });
     if (error) throw error;
     const rows = Array.isArray(data) ? data : [];
@@ -2222,6 +2223,18 @@ function throwRepairRequestError(error: { code?: string; message?: string }): ne
 
 export { REPAIR_REQUEST_CONSTRAINT_MESSAGE };
 
+const repairListCache = new Map<string, { at: number; rows: RepairRequest[] }>();
+const REPAIR_LIST_TTL_MS = 60_000;
+
+export const invalidateRepairRequestsCache = (userId?: string): void => {
+  if (userId) {
+    repairListCache.delete(`u:${userId}`);
+    repairListCache.delete('all');
+    return;
+  }
+  repairListCache.clear();
+};
+
 export const createRepairRequest = async (repair: Partial<RepairRequest>) => {
   const payload = normalizeRepairPayload({ ...repair, status: repair.status || 'pending' });
 
@@ -2237,15 +2250,24 @@ export const createRepairRequest = async (repair: Partial<RepairRequest>) => {
     .select()
     .single();
   if (error) throwRepairRequestError(error);
+  invalidateRepairRequestsCache(
+    payload.user_id != null ? String(payload.user_id) : undefined,
+  );
   return mapRepairFromDb(data);
 };
 
 export const getRepairRequests = async (userId?: string): Promise<RepairRequest[]> => {
+  const key = userId ? `u:${userId}` : 'all';
+  const hit = repairListCache.get(key);
+  if (hit && Date.now() - hit.at < REPAIR_LIST_TTL_MS) return hit.rows;
+
   let query = supabase.from('repair_requests').select('*').order('created_at', { ascending: false });
   if (userId) query = query.eq('user_id', userId);
   const { data, error } = await query;
   if (error) throw error;
-  return (data || []).map((r: any) => mapRepairFromDb(r));
+  const rows = (data || []).map((r: any) => mapRepairFromDb(r));
+  repairListCache.set(key, { at: Date.now(), rows });
+  return rows;
 };
 
 /**
@@ -2282,6 +2304,7 @@ export const updateRepairRequest = async (id: string, updates: Partial<RepairReq
       'Repair update did not save (0 rows). Sign in as the customer or staff/admin and retry.',
     );
   }
+  invalidateRepairRequestsCache();
   return mapRepairFromDb(data);
 };
 

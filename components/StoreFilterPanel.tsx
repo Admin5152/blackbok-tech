@@ -49,6 +49,9 @@ export interface StoreFilterPanelProps {
   brandOptions?: StoreFilterOption[];
   activeBrand?: string;
   onBrandClick?: (value: string) => void;
+  /** Override “Brand” label (Accessories uses “Type”). */
+  brandSectionTitle?: string;
+  brandAllLabel?: string;
   /** Series / line chips. */
   seriesOptions?: StoreFilterOption[];
   activeSeries?: string;
@@ -203,6 +206,8 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
   brandOptions,
   activeBrand,
   onBrandClick,
+  brandSectionTitle = 'Brand',
+  brandAllLabel = 'All brands',
   seriesOptions,
   activeSeries,
   onSeriesClick,
@@ -347,7 +352,7 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
 
       {hasBrand && (
         <FilterAccordion
-          title="Brand"
+          title={brandSectionTitle}
           open={openSections.brand}
           onToggle={() => toggleSection('brand')}
           badge={
@@ -355,13 +360,13 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
               ? brandOptions!.find((o) => o.value === activeBrand)?.label
               : 'All'
           }
-          hint="Optional — leave on All brands to browse everything in this category."
+          hint={`Optional — leave on ${brandAllLabel} to browse everything in this category.`}
         >
           <OptionList
             options={brandOptions!}
             activeValue={activeBrand}
             onClick={onBrandClick!}
-            allLabel="All brands"
+            allLabel={brandAllLabel}
           />
         </FilterAccordion>
       )}

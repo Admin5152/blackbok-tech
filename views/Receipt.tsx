@@ -207,6 +207,7 @@ export const Receipt: React.FC = () => {
   ) : (
     <InvoiceDocument
       kindLabel={INVOICE_COPY.purchaseKind}
+      documentPhase="final"
       invoiceId={order.id}
       displayId={order.display_id}
       billToName={invoiceModel.billToName}

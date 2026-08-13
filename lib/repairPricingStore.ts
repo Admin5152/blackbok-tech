@@ -10,7 +10,10 @@ export type RepairMatrixOverrides = Record<string, RepairMatrixRow>;
 export const REPAIR_MATRIX_KEYS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] as const;
 export type RepairMatrixKey = (typeof REPAIR_MATRIX_KEYS)[number];
 
+let effectivePricingMemo: Record<string, RepairMatrixRow> | null = null;
+
 function dispatchRepairPricingUpdated(): void {
+  effectivePricingMemo = null;
   window.dispatchEvent(new CustomEvent(REPAIR_PRICING_UPDATED_EVENT));
 }
 
@@ -60,11 +63,13 @@ export function getDefaultRepairPricing(): Record<string, RepairMatrixRow> {
 }
 
 export function getEffectiveRepairPricing(): Record<string, RepairMatrixRow> {
+  if (effectivePricingMemo) return effectivePricingMemo;
   const merged: Record<string, RepairMatrixRow> = getDefaultRepairPricing();
   const overrides = readRepairMatrixOverrides();
   for (const [model, row] of Object.entries(overrides)) {
     merged[model] = { ...(merged[model] || {}), ...row };
   }
+  effectivePricingMemo = merged;
   return merged;
 }
 

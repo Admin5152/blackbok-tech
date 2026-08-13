@@ -49,6 +49,7 @@ import {
   STORE_PICKER_NESTED_CHILD_CATEGORIES,
   categoryUsesSeriesStep,
   categoryUsesBrandThenSeries,
+  categoryUsesTypeThenSeries,
   resolveStoreSubcategoryFilter,
   encodeStoreSubcategorySearch,
   subcategoryFilterLabel,
@@ -137,8 +138,23 @@ function subcategoryCardIcon(option: SubcategoryOption): React.ReactNode {
   if (v.includes('console') || v.includes('controller') || v.includes('play') || v.includes('xbox') || v.includes('nintendo') || v.includes('steam')) {
     return <Gamepad2 size={28} strokeWidth={1.5} />;
   }
-  if (v.includes('airpod') || v.includes('ear') || v.includes('jbl') || v.includes('sony') || v.includes('home') || v.includes('harman')) {
+  if (v.includes('airpod') || v.includes('ear') || v.includes('jbl') || v.includes('sony') || v.includes('home') || v.includes('harman') || v.includes('beats') || v === 'apple') {
     return <Headphones size={28} strokeWidth={1.5} />;
+  }
+  if (
+    v.includes('charger') ||
+    v.includes('cover') ||
+    v.includes('case') ||
+    v.includes('protector') ||
+    v.includes('airtag') ||
+    v.includes('pencil') ||
+    v.includes('keyboard') ||
+    v.includes('mouse') ||
+    v.includes('flash') ||
+    v.includes('powerbank') ||
+    v.includes('power')
+  ) {
+    return <Package size={28} strokeWidth={1.5} />;
   }
   if (v.includes('ultra') || v.includes('series') || v.includes('galaxy') || v.includes('apple') || v.includes('samsung') || v.includes('watch') || v.includes('iwatch')) {
     return <Watch size={28} strokeWidth={1.5} />;
@@ -212,10 +228,23 @@ const SUBCATEGORY_COVER_BY_VALUE: Record<string, string> = {
   'Apple Watch': '/IMG_9008.JPG',
   Others: '/iphone_modern.png',
   PhoneCases: '/cases.jpeg',
-  'Phone Cases': '/cases.jpeg',
+  Covers: '/cases.jpeg',
   ScreenProtectors: '/cases.jpeg',
-  'Screen Protectors': '/cases.jpeg',
   Chargers: '/cases.jpeg',
+  AirTags: '/cases.jpeg',
+  AppleWatchAccessories: '/IMG_9008.JPG',
+  MagicKeyboard: '/cases.jpeg',
+  ApplePencil: '/cases.jpeg',
+  PowerBanks: '/cases.jpeg',
+  Keyboards: '/cases.jpeg',
+  Mouse: '/cases.jpeg',
+  FlashDrives: '/cases.jpeg',
+  'Phone Cases': '/cases.jpeg',
+  'Screen Protectors': '/cases.jpeg',
+  'Flash Drives': '/cases.jpeg',
+  'Power Banks': '/cases.jpeg',
+  'Magic Keyboard': '/cases.jpeg',
+  'Apple Pencil': '/cases.jpeg',
 };
 
 function productImageUrl(p: Product | undefined): string | null {
@@ -345,6 +374,11 @@ export const Store: React.FC<StoreProps> = ({
   const brandThenSeries = Boolean(
     activeCategory && categoryUsesBrandThenSeries(activeCategory),
   );
+  const typeThenSeries = Boolean(
+    activeCategory && categoryUsesTypeThenSeries(activeCategory),
+  );
+  const brandStepLabel = typeThenSeries ? 'Type' : 'Brand';
+  const brandAllLabel = typeThenSeries ? 'All types' : 'All brands';
 
   const subcategoryFilter = useMemo(
     () =>
@@ -685,7 +719,7 @@ export const Store: React.FC<StoreProps> = ({
       });
       const brandLabel = subcategoryFilter
         ? subcategoryFilterLabel(subcategoryFilter, activeCategory)
-        : 'Brand';
+        : brandStepLabel;
       if (showSeriesPicker) {
         items.push({ label: brandLabel });
         return items;
@@ -766,6 +800,7 @@ export const Store: React.FC<StoreProps> = ({
     subcategoryFilter,
     subcategoryOptions,
     brandThenSeries,
+    brandStepLabel,
     pickerParentCategory,
     isNestedTypePicker,
     goToCategoryPicker,
@@ -1292,6 +1327,8 @@ export const Store: React.FC<StoreProps> = ({
       : undefined,
     activeBrand: brandThenSeries ? subcategoryFilter?.value : undefined,
     onBrandClick: brandThenSeries ? applyBrandFilter : undefined,
+    brandSectionTitle: brandStepLabel,
+    brandAllLabel,
     seriesOptions: seriesOptions.map((o) => ({ value: o.value, label: o.label })),
     activeSeries: activeSeries ?? '',
     onSeriesClick: applySeriesFilter,
@@ -1481,7 +1518,7 @@ export const Store: React.FC<StoreProps> = ({
               <PageBackButton
                 isLight={isLight}
                 onClick={brandThenSeries ? goToSubcategoryPicker : goToCategoryPicker}
-                label={brandThenSeries ? 'Brand' : 'Categories'}
+                label={brandThenSeries ? brandStepLabel : 'Categories'}
                 className="bb-store-picker-back"
               />
               <h1 className="text-xl sm:text-2xl font-black tracking-tight leading-tight min-w-0 truncate">
@@ -1491,7 +1528,7 @@ export const Store: React.FC<StoreProps> = ({
             <FlowBreadcrumb items={storeBreadcrumbItems} className="mt-2.5" />
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-[color:var(--bb-muted)]">
               {brandThenSeries
-                ? 'Pick a series to see matching products.'
+                ? `Pick a series to see matching products.`
                 : 'Pick a series, then choose Brand new or Used.'}
             </p>
           </div>
@@ -1610,14 +1647,18 @@ export const Store: React.FC<StoreProps> = ({
       : isConditionStep
         ? 'New or used?'
         : brandThenSeries
-          ? 'Choose a brand'
+          ? typeThenSeries
+            ? 'Choose a type'
+            : 'Choose a brand'
           : `Choose ${scopeLabel}`;
     const blurb = isNestedTypePicker
       ? 'Pick a type to browse PlayStation, Xbox, Nintendo, and Steam Deck gear.'
       : isConditionStep
         ? `Choose condition to see matching ${seriesLabel || scopeLabel} inventory.`
         : brandThenSeries
-          ? `Pick a brand — Apple, Samsung, and others each have their own series.`
+          ? typeThenSeries
+            ? 'Pick a type — Chargers, Covers, Protectors, AirTags, Pencil, and more — then a device series.'
+            : 'Pick a brand — each brand has its own series.'
           : `Pick a type to browse ${scopeLabel} products.`;
 
     return (
@@ -1845,7 +1886,7 @@ export const Store: React.FC<StoreProps> = ({
                       onClick={() => applyBrandFilter('all')}
                       className={`bb-store-chip ${!subcategoryFilter ? 'bb-store-chip--active' : ''}`}
                     >
-                      All brands
+                      {brandAllLabel}
                     </button>
                     {brandOptions.map((opt) => (
                       <button

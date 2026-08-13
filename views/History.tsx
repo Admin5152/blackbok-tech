@@ -30,6 +30,7 @@ import { canCancelOrder, canCancelTrade } from '../lib/customerCancel';
 import { PAGE_SIZES, usePagination } from '../lib/pagination';
 import { Pagination } from '../components/Pagination';
 import { ListSkeleton } from '../components/Skeleton';
+import { InvoiceActions } from '../components/invoice/InvoiceActions';
 
 type HistoryTab = 'orders' | 'trades' | 'repairs';
 
@@ -271,12 +272,13 @@ export const History: React.FC = () => {
                                         >
                                             Track
                                         </Link>
-                                        <Link
-                                            to={`/receipt/${order.id}` as any}
-                                            className="px-4 py-2 rounded-xl bg-[#CDA032]/10 text-[#CDA032] border border-[#CDA032]/20 text-[9px] font-black uppercase tracking-widest hover:bg-[#CDA032]/20 transition-colors whitespace-nowrap"
-                                        >
-                                            View Invoice
-                                        </Link>
+                                        <InvoiceActions
+                                            kind="order"
+                                            id={order.id}
+                                            shareText={order.items?.[0]?.name || 'Order'}
+                                            isLight={isLight}
+                                            notify={notify}
+                                        />
                                         {canCancelOrder(order) && notify && (
                                             <CancelRequestButton
                                                 kind="order"
@@ -375,14 +377,14 @@ export const History: React.FC = () => {
                                     isLight={isLight}
                                   />
                                 )}
-                                <div className="flex flex-wrap gap-2">
-                                  <Link
-                                    to={`/receipt/trade/${trade.id}` as any}
-                                    className="px-4 py-2 rounded-xl bg-[#CDA032]/10 text-[#CDA032] border border-[#CDA032]/20 text-[9px] font-black uppercase tracking-widest hover:bg-[#CDA032]/20 transition-colors"
-                                  >
-                                    View Invoice
-                                  </Link>
-                                </div>
+                                <InvoiceActions
+                                  kind="trade"
+                                  id={trade.id}
+                                  displayId={(trade as TradeRequest).display_id}
+                                  shareText={trade.device || 'Trade-in'}
+                                  isLight={isLight}
+                                  notify={notify}
+                                />
                                 {canCancelTrade(trade) && notify && (
                                   <CancelRequestButton
                                     kind="trade"
@@ -457,12 +459,14 @@ export const History: React.FC = () => {
                                         >
                                             Track
                                         </Link>
-                                        <Link
-                                            to={`/receipt/repair/${repair.id}` as any}
-                                            className="px-4 py-2 rounded-xl bg-[#CDA032]/10 text-[#CDA032] border border-[#CDA032]/20 text-[9px] font-black uppercase tracking-widest hover:bg-[#CDA032]/20 transition-colors whitespace-nowrap"
-                                        >
-                                            View Invoice
-                                        </Link>
+                                        <InvoiceActions
+                                            kind="repair"
+                                            id={repair.id}
+                                            displayId={repair.display_id}
+                                            shareText={repair.device || 'Repair'}
+                                            isLight={isLight}
+                                            notify={notify}
+                                        />
                                       </div>
                                     </div>
                                 </div>

@@ -6,7 +6,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Download } from 'lucide-react';
 import { useTradeFlow } from '../../lib/tradeFlowContext';
 import { TradePhasePills } from '../../components/trade/TradePhasePills';
 import { TradeHowItWorksFlipCard } from '../../components/trade/TradeHowItWorksFlipCard';
@@ -102,7 +102,10 @@ export function TradeSummaryScreen() {
         </div>
       )}
 
-      <div className="rounded-2xl border border-[var(--bb-border)] bg-[var(--bb-surface)] overflow-hidden">
+      <div
+        id="trade-estimate-print"
+        className="rounded-2xl border border-[var(--bb-border)] bg-[var(--bb-surface)] overflow-hidden print:border-black print:shadow-none"
+      >
         <div className="px-4 py-2.5 sm:px-5 border-b border-amber-500/35 bg-amber-500/15" role="status">
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-700 dark:text-amber-200">
             Estimate only
@@ -222,13 +225,26 @@ export function TradeSummaryScreen() {
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={() => void navigate({ to: '/trade/details' })}
-        className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl text-xs font-black uppercase tracking-[0.18em] text-black bg-[#CDA032] hover:bg-[#B38B21] active:scale-[0.98] transition-all w-full sm:w-auto"
-      >
-        {TRADE_COPY.summary.continueToDetails} <ArrowRight size={16} aria-hidden />
-      </button>
+      <div className="flex flex-col sm:flex-row gap-3 no-print">
+        <button
+          type="button"
+          onClick={() => void navigate({ to: '/trade/details' })}
+          className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl text-xs font-black uppercase tracking-[0.18em] text-black bg-[#CDA032] hover:bg-[#B38B21] active:scale-[0.98] transition-all w-full sm:w-auto"
+        >
+          {TRADE_COPY.summary.continueToDetails} <ArrowRight size={16} aria-hidden />
+        </button>
+        <button
+          type="button"
+          onClick={() => window.print()}
+          className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-xs font-black uppercase tracking-[0.18em] border border-[var(--bb-border)] hover:border-[#CDA032]/50 transition-all w-full sm:w-auto"
+        >
+          <Download size={16} aria-hidden />
+          {TRADE_COPY.summary.saveEstimate}
+        </button>
+      </div>
+      <p className="text-[11px] opacity-50 leading-snug no-print">
+        {TRADE_COPY.summary.saveEstimateHint}
+      </p>
     </section>
   );
 }

@@ -14,9 +14,10 @@ import { getTradeConfigValue } from '../../lib/tradeApi';
 import { formatGhs } from '../../lib/money';
 import { TRADE_COPY } from '../../lib/tradeCopy';
 import { clearTradeFlowState } from '../../lib/tradeFlowState';
+import { InvoiceActions } from '../../components/invoice/InvoiceActions';
 
 export function TradeConfirmationScreen() {
-  const { theme } = useAppContext();
+  const { theme, notify } = useAppContext();
   const isLight = theme === 'light';
   const { state, dispatch } = useTradeFlow();
   const navigate = useNavigate();
@@ -146,6 +147,25 @@ export function TradeConfirmationScreen() {
       <p className={`text-xs ${isLight ? 'text-black/40' : 'text-white/35'}`}>
         {TRADE_COPY.confirmation.trackingHint}
       </p>
+
+      <div className="max-w-md mx-auto w-full space-y-2">
+        <p className={`text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-black/45' : 'text-white/40'}`}>
+          {TRADE_COPY.confirmation.invoiceHeading}
+        </p>
+        <InvoiceActions
+          kind="trade"
+          id={result.id}
+          displayId={result.displayId}
+          shareText={`Trade-in ${result.displayId || ''} — keep for drop-off`}
+          isLight={isLight}
+          variant="stack"
+          notify={notify}
+          className="justify-center"
+        />
+        <p className={`text-[11px] leading-snug ${isLight ? 'text-black/45' : 'text-white/40'}`}>
+          {TRADE_COPY.confirmation.invoiceHint}
+        </p>
+      </div>
 
       <div className="flex flex-col sm:flex-row gap-3 justify-center">
         <button

@@ -19,6 +19,8 @@ export type Theme = 'light' | 'dark';
 
 export interface AppContextType {
   products: Product[];
+  /** True while the storefront catalog is loading from Supabase. */
+  productsLoading: boolean;
   cart: CartItem[];
   wishlist: string[];
   compareIds: string[];

@@ -37,6 +37,7 @@ import { CancelRequestButton } from '../components/CancelRequestButton';
 import { canCancelOrder, canCancelTrade } from '../lib/customerCancel';
 import { PAGE_SIZES, usePagination } from '../lib/pagination';
 import { Pagination } from '../components/Pagination';
+import { InvoiceActions } from '../components/invoice/InvoiceActions';
 
 interface ProfileProps {
   user: User | null;
@@ -548,12 +549,8 @@ export const Profile: React.FC<ProfileProps> = ({
 
               <div className="grid gap-6">
                 {ledgerPaging.pageItems.map((row) => {
-                  const receiptTo =
-                    row.kind === 'purchase'
-                      ? `/receipt/${row.id}?print=1`
-                      : row.kind === 'repair'
-                        ? `/receipt/repair/${row.id}?print=1`
-                        : `/receipt/trade/${row.id}?print=1`;
+                  const invoiceKind =
+                    row.kind === 'purchase' ? 'order' : row.kind === 'repair' ? 'repair' : 'trade';
                   const typeLabel =
                     row.kind === 'purchase'
                       ? 'Purchase'
@@ -664,12 +661,19 @@ export const Profile: React.FC<ProfileProps> = ({
                       <div className="text-center sm:text-right space-y-3 w-full sm:w-auto">
                         <p className={`text-xl sm:text-2xl font-black italic tracking-tighter ${amountClass}`}>{amountNode}</p>
                         <div className="flex flex-wrap items-center justify-center sm:justify-end gap-x-4 gap-y-2">
-                          <Link
-                            to={receiptTo as any}
-                            className="text-[9px] font-black uppercase tracking-widest text-[#B38B21] border-b border-[#B38B21]/20 hover:border-[#B38B21] transition-all"
-                          >
-                            Download invoice
-                          </Link>
+                          <InvoiceActions
+                            kind={invoiceKind}
+                            id={row.id}
+                            displayId={
+                              row.kind === 'repair'
+                                ? row.repair?.display_id
+                                : row.trade?.display_id
+                            }
+                            shareText={title}
+                            isLight={isLight}
+                            variant="links"
+                            notify={notify}
+                          />
                           <Link
                             to={trackTo as any}
                             className="text-[9px] font-black uppercase tracking-widest text-[#B38B21]/80 border-b border-[#B38B21]/10 hover:border-[#B38B21]/40 transition-all"
@@ -766,12 +770,14 @@ export const Profile: React.FC<ProfileProps> = ({
                           </p>
                           <p className={`text-[9px] font-bold uppercase tracking-widest ${isLight ? 'text-gray-400' : 'text-white/35'}`}>{formatDate(order.date)}</p>
                           <div className="flex flex-wrap items-center gap-3">
-                            <Link
-                              to={`/receipt/${order.id}` as any}
-                              className="text-[9px] font-black uppercase tracking-widest text-[#B38B21] hover:underline inline-flex items-center gap-1"
-                            >
-                              Invoice <ChevronRight size={12} />
-                            </Link>
+                            <InvoiceActions
+                              kind="order"
+                              id={order.id}
+                              shareText={order.items[0]?.name || 'Order'}
+                              isLight={isLight}
+                              variant="links"
+                              notify={notify}
+                            />
                             <Link
                               to={`/tracking/order/${order.id}` as any}
                               className="text-[9px] font-black uppercase tracking-widest text-[#B38B21]/80 hover:underline inline-flex items-center gap-1"
@@ -851,6 +857,15 @@ export const Profile: React.FC<ProfileProps> = ({
                             Track <ChevronRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
                           </span>
                         </Link>
+                        <InvoiceActions
+                          kind="trade"
+                          id={trade.id}
+                          displayId={(trade as any).display_id}
+                          shareText={trade.device || 'Trade-in'}
+                          isLight={isLight}
+                          variant="links"
+                          notify={notify}
+                        />
                         {tradeNeedsOfferResponse(trade) && (
                           <TradeOfferRespondButtons
                             trade={trade}
@@ -896,25 +911,38 @@ export const Profile: React.FC<ProfileProps> = ({
                       <p className={`text-[10px] font-bold uppercase tracking-widest py-4 text-center ${isLight ? 'text-black/30' : 'text-white/25'}`}>No repairs yet</p>
                     ) : (
                       profileHistoryPreview.repairs.map((repair) => (
-                        <Link
+                        <div
                           key={repair.id}
-                          to={`/tracking/repair/${repair.id}`}
-                          className={`flex flex-col gap-2 rounded-2xl border p-4 transition-colors group ${isLight ? 'bg-white border-gray-100 hover:border-[#B38B21]/40' : 'bg-white/[0.03] border-white/10 hover:border-[#B38B21]/30'}`}
+                          className={`flex flex-col gap-3 rounded-2xl border p-4 ${isLight ? 'bg-white border-gray-100' : 'bg-white/[0.03] border-white/10'}`}
                         >
-                          <div className="flex items-start justify-between gap-2">
-                            <p className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-black/40' : 'text-white/35'}`}>
-                              {(repair as any).display_id ? String((repair as any).display_id) : `Repair #${repair.id.slice(-8).toUpperCase()}`}
-                            </p>
-                            <span className={`shrink-0 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest max-w-[10rem] truncate ${customerStatusBadgeClasses(repair.status, 'repair', isLight)}`} title={formatCustomerStatusShort('repair', repair.status)}>
-                              {formatCustomerStatusShort('repair', repair.status)}
+                          <Link
+                            to={`/tracking/repair/${repair.id}`}
+                            className="flex flex-col gap-2 group"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <p className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-black/40' : 'text-white/35'}`}>
+                                {(repair as any).display_id ? String((repair as any).display_id) : `Repair #${repair.id.slice(-8).toUpperCase()}`}
+                              </p>
+                              <span className={`shrink-0 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest max-w-[10rem] truncate ${customerStatusBadgeClasses(repair.status, 'repair', isLight)}`} title={formatCustomerStatusShort('repair', repair.status)}>
+                                {formatCustomerStatusShort('repair', repair.status)}
+                              </span>
+                            </div>
+                            <p className={`text-xs font-black uppercase tracking-tight truncate ${isLight ? 'text-black' : 'text-white'}`}>{repair.device}</p>
+                            <p className={`text-[9px] font-bold uppercase tracking-widest ${isLight ? 'text-gray-400' : 'text-white/35'}`}>{formatDate(repair.date)}</p>
+                            <span className="text-[9px] font-black uppercase tracking-widest text-[#B38B21] inline-flex items-center gap-1">
+                              Track <ChevronRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
                             </span>
-                          </div>
-                          <p className={`text-xs font-black uppercase tracking-tight truncate ${isLight ? 'text-black' : 'text-white'}`}>{repair.device}</p>
-                          <p className={`text-[9px] font-bold uppercase tracking-widest ${isLight ? 'text-gray-400' : 'text-white/35'}`}>{formatDate(repair.date)}</p>
-                          <span className="text-[9px] font-black uppercase tracking-widest text-[#B38B21] inline-flex items-center gap-1">
-                            Track <ChevronRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
-                          </span>
-                        </Link>
+                          </Link>
+                          <InvoiceActions
+                            kind="repair"
+                            id={repair.id}
+                            displayId={(repair as any).display_id}
+                            shareText={repair.device || 'Repair'}
+                            isLight={isLight}
+                            variant="links"
+                            notify={notify}
+                          />
+                        </div>
                       ))
                     )}
                   </div>
@@ -940,6 +968,10 @@ export const Profile: React.FC<ProfileProps> = ({
             resetSending={resetSending}
             sendPasswordResetEmail={sendPasswordResetEmail}
             openDeleteModal={openDeleteModal}
+            orders={orders}
+            repairs={repairs}
+            trades={trades}
+            notify={notify}
           />
         );
     }

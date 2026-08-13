@@ -7,7 +7,12 @@ import { formatCustomerStatusShort } from '../lib/customerStatusLabels';
 import { maskPhone } from '../lib/phoneMask';
 import { maskImeiSerial } from '../lib/imeiValidation';
 import { InvoiceDocument } from '../components/invoice/InvoiceDocument';
-import { formatInvoiceDate, INVOICE_COPY } from '../lib/invoiceFormat';
+import {
+  formatInvoiceDate,
+  INVOICE_COPY,
+  tradeInvoicePhase,
+} from '../lib/invoiceFormat';
+import { tradeOfferAmount } from '../lib/tradeOffer';
 
 export const TradeReceipt: React.FC = () => {
   const { tradeId } = useParams({ from: '/receipt/trade/$tradeId' });
@@ -54,11 +59,20 @@ export const TradeReceipt: React.FC = () => {
   }, [loading, trade]);
 
   const refLabel = trade?.display_id || (trade ? `#${trade.id.slice(-8).toUpperCase()}` : '—');
+  const phase = trade ? tradeInvoicePhase(trade) : 'estimate';
 
   const model = useMemo(() => {
     if (!trade) return null;
-    const value = Number(trade.finalValue ?? trade.offeredPrice ?? trade.estimatedValue ?? 0);
+    const docPhase = tradeInvoicePhase(trade);
+    const offerAmt = tradeOfferAmount(trade);
+    const estimateAmt = Number(trade.estimatedValue ?? 0) || 0;
+    const value =
+      docPhase === 'final' ? offerAmt ?? estimateAmt : estimateAmt || offerAmt || 0;
+
     const descParts = [
+      docPhase === 'estimate'
+        ? 'Document: ESTIMATE (not final)'
+        : 'Document: FINAL valuation / offer',
       trade.condition ? `Condition: ${trade.condition}` : null,
       trade.targetDevice ? `Target upgrade: ${trade.targetDevice}` : null,
       trade.fulfillmentMethod ? `Fulfillment: ${trade.fulfillmentMethod}` : null,
@@ -77,9 +91,14 @@ export const TradeReceipt: React.FC = () => {
       trade.contactPhone ? maskPhone(trade.contactPhone) : null,
     ].filter(Boolean) as string[];
 
-    const notesBits = [trade.userDescription, trade.adminNote].filter(Boolean).join('\n\n');
+    const defaultNote =
+      docPhase === 'estimate' ? INVOICE_COPY.tradeEstimateNote : INVOICE_COPY.tradeFinalNote;
+    const notesBits = [defaultNote, trade.userDescription, trade.adminNote]
+      .filter(Boolean)
+      .join('\n\n');
 
     return {
+      documentPhase: docPhase,
       billToName: trade.contactName || 'Customer',
       billToLines,
       invoiceDate: formatInvoiceDate(trade.date),
@@ -98,9 +117,20 @@ export const TradeReceipt: React.FC = () => {
         balanceDue: 0,
       },
       tradeInValuation: value > 0
-        ? [{ label: (trade.device || 'Device').toUpperCase(), amount: value }]
+        ? [
+            {
+              label: `${(trade.device || 'Device').toUpperCase()} (${
+                docPhase === 'estimate' ? 'estimate' : 'final'
+              })`,
+              amount: value,
+            },
+          ]
         : [],
-      notes: notesBits || INVOICE_COPY.tradeNote,
+      notes: notesBits,
+      terms:
+        docPhase === 'estimate'
+          ? INVOICE_COPY.phaseEstimateTerms
+          : 'Trade-in credit — final offer',
     };
   }, [trade]);
 
@@ -133,6 +163,7 @@ export const TradeReceipt: React.FC = () => {
   return (
     <InvoiceDocument
       kindLabel={INVOICE_COPY.tradeKind}
+      documentPhase={model.documentPhase}
       invoiceId={trade.id}
       displayId={trade.display_id}
       billToName={model.billToName}
@@ -140,7 +171,7 @@ export const TradeReceipt: React.FC = () => {
       meta={{
         invoiceDate: model.invoiceDate,
         dueDate: model.invoiceDate,
-        terms: 'Trade-in credit',
+        terms: model.terms,
       }}
       items={model.items}
       totals={model.totals}
@@ -148,18 +179,8 @@ export const TradeReceipt: React.FC = () => {
       tradeInValuation={model.tradeInValuation}
       onBack={() => navigate({ to: '/profile' })}
       onPrint={() => window.print()}
-      onShare={async () => {
-        if (!navigator.share) return;
-        try {
-          await navigator.share({
-            title: `BlackBox trade-in invoice ${refLabel}`,
-            text: `${trade.device} — ${formatCustomerStatusShort('trade', trade.status)}`,
-            url: window.location.href,
-          });
-        } catch {
-          /* cancelled */
-        }
-      }}
+      shareTitle={`BlackBox trade-in ${phase === 'estimate' ? 'estimate' : 'invoice'} ${refLabel}`}
+      shareText={`${trade.device} — ${phase === 'estimate' ? 'Estimate' : 'Final'} — ${formatCustomerStatusShort('trade', trade.status)}`}
     />
   );
 };

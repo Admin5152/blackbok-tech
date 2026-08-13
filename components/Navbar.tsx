@@ -226,12 +226,35 @@ export const Navbar: React.FC<{
               },
               {
                 path: '/store',
+                label: 'Apple AirPods',
+                icon: Headphones,
+                search: { category: 'Headphones', subcategory: 'Apple', series: 'all' },
+              },
+              {
+                path: '/store',
                 label: 'Speakers',
                 icon: Headphones,
                 search: { category: 'Speakers', series: 'all' },
               },
               { path: '/store', label: 'Gaming', icon: Gamepad2, search: { category: 'Gaming' } },
-              { path: '/store', label: 'Accessories', icon: Box, search: { category: 'Accessories' } },
+              {
+                path: '/store',
+                label: 'Accessories',
+                icon: Box,
+                search: { category: 'Accessories', series: 'all' },
+              },
+              {
+                path: '/store',
+                label: 'Chargers',
+                icon: Box,
+                search: { category: 'Accessories', subcategory: 'Chargers', series: 'all' },
+              },
+              {
+                path: '/store',
+                label: 'Covers',
+                icon: Box,
+                search: { category: 'Accessories', subcategory: 'Covers', series: 'all' },
+              },
               {
                 path: '/history',
                 label: 'Track Orders',
@@ -570,9 +593,43 @@ export const Navbar: React.FC<{
                     <Link to="/store" search={{ category: 'Headphones', series: 'all' } as any} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
                       <Headphones size={14} className="opacity-40" /> Headphones
                     </Link>
+                    <div className="pl-7 flex flex-col gap-0.5 pb-1">
+                      {[
+                        { label: 'Apple · AirPods', subcategory: 'Apple' },
+                        { label: 'JBL Tune', subcategory: 'JBL' },
+                        { label: 'Beats Solo', subcategory: 'Beats' },
+                        { label: 'Sony', subcategory: 'Sony' },
+                      ].map((b) => (
+                        <Link
+                          key={b.subcategory}
+                          to="/store"
+                          search={{ category: 'Headphones', subcategory: b.subcategory, series: 'all' } as any}
+                          className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all ${isLight ? 'text-black/50 hover:text-black hover:bg-black/5' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
+                        >
+                          {b.label}
+                        </Link>
+                      ))}
+                    </div>
                     <Link to="/store" search={{ category: 'Speakers', series: 'all' } as any} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
                       <Headphones size={14} className="opacity-40" /> Speakers
                     </Link>
+                    <div className="pl-7 flex flex-col gap-0.5 pb-1">
+                      {[
+                        { label: 'JBL', subcategory: 'JBL' },
+                        { label: 'Harman Kardon', subcategory: 'HarmanKardon' },
+                        { label: 'Beats Pill', subcategory: 'Beats' },
+                        { label: 'Apple HomePod', subcategory: 'Apple' },
+                      ].map((b) => (
+                        <Link
+                          key={b.subcategory}
+                          to="/store"
+                          search={{ category: 'Speakers', subcategory: b.subcategory, series: 'all' } as any}
+                          className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all ${isLight ? 'text-black/50 hover:text-black hover:bg-black/5' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
+                        >
+                          {b.label}
+                        </Link>
+                      ))}
+                    </div>
 
                     <p className={`px-4 pt-2.5 pb-1 text-[9px] font-black uppercase tracking-[0.2em] opacity-40 ${isLight ? 'text-black' : 'text-white'}`}>
                       More
@@ -580,9 +637,28 @@ export const Navbar: React.FC<{
                     <Link to="/store" search={{ category: 'Gaming' } as any} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
                       <Gamepad2 size={14} className="opacity-40" /> Gaming
                     </Link>
-                    <Link to="/store" search={{ category: 'Accessories' } as any} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
+                    <Link to="/store" search={{ category: 'Accessories', series: 'all' } as any} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
                       <Box size={14} className="opacity-40" /> Accessories
                     </Link>
+                    <div className="pl-7 flex flex-col gap-0.5 pb-1">
+                      {[
+                        { label: 'Chargers', subcategory: 'Chargers' },
+                        { label: 'Covers', subcategory: 'Covers' },
+                        { label: 'Screen protectors', subcategory: 'ScreenProtectors' },
+                        { label: 'AirTags', subcategory: 'AirTags' },
+                        { label: 'Apple Pencil', subcategory: 'ApplePencil' },
+                        { label: 'Power banks', subcategory: 'PowerBanks' },
+                      ].map((b) => (
+                        <Link
+                          key={b.subcategory}
+                          to="/store"
+                          search={{ category: 'Accessories', subcategory: b.subcategory, series: 'all' } as any}
+                          className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all ${isLight ? 'text-black/50 hover:text-black hover:bg-black/5' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
+                        >
+                          {b.label}
+                        </Link>
+                      ))}
+                    </div>
                     <div className={`my-1 h-px ${isLight ? 'bg-black/5' : 'bg-white/5'}`} />
                     <Link to="/history" search={{ tab: 'orders' } as any} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
                       <History size={14} className="opacity-40 shrink-0" /> Track Orders

@@ -14,6 +14,7 @@ import {
   modelsInCategoryFromPriced,
   peekPricedActiveModels,
 } from '../../lib/tradeCatalogCache';
+import { prefetchTradeBaseValues } from '../../lib/tradeQueryCache';
 import { enrichTradeModelsWithImages } from '../../lib/tradeModelImages';
 import { TRADE_COPY } from '../../lib/tradeCopy';
 import { TRADE_CARD_MODEL, tradeCardSelected } from '../../lib/tradeUi';
@@ -102,6 +103,7 @@ export function TradeModelScreen() {
 
   const pick = (model: string) => {
     dispatch({ type: 'SET_MODEL', model });
+    prefetchTradeBaseValues(model);
     void navigate({ to: '/trade/config' });
   };
 

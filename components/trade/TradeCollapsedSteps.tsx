@@ -216,9 +216,26 @@ export function TradeCollapsedSteps() {
     );
   }
 
-  /* Upgrade + Condition: no Device/Trading Into rows — sidebar + phase pills only */
+  /* ── Upgrade + Condition: Repair-style folded recap (Change links) ── */
   if (step < 7) {
-    return null;
+    return (
+      <div className="mb-2">
+        {deviceSummary && (
+          <CollapsedRow
+            label={TRADE_COPY.collapsed.deviceDetails}
+            value={deviceSummary}
+            onChange={changeDeviceDetails}
+          />
+        )}
+        {target && step >= 6 && (
+          <CollapsedRow
+            label={TRADE_COPY.collapsed.tradingInto}
+            value={targetSummary}
+            onChange={changeTarget}
+          />
+        )}
+      </div>
+    );
   }
 
   /* ── Review+ (summary/details): full recap with Change links ── */

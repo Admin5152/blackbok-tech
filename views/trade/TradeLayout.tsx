@@ -2,7 +2,7 @@
  * Trade v2 layout — hero, sticky estimate sidebar, phase content.
  * Device/Trading Into Change rows only appear on Review+ (see TradeCollapsedSteps).
  */
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
 import { RefreshCcw } from 'lucide-react';
 import { PageBackButton } from '../../components/PageBackButton';
@@ -10,10 +10,12 @@ import { FlowBreadcrumb } from '../../components/FlowBreadcrumb';
 import { TradeCollapsedSteps } from '../../components/trade/TradeCollapsedSteps';
 import { TradeSummarySidebar } from '../../components/trade/TradeSummarySidebar';
 import { TradeFlowProvider } from '../../components/trade/TradeFlowProvider';
+import { TradeSignInBanner } from '../../components/trade/TradeSignInBanner';
 import { TRADE_COPY } from '../../lib/tradeCopy';
 import { useAppContext } from '../../lib/appContext';
 import { isTradeV2Enabled } from '../../lib/tradeFeatureFlags';
 import { prefetchTradeCatalog } from '../../lib/tradeCatalogCache';
+import { scrollTradeFocusIntoView } from '../../lib/scrollTradeFocus';
 
 const STEP_PATHS = [
   { id: 1, path: '/trade/type', label: 'Device' },
@@ -39,10 +41,20 @@ function TradeLayoutInner() {
   const showFullHero = currentStep <= 1 && !isConfirmation;
   /** Sidebar like Repair — once past device type */
   const showSidebar = currentStep >= 2 && !isConfirmation;
+  const stepContentRef = useRef<HTMLDivElement>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     prefetchTradeCatalog();
   }, []);
+
+  // Keep the active trade step in view when moving between screens (esp. mobile).
+  useEffect(() => {
+    if (isConfirmation) return;
+    const t = window.setTimeout(() => {
+      scrollTradeFocusIntoView(stepContentRef.current, { offset: 88 });
+    }, 60);
+    return () => window.clearTimeout(t);
+  }, [pathname, isConfirmation]);
 
   const backFallback =
     currentStep <= 1
@@ -120,7 +132,8 @@ function TradeLayoutInner() {
         </header>
 
         <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-start">
-          <div className="flex-1 w-full min-w-0 space-y-2">
+          <div className="flex-1 w-full min-w-0 space-y-2" ref={stepContentRef}>
+            {!isConfirmation && <TradeSignInBanner className="mb-3" />}
             {!isConfirmation && <TradeCollapsedSteps />}
             <Outlet />
           </div>

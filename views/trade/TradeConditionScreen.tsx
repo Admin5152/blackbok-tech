@@ -38,6 +38,7 @@ import {
   tradeBalanceAccentClass,
 } from '../../lib/tradeBalanceDisplay';
 import { track, TRADE_ANALYTICS } from '../../lib/analytics';
+import { scrollTradeFocusIntoView } from '../../lib/scrollTradeFocus';
 import type {
   TradeEstimateSnapshot,
   TradeQuizAnswer,
@@ -117,6 +118,7 @@ export function TradeConditionScreen() {
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const estimateGen = useRef(0);
+  const questionCardRef = useRef<HTMLDivElement>(null);
 
   const lock = state.deviceLock;
 
@@ -159,6 +161,15 @@ export function TradeConditionScreen() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- resume index once on load
   }, [lock?.model, state.deviceType]);
+
+  // Keep the current question card in view as the customer answers (mobile).
+  useEffect(() => {
+    if (loading || !questions.length) return;
+    const t = window.setTimeout(() => {
+      scrollTradeFocusIntoView(questionCardRef.current, { offset: 100 });
+    }, 50);
+    return () => window.clearTimeout(t);
+  }, [qIndex, pendingDesc, loading, questions.length]);
 
   const answeredPayload = useMemo(
     () =>
@@ -606,7 +617,10 @@ export function TradeConditionScreen() {
       </div>
 
       {/* Condition shell — questions live here (tile answers, not free-text) */}
-      <div className="space-y-5 p-5 sm:p-6 rounded-3xl border border-[var(--bb-border)] bg-[var(--bb-surface-2)]">
+      <div
+        ref={questionCardRef}
+        className="space-y-5 p-5 sm:p-6 rounded-3xl border border-[var(--bb-border)] bg-[var(--bb-surface-2)]"
+      >
         <LiveTicker
           estimate={state.lastEstimate}
           loading={estimateLoading}

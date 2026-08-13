@@ -63,7 +63,7 @@ export function TradePhasePills({
   return (
     <nav
       aria-label={TRADE_COPY.phases.navLabel}
-      className="flex flex-wrap items-center gap-2 sm:gap-3"
+      className="hidden sm:flex flex-wrap items-center gap-2 sm:gap-3"
     >
       {PHASES.map(({ id, label, path, order }, i) => {
         const isActive = id === active;

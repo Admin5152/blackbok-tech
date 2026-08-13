@@ -31,6 +31,8 @@ import { canCancelTrade } from '../../lib/customerCancel';
 import { ListSkeleton } from '../../components/Skeleton';
 import { PAGE_SIZES, usePagination } from '../../lib/pagination';
 import { Pagination } from '../../components/Pagination';
+import { InvoiceActions } from '../../components/invoice/InvoiceActions';
+import { INVOICE_COPY } from '../../lib/invoiceFormat';
 
 function isExpired(t: TradeRequest): boolean {
   if (!t.expires_at) return false;
@@ -268,6 +270,25 @@ export function MyTradeInsPage() {
                       }}
                     />
                   )}
+                </div>
+
+                <div className="mt-3">
+                  <p
+                    className={`text-[9px] font-black uppercase tracking-widest mb-2 ${
+                      isLight ? 'text-black/40' : 'text-white/35'
+                    }`}
+                  >
+                    {INVOICE_COPY.view}
+                  </p>
+                  <InvoiceActions
+                    kind="trade"
+                    id={t.id}
+                    displayId={t.display_id}
+                    shareText={t.device || t.device_name || 'Trade-in'}
+                    isLight={isLight}
+                    notify={notify}
+                    showView
+                  />
                 </div>
 
                 {showRespond && (

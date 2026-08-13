@@ -28,6 +28,13 @@ export const TRADE_COPY = {
     summaryYouAdd: 'You add',
     summaryYouReceive: 'You receive',
     summaryEven: 'No top-up needed',
+    /** Guest banner — sign in link; returnTo restores the current trade step */
+    signInBannerTitle: 'Sign in to continue',
+    signInBannerBody: 'You’re not signed in.',
+    signInBannerCta: 'Sign in',
+    /** After the inline Sign in link */
+    signInBannerLinkSuffix:
+      ' to save your trade-in — we’ll bring you right back to this step.',
     selectModelHint: 'Select a model →',
     selected: 'Selected',
   },
@@ -279,6 +286,8 @@ export const TRADE_COPY = {
     manualReview:
       'Needs a staff check. We’ll contact you with a final offer.',
     continueToDetails: 'Continue',
+    saveEstimate: 'Print / save estimate',
+    saveEstimateHint: 'Save a copy for yourself — final invoice appears after you submit.',
   },
 
   /** Screen 8 — contact + IMEI */
@@ -316,6 +325,10 @@ export const TRADE_COPY = {
       'This is an estimate only. After you submit, drop off your phone for inspection. We’ll send a final offer — if you accept, you pay the top-up and collect your upgrade.',
     estimateDisclaimerTitle: 'Estimate only',
     signInToContinue: 'Sign in to continue — we\'ll bring you right back here.',
+    signInLinkPrompt: 'Already have an account?',
+    signInLinkCta: 'Sign in',
+    signInLinkRest: '— we’ll keep your trade-in progress and return you here.',
+    submitGuest: 'Sign in to submit',
   },
 
   /** Screen 9 — confirmation */
@@ -336,6 +349,8 @@ export const TRADE_COPY = {
     startAnother: 'Start another trade-in',
     expiresPrefix: 'Estimate expires',
     storeCardHeading: 'Visit BlackBox',
+    invoiceHeading: 'Save your invoice',
+    invoiceHint: 'Print / PDF for a physical copy, or Share to keep the link on your phone.',
   },
 
   /** My trade-ins / status */
