@@ -15,6 +15,7 @@ import { supabase, getSupabaseClient, isSupabaseConfigured } from './lib/supabas
 import { WhatsAppIcon } from './components/Icons';
 import { Product, User, CartItem, Category, RepairRequest, Order, TradeRequest, ProductVariant } from './types';
 import { getProducts, getProduct, getOrders, getTradeRequests, getRepairRequests, syncWishlistWithServer, syncCartWithServer, replaceUserCart, addToWishlist, removeFromWishlistByProduct, clearWishlistItems } from './lib/api';
+import { dbNotSavedMessage, dbSavedMessage } from './lib/dbSaveFeedback';
 import { friendlyError } from './lib/friendlyErrors';
 import { fetchTradePricing } from './lib/tradePricingStore';
 import { handleSignOut } from './lib/signOut';
@@ -1609,12 +1610,19 @@ function RootComponent() {
   }, [user, cart, orders, repairs, trades, wishlist, compareIds, theme]);
 
   // Persist signed-in cart to Supabase (debounced) so baskets survive devices/sessions.
+  const cartSyncFailAtRef = useRef(0);
   useEffect(() => {
     if (!user?.id || !isSupabaseConfigured() || !cartServerReadyRef.current) return;
     const uid = user.id;
     const handle = window.setTimeout(() => {
       void replaceUserCart(uid, cartRef.current).catch((e) => {
         console.warn('Cart sync failed:', e);
+        const now = Date.now();
+        // Avoid toast spam while typing qty / rapid cart edits.
+        if (now - cartSyncFailAtRef.current > 8000) {
+          cartSyncFailAtRef.current = now;
+          notify(dbNotSavedMessage(e, 'sync your cart'), 'error');
+        }
       });
     }, 450);
     return () => window.clearTimeout(handle);
@@ -1903,7 +1911,7 @@ function RootComponent() {
 
     setWishlist(next);
     wishlistRef.current = next;
-    notify(exists ? 'Removed from wishlist' : 'Saved to wishlist');
+    notify(exists ? 'Removed from wishlist' : dbSavedMessage('Saved to wishlist'));
 
     // Guests stay on localStorage only; signed-in users persist to wishlist_items.
     if (!user?.id || !isSupabaseConfigured()) return;
@@ -1918,7 +1926,7 @@ function RootComponent() {
       } catch (e) {
         setWishlist(prev);
         wishlistRef.current = prev;
-        notify(friendlyError(e, exists ? 'remove from wishlist' : 'add to wishlist'), 'error');
+        notify(dbNotSavedMessage(e, exists ? 'remove from wishlist' : 'add to wishlist'), 'error');
       }
     })();
   };
@@ -1931,7 +1939,7 @@ function RootComponent() {
     void clearWishlistItems(user.id).catch((e) => {
       setWishlist(prev);
       wishlistRef.current = prev;
-      notify(friendlyError(e, 'clear wishlist'), 'error');
+      notify(dbNotSavedMessage(e, 'clear wishlist'), 'error');
     });
   };
 

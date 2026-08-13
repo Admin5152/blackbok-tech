@@ -9,10 +9,10 @@ import { formatGhs } from '../../lib/money';
 import {
   getAdminBaseValues,
   getAdminDeductions,
-  tradeAdminErrorMessage,
   updateBaseValue,
   updateDeduction,
 } from '../../lib/tradeAdminApi';
+import { dbNotSavedMessage, dbSavedMessage } from '../../lib/dbSaveFeedback';
 import { getModelsForType } from '../../lib/tradePricingStore';
 import type { TradeBaseValueRow, TradeFaultDeductionRow } from '../../types/supabase';
 import { useAppContext } from '../../lib/appContext';
@@ -43,7 +43,7 @@ export const AdminTradePricingModal: React.FC<Props> = ({ open, onClose }) => {
       setBases(b);
       setDeducs(d);
     } catch (e) {
-      notify?.(tradeAdminErrorMessage(e), 'error');
+      notify?.(dbNotSavedMessage(e, 'load trade pricing'), 'error');
     } finally {
       setLoading(false);
     }
@@ -162,10 +162,10 @@ export const AdminTradePricingModal: React.FC<Props> = ({ open, onClose }) => {
                                         setBases((prev) =>
                                           prev.map((x) => (x.id === b.id ? row : x)),
                                         );
-                                        notify?.('Saved.', 'success');
+                                        notify?.(dbSavedMessage('Trade pricing'), 'success');
                                       })
                                       .catch((err) =>
-                                        notify?.(tradeAdminErrorMessage(err), 'error'),
+                                        notify?.(dbNotSavedMessage(err, 'save trade pricing'), 'error'),
                                       )
                                       .finally(() => setSavingId(null));
                                   }}
@@ -202,10 +202,10 @@ export const AdminTradePricingModal: React.FC<Props> = ({ open, onClose }) => {
                                         setDeducs((prev) =>
                                           prev.map((x) => (x.id === d.id ? row : x)),
                                         );
-                                        notify?.('Saved.', 'success');
+                                        notify?.(dbSavedMessage('Trade pricing'), 'success');
                                       })
                                       .catch((err) =>
-                                        notify?.(tradeAdminErrorMessage(err), 'error'),
+                                        notify?.(dbNotSavedMessage(err, 'save trade pricing'), 'error'),
                                       )
                                       .finally(() => setSavingId(null));
                                   }}

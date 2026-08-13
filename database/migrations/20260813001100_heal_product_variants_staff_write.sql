@@ -2,29 +2,22 @@
 -- Ensure staff can WRITE product_variants (stock / price / SKUs)
 -- Migration: 20260813001100_heal_product_variants_staff_write.sql
 --
--- 2026_07_trade_public_read_fix.sql added SELECT-only policies for
--- product_variants. The manage (FOR ALL) policy from
--- 2026_05_product_variants_admin_rls.sql must remain for admin stock edits.
--- Idempotent recreate.
+-- Deadlock-safe: only touches the manage policy (does not drop/recreate SELECT
+-- policies under live traffic). Takes parent+child locks in a fixed order and
+-- uses a short lock_timeout so a busy DB fails fast instead of deadlocking.
+--
+-- If this still errors with lock_timeout / deadlock: pause admin stock edits +
+-- checkout for ~10s and re-run once.
 -- =============================================================================
 
-BEGIN;
+SET lock_timeout = '8s';
+SET statement_timeout = '60s';
+
+-- Fixed lock order (products → product_variants) avoids cross-lock with
+-- storefront / place_order / sync_product_stock_from_variants traffic.
+LOCK TABLE public.products, public.product_variants IN ACCESS EXCLUSIVE MODE;
 
 ALTER TABLE public.product_variants ENABLE ROW LEVEL SECURITY;
-
--- Public / storefront can read active SKUs
-DROP POLICY IF EXISTS "Anyone can view product variants" ON public.product_variants;
-DROP POLICY IF EXISTS product_variants_public_read ON public.product_variants;
-CREATE POLICY product_variants_public_read ON public.product_variants
-  FOR SELECT
-  TO anon, authenticated
-  USING (is_active = TRUE OR public.fn_is_staff());
-
--- Staff can read every row (incl. inactive)
-DROP POLICY IF EXISTS product_variants_staff_read_all ON public.product_variants;
-CREATE POLICY product_variants_staff_read_all ON public.product_variants
-  FOR SELECT TO authenticated
-  USING (public.fn_is_staff());
 
 -- Staff / admin INSERT UPDATE DELETE (stock qty, prices, etc.)
 DROP POLICY IF EXISTS "Staff and admins manage product variants" ON public.product_variants;
@@ -43,4 +36,5 @@ CREATE POLICY "Staff and admins manage product variants"
     OR public.fn_is_staff()
   );
 
-COMMIT;
+RESET lock_timeout;
+RESET statement_timeout;

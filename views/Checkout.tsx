@@ -17,7 +17,7 @@ import { useAppContext } from '../App';
 import { CartItem, Order } from '../types';
 import { formatCurrency } from '../lib/utils';
 import { clearCartItems, updateProfilePhone } from '../lib/api';
-import { friendlyError } from '../lib/friendlyErrors';
+import { dbNotSavedMessage, dbSavedMessage } from '../lib/dbSaveFeedback';
 import { OrderCompletePopup } from '../components/OrderCompletePopup';
 import {
   PromoCodeInput,
@@ -419,10 +419,10 @@ export const Checkout: React.FC = () => {
             ? 'You chose store pickup — we will email you when it is ready.'
             : undefined,
       });
-      notify('Order placed successfully!', 'success');
+      notify(dbSavedMessage('Order placed successfully'), 'success');
     } catch (error: unknown) {
       console.error('Error placing order:', error);
-      notify(friendlyError(error, 'place your order'), 'error');
+      notify(dbNotSavedMessage(error, 'place your order'), 'error');
     } finally {
       setSubmitting(false);
     }

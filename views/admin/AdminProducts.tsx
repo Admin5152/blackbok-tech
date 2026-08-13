@@ -12,6 +12,7 @@ import {
     syncProductVariants, clearProductVariants, addProductImage,
     appendAuditNote, friendlyProductActionError, type SkuVariantInput,
 } from '../../lib/api';
+import { dbNotSavedMessage, dbSavedMessage } from '../../lib/dbSaveFeedback';
 import { ConfirmDeleteDialog } from '../../components/ConfirmDeleteDialog';
 import {
     parseSkuVariants,
@@ -306,10 +307,10 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
             if (result.mode === 'archived') {
                 notify?.(result.reason, 'warning');
             } else {
-                notify?.(`Deleted “${pendingDelete.name}”.`, 'success');
+                notify?.(dbSavedMessage(`Deleted “${pendingDelete.name}”.`), 'success');
             }
         } catch (e) {
-            notify?.(friendlyProductActionError(e, 'delete'), 'error');
+            notify?.(dbNotSavedMessage(e, 'delete'), 'error');
         } finally {
             setDeleting(false);
         }
@@ -322,9 +323,10 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
         try {
             await updateProduct(p.id, { status: next });
             window.dispatchEvent(new CustomEvent('products:refresh'));
+            notify?.(dbSavedMessage(`Status → ${next}`), 'success');
         } catch (e) {
             setProducts((list) => list.map((x) => (x.id === p.id ? { ...x, status: prev } : x)));
-            notify?.(friendlyProductActionError(e, 'update'), 'error');
+            notify?.(dbNotSavedMessage(e, 'update'), 'error');
         }
     };
 
@@ -338,11 +340,12 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
         try {
             await updateProduct(id, { featured: nextFeatured });
             window.dispatchEvent(new CustomEvent('products:refresh'));
+            notify?.(dbSavedMessage(nextFeatured ? 'Marked featured' : 'Unfeatured'), 'success');
         } catch (e) {
             setProducts((list) =>
                 list.map((x) => (x.id === id ? { ...x, featured: !nextFeatured } : x)),
             );
-            notify?.(friendlyProductActionError(e, 'update'), 'error');
+            notify?.(dbNotSavedMessage(e, 'update'), 'error');
         }
     };
 
@@ -625,15 +628,18 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
             await load({ silent: true });
             window.dispatchEvent(new CustomEvent('products:refresh'));
             notify?.(
-              formatProductClassification({
-                name: String(productPayload.name || 'Product'),
-                category: taxonomy.category,
-                taxonomyLabel: taxonomy.taxonomyLabel,
-              }),
+              dbSavedMessage(
+                formatProductClassification({
+                  name: String(productPayload.name || 'Product'),
+                  category: taxonomy.category,
+                  taxonomyLabel: taxonomy.taxonomyLabel,
+                }),
+              ),
               'success',
             );
         } catch (e) {
             const msg = friendlyProductActionError(e, 'save');
+            const notSaved = dbNotSavedMessage(e, 'save');
             const dupMsg =
               /Duplicate combination|Duplicate item code|Duplicate SKU|duplicate/i.test(msg) ||
               /Duplicate combination|Duplicate item code|Duplicate SKU|duplicate/i.test(
@@ -644,14 +650,8 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                 setSkuHighlightIndices(indices.length ? indices : skuRows.map((_, i) => i).slice(0, 2));
                 setSkuFocusNonce((n) => n + 1);
             }
-            if (/stock versions|product setup|Duplicate/i.test(msg)) {
-                setError(msg);
-            } else if (/Duplicate combination|Duplicate SKU|Duplicate item code|duplicate/i.test(String((e as Error)?.message || ''))) {
-                setError(String((e as Error).message));
-            } else {
-                setError(msg);
-            }
-            notify?.(msg, 'error');
+            setError(notSaved);
+            notify?.(notSaved, 'error');
         } finally {
             setSaving(false);
         }

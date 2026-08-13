@@ -2,11 +2,12 @@
 -- Persist signed-in carts in Supabase (mirror wishlist_items)
 -- Migration: 20260813001200_cart_items_persist.sql
 --
--- Checkout still sends the cart JSON to place_order; this table keeps the
--- user's basket across devices/sessions. Guests stay on localStorage only.
+-- Deadlock-safe: short lock_timeout; CREATE TABLE IF NOT EXISTS is concurrent-
+-- friendly; policies applied only on cart_items.
 -- =============================================================================
 
-BEGIN;
+SET lock_timeout = '8s';
+SET statement_timeout = '60s';
 
 CREATE TABLE IF NOT EXISTS public.cart_items (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -48,4 +49,5 @@ CREATE POLICY cart_items_delete_own
   ON public.cart_items FOR DELETE TO authenticated
   USING (user_id = auth.uid());
 
-COMMIT;
+RESET lock_timeout;
+RESET statement_timeout;

@@ -8,8 +8,11 @@ import { supabase } from '../../lib/supabase';
 import { formatGhsPlain } from '../../lib/money';
 import { formatConsoleCondition } from '../../lib/consoleApi';
 import { ListSkeleton } from '../../components/Skeleton';
+import { DbSaveBanner } from '../../components/DbSaveBanner';
 import { PAGE_SIZES, usePagination } from '../../lib/pagination';
 import { Pagination } from '../../components/Pagination';
+import { dbNotSavedMessage, dbSavedShort } from '../../lib/dbSaveFeedback';
+import { useAppContext } from '../../lib/appContext';
 
 const LOW_STOCK_HINT = 3;
 const ALLOWED_EDITIONS = new Set(['', 'Digital', 'Standard', 'Disc']);
@@ -50,6 +53,7 @@ type SortKey = 'sku' | 'brand' | 'series' | 'price' | 'stock';
 
 export const AdminConsoles: React.FC<Props> = ({ canEdit = true, theme = 'dark' }) => {
   const isLight = theme === 'light';
+  const { notify } = useAppContext();
   const [rows, setRows] = useState<VariantRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -224,10 +228,13 @@ export const AdminConsoles: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
           );
         }
       }
-      setMessage(`Saved ${updates.length} price group(s).`);
+      setMessage(dbSavedShort(updates.length, 'price group'));
+      notify?.(dbSavedShort(updates.length, 'price group'), 'success');
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Save failed');
+      const msg = dbNotSavedMessage(e, 'save prices');
+      setError(msg);
+      notify?.(msg, 'error');
     } finally {
       setSaving(false);
     }
@@ -256,10 +263,13 @@ export const AdminConsoles: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
         }
         n += 1;
       }
-      setMessage(`Updated stock on ${n} colour row(s).`);
+      setMessage(dbSavedShort(n, 'stock row'));
+      notify?.(dbSavedShort(n, 'stock row'), 'success');
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Stock save failed');
+      const msg = dbNotSavedMessage(e, 'save stock');
+      setError(msg);
+      notify?.(msg, 'error');
     } finally {
       setSaving(false);
     }
@@ -491,10 +501,13 @@ export const AdminConsoles: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
         }
         updated += 1;
       }
-      setMessage(`Imported updates for ${updated} SKU(s).`);
+      setMessage(dbSavedShort(updated, 'SKU'));
+      notify?.(dbSavedShort(updated, 'SKU'), 'success');
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'CSV import failed');
+      const msg = dbNotSavedMessage(e, 'import CSV');
+      setError(msg);
+      notify?.(msg, 'error');
     } finally {
       setSaving(false);
     }
@@ -597,8 +610,7 @@ export const AdminConsoles: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
         )}
       </div>
 
-      {message && <p className="text-sm text-[#CDA032]">{message}</p>}
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {message || error ? <DbSaveBanner ok={error ? null : message} error={error} isLight={isLight} /> : null}
       {loading && <ListSkeleton isLight={isLight} count={6} />}
 
       {!loading && (

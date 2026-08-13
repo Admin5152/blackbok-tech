@@ -16,6 +16,7 @@ import {
 } from '../lib/tradeUpgradePicks';
 import { DEFAULT_TRADE_DEVICES, mergeTradeDevicesFromStorageArray } from '../data/tradeInDevices';
 import { createTradeRequest, updateTradeRequest } from '../lib/api';
+import { dbNotSavedMessage, dbSavedMessage } from '../lib/dbSaveFeedback';
 import { customerStatusBadgeClasses, customerTradeStatusShort } from '../lib/customerStatusLabels';
 import { TRADE_BOOKING_TIME_SLOTS, getTradeBookingTimeSlot } from '../data/repairBooking';
 import { saveResumeAfterAuth, peekRestorePayload, clearRestorePayload } from '../lib/resumeAfterAuth';
@@ -38,7 +39,6 @@ import {
   tradeNeedsOfferResponse,
 } from '../lib/tradeOfferRespond';
 import { TRADE_COPY } from '../lib/tradeCopy';
-import { tradeFriendlyError } from '../lib/tradeErrors';
 import { friendlyError } from '../lib/friendlyErrors';
 import { TRADE_COMPONENT_DEFS } from '../lib/tradeValuation';
 import { isTradeComponentKey, type TradeComponentKey } from '../lib/tradeComponentKeys';
@@ -714,10 +714,10 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
       } as TradeRequest;
       setLastSubmittedTrade(newTrade);
       setTrades([newTrade, ...appTrades]);
-      notify("Trade-in request submitted! A final estimation will be carried out by the Black Box team and you will be notified soon.", 'success');
+      notify(dbSavedMessage('Trade-in request submitted. Our team will confirm the final estimate soon.'), 'success');
       go(5);
     } catch (err: unknown) {
-      notify(tradeFriendlyError(err), 'error');
+      notify(dbNotSavedMessage(err, 'submit this trade-in'), 'error');
     } finally {
       setSubmitting(false);
     }

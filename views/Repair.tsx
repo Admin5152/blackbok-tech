@@ -43,6 +43,7 @@ import {
   getRepairUrgencyLevel,
 } from '../data/repairBooking';
 import { createRepairRequest, updateRepairRequest, REPAIR_REQUEST_CONSTRAINT_MESSAGE } from '../lib/api';
+import { dbNotSavedMessage, dbSavedMessage } from '../lib/dbSaveFeedback';
 import { requestLifecycleEmail } from '../lib/clientNotifyEmail';
 import { saveResumeAfterAuth, peekRestorePayload, clearRestorePayload } from '../lib/resumeAfterAuth';
 import { saveReturnTo } from '../lib/returnTo';
@@ -363,7 +364,10 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
       };
       setRepairs([newRepair, ...repairs]);
       const refLabel = created.display_id ? ` (${created.display_id})` : '';
-      notify(`Repair request submitted${refLabel}! We’ll review and confirm your booking.`, 'success');
+      notify(
+        dbSavedMessage(`Repair request submitted${refLabel}. We’ll review and confirm your booking.`),
+        'success',
+      );
       void requestLifecycleEmail('repair_submitted', {
         displayId: created.display_id || created.id,
         referenceId: created.id,
@@ -372,8 +376,8 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
     } catch (err: unknown) {
       const message =
         err instanceof Error && err.message === REPAIR_REQUEST_CONSTRAINT_MESSAGE
-          ? err.message
-          : `Submission failed: ${err instanceof Error ? err.message : 'Please try again'}`;
+          ? dbNotSavedMessage(err, 'submit this repair')
+          : dbNotSavedMessage(err, 'submit this repair');
       notify(message, 'error');
     } finally {
       setSubmitting(false);
