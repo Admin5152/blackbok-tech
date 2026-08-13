@@ -172,9 +172,10 @@ export async function loadUpgradeProductIds(): Promise<{
         return { ids: null, source: 'empty' };
       }
     }
-    const local = readStoredUpgradeProductIds();
-    return { ids: local, source: local ? 'local' : 'empty' };
+    // Prefer empty over a stale local mirror — durable list is trade_config in Supabase.
+    return { ids: null, source: 'empty' };
   } catch {
+    // Offline / RLS failure only: last-known local cache.
     const local = readStoredUpgradeProductIds();
     return { ids: local, source: local ? 'local' : 'empty' };
   }

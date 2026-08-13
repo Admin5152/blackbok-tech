@@ -628,12 +628,13 @@ products (+ variants)  →  v_product_page  →  catalogApi.getProducts()  →  
 | Domain | Saved in DB? | Notes |
 |--------|--------------|-------|
 | Products / SKU stock | Yes | Verified writes + `sync_product_stock_from_variants` |
-| Orders | Yes | `place_order` RPC → order_items + stock triggers |
-| Wishlist | Yes | `wishlist_items` on login merge |
-| Cart (signed-in) | Yes | `cart_items` merge on login + debounced replace |
-| Cart (guest) | localStorage only | Until sign-in |
+| Orders | Yes | `place_order` RPC → order_items + stock triggers (not localStorage) |
+| Wishlist (signed-in) | Yes | `wishlist_items` — no local mirror while logged in |
+| Cart (signed-in) | Yes | `cart_items` — no local mirror while logged in |
+| Cart / wishlist (guest) | localStorage only | Until sign-in, then merged into Supabase |
 | Repair / trade requests | Yes | create/update with `.select().single()` asserts |
 | Trade catalog admin | Yes | staff manage RLS heal + threshold/reorder asserts |
+| Theme / compare | localStorage | UI prefs only |
 
 After apply: spot-check
 

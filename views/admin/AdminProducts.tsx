@@ -235,7 +235,11 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
         try {
             const remote = await getProductsAdmin();
             setProducts(remote);
-            localStorage.setItem(PROD_KEY, JSON.stringify(remote));
+            try {
+              localStorage.removeItem(PROD_KEY);
+            } catch {
+              /* ignore */
+            }
         } catch (e) {
             console.error('Failed to load products from Supabase:', e);
             setProducts([]);

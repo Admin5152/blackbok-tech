@@ -122,15 +122,31 @@ import {
 import { SESSION_EXPIRED_REASON } from './lib/sessionIdleConfig';
 
 const STORAGE_KEYS = {
+  /** @deprecated Products come from Supabase — key only cleared on boot. */
   PRODUCTS: 'bb_v4_products',
   USER: 'bb_v4_user',
+  /** Guest-only cart mirror. Signed-in carts live in public.cart_items. */
   CART: 'bb_v4_cart',
+  /** @deprecated Orders come from Supabase — key only cleared on boot. */
   ORDERS: 'bb_v4_orders',
+  /** @deprecated Repairs come from Supabase — key only cleared on boot. */
   REPAIRS: 'bb_v4_repairs',
+  /** @deprecated Trades come from Supabase — key only cleared on boot. */
+  TRADES: 'bb_v4_trades',
+  /** Guest-only wishlist mirror. Signed-in wishlists live in public.wishlist_items. */
   WISHLIST: 'bb_v4_wishlist',
   COMPARE: 'bb_v4_compare',
   THEME: 'bb_v4_theme',
 };
+
+/** Server-owned keys that must never be treated as source of truth. */
+const LEGACY_SERVER_CACHE_KEYS = [
+  STORAGE_KEYS.PRODUCTS,
+  STORAGE_KEYS.ORDERS,
+  STORAGE_KEYS.REPAIRS,
+  STORAGE_KEYS.TRADES,
+  'bb_v4_trades',
+] as const;
 
 import { AppContext, useAppContext, type AppContextType, type Theme } from './lib/appContext';
 
@@ -1430,11 +1446,17 @@ function RootComponent() {
     };
 
     try {
+      // Drop stale local copies of server data so the UI never trusts them.
+      for (const key of LEGACY_SERVER_CACHE_KEYS) {
+        try {
+          localStorage.removeItem(key);
+        } catch {
+          /* ignore */
+        }
+      }
+
       const localUser = localStorage.getItem(STORAGE_KEYS.USER);
       const localCart = localStorage.getItem(STORAGE_KEYS.CART);
-      const localOrders = localStorage.getItem(STORAGE_KEYS.ORDERS);
-      const localRepairs = localStorage.getItem(STORAGE_KEYS.REPAIRS);
-      const localTrades = localStorage.getItem('bb_v4_trades');
       const localWishlist = localStorage.getItem(STORAGE_KEYS.WISHLIST);
       const localCompare = localStorage.getItem(STORAGE_KEYS.COMPARE);
       const localTheme = localStorage.getItem(STORAGE_KEYS.THEME);
@@ -1513,12 +1535,29 @@ function RootComponent() {
         markAuthReady();
       }
 
-      if (localCart) setCart(JSON.parse(localCart));
-      if (localOrders) setOrders(JSON.parse(localOrders));
-      if (localRepairs) setRepairs(JSON.parse(localRepairs));
-      if (localTrades) setTrades(JSON.parse(localTrades));
-      if (localWishlist) setWishlist(JSON.parse(localWishlist));
-      if (localCompare) setCompareIds(JSON.parse(localCompare));
+      // Guest mirrors only — signed-in cart/wishlist are replaced from Supabase
+      // after auth hydrate (syncCartWithServer / syncWishlistWithServer).
+      if (localCart) {
+        try {
+          setCart(JSON.parse(localCart));
+        } catch {
+          localStorage.removeItem(STORAGE_KEYS.CART);
+        }
+      }
+      if (localWishlist) {
+        try {
+          setWishlist(JSON.parse(localWishlist));
+        } catch {
+          localStorage.removeItem(STORAGE_KEYS.WISHLIST);
+        }
+      }
+      if (localCompare) {
+        try {
+          setCompareIds(JSON.parse(localCompare));
+        } catch {
+          localStorage.removeItem(STORAGE_KEYS.COMPARE);
+        }
+      }
       if (localTheme === 'light' || localTheme === 'dark') setTheme(localTheme);
     } catch (e) {
       console.error('Error loading from localStorage:', e);
@@ -1597,16 +1636,31 @@ function RootComponent() {
     };
   }, [navigate, location.pathname]);
 
+  // Persist UI prefs + guest mirrors only. Orders / repairs / trades / products
+  // always come from Supabase (never written back to localStorage).
   useEffect(() => {
     if (user) localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
     else localStorage.removeItem(STORAGE_KEYS.USER);
-    localStorage.setItem(STORAGE_KEYS.CART, JSON.stringify(cart));
-    localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
-    localStorage.setItem(STORAGE_KEYS.REPAIRS, JSON.stringify(repairs));
-    localStorage.setItem('bb_v4_trades', JSON.stringify(trades));
-    localStorage.setItem(STORAGE_KEYS.WISHLIST, JSON.stringify(wishlist));
+
     localStorage.setItem(STORAGE_KEYS.COMPARE, JSON.stringify(compareIds));
     localStorage.setItem(STORAGE_KEYS.THEME, theme);
+
+    if (user?.id && isSupabaseConfigured()) {
+      // Signed-in: DB is source of truth — do not keep stale cart/wishlist mirrors.
+      localStorage.removeItem(STORAGE_KEYS.CART);
+      localStorage.removeItem(STORAGE_KEYS.WISHLIST);
+    } else {
+      localStorage.setItem(STORAGE_KEYS.CART, JSON.stringify(cart));
+      localStorage.setItem(STORAGE_KEYS.WISHLIST, JSON.stringify(wishlist));
+    }
+
+    for (const key of LEGACY_SERVER_CACHE_KEYS) {
+      try {
+        localStorage.removeItem(key);
+      } catch {
+        /* ignore */
+      }
+    }
   }, [user, cart, orders, repairs, trades, wishlist, compareIds, theme]);
 
   // Persist signed-in cart to Supabase (debounced) so baskets survive devices/sessions.
@@ -1636,8 +1690,8 @@ function RootComponent() {
     wishlistRef.current = wishlist;
   }, [wishlist]);
 
-  // On sign-out, drop the account wishlist from UI + localStorage so the next
-  // visitor does not see the previous user's saved items. Guest cart stays local.
+  // On sign-out, drop account wishlist + cart from UI so the next visitor does
+  // not see the previous user's server data. Guests start empty.
   const prevUserIdRef = useRef<string | null>(null);
   useEffect(() => {
     const prev = prevUserIdRef.current;
@@ -1646,8 +1700,15 @@ function RootComponent() {
       cartServerReadyRef.current = false;
       setWishlist([]);
       wishlistRef.current = [];
+      setCart([]);
+      cartRef.current = [];
+      setOrders([]);
+      setRepairs([]);
+      setTrades([]);
       try {
         localStorage.removeItem(STORAGE_KEYS.WISHLIST);
+        localStorage.removeItem(STORAGE_KEYS.CART);
+        for (const key of LEGACY_SERVER_CACHE_KEYS) localStorage.removeItem(key);
       } catch {
         /* ignore */
       }

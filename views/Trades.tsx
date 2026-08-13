@@ -14,7 +14,7 @@ import {
   TRADE_UPGRADE_PICKS_UPDATED_EVENT,
   TRADE_UPGRADE_PRODUCT_IDS_KEY,
 } from '../lib/tradeUpgradePicks';
-import { DEFAULT_TRADE_DEVICES, mergeTradeDevicesFromStorageArray } from '../data/tradeInDevices';
+import { DEFAULT_TRADE_DEVICES } from '../data/tradeInDevices';
 import { createTradeRequest, updateTradeRequest } from '../lib/api';
 import { dbNotSavedMessage, dbSavedMessage } from '../lib/dbSaveFeedback';
 import { customerStatusBadgeClasses, customerTradeStatusShort } from '../lib/customerStatusLabels';
@@ -159,15 +159,13 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
     }));
   }, [user?.id, user?.name, user?.email, user?.phone, user?.address]);
 
-  // Admin device list override (merged onto catalog so deviceType/brand/img stay valid)
+  // Customer trade catalog uses the in-repo defaults; live models come from Supabase trade_devices via pricing/API.
   useEffect(() => {
     try {
-      const d = localStorage.getItem(TRADE_DEVICES_KEY);
-      if (d) {
-        const parsed = JSON.parse(d);
-        setTradeDevices(mergeTradeDevicesFromStorageArray(parsed));
-      }
-    } catch { /* keep DEFAULT_TRADE_DEVICES */ }
+      localStorage.removeItem(TRADE_DEVICES_KEY);
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   // After login: restore trade-in wizard from session (see submitRequest when !user).

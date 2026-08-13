@@ -18,7 +18,6 @@ import { Pagination } from '../../components/Pagination';
 import { parseOfferInput, tradeHasValidOffer, tradeOfferAmount } from '../../lib/tradeOffer';
 import {
   DEFAULT_TRADE_DEVICES,
-  mergeTradeDevicesFromStorageArray,
   type TradeInCatalogDevice,
   TRADE_DEVICE_TYPE_OPTIONS,
 } from '../../data/tradeInDevices';
@@ -141,17 +140,16 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
             });
     }, [notify]);
 
-    // load trades from Supabase, devices from localStorage (admin-managed list)
+    // load trades from Supabase; device chips use the in-repo catalog (trade_devices is managed under Trade Admin)
     useEffect(() => {
         setLoading(true);
         void reloadTrades().finally(() => setLoading(false));
+        setDevices(DEFAULT_TRADE_DEVICES);
         try {
-            const d = localStorage.getItem(TRADE_DEVICES_KEY);
-            if (d) {
-                const parsed = JSON.parse(d);
-                setDevices(mergeTradeDevicesFromStorageArray(parsed));
-            }
-        } catch { /* keep DEFAULT_TRADE_DEVICES */ }
+          localStorage.removeItem(TRADE_DEVICES_KEY);
+        } catch {
+          /* ignore */
+        }
     }, [reloadTrades]);
 
     // Live refresh when another admin or the customer updates a row
@@ -214,8 +212,13 @@ export const AdminTrades: React.FC<Props> = ({ canEdit = true }) => {
     }, [sel?.id]);
 
     const saveDevices = (d: TradeInCatalogDevice[]) => {
+        // UI-only for this legacy chip editor — durable catalog is trade_devices in Supabase.
         setDevices(d);
-        localStorage.setItem(TRADE_DEVICES_KEY, JSON.stringify(d));
+        try {
+          localStorage.removeItem(TRADE_DEVICES_KEY);
+        } catch {
+          /* ignore */
+        }
     };
 
     const patchTrade = useCallback(async (id: string, updates: Record<string, any>) => {
