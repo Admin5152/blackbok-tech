@@ -107,7 +107,7 @@ export function isDefaultUpgradeCategory(category: string | null | undefined): b
   return c.includes('iphone') || c.includes('ipad');
 }
 
-/** Must be trade-linked + iPhone/iPad. */
+/** Must be trade-linked + iPhone/iPad (category, name, or linked model). */
 export function isDefaultUpgradeTargetRow(
   row: TradeTargetRow,
   _knownTradeModels?: Set<string> | string[] | null,
@@ -115,7 +115,9 @@ export function isDefaultUpgradeTargetRow(
   if (!isTradeLinkedTargetRow(row)) return false;
   if (isDefaultUpgradeCategory(row.category)) return true;
   const name = String(row.name || '').toLowerCase();
-  return name.includes('iphone') || name.includes('ipad');
+  if (name.includes('iphone') || name.includes('ipad')) return true;
+  const model = String(row.trade_model || '').toLowerCase();
+  return model.includes('iphone') || model.includes('ipad');
 }
 
 export function readStoredUpgradeProductIds(): string[] | null {

@@ -458,6 +458,8 @@ export function getAvailableStock(product: Product, selectedOptions: Record<stri
   // Options not chosen yet → show family total (any unit available).
   if (selectedEntries.length === 0) return base;
 
+  let matchedStock = 0;
+  let matched = false;
   for (const row of rows) {
     let ok = true;
     for (const [groupName, val] of selectedEntries) {
@@ -474,12 +476,53 @@ export function getAvailableStock(product: Product, selectedOptions: Record<stri
       }
     }
     if (ok) {
+      matched = true;
       const vs = Math.floor(Number((row as { stock?: unknown }).stock ?? 0));
-      return Math.max(0, Number.isFinite(vs) ? vs : 0);
+      matchedStock += Math.max(0, Number.isFinite(vs) ? vs : 0);
     }
   }
 
   // SKUs exist but this combo does not match any row — do NOT fall back to
   // the family sum (that let Blue sell against Black's stock).
-  return 0;
+  return matched ? matchedStock : 0;
+}
+
+/**
+ * Whether choosing `option` for `groupName` has any stock with the rest of
+ * the current selection (does NOT snap to a different option).
+ */
+export function isProductOptionAvailable(
+  product: Product,
+  selected: Record<string, string>,
+  groupName: string,
+  option: string,
+  groups?: ProductOptionGroup[],
+): boolean {
+  const opts = groups ?? getProductOptionGroups(product);
+  const trial: Record<string, string> = { ...selected, [groupName]: option };
+  for (const g of opts) {
+    if (!toOptionString(trial[g.name]) && g.options.length > 0) {
+      trial[g.name] = toOptionString(selected[g.name]) || g.options[0];
+    }
+  }
+  trial[groupName] = option;
+  return getAvailableStock(product, trial) > 0;
+}
+
+/** True when any SKU with this colour (or other dimension) has stock &gt; 0. */
+export function isProductOptionValueInStockAnywhere(
+  product: Product,
+  groupName: string,
+  option: string,
+): boolean {
+  const field = mapOptionGroupToVariantField(groupName);
+  if (!field) return getProductMaxStock(product) > 0;
+  const rows = skuVariantRows(product);
+  if (rows.length === 0) return getProductMaxStock(product) > 0;
+  for (const row of rows) {
+    const cell = toOptionString(row[field]);
+    if (!cell || normOpt(cell) !== normOpt(option)) continue;
+    if (Math.max(0, Math.floor(Number(row.stock ?? 0))) > 0) return true;
+  }
+  return false;
 }

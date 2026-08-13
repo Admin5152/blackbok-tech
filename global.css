@@ -1253,6 +1253,43 @@ html[data-theme='light'] .bb-store-filter-slider__track {
   border-top-color: rgba(0, 0, 0, 0.06);
 }
 
+.bb-mp-filter-group__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  margin: 0 0 0.15rem;
+  padding: 0.2rem 0.35rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  border-radius: 0.25rem;
+}
+
+.bb-mp-filter-group__toggle:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.bb-mp-filter-panel--light .bb-mp-filter-group__toggle:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.bb-mp-filter-group__toggle .bb-mp-filter-group__label {
+  flex: 1;
+  margin: 0;
+  padding: 0;
+}
+
+.bb-mp-filter-group__active-dot {
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 999px;
+  background: #cda032;
+  flex-shrink: 0;
+}
+
 .bb-mp-filter-group__label {
   margin: 0 0 0.3rem;
   padding: 0 0.35rem;

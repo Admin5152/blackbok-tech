@@ -228,9 +228,24 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
     price: true,
     deals: true,
   });
+  /** Collapsible buckets inside Category (Phones, Audio, …). */
+  const [openCategoryGroups, setOpenCategoryGroups] = useState<Record<string, boolean>>({});
 
   const toggleSection = (key: keyof typeof openSections) => {
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const isCategoryGroupOpen = (groupId: string, _rows: StoreCategoryRow[]) => {
+    const stored = openCategoryGroups[groupId];
+    if (typeof stored === 'boolean') return stored;
+    return true;
+  };
+
+  const toggleCategoryGroup = (groupId: string, rows: StoreCategoryRow[]) => {
+    setOpenCategoryGroups((prev) => ({
+      ...prev,
+      [groupId]: !isCategoryGroupOpen(groupId, rows),
+    }));
   };
 
   const isPresetActive = (min: number, max: number) =>
@@ -282,26 +297,51 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
               onClick={() => onCategoryClick(cat)}
             />
           ))}
-          {groupedCategoryRows.groups.map((group) => (
-            <div key={group.id} className="bb-mp-filter-group">
-              {group.label && (
-                <p className="bb-mp-filter-group__label">{group.label}</p>
-              )}
-              {group.rows.map((cat) => {
-                const active = isCategoryRowActive(cat);
-                return (
-                  <FilterCheckRow
-                    key={cat.key}
-                    label={cat.label.replace(/^🔥\s*/, '')}
-                    count={cat.count}
-                    checked={active}
-                    indent={Boolean(group.label)}
-                    onClick={() => onCategoryClick(cat)}
-                  />
-                );
-              })}
-            </div>
-          ))}
+          {groupedCategoryRows.groups.map((group) => {
+            const groupOpen = group.label
+              ? isCategoryGroupOpen(group.id, group.rows)
+              : true;
+            const activeInGroup = group.rows.some((r) => isCategoryRowActive(r));
+            return (
+              <div key={group.id} className="bb-mp-filter-group">
+                {group.label ? (
+                  <button
+                    type="button"
+                    className="bb-mp-filter-group__toggle"
+                    onClick={() => toggleCategoryGroup(group.id, group.rows)}
+                    aria-expanded={groupOpen}
+                  >
+                    <span className="bb-mp-filter-group__label">{group.label}</span>
+                    {activeInGroup ? (
+                      <span className="bb-mp-filter-group__active-dot" aria-hidden />
+                    ) : null}
+                    <ChevronDown
+                      size={12}
+                      className={`bb-mp-filter-section__chev ${
+                        groupOpen ? 'bb-mp-filter-section__chev--open' : ''
+                      }`}
+                      aria-hidden
+                    />
+                  </button>
+                ) : null}
+                {groupOpen
+                  ? group.rows.map((cat) => {
+                      const active = isCategoryRowActive(cat);
+                      return (
+                        <FilterCheckRow
+                          key={cat.key}
+                          label={cat.label.replace(/^🔥\s*/, '')}
+                          count={cat.count}
+                          checked={active}
+                          indent={Boolean(group.label)}
+                          onClick={() => onCategoryClick(cat)}
+                        />
+                      );
+                    })
+                  : null}
+              </div>
+            );
+          })}
         </div>
       </FilterAccordion>
 

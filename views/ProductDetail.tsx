@@ -15,7 +15,9 @@ import {
   getAvailableStock,
   findVariantIdForOptions,
   findVariantRowForOptions,
+  isProductOptionAvailable,
 } from '../lib/productOptions';
+import { StockAwareOptionButton } from '../components/StockAwareOptionButton';
 import { variantEffectivePrice, getMaxTradeBaseForModel, saveTradeTargetSeed } from '../lib/catalogApi';
 import { getDealDiscountPercentage, applyDealDiscountToAmount } from '../lib/dealOfTheDay';
 import { galleryImagesForSelection } from '../lib/productColorImages';
@@ -371,26 +373,27 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                           const ol = opt.toLowerCase();
                           const isSelected = selectedOptions[variant.name] === opt;
                           const chipLabel = isSimGroup ? formatSimTypeLabel(opt) : opt;
-                          const trialOpts = snapSelectionToInStock(product, normalizedVariants, {
-                            ...selectedOptions,
-                            [variant.name]: opt,
-                          });
-                          const optDisabled = getAvailableStock(product, trialOpts) <= 0;
+                          const optDisabled = !isProductOptionAvailable(
+                            product,
+                            selectedOptions,
+                            variant.name,
+                            opt,
+                            normalizedVariants,
+                          );
                           if (isColorGroup) {
                             return (
-                              <button
+                              <StockAwareOptionButton
                                 key={`${variant.name}-${optIdx}-${opt}`}
-                                type="button"
-                                disabled={optDisabled}
-                                title={optDisabled ? `${opt} (out of stock)` : opt}
-                                aria-label={`${variant.name}: ${opt}${isSelected ? ', selected' : ''}${optDisabled ? ', out of stock' : ''}`}
-                                aria-pressed={isSelected}
-                                onClick={() => !optDisabled && handleOptionChange(variant.name, opt)}
+                                outOfStock={optDisabled}
+                                selected={isSelected}
+                                label={opt}
+                                tipAlign="start"
+                                onSelect={() => handleOptionChange(variant.name, opt)}
                                 className={`relative shrink-0 w-7 h-7 rounded-full border-2 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B38B21] ${
                                   isLight ? 'focus-visible:ring-offset-1 focus-visible:ring-offset-white' : 'focus-visible:ring-offset-1 focus-visible:ring-offset-[#060605]'
                                 } ${ol === 'white' ? (isLight ? 'ring-1 ring-black/25' : 'ring-1 ring-white/30') : ''} ${
                                   optDisabled
-                                    ? 'opacity-35 cursor-not-allowed'
+                                    ? 'opacity-40 grayscale cursor-not-allowed'
                                     : isSelected
                                       ? 'border-[#B38B21] ring-2 ring-[#B38B21]/35'
                                       : isLight
@@ -423,18 +426,21 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                                                           ? '#f59e0b'
                                                           : '#6b7280',
                                 }}
-                              />
+                              >
+                                <span className="sr-only">{opt}</span>
+                              </StockAwareOptionButton>
                             );
                           }
                           return (
-                            <button
+                            <StockAwareOptionButton
                               key={`${variant.name}-${optIdx}-${opt}`}
-                              type="button"
-                              disabled={optDisabled}
-                              onClick={() => !optDisabled && handleOptionChange(variant.name, opt)}
-                              className={`shrink-0 min-w-[2rem] px-2 py-1 rounded-md text-[10px] sm:text-[11px] font-bold tracking-wide transition-all border ${
+                              outOfStock={optDisabled}
+                              selected={isSelected}
+                              label={chipLabel}
+                              onSelect={() => handleOptionChange(variant.name, opt)}
+                              className={`relative shrink-0 min-w-[2rem] px-2 py-1 rounded-md text-[10px] sm:text-[11px] font-bold tracking-wide transition-all border ${
                                 optDisabled
-                                  ? 'opacity-35 cursor-not-allowed border-black/10'
+                                  ? 'opacity-40 grayscale cursor-not-allowed border-black/10'
                                   : isSelected
                                     ? 'border-[#B38B21] bg-[#B38B21]/15 text-[#B38B21]'
                                     : isLight
@@ -443,7 +449,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                               }`}
                             >
                               {chipLabel}
-                            </button>
+                            </StockAwareOptionButton>
                           );
                         })}
                       </div>

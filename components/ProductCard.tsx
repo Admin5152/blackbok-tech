@@ -21,6 +21,7 @@ import { useAppContext } from '../App';
 import { ProductAvailabilityBadge } from './ProductAvailabilityBadge';
 import { productRouteParam } from '../lib/productUrl';
 import { formatProductConditionLabel, productIsNew } from '../lib/storeFilters';
+import { isProductOptionValueInStockAnywhere } from '../lib/productOptions';
 
 interface ProductCardProps {
   product: Product;
@@ -292,26 +293,31 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             )}
           </div>
 
-          {/* Color dots from view.colors[] — display only, max 5 +n */}
+          {/* Color dots from view.colors[] — gray out when every SKU for that colour is OOS */}
           {visibleColors.length > 0 && (
             <div className={`bb-product-card-colors flex flex-wrap items-center gap-1 min-h-0 ${isCompact ? 'max-sm:hidden' : ''}`}>
-              {visibleColors.map((c) => (
-                <span
-                  key={c}
-                  title={c}
-                  className={`shrink-0 w-4 h-4 rounded-full border ${
-                    c.toLowerCase() === 'white'
-                      ? isLight
-                        ? 'ring-1 ring-black/20 border-black/15'
-                        : 'ring-1 ring-white/35 border-white/20'
-                      : isLight
-                        ? 'border-black/20'
-                        : 'border-white/25'
-                  }`}
-                  style={{ backgroundColor: colorSwatch(c) }}
-                  aria-hidden
-                />
-              ))}
+              {visibleColors.map((c) => {
+                const inStock = isProductOptionValueInStockAnywhere(product, 'Color', c);
+                return (
+                  <span
+                    key={c}
+                    title={inStock ? c : `${c} — out of stock`}
+                    className={`shrink-0 w-4 h-4 rounded-full border ${
+                      !inStock ? 'opacity-35 grayscale' : ''
+                    } ${
+                      c.toLowerCase() === 'white'
+                        ? isLight
+                          ? 'ring-1 ring-black/20 border-black/15'
+                          : 'ring-1 ring-white/35 border-white/20'
+                        : isLight
+                          ? 'border-black/20'
+                          : 'border-white/25'
+                    }`}
+                    style={{ backgroundColor: colorSwatch(c) }}
+                    aria-hidden
+                  />
+                );
+              })}
               {extraColors > 0 && (
                 <span className={`text-[8px] font-medium ${isLight ? 'text-black/40' : 'text-white/40'}`}>
                   +{extraColors}

@@ -1,6 +1,6 @@
 /**
- * Resolve a photo for a trade-in model card.
- * Prefer trade_devices.image_url, then a linked shop product image.
+ * Resolve a photo for a trade-in / repair model card.
+ * Prefer trade_devices.image_url, then a linked shop product image, then silhouette.
  */
 import type { Product } from '../types';
 import type { TradeDeviceRow } from '../types/supabase';
@@ -16,7 +16,7 @@ function normalizeKey(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
-/** Match shop catalog products to a trade_devices model name. */
+/** Match shop catalog products to a trade_devices / repair model name. */
 export function findProductImageForTradeModel(
   model: string,
   products: Product[] | undefined | null,
@@ -24,22 +24,70 @@ export function findProductImageForTradeModel(
   if (!products?.length || !model.trim()) return null;
   const key = normalizeKey(model);
 
-  const byTradeModel = products.find(
-    (p) => p.trade_model && normalizeKey(p.trade_model) === key,
-  );
-  const img1 = byTradeModel ? productImageUrl(byTradeModel) : null;
-  if (img1) return img1;
-
-  const byNameExact = products.find((p) => normalizeKey(p.name || '') === key);
-  const img2 = byNameExact ? productImageUrl(byNameExact) : null;
-  if (img2) return img2;
-
-  // Prefer products whose name starts with the model (e.g. "iPhone 15 Pro 256GB")
-  const byNamePrefix = products.find((p) => {
-    const n = normalizeKey(p.name || '');
-    return n === key || n.startsWith(`${key} `) || n.startsWith(`${key}-`);
+  const candidates = products.filter((p) => {
+    const trade = p.trade_model ? normalizeKey(p.trade_model) : '';
+    const name = normalizeKey(p.name || '');
+    return (
+      trade === key ||
+      name === key ||
+      name.startsWith(`${key} `) ||
+      name.startsWith(`${key}-`)
+    );
   });
-  return byNamePrefix ? productImageUrl(byNamePrefix) : null;
+
+  // Prefer exact trade_model / name, then any image-bearing match; new before preowned.
+  const rank = (p: Product): number => {
+    const trade = p.trade_model ? normalizeKey(p.trade_model) : '';
+    const name = normalizeKey(p.name || '');
+    let score = 0;
+    if (trade === key || name === key) score += 4;
+    if (productImageUrl(p)) score += 2;
+    const cond = String(p.condition || '').toLowerCase();
+    if (cond === 'new' || p.is_new === true) score += 1;
+    return score;
+  };
+
+  const sorted = [...candidates].sort((a, b) => rank(b) - rank(a));
+  for (const p of sorted) {
+    const img = productImageUrl(p);
+    if (img) return img;
+  }
+  return null;
+}
+
+/**
+ * Repair / trade picker image: shop product photo when uploaded, else silhouette.
+ * Works for iPhone, iPad, and phones that share a catalog name / trade_model.
+ */
+export function resolveRepairModelImage(
+  model: string | null | undefined,
+  products?: Product[] | null,
+  fallback?: string | null,
+): string {
+  const m = (model || '').trim();
+  if (!m) return fallback || getIphoneModelImage('');
+  const fromProduct = findProductImageForTradeModel(m, products);
+  if (fromProduct) return fromProduct;
+  if (fallback) return fallback;
+  const lower = m.toLowerCase();
+  if (lower.includes('ipad')) return '/iphone_modern.png';
+  return getIphoneModelImage(m);
+}
+
+/** Series card image — prefer any product photo from models in that series. */
+export function resolveRepairSeriesImage(
+  series: string,
+  modelsInSeries: string[] | undefined,
+  products?: Product[] | null,
+): string {
+  const models = modelsInSeries?.length ? modelsInSeries : [series];
+  for (const model of models) {
+    const img = findProductImageForTradeModel(model, products);
+    if (img) return img;
+  }
+  const bySeries = findProductImageForTradeModel(series, products);
+  if (bySeries) return bySeries;
+  return getIphoneModelImage(series);
 }
 
 export function resolveTradeModelImage(
@@ -54,6 +102,9 @@ export function resolveTradeModelImage(
 
   if (device.device_type === 'iphone') {
     return getIphoneModelImage(device.model);
+  }
+  if (device.device_type === 'ipad') {
+    return resolveRepairModelImage(device.model, products);
   }
   return null;
 }

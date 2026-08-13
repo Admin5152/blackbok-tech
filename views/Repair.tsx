@@ -26,11 +26,11 @@ import { buildRepairDeviceFields, PRICING_MODE } from '../lib/repairDeviceTypes'
 import {
   buildAppleIphoneSeriesGroups,
   getAppleIphoneModelsForSeries,
-  getIphoneModelImage,
   getOrderedAppleIphoneSeriesKeys,
   isAppleIphoneRepairFlow,
   repairModelPickerSubStep,
 } from '../lib/repairAppleModels';
+import { resolveRepairModelImage } from '../lib/tradeModelImages';
 import { IphoneSeriesSelector } from '../components/IphoneSeriesSelector';
 import {
   formatRepairEstimateDisplay,
@@ -61,7 +61,7 @@ import { BrandLogo } from '../components/BrandLogo';
 import { getBrandsForDeviceType } from '../data/deviceBrands';
 
 export const Repair: React.FC = () => {
-  const { user, repairs, setRepairs, notify, theme } = useAppContext();
+  const { user, repairs, setRepairs, notify, theme, products } = useAppContext();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [subStep, setSubStep] = useState(1); // 1=deviceType, 2=brand, 3=model
@@ -800,6 +800,8 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                   ) : subStep === 3 && (
                     <IphoneSeriesSelector
                       seriesKeys={appleSeriesKeys}
+                      seriesModels={appleSeriesGroups}
+                      products={products}
                       breadcrumb={`${deviceTypes.find(d => d.id === formData.deviceType)?.label} · ${formData.brand}`}
                       onBack={() => setSubStep(2)}
                       onSelect={(series) => {
@@ -843,7 +845,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                             }`}>
                             {(() => {
                               const m = formData.model;
-                              const img = getIphoneModelImage(m || '');
+                              const img = resolveRepairModelImage(m || '', products);
                               return (
                                 <div className={`relative transition-all duration-500 ${m ? 'opacity-100 scale-100' : 'opacity-20 scale-90'}`}
                                   style={{ height: 160 }}>
@@ -875,7 +877,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                             style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(205,160,50,0.3) transparent' }}>
                             {getAppleIphoneModelsForSeries(selectedSeries, appleSeriesGroups).map(model => {
                               const selected = formData.model === model;
-                              const img = getIphoneModelImage(model);
+                              const img = resolveRepairModelImage(model, products);
 
                               return (
                                 <button key={model}
@@ -1748,11 +1750,19 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-[#CDA032] mb-6 border-b border-[var(--bb-border)] pb-4">Repair Summary</h3>
                 <div className="space-y-6">
                   <div className="flex gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-[var(--bb-surface-2)] border border-[var(--bb-border)] flex items-center justify-center shrink-0">
-                      {(() => {
-                        const IconComp = deviceTypes.find(d => d.id === formData.deviceType)?.icon as any;
-                        return IconComp ? <IconComp size={18} className="text-[#CDA032]" /> : null;
-                      })()}
+                    <div className="w-10 h-10 rounded-xl bg-[var(--bb-surface-2)] border border-[var(--bb-border)] flex items-center justify-center shrink-0 overflow-hidden">
+                      {formData.model ? (
+                        <img
+                          src={resolveRepairModelImage(formData.model, products)}
+                          alt=""
+                          className="h-full w-full object-contain p-1"
+                        />
+                      ) : (
+                        (() => {
+                          const IconComp = deviceTypes.find(d => d.id === formData.deviceType)?.icon as any;
+                          return IconComp ? <IconComp size={18} className="text-[#CDA032]" /> : null;
+                        })()
+                      )}
                     </div>
                     <div>
                       <p className="text-[10px] uppercase font-bold tracking-widest opacity-50 mb-0.5">Device</p>

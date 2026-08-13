@@ -1,9 +1,13 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { CategorySelectionGrid, type CategoryItem } from './CategorySelectionGrid';
-import { getIphoneModelImage } from '../lib/repairAppleModels';
+import { resolveRepairSeriesImage } from '../lib/tradeModelImages';
+import type { Product } from '../types';
 
 interface Props {
   seriesKeys: string[];
+  /** Optional map of series → model names (for matching shop product photos). */
+  seriesModels?: Record<string, string[]>;
+  products?: Product[] | null;
   breadcrumb: string;
   subtitle?: string;
   selectedSeries?: string;
@@ -15,6 +19,8 @@ interface Props {
 /** Shared Step 1 — iPhone series grid used by Repair and Trades. */
 export const IphoneSeriesSelector: React.FC<Props> = ({
   seriesKeys,
+  seriesModels,
+  products,
   breadcrumb,
   subtitle,
   selectedSeries,
@@ -22,12 +28,20 @@ export const IphoneSeriesSelector: React.FC<Props> = ({
   onSelect,
   isLight = false,
 }) => {
-  const items: CategoryItem[] = seriesKeys.map((series) => ({
-    id: series,
-    name: series,
-    imageUrl: getIphoneModelImage(series),
-    isSelected: selectedSeries === series,
-  }));
+  const items: CategoryItem[] = useMemo(
+    () =>
+      seriesKeys.map((series) => ({
+        id: series,
+        name: series,
+        imageUrl: resolveRepairSeriesImage(
+          series,
+          seriesModels?.[series],
+          products,
+        ),
+        isSelected: selectedSeries === series,
+      })),
+    [seriesKeys, seriesModels, products, selectedSeries],
+  );
 
   return (
     <CategorySelectionGrid

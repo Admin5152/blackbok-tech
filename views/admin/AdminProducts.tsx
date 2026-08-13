@@ -540,6 +540,9 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
             if (draft.id) {
                 await updateProduct(draft.id, {
                     ...productPayload,
+                    // When SKU matrix is on, authoritative stock lives on product_variants;
+                    // the DB trigger syncs products.stock after variant writes below.
+                    stock: useMatrix ? undefined : productPayload.stock,
                     reviewCount: draft.reviewCount,
                 });
             } else {
@@ -547,7 +550,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                     ...productPayload,
                     name: draft.name!,
                     reviewCount: 0,
-                    stock: matrixStock || (draft.stock ?? 10),
+                    stock: useMatrix ? 0 : matrixStock || (draft.stock ?? 10),
                     rating: draft.rating ?? 4.5,
                     specs: draft.specs?.length ? draft.specs : [],
                 });
@@ -581,6 +584,8 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                         sku: (r.sku || '').trim() || autoGenerateSku(r),
                     }));
                     await syncProductVariants(productId, variantPayload);
+                    // Ensure aggregate products.stock matches variant sum even if trigger lags.
+                    await updateProduct(productId, { stock: totalSkuStock(uniqueCoded) });
                 } else {
                     await clearProductVariants(productId);
                 }

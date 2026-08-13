@@ -11,7 +11,9 @@ import {
   getAvailableStock,
   findVariantRowForOptions,
   productNeedsSkuHydration,
+  isProductOptionAvailable,
 } from '../lib/productOptions';
+import { StockAwareOptionButton } from './StockAwareOptionButton';
 import { variantEffectivePrice } from '../lib/catalogApi';
 import { getDealDiscountPercentage, applyDealDiscountToAmount } from '../lib/dealOfTheDay';
 import { getProduct } from '../lib/api';
@@ -269,22 +271,24 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
                       {variant.options.map((option, optIdx) => {
                         const opt = toOptionString(option);
                         const ol = opt.toLowerCase();
-                        const trialOpts = active
-                          ? snapSelectionToInStock(active, groupedVariants, {
-                              ...selectedOptions,
-                              [variant.name]: opt,
-                            })
-                          : selectedOptions;
-                        const optDisabled =
-                          hydrating ||
-                          (active ? getAvailableStock(active, trialOpts) <= 0 : false);
+                        const optOos =
+                          !!active &&
+                          !isProductOptionAvailable(
+                            active,
+                            selectedOptions,
+                            variant.name,
+                            opt,
+                            groupedVariants,
+                          );
+                        const selected = selectedOptions[variant.name] === opt;
                         return (
-                          <button
+                          <StockAwareOptionButton
                             key={`${variant.name}-${optIdx}-${opt}`}
-                            type="button"
-                            disabled={optDisabled}
-                            onClick={() => {
-                              if (!active || optDisabled) return;
+                            outOfStock={!hydrating && optOos}
+                            selected={selected}
+                            label={opt}
+                            onSelect={() => {
+                              if (!active || hydrating || optOos) return;
                               setSelectedOptions((prev) =>
                                 snapSelectionToInStock(active, groupedVariants, {
                                   ...prev,
@@ -293,9 +297,9 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
                               );
                             }}
                             className={`group relative rounded-2xl border px-4 sm:px-5 py-2.5 text-[9px] sm:text-[11px] font-black transition-all duration-300 ${
-                              optDisabled
-                                ? 'cursor-not-allowed border-black/10 opacity-35'
-                                : selectedOptions[variant.name] === opt
+                              hydrating || optOos
+                                ? 'cursor-not-allowed border-black/10 opacity-40 grayscale'
+                                : selected
                                   ? 'border-[#CDA032] bg-[#CDA032] text-black shadow-2xl shadow-[#CDA032]/20'
                                   : isLight
                                     ? 'border-black/15 bg-zinc-100 text-black/90 shadow-sm hover:border-black/25 hover:bg-zinc-200'
@@ -306,9 +310,7 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
                               <div className="flex items-center gap-2.5">
                                 <div
                                   className={`h-3 w-3 rounded-full border shadow-sm ${
-                                    selectedOptions[variant.name] === opt
-                                      ? 'border-black/20'
-                                      : 'border-white/10'
+                                    selected ? 'border-black/20' : 'border-white/10'
                                   }`}
                                   style={{
                                     backgroundColor:
@@ -342,7 +344,7 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
                             ) : (
                               opt
                             )}
-                          </button>
+                          </StockAwareOptionButton>
                         );
                       })}
                     </div>

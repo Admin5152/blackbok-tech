@@ -618,6 +618,8 @@ products (+ variants)  →  v_product_page  →  catalogApi.getProducts()  →  
 8. `20260813000850_v_product_page_expose_product_columns.sql` ← **fixes missing `subcategory` on the view**
 9. `20260813000800_assert_v_product_page_storefront_columns.sql` ← assert (re-run after 00850)
 10. `20260813000900_stock_match_variant_id_and_dims.sql` ← checkout stock uses `variant_id` + full dims
+11. `20260813001000_order_items_variant_id_place_order.sql`
+12. `20260813001100_heal_product_variants_staff_write.sql` ← staff can write SKU stock (RLS)
 
 After apply: spot-check
 
@@ -712,6 +714,8 @@ ORDER BY 1,2,3;
 7. Save. Shop card shows total units; PDP Blue only sells up to 6.
 
 **Do not** put “100” only on the product-level stock field while the matrix is on — that number is the **sum** of SKU rows after sync.
+
+**Persistence hardening (Aug 2026):** `syncProductVariants` only updates IDs that exist for that product, verifies each UPDATE/INSERT returned rows (silent 0-row RLS failures used to look “saved”), and admin save writes variants then reconciles `products.stock`. Apply `20260813001100_heal_product_variants_staff_write.sql` if staff stock edits still fail.
 
 **Hardening (this pass):** If SKU rows exist but the shopper’s combo doesn’t match a row, available stock is **0** (no longer falls back to the family total). That stops Blue from selling against Black’s quantity.
 

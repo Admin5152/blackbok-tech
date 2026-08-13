@@ -887,6 +887,8 @@ export const Trades: React.FC<TradesProps> = ({ products, notify }) => {
                   ) : subStep === 2 && (
                     <IphoneSeriesSelector
                       seriesKeys={iphoneSeriesKeys}
+                      seriesModels={iphoneSeriesGroups}
+                      products={products}
                       breadcrumb="TRADE-IN"
                       subtitle={resolvedBrand}
                       selectedSeries={selectedSeries}

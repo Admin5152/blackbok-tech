@@ -212,8 +212,17 @@ export const AdminConsoles: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
         updates.push({ ids: row.colorIds, price });
       }
       for (const u of updates) {
-        const { error: err } = await supabase.from('product_variants').update({ price: u.price }).in('id', u.ids);
+        const { error: err, data } = await supabase
+          .from('product_variants')
+          .update({ price: u.price })
+          .in('id', u.ids)
+          .select('id');
         if (err) throw err;
+        if (!data?.length) {
+          throw new Error(
+            'Price update did not save (0 rows). Sign in as staff/admin and retry.',
+          );
+        }
       }
       setMessage(`Saved ${updates.length} price group(s).`);
       await load();
@@ -234,8 +243,17 @@ export const AdminConsoles: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
       for (const r of visible) {
         const stock = Math.max(0, Math.floor(Number(draftStock[r.id] ?? r.stock ?? 0)));
         if (stock === Number(r.stock ?? 0)) continue;
-        const { error: err } = await supabase.from('product_variants').update({ stock }).eq('id', r.id);
+        const { error: err, data } = await supabase
+          .from('product_variants')
+          .update({ stock })
+          .eq('id', r.id)
+          .select('id, stock');
         if (err) throw err;
+        if (!data?.length) {
+          throw new Error(
+            `Stock for ${r.sku || r.id} did not save (0 rows). Sign in as staff/admin and retry.`,
+          );
+        }
         n += 1;
       }
       setMessage(`Updated stock on ${n} colour row(s).`);
@@ -269,14 +287,20 @@ export const AdminConsoles: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
     setSaving(true);
     setError(null);
     try {
-      const { error: err } = await supabase
+      const { error: err, data } = await supabase
         .from('product_variants')
         .update({
           edition: nextEdition || null,
           storage: nextStorage || null,
         })
-        .in('id', group.colorIds);
+        .in('id', group.colorIds)
+        .select('id');
       if (err) throw err;
+      if (!data?.length) {
+        throw new Error(
+          'Edition/storage update did not save (0 rows). Sign in as staff/admin and retry.',
+        );
+      }
       setMessage(`Updated edition/storage on ${group.sku}.`);
       await load();
     } catch (e) {
@@ -311,18 +335,25 @@ export const AdminConsoles: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
     setSaving(true);
     setError(null);
     try {
-      const { error: err } = await supabase.from('product_variants').insert({
-        product_id: source.product_id,
-        sku,
-        edition: source.edition || null,
-        storage: source.storage || null,
-        color: name,
-        price: source.price,
-        stock: 0,
-        is_active: true,
-        attributes: { catalog: source.category === 'Controllers' ? 'controller' : 'console' },
-      });
+      const { error: err, data } = await supabase
+        .from('product_variants')
+        .insert({
+          product_id: source.product_id,
+          sku,
+          edition: source.edition || null,
+          storage: source.storage || null,
+          color: name,
+          price: source.price,
+          stock: 0,
+          is_active: true,
+          attributes: { catalog: source.category === 'Controllers' ? 'controller' : 'console' },
+        })
+        .select('id')
+        .single();
       if (err) throw err;
+      if (!data?.id) {
+        throw new Error('Colour row did not save to the database. Sign in as staff/admin and retry.');
+      }
       setColourDraft((prev) => ({ ...prev, [group.id]: '' }));
       setMessage(`Added ${name} at ${formatGhsPlain(Number(source.price ?? 0))}.`);
       await load();
@@ -447,8 +478,17 @@ export const AdminConsoles: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
           patch.color = colour || null;
         }
         if (!Object.keys(patch).length) continue;
-        const { error: err } = await supabase.from('product_variants').update(patch).eq('sku', sku);
+        const { error: err, data } = await supabase
+          .from('product_variants')
+          .update(patch)
+          .eq('sku', sku)
+          .select('id');
         if (err) throw err;
+        if (!data?.length) {
+          throw new Error(
+            `SKU ${sku} did not update (0 rows). Check the code exists and you are staff/admin.`,
+          );
+        }
         updated += 1;
       }
       setMessage(`Imported updates for ${updated} SKU(s).`);

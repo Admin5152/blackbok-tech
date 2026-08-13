@@ -279,7 +279,14 @@ export async function getTradeConfigValue(key: string, fallback = ''): Promise<s
  * Fallback: if v_trade_targets is missing (migration not yet applied on this
  * project), synthesise equivalent rows from products + product_variants so
  * Screen 5 still works. Prefer the view whenever it exists.
+ *
+ * PostgREST caps a single response at ~1000 rows. Full iPhone catalogues
+ * (colour × storage × SIM × new/pre-owned) exceed that, so we page until
+ * exhausted — otherwise later models like iPhone 17 never reach /trade/target
+ * even when linked in admin.
  */
+const TRADE_TARGET_PAGE = 1000;
+
 export async function getTradeTargets(filters?: {
   tradeModel?: string;
   category?: string;
@@ -288,20 +295,39 @@ export async function getTradeTargets(filters?: {
 }): Promise<TradeTargetRow[]> {
   const inStockOnly = filters?.inStockOnly !== false;
 
-  let query = supabase.from('v_trade_targets').select('*');
-  if (filters?.tradeModel) query = query.eq('trade_model', filters.tradeModel);
-  if (filters?.category) query = query.eq('category', filters.category);
-  // D11: stock_reservation=none — first come, first served; hide OOS entirely
-  if (inStockOnly) query = query.gt('variant_stock', 0);
+  try {
+    const rows: TradeTargetRow[] = [];
+    let from = 0;
+    for (;;) {
+      let query = supabase
+        .from('v_trade_targets')
+        .select('*')
+        // Upgrade step only needs linked shop phones — shrinks page count.
+        .not('trade_model', 'is', null)
+        .neq('trade_model', '');
+      if (filters?.tradeModel) query = query.eq('trade_model', filters.tradeModel);
+      if (filters?.category) query = query.eq('category', filters.category);
+      if (inStockOnly) query = query.gt('variant_stock', 0);
 
-  const { data, error } = await query.order('name');
-  if (!error) return (data ?? []) as TradeTargetRow[];
+      const { data, error } = await query
+        .order('name')
+        .order('product_id')
+        .range(from, from + TRADE_TARGET_PAGE - 1);
+      if (error) throw error;
 
-  // View missing / schema lag — build from live shop tables
-  console.warn(
-    'v_trade_targets unavailable (' + error.message + '); falling back to products+variants',
-  );
-  return getTradeTargetsFromProducts(filters);
+      const batch = (data ?? []) as TradeTargetRow[];
+      rows.push(...batch);
+      if (batch.length < TRADE_TARGET_PAGE) break;
+      from += TRADE_TARGET_PAGE;
+    }
+    return rows;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(
+      'v_trade_targets unavailable (' + message + '); falling back to products+variants',
+    );
+    return getTradeTargetsFromProducts(filters);
+  }
 }
 
 /**
@@ -316,32 +342,85 @@ async function getTradeTargetsFromProducts(filters?: {
 }): Promise<TradeTargetRow[]> {
   const inStockOnly = filters?.inStockOnly !== false;
 
-  let productQuery = supabase
-    .from('products')
-    .select('id,name,category,condition,image_url,price,stock,status,trade_model')
-    .eq('status', 'active')
-    .not('trade_model', 'is', null)
-    .neq('trade_model', '');
-  if (filters?.category) productQuery = productQuery.eq('category', filters.category);
-  if (filters?.tradeModel) {
-    productQuery = productQuery.eq('trade_model', filters.tradeModel);
+  type ProductRow = {
+    id: string;
+    name: string;
+    category: string | null;
+    condition: string | null;
+    image_url: string | null;
+    price: number | null;
+    stock: number | null;
+    status: string | null;
+    trade_model: string | null;
+  };
+  type VariantRow = {
+    id: string;
+    product_id: string;
+    color: string | null;
+    ram: string | null;
+    storage: string | null;
+    sim_type: string | null;
+    price_modifier: number | null;
+    price: number | null;
+    stock: number | null;
+    sku: string | null;
+    image_url: string | null;
+    is_active: boolean | null;
+  };
+
+  const products: ProductRow[] = [];
+  let pFrom = 0;
+  for (;;) {
+    let productQuery = supabase
+      .from('products')
+      .select('id,name,category,condition,image_url,price,stock,status,trade_model')
+      .eq('status', 'active')
+      .not('trade_model', 'is', null)
+      .neq('trade_model', '')
+      .order('name')
+      .order('id')
+      .range(pFrom, pFrom + TRADE_TARGET_PAGE - 1);
+    if (filters?.category) productQuery = productQuery.eq('category', filters.category);
+    if (filters?.tradeModel) {
+      productQuery = productQuery.eq('trade_model', filters.tradeModel);
+    }
+
+    const { data, error: pErr } = await productQuery;
+    if (pErr) throw pErr;
+    const batch = (data ?? []) as ProductRow[];
+    products.push(...batch);
+    if (batch.length < TRADE_TARGET_PAGE) break;
+    pFrom += TRADE_TARGET_PAGE;
   }
 
-  const { data: products, error: pErr } = await productQuery;
-  if (pErr) throw pErr;
-  if (!products?.length) return [];
+  if (!products.length) return [];
 
-  const ids = products.map((p: { id: string }) => p.id);
-  const { data: variants, error: vErr } = await supabase
-    .from('product_variants')
-    .select(
-      'id,product_id,color,ram,storage,sim_type,price_modifier,price,stock,sku,image_url,is_active',
-    )
-    .in('product_id', ids);
-  if (vErr) throw vErr;
+  const ids = products.map((p) => p.id);
+  const variants: VariantRow[] = [];
+  const idChunk = 150;
+  for (let i = 0; i < ids.length; i += idChunk) {
+    const slice = ids.slice(i, i + idChunk);
+    let vFrom = 0;
+    for (;;) {
+      const { data, error: vErr } = await supabase
+        .from('product_variants')
+        .select(
+          'id,product_id,color,ram,storage,sim_type,price_modifier,price,stock,sku,image_url,is_active',
+        )
+        .in('product_id', slice)
+        .order('product_id')
+        .order('id')
+        .range(vFrom, vFrom + TRADE_TARGET_PAGE - 1);
+      if (vErr) throw vErr;
+      const batch = (data ?? []) as VariantRow[];
+      variants.push(...batch);
+      if (batch.length < TRADE_TARGET_PAGE) break;
+      vFrom += TRADE_TARGET_PAGE;
+    }
+  }
 
-  const byProduct = new Map<string, NonNullable<typeof variants>>();
-  for (const v of variants ?? []) {
+  const byProduct = new Map<string, VariantRow[]>();
+  for (const v of variants) {
     if (v.is_active === false) continue;
     const list = byProduct.get(v.product_id) ?? [];
     list.push(v);
@@ -350,8 +429,7 @@ async function getTradeTargetsFromProducts(filters?: {
 
   const rows: TradeTargetRow[] = [];
   for (const p of products) {
-    const tradeModel =
-      String((p as { trade_model?: string | null }).trade_model ?? '').trim() || null;
+    const tradeModel = String(p.trade_model ?? '').trim() || null;
     const pVars = byProduct.get(p.id) ?? [];
     if (pVars.length === 0) {
       const stock = Number(p.stock) || 0;

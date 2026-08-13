@@ -383,6 +383,11 @@ export const createProduct = async (product: Partial<Product>) => {
     .select('*, product_variants(*), product_images(*)')
     .single();
   if (error) throw error;
+  if (!data?.id) {
+    throw new Error(
+      'Product create did not save to the database. Sign in as staff/admin and try again.',
+    );
+  }
   const mapped = mapProductFromDb(data);
   void appendAuditNote('products', mapped.id, `Created product "${mapped.name}"`);
   return mapped;
@@ -447,6 +452,11 @@ export const updateProduct = async (id: string, updates: Partial<Product>) => {
     .select('*, product_variants(*), product_images(*)')
     .single();
   if (error) throw error;
+  if (!data?.id) {
+    throw new Error(
+      'Product update did not save to the database (0 rows). Sign in as staff/admin and try again.',
+    );
+  }
   const mapped = mapProductFromDb(data);
   void appendAuditNote('products', id, `Updated product "${mapped.name || id}"`);
   return mapped;
@@ -709,6 +719,10 @@ const rethrowVariantConstraint = (err: { message?: string; code?: string }): nev
  *
  * Order matters: deleting orphans first, then a temp-key pass, then final
  * values avoids false unique violations when staff swap combos between rows.
+ *
+ * Every update/insert is verified (PostgREST can return success with 0 rows
+ * when RLS or a stale id blocks the write — stock then looks “saved” in UI
+ * but never hits the database).
  */
 export const syncProductVariants = async (productId: string, rows: SkuVariantInput[]) => {
   const { data: existing, error: fetchErr } = await supabase
@@ -718,11 +732,18 @@ export const syncProductVariants = async (productId: string, rows: SkuVariantInp
   if (fetchErr) throw fetchErr;
 
   const existingRows = existing || [];
+  const existingIds = new Set(existingRows.map((e) => e.id).filter(Boolean) as string[]);
   const claimedExisting = new Set<string>();
 
   const resolveId = (row: SkuVariantInput): string | null => {
-    if (row.id) return row.id;
-    const match = existingRows.find((e) => e.id && !claimedExisting.has(e.id) && skuDimsMatch(e, row));
+    // Only trust ids that still exist for this product (stale client ids
+    // used to make UPDATE … WHERE id=… succeed with 0 rows).
+    if (row.id && existingIds.has(row.id) && !claimedExisting.has(row.id)) {
+      return row.id;
+    }
+    const match = existingRows.find(
+      (e) => e.id && !claimedExisting.has(e.id) && skuDimsMatch(e, row),
+    );
     return match?.id ?? null;
   };
 
@@ -756,6 +777,19 @@ export const syncProductVariants = async (productId: string, rows: SkuVariantInp
     };
   };
 
+  const assertUpdated = (
+    data: unknown,
+    id: string,
+    action: string,
+  ): void => {
+    const rowsOut = Array.isArray(data) ? data : data ? [data] : [];
+    if (rowsOut.length === 0) {
+      throw new Error(
+        `Could not ${action} stock version (${id.slice(0, 8)}…). Check you are signed in as staff/admin, then try Save again.`,
+      );
+    }
+  };
+
   try {
     // 1) Drop unused versions first so their combos/codes free up for updates
     if (toDelete.length > 0) {
@@ -769,7 +803,7 @@ export const syncProductVariants = async (productId: string, rows: SkuVariantInp
     // 2) Park existing rows on unique temp keys (avoids swap collisions)
     for (const { row, id } of withIds) {
       const token = id.replace(/-/g, '').slice(0, 12);
-      const { error: uerr } = await supabase
+      const { data, error: uerr } = await supabase
         .from('product_variants')
         .update(
           buildPayload(row, {
@@ -778,29 +812,43 @@ export const syncProductVariants = async (productId: string, rows: SkuVariantInp
             ram: null,
             sim_type: null,
             display_size: null,
+            edition: null,
             sku: `tmp-${token}`,
           }),
         )
-        .eq('id', id);
+        .eq('id', id)
+        .eq('product_id', productId)
+        .select('id');
       if (uerr) rethrowVariantConstraint(uerr);
+      assertUpdated(data, id, 'park');
     }
 
-    // 3) Write final values for existing rows
+    // 3) Write final values for existing rows (stock/price/dims)
     for (const { row, id } of withIds) {
-      const { error: uerr } = await supabase
+      const { data, error: uerr } = await supabase
         .from('product_variants')
         .update(buildPayload(row))
-        .eq('id', id);
+        .eq('id', id)
+        .eq('product_id', productId)
+        .select('id, stock');
       if (uerr) rethrowVariantConstraint(uerr);
+      assertUpdated(data, id, 'save');
     }
 
     // 4) Insert brand-new combinations
     for (const { row } of withoutIds) {
-      const { error: ierr } = await supabase.from('product_variants').insert(buildPayload(row));
+      const { data, error: ierr } = await supabase
+        .from('product_variants')
+        .insert(buildPayload(row))
+        .select('id, stock')
+        .single();
       if (ierr) rethrowVariantConstraint(ierr);
+      if (!data?.id) {
+        throw new Error('Could not create a stock version row in the database. Try Save again.');
+      }
     }
   } catch (e) {
-    if (e instanceof Error && /Duplicate combination|Duplicate item code|Duplicate SKU/.test(e.message)) {
+    if (e instanceof Error && /Duplicate combination|Duplicate item code|Duplicate SKU|Could not/.test(e.message)) {
       throw e;
     }
     const err = e as { message?: string; code?: string };
@@ -922,7 +970,18 @@ export const setPrimaryProductImage = async (productId: string, imageId: string)
     .single();
   if (error) throw error;
   if (data?.url) {
-    await supabase.from('products').update({ image_url: data.url }).eq('id', productId);
+    const { data: prod, error: prodErr } = await supabase
+      .from('products')
+      .update({ image_url: data.url })
+      .eq('id', productId)
+      .select('id')
+      .single();
+    if (prodErr) throw prodErr;
+    if (!prod?.id) {
+      throw new Error(
+        'Primary image was set, but product cover URL did not save. Sign in as staff/admin and retry.',
+      );
+    }
   }
   void appendAuditNote('product_images', productId, `Set primary image ${imageId}`);
 };
@@ -1702,12 +1761,17 @@ export const updateOrderStatus = async (id: string, status: string) => {
     payload.payment_status = 'paid';
   }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('orders')
     .update(payload)
-    .eq('id', id);
+    .eq('id', id)
+    .select('id, status, payment_status')
+    .single();
   if (error) throw error;
-  return { id, ...payload };
+  if (!data?.id) {
+    throw new Error('Order status did not save. Sign in as staff/admin and retry.');
+  }
+  return { id: data.id, status: data.status, payment_status: data.payment_status, ...payload };
 };
 
 // ==========================================

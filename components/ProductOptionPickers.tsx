@@ -5,8 +5,10 @@ import {
   getAvailableStock,
   snapSelectionToInStock,
   toOptionString,
+  isProductOptionAvailable,
   type ProductOptionGroup,
 } from '../lib/productOptions';
+import { StockAwareOptionButton } from './StockAwareOptionButton';
 
 type Props = {
   product: Product;
@@ -14,7 +16,7 @@ type Props = {
   selectedOptions: Record<string, string>;
   onChange: (next: Record<string, string>) => void;
   showStockHints?: boolean;
-  /** When true, OOS chips cannot be selected (cart + trade-in). */
+  /** When true, OOS chips cannot become the active selection (cart + trade-in). */
   strictStock?: boolean;
   className?: string;
 };
@@ -25,7 +27,7 @@ export const ProductOptionPickers: React.FC<Props> = ({
   selectedOptions,
   onChange,
   showStockHints = true,
-  strictStock = false,
+  strictStock = true,
   className = '',
 }) => {
   const groups = groupsProp ?? getProductOptionGroups(product);
@@ -41,42 +43,50 @@ export const ProductOptionPickers: React.FC<Props> = ({
           <div className="flex flex-wrap gap-2">
             {g.options.map((opt) => {
               const active = toOptionString(selectedOptions[g.name]) === opt;
-              const trial = snapSelectionToInStock(product, groups, {
-                ...selectedOptions,
-                [g.name]: opt,
-              });
-              const trialStock = showStockHints || strictStock ? getAvailableStock(product, trial) : 1;
-              const disabled = strictStock && trialStock <= 0;
+              const inStock = isProductOptionAvailable(
+                product,
+                selectedOptions,
+                g.name,
+                opt,
+                groups,
+              );
+              const outOfStock = !inStock;
               return (
-                <button
+                <StockAwareOptionButton
                   key={`${g.name}-${opt}`}
-                  type="button"
-                  disabled={disabled}
-                  onClick={() =>
-                    onChange(snapSelectionToInStock(product, groups, { ...selectedOptions, [g.name]: opt }))
+                  outOfStock={outOfStock}
+                  selected={active}
+                  label={opt}
+                  onSelect={() =>
+                    onChange(
+                      snapSelectionToInStock(product, groups, {
+                        ...selectedOptions,
+                        [g.name]: opt,
+                      }),
+                    )
                   }
-                  className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
-                    active
+                  className={`relative px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
+                    active && !outOfStock
                       ? 'border-[#CDA032] bg-[#CDA032]/10 text-[#CDA032]'
-                      : disabled
-                        ? 'border-[var(--bb-border)] opacity-35 cursor-not-allowed'
+                      : outOfStock
+                        ? 'border-[var(--bb-border)] opacity-40 grayscale cursor-not-allowed'
                         : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:border-[#CDA032]/40'
                   }`}
                 >
                   {opt}
-                </button>
+                </StockAwareOptionButton>
               );
             })}
           </div>
         </div>
       ))}
-      {showStockHints && !strictStock && available <= 0 && (
-        <p className="text-[11px] text-amber-500/90">This combination is currently out of stock.</p>
-      )}
-      {strictStock && available <= 0 && (
-        <p className="text-[11px] text-red-400/90">Out of stock — choose another configuration.</p>
+      {showStockHints && available <= 0 && (
+        <p className={`text-[11px] ${strictStock ? 'text-red-400/90' : 'text-amber-500/90'}`}>
+          {strictStock
+            ? 'Out of stock — choose another configuration.'
+            : 'This combination is currently out of stock.'}
+        </p>
       )}
     </div>
   );
 };
-

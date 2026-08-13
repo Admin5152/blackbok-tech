@@ -1,6 +1,6 @@
 /**
  * Console / controller PDP controls: storage badge, edition cards (PS5 Slim only),
- * first-class colour swatches. No storage dropdown.
+ * first-class colour swatches. Out-of-stock options are grayed with a pop tip.
  */
 import React, { useEffect, useMemo } from 'react';
 import type { Product } from '../../types';
@@ -11,6 +11,7 @@ import {
   getConsoleAvailability,
   type ConsoleCombo,
 } from '../../lib/consoleApi';
+import { StockAwareOptionButton } from '../StockAwareOptionButton';
 
 type Props = {
   product: Product;
@@ -34,6 +35,10 @@ function hexForColor(name: string, hex?: string | null): string {
   if (ol.includes('gold')) return '#f59e0b';
   if (ol.includes('silver') || ol.includes('grey') || ol.includes('gray')) return '#9ca3af';
   return '#6b7280';
+}
+
+function comboInStock(c: ConsoleCombo): boolean {
+  return c.status === 'active' && Number(c.stock_qty ?? 0) > 0;
 }
 
 export const ConsolePdpBlock: React.FC<Props> = ({
@@ -92,11 +97,17 @@ export const ConsolePdpBlock: React.FC<Props> = ({
   const combos = rpcCombos && rpcCombos.length > 0 ? rpcCombos : localCombos;
 
   const editions = useMemo(() => {
-    const map = new Map<string, { edition: string; price: number; sku: string }>();
+    const map = new Map<string, { edition: string; price: number; sku: string; inStock: boolean }>();
     for (const c of combos) {
       const ed = String(c.edition ?? '').trim();
       if (!ed) continue;
-      if (!map.has(ed)) map.set(ed, { edition: ed, price: c.price_ghs, sku: c.sku });
+      const prev = map.get(ed);
+      const stocked = comboInStock(c);
+      if (!prev) {
+        map.set(ed, { edition: ed, price: c.price_ghs, sku: c.sku, inStock: stocked });
+      } else if (stocked) {
+        map.set(ed, { ...prev, inStock: true, price: Math.min(prev.price, c.price_ghs) });
+      }
     }
     return [...map.values()];
   }, [combos]);
@@ -118,7 +129,8 @@ export const ConsolePdpBlock: React.FC<Props> = ({
   useEffect(() => {
     if (!hasAxis || !editions.length) return;
     if (selectedOptions.Edition) return;
-    onOptionsChange({ ...selectedOptions, Edition: editions[0].edition });
+    const firstIn = editions.find((e) => e.inStock) || editions[0];
+    onOptionsChange({ ...selectedOptions, Edition: firstIn.edition });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasAxis, editions.map((e) => e.edition).join('|')]);
 
@@ -151,24 +163,29 @@ export const ConsolePdpBlock: React.FC<Props> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {editions.map((ed) => {
               const selected = selectedEdition === ed.edition;
+              const oos = !ed.inStock;
               return (
-                <button
+                <StockAwareOptionButton
                   key={ed.edition}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() =>
+                  outOfStock={oos}
+                  selected={selected}
+                  label={ed.edition}
+                  tipAlign="start"
+                  onSelect={() =>
                     onOptionsChange({
                       ...selectedOptions,
                       Edition: ed.edition,
                       Color: '',
                     })
                   }
-                  className={`text-left rounded-xl border px-3 py-3 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B38B21] ${
-                    selected
-                      ? 'border-[#B38B21] bg-[#B38B21]/10'
-                      : isLight
-                        ? 'border-black/10 hover:border-black/25 bg-white'
-                        : 'border-white/10 hover:border-white/25 bg-white/[0.03]'
+                  className={`relative w-full text-left rounded-xl border px-3 py-3 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B38B21] ${
+                    oos
+                      ? 'opacity-40 grayscale cursor-not-allowed border-black/10'
+                      : selected
+                        ? 'border-[#B38B21] bg-[#B38B21]/10'
+                        : isLight
+                          ? 'border-black/10 hover:border-black/25 bg-white'
+                          : 'border-white/10 hover:border-white/25 bg-white/[0.03]'
                   }`}
                 >
                   <span className={`block text-sm font-black ${isLight ? 'text-black' : 'text-white'}`}>
@@ -177,7 +194,7 @@ export const ConsolePdpBlock: React.FC<Props> = ({
                   <span className="block text-sm font-black text-[#B38B21] tabular-nums mt-0.5">
                     {formatGhsPlain(ed.price)}
                   </span>
-                </button>
+                </StockAwareOptionButton>
               );
             })}
           </div>
@@ -202,20 +219,22 @@ export const ConsolePdpBlock: React.FC<Props> = ({
             {colourCombos.map((c) => {
               const name = String(c.color);
               const selected = selectedColor === name;
+              const oos = !comboInStock(c);
               return (
-                <button
+                <StockAwareOptionButton
                   key={`${c.variant_id}-${name}`}
-                  type="button"
-                  aria-label={name}
-                  aria-pressed={selected}
-                  title={name}
-                  onClick={() => onOptionsChange({ ...selectedOptions, Color: name })}
-                  className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1.5 text-[11px] font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B38B21] ${
-                    selected
-                      ? 'border-[#B38B21] bg-[#B38B21]/15 text-[#B38B21]'
-                      : isLight
-                        ? 'border-black/15 text-black/80 hover:border-black/30'
-                        : 'border-white/15 text-white/80 hover:border-white/30'
+                  outOfStock={oos}
+                  selected={selected}
+                  label={name}
+                  onSelect={() => onOptionsChange({ ...selectedOptions, Color: name })}
+                  className={`relative inline-flex items-center gap-2 rounded-full border px-2.5 py-1.5 text-[11px] font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B38B21] ${
+                    oos
+                      ? 'opacity-40 grayscale cursor-not-allowed'
+                      : selected
+                        ? 'border-[#B38B21] bg-[#B38B21]/15 text-[#B38B21]'
+                        : isLight
+                          ? 'border-black/15 text-black/80 hover:border-black/30'
+                          : 'border-white/15 text-white/80 hover:border-white/30'
                   }`}
                 >
                   <span
@@ -224,7 +243,7 @@ export const ConsolePdpBlock: React.FC<Props> = ({
                     aria-hidden
                   />
                   {name}
-                </button>
+                </StockAwareOptionButton>
               );
             })}
           </div>

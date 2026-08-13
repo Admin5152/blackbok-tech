@@ -94,8 +94,8 @@ export function TradeTargetScreen() {
     setLoading(true);
     (async () => {
       try {
-        // Load all active variants so storage / eSIM choices stay visible;
-        // browse cards still require at least one in-stock SKU (D11).
+        // Load all linked active variants (paged — catalogues exceed 1000 rows).
+        // OOS stays visible on browse cards; stock is shown per card.
         // Staff allowlist (upgrade targets) filters which products appear.
         const [data, loaded] = await Promise.all([
           getTradeTargets({ inStockOnly: false }),

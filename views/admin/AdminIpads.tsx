@@ -147,11 +147,17 @@ export const AdminIpads: React.FC<Props> = ({ canEdit = true, theme = 'dark' }) 
         updates.push({ ids: row.colorIds, price });
       }
       for (const u of updates) {
-        const { error: err } = await supabase
+        const { error: err, data } = await supabase
           .from('product_variants')
           .update({ price: u.price })
-          .in('id', u.ids);
+          .in('id', u.ids)
+          .select('id');
         if (err) throw err;
+        if (!data?.length) {
+          throw new Error(
+            'Price update did not save (0 rows). Sign in as staff/admin and retry.',
+          );
+        }
       }
       setMessage(`Saved ${updates.length} price group(s).`);
       await load();
@@ -171,11 +177,17 @@ export const AdminIpads: React.FC<Props> = ({ canEdit = true, theme = 'dark' }) 
       for (const r of visible) {
         const stock = Math.max(0, Math.floor(Number(draftStock[r.id] ?? r.stock ?? 0)));
         if (stock === Number(r.stock ?? 0)) continue;
-        const { error: err } = await supabase
+        const { error: err, data } = await supabase
           .from('product_variants')
           .update({ stock })
-          .eq('id', r.id);
+          .eq('id', r.id)
+          .select('id, stock');
         if (err) throw err;
+        if (!data?.length) {
+          throw new Error(
+            `Stock for ${r.sku || r.id} did not save (0 rows). Sign in as staff/admin and retry.`,
+          );
+        }
         n += 1;
       }
       setMessage(`Updated stock on ${n} colour row(s).`);
@@ -260,11 +272,17 @@ export const AdminIpads: React.FC<Props> = ({ canEdit = true, theme = 'dark' }) 
           patch.stock = stock;
         }
         if (!Object.keys(patch).length) continue;
-        const { error: err } = await supabase
+        const { error: err, data } = await supabase
           .from('product_variants')
           .update(patch)
-          .eq('sku', sku);
+          .eq('sku', sku)
+          .select('id');
         if (err) throw err;
+        if (!data?.length) {
+          throw new Error(
+            `SKU ${sku} did not update (0 rows). Check the code exists and you are staff/admin.`,
+          );
+        }
         updated += 1;
       }
       setMessage(`Imported updates for ${updated} SKU(s).`);
