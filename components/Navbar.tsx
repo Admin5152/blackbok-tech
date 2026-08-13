@@ -643,11 +643,16 @@ export const Navbar: React.FC<{
                     <div className="pl-7 flex flex-col gap-0.5 pb-1">
                       {[
                         { label: 'Chargers', subcategory: 'Chargers' },
-                        { label: 'Covers', subcategory: 'Covers' },
+                        { label: 'Phone covers', subcategory: 'Covers' },
                         { label: 'Screen protectors', subcategory: 'ScreenProtectors' },
                         { label: 'AirTags', subcategory: 'AirTags' },
+                        { label: 'Apple Watch', subcategory: 'AppleWatchAccessories' },
                         { label: 'Apple Pencil', subcategory: 'ApplePencil' },
+                        { label: 'Magic Keyboard', subcategory: 'MagicKeyboard' },
                         { label: 'Power banks', subcategory: 'PowerBanks' },
+                        { label: 'Keyboards', subcategory: 'Keyboards' },
+                        { label: 'Mouse', subcategory: 'Mouse' },
+                        { label: 'Flash drives', subcategory: 'FlashDrives' },
                       ].map((b) => (
                         <Link
                           key={b.subcategory}

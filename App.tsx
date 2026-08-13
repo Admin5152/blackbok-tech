@@ -2290,7 +2290,10 @@ function RootComponent() {
                     { label: 'Gaming', search: { category: 'Gaming' } },
                     { label: 'Accessories', search: { category: 'Accessories', series: 'all' } },
                     { label: 'Chargers', search: { category: 'Accessories', subcategory: 'Chargers', series: 'all' } },
-                    { label: 'Covers', search: { category: 'Accessories', subcategory: 'Covers', series: 'all' } },
+                    { label: 'Screen Protectors', search: { category: 'Accessories', subcategory: 'ScreenProtectors', series: 'all' } },
+                    { label: 'Phone Covers', search: { category: 'Accessories', subcategory: 'Covers', series: 'all' } },
+                    { label: 'AirTags', search: { category: 'Accessories', subcategory: 'AirTags', series: 'all' } },
+                    { label: 'Apple Pencil', search: { category: 'Accessories', subcategory: 'ApplePencil', series: 'all' } },
                     { label: 'Track Orders', path: '/history', search: { tab: 'orders' } },
                   ] },
                   { id: 'trades', label: 'Trades', icon: RefreshCcw, path: '/trade', subItems: [

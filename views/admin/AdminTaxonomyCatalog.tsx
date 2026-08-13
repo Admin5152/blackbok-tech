@@ -52,7 +52,7 @@ const MODE = {
   },
   accessories: {
     title: 'Accessories',
-    blurb: 'Type → device series (Chargers, Covers, Protectors, AirTags, Pencil…). Matches the August accessories pricelist.',
+    blurb: 'Type → series from the August accessories PDF (Chargers, Phone Covers, Protectors, AirTags, Pencil, Magic Keyboard, Power banks…). Edit price & stock here — same products table as the shop.',
     categories: ['Accessories'] as const,
     typeLabel: 'Type',
     csvName: 'blackbox-accessories.csv',

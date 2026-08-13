@@ -866,7 +866,7 @@ export const Store: React.FC<StoreProps> = ({
         search: {
           ...categoryScopeSearch(),
           ...(brandThenSeries
-            ? {}
+            ? { series: 'all' }
             : activeSeries
               ? { series: activeSeries }
               : seriesIsAll

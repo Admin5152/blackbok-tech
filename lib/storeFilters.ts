@@ -430,9 +430,9 @@ export const CONTROLLER_SERIES_OPTIONS: StoreSeriesOption[] = [
 ];
 
 export const ACCESSORY_TYPE_OPTIONS: StoreSeriesOption[] = [
-  { value: 'Chargers', label: 'Chargers', description: 'Apple, iPhone, Watch, Samsung, laptop & more' },
+  { value: 'Chargers', label: 'Chargers', description: 'Apple, Samsung, laptop & more' },
   { value: 'ScreenProtectors', label: 'Screen Protectors', description: 'Glass, ceramic, clear & privacy' },
-  { value: 'Covers', label: 'Covers', description: 'iPhone, iPad & MacBook cases' },
+  { value: 'Covers', label: 'Phone Covers', description: 'iPhone, iPad & MacBook cases' },
   { value: 'AirTags', label: 'AirTags', description: 'Single pack & packs of 4' },
   { value: 'AppleWatchAccessories', label: 'Apple Watch', description: 'Straps, protectors & covers' },
   { value: 'MagicKeyboard', label: 'Magic Keyboard', description: 'iPad Magic Keyboard' },
@@ -459,6 +459,7 @@ export const ACCESSORY_SERIES_OPTIONS: StoreSeriesOption[] = [
   { value: 'Gen2', label: 'Gen 2', description: 'Apple Pencil (2nd generation)' },
   { value: 'Gen1', label: 'Gen 1', description: 'Apple Pencil (1st generation)' },
   { value: 'USBC', label: 'USB-C', description: 'Apple Pencil USB-C' },
+  { value: 'General', label: 'General', description: 'Standard / uncategorised line' },
 ];
 
 export function categoryUsesSeriesStep(category: string | null | undefined): boolean {
@@ -784,10 +785,10 @@ const ACCESSORY_TYPE_SERIES: Readonly<Record<string, readonly string[]>> = {
   AppleWatchAccessories: ['Straps', 'ScreenProtectors', 'Covers'],
   MagicKeyboard: ['iPad'],
   ApplePencil: ['Pro', 'Gen2', 'Gen1', 'USBC'],
-  PowerBanks: [],
-  Keyboards: [],
-  Mouse: [],
-  FlashDrives: [],
+  PowerBanks: ['General'],
+  Keyboards: ['General'],
+  Mouse: ['General'],
+  FlashDrives: ['General'],
 };
 
 export function getCategorySeriesOptions(
@@ -865,6 +866,7 @@ export function getProductSeriesSlug(p: Product): string | null {
   }
   const cat = normalizeProductCategory(p.category);
   const sub = String(p.subcategory ?? '').trim().toLowerCase();
+  const brand = String(p.brand ?? '').trim().toLowerCase();
   const hay = `${p.name || ''} ${p.model || ''} ${p.brand || ''}`.toLowerCase();
 
   const accessoryTypeTags = new Set([
@@ -882,6 +884,30 @@ export function getProductSeriesSlug(p: Product): string | null {
     'flashdrives',
   ]);
 
+  /**
+   * Brand (or legacy brand) values sometimes sit on products.subcategory.
+   * Those are not series lines — resolve series via heuristics below.
+   */
+  const brandAsSubcategoryTags = new Set([
+    'jbl',
+    'beats',
+    'sony',
+    'apple',
+    'airpods', // legacy brand card — prefer Max/Pro/AirPods heuristics
+    'earpods',
+    'homepod',
+    'harmankardon',
+    'harman kardon',
+    'samsung',
+    'google',
+    'motorola',
+    'hp',
+    'dell',
+    'microsoft',
+    'nintendo',
+    'valve',
+  ]);
+
   // Keep spaces for series like "Fold 7" / "PlayStation 5" (do not hyphenate —
   // that broke Android Brand → Series matching).
   if (
@@ -890,7 +916,8 @@ export function getProductSeriesSlug(p: Product): string | null {
     sub !== 'used' &&
     sub !== 'preowned' &&
     sub !== 'refurbished' &&
-    !(cat === 'Accessories' && accessoryTypeTags.has(sub.replace(/\s+/g, '')))
+    !(cat === 'Accessories' && accessoryTypeTags.has(sub.replace(/\s+/g, ''))) &&
+    !brandAsSubcategoryTags.has(sub)
   ) {
     return sub.replace(/\s+/g, ' ').trim();
   }
@@ -966,13 +993,28 @@ export function getProductSeriesSlug(p: Product): string | null {
   }
   if (cat === 'Headphones') {
     // Most specific first — Max / Pro before generic AirPods
-    if (hay.includes('airpods max') || hay.includes('airpod max')) return 'airpods max';
-    if (hay.includes('airpods pro') || hay.includes('airpod pro')) return 'airpods pro';
-    if (hay.includes('airpod')) return 'airpods';
-    if (hay.includes('earpod') || hay.includes('ear pod')) return 'earpods';
-    if (hay.includes('tune')) return 'tune';
-    if (hay.includes('solo')) return 'solo';
-    if (hay.includes('sony') || hay.includes('wh-1000') || hay.includes('wf-1000')) return 'sony';
+    if (hay.includes('airpods max') || hay.includes('airpod max') || sub === 'airpods max') {
+      return 'airpods max';
+    }
+    if (hay.includes('airpods pro') || hay.includes('airpod pro') || sub === 'airpods pro') {
+      return 'airpods pro';
+    }
+    if (hay.includes('airpod') || sub === 'airpods') return 'airpods';
+    if (hay.includes('earpod') || hay.includes('ear pod') || sub === 'earpods') return 'earpods';
+    if (hay.includes('tune') || sub === 'tune') return 'tune';
+    if (hay.includes('solo') || sub === 'solo') return 'solo';
+    if (
+      hay.includes('sony') ||
+      hay.includes('wh-1000') ||
+      hay.includes('wf-1000') ||
+      sub === 'sony'
+    ) {
+      return 'sony';
+    }
+    // Legacy brand-as-subcategory (or brand-only rows) → default line
+    if (sub === 'jbl' || brand.includes('jbl') || hay.includes('jbl')) return 'tune';
+    if (sub === 'beats' || brand.includes('beats') || hay.includes('beats')) return 'solo';
+    if (sub === 'apple' || brand.includes('apple')) return 'airpods';
   }
   if (cat === 'Consoles' || cat === 'Controllers') {
     const series = String(
@@ -1156,9 +1198,9 @@ export const CATEGORY_SUBCATEGORY_CONFIG: Readonly<Record<string, SubcategoryOpt
     { kind: 'brand', value: 'Sony',  label: 'Sony',  description: 'Sony headphones & earbuds' },
   ],
   Accessories: [
-    { kind: 'brand', value: 'Chargers', label: 'Chargers', description: 'iPhone, MacBook, Watch, Samsung & more' },
-    { kind: 'brand', value: 'ScreenProtectors', label: 'Screen Protectors', description: 'Glass, ceramic, clear & privacy' },
-    { kind: 'brand', value: 'Covers', label: 'Covers', description: 'iPhone, iPad & MacBook cases' },
+    { kind: 'brand', value: 'Chargers', label: 'Chargers', description: 'Apple, Samsung, laptops & others' },
+    { kind: 'brand', value: 'ScreenProtectors', label: 'Screen Protectors', description: 'Glass & ceramic · clear / privacy' },
+    { kind: 'brand', value: 'Covers', label: 'Phone Covers', description: 'iPhone, iPad & MacBook cases' },
     { kind: 'brand', value: 'AirTags', label: 'AirTags', description: 'Single pack & pack of 4' },
     { kind: 'brand', value: 'AppleWatchAccessories', label: 'Apple Watch', description: 'Straps, protectors & covers' },
     { kind: 'brand', value: 'MagicKeyboard', label: 'Magic Keyboard', description: 'iPad Magic Keyboard' },
@@ -1620,9 +1662,45 @@ export function productMatchesStoreSubcategoryFilter(
   if (v === 'steam') return haystack.includes('steam') || haystack.includes('steam deck');
   if (v === 'nintendo') return haystack.includes('nintendo') || haystack.includes('switch');
   if (v === 'airpods') return haystack.includes('airpod');
-  if (v === 'jbl') return haystack.includes('jbl');
-  if (v === 'beats') return haystack.includes('beats') || haystack.includes('solo') || haystack.includes('pill');
-  if (v === 'sony') return haystack.includes('sony');
+  if (v === 'jbl') {
+    const series = String(specs?.series ?? '').trim().toLowerCase();
+    return (
+      haystack.includes('jbl') ||
+      tagged === 'jbl' ||
+      tagged === 'tune' ||
+      tagged === 'flip' ||
+      tagged === 'charge' ||
+      tagged === 'boombox' ||
+      tagged === 'go' ||
+      series === 'tune' ||
+      series === 'flip' ||
+      series === 'charge' ||
+      series === 'boombox' ||
+      series === 'go' ||
+      haystack.includes('tune')
+    );
+  }
+  if (v === 'beats') {
+    const series = String(specs?.series ?? '').trim().toLowerCase();
+    return (
+      haystack.includes('beats') ||
+      haystack.includes('solo') ||
+      haystack.includes('pill') ||
+      tagged === 'beats' ||
+      tagged === 'solo' ||
+      tagged === 'pill' ||
+      series === 'solo' ||
+      series === 'pill'
+    );
+  }
+  if (v === 'sony') {
+    return (
+      haystack.includes('sony') ||
+      tagged === 'sony' ||
+      haystack.includes('wh-1000') ||
+      haystack.includes('wf-1000')
+    );
+  }
   if (v === 'homepod') return haystack.includes('homepod');
   if (v === 'harmankardon') {
     return haystack.includes('harman') || haystack.includes('kardon');
