@@ -396,6 +396,23 @@ export function findVariantIdForOptions(
   return id || null;
 }
 
+/** True when option chips exist but SKU rows were not loaded (listing/view cards). */
+export function productNeedsSkuHydration(product: Product | null | undefined): boolean {
+  if (!product) return false;
+  if (skuVariantRows(product).length > 0) return false;
+  const asAny = product as Product & {
+    sim_types?: string[];
+    display_sizes?: string[];
+  };
+  return Boolean(
+    (product.colors && product.colors.length > 0) ||
+      (product.storage && product.storage.length > 0) ||
+      (product.ram && product.ram.length > 0) ||
+      (asAny.sim_types && asAny.sim_types.length > 0) ||
+      (asAny.display_sizes && asAny.display_sizes.length > 0),
+  );
+}
+
 /** True when the product has at least one unit (any SKU row or base stock). */
 export function productHasAnyStock(product: Product | null | undefined): boolean {
   if (!product) return false;
@@ -434,9 +451,11 @@ export function getAvailableStock(product: Product, selectedOptions: Record<stri
       !(typeof v.name === 'string' && Array.isArray((v as any).options)),
   );
 
+  // No SKU matrix → family-level stock is the only inventory.
   if (rows.length === 0) return base;
 
   const selectedEntries = Object.entries(selectedOptions).filter(([, v]) => toOptionString(v));
+  // Options not chosen yet → show family total (any unit available).
   if (selectedEntries.length === 0) return base;
 
   for (const row of rows) {
@@ -460,5 +479,7 @@ export function getAvailableStock(product: Product, selectedOptions: Record<stri
     }
   }
 
-  return base;
+  // SKUs exist but this combo does not match any row — do NOT fall back to
+  // the family sum (that let Blue sell against Black's stock).
+  return 0;
 }

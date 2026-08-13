@@ -222,7 +222,7 @@ export const AdminCustomers: React.FC = () => {
                 </div>
                 <div className="bg-[#0a0a0a] border border-white/5 rounded-xl p-4">
                     <p className="text-[9px] text-white/30 uppercase tracking-widest mb-1">Total Revenue</p>
-                    <p className="text-2xl font-black text-white">${orders.reduce((s, o) => s + o.total, 0).toLocaleString()}</p>
+                    <p className="text-2xl font-black text-white">{formatCurrency(orders.reduce((s, o) => s + o.total, 0))}</p>
                 </div>
             </div>
 
@@ -331,7 +331,7 @@ export const AdminCustomers: React.FC = () => {
                                     </div>
                                     <div className="bg-black/30 rounded-xl p-2.5 text-center">
                                         <p className="text-[8px] text-white/20 uppercase tracking-widest">Spent</p>
-                                        <p className="text-sm font-black text-[#B38B21]">${stats.totalSpent}</p>
+                                        <p className="text-sm font-black text-[#B38B21]">{formatCurrency(stats.totalSpent)}</p>
                                     </div>
                                     <div className="bg-black/30 rounded-xl p-2.5 text-center">
                                         <p className="text-[8px] text-white/20 uppercase tracking-widest">Last</p>

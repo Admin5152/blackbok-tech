@@ -46,7 +46,7 @@ const SELECT_OPTIONS: Record<string, string[]> = {
   battery_replaced_policy: ['full', 'half_if_85', 'none_if_90', 'full_verify'],
   camera_replaced_policy: ['full_verify', 'none_if_working'],
   icloud_locked_policy: ['hard_stop', 'screen_deduction'],
-  threshold_mode: ['percent', 'fixed'],
+  threshold_mode: ['percent', 'fixed', 'per_model'],
   aesthetic_a1_mode: ['percent', 'fixed', 'per_model'],
   aesthetic_a2_mode: ['percent', 'fixed', 'per_model'],
   notification_channel: ['in_app', 'sms', 'whatsapp', 'email'],

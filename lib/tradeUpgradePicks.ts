@@ -236,9 +236,17 @@ export function resolveUpgradeTargetProducts(products: Product[]): Product[] {
   if (ids?.length) {
     const map = new Map(eligible.map((p) => [p.id, p]));
     const out: Product[] = [];
+    const seen = new Set<string>();
     for (const id of ids) {
       const p = map.get(id);
-      if (p) out.push(p);
+      if (p) {
+        out.push(p);
+        seen.add(id);
+      }
+    }
+    // Also include every linked eligible product (linking alone must surface upgrades)
+    for (const p of eligible) {
+      if (!seen.has(p.id)) out.push(p);
     }
     if (out.length > 0) return out;
   }
@@ -246,9 +254,10 @@ export function resolveUpgradeTargetProducts(products: Product[]): Product[] {
 }
 
 /**
- * Always drops unlinked rows when there is no staff allowlist.
- * When staff set an allowlist, those product IDs are shown even if trade_model
- * is still empty (so newly added upgrade targets appear on /trade immediately).
+ * Upgrade targets:
+ * - Empty allowlist → all linked iPhone/iPad rows
+ * - Non-empty allowlist → allowlisted IDs ∪ linked eligible rows
+ *   (so Matching trade-in model alone still shows on /trade/target)
  */
 export function filterTradeTargetRowsByUpgradePicks(
   rows: TradeTargetRow[],
@@ -256,15 +265,41 @@ export function filterTradeTargetRowsByUpgradePicks(
   _knownTradeModels?: Set<string> | string[] | null,
 ): TradeTargetRow[] {
   const ids = allowIds === undefined ? readStoredUpgradeProductIds() : allowIds;
+  const linkedEligible = rows
+    .filter((r) => isTradeLinkedTargetRow(r))
+    .filter((r) => isDefaultUpgradeTargetRow(r));
 
   if (ids?.length) {
     const set = new Set(ids);
-    return rows.filter((r) => set.has(r.product_id));
+    const allowlisted = rows.filter((r) => set.has(r.product_id));
+    const byKey = new Set(
+      allowlisted.map((r) => `${r.product_id}:${r.variant_id ?? ''}:${r.storage ?? ''}:${r.color ?? ''}`),
+    );
+    const merged = [...allowlisted];
+    for (const r of linkedEligible) {
+      const key = `${r.product_id}:${r.variant_id ?? ''}:${r.storage ?? ''}:${r.color ?? ''}`;
+      if (!byKey.has(key)) {
+        merged.push(r);
+        byKey.add(key);
+      }
+    }
+    return merged;
   }
 
-  return rows
-    .filter((r) => isTradeLinkedTargetRow(r))
-    .filter((r) => isDefaultUpgradeTargetRow(r));
+  return linkedEligible;
+}
+
+/**
+ * When staff link a shop product (set trade_model), append it to the shared
+ * upgrade allowlist if one already exists — so /trade/target shows it immediately.
+ */
+export async function ensureProductInUpgradeAllowlist(productId: string): Promise<void> {
+  const id = String(productId || '').trim();
+  if (!id) return;
+  const { ids } = await loadUpgradeProductIds();
+  if (!ids?.length) return; // empty = "all linked" — nothing to append
+  if (ids.includes(id)) return;
+  await saveUpgradeProductIds([...ids, id]);
 }
 
 export function orderTargetProductsByAllowlist<T extends { productId: string }>(

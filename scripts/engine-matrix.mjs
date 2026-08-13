@@ -60,7 +60,7 @@ async function estimate(model, storage, sim, pairs) {
   const { data, error } = await sb.rpc('compute_trade_estimate', {
     p_model: model,
     p_storage: storage,
-    p_sim_variant: sim,
+    p_sim: sim,
     p_answers: payload,
   });
   if (error) throw error;
@@ -71,8 +71,9 @@ async function main() {
   console.log('Engine matrix\n');
 
   try {
+    // 4-tier B2: order 4 = ≤69% / Service → full battery deduction
     const r = await estimate('iPhone 14 Pro', '256GB', 'ps', [
-      ['B2', 3],
+      ['B2', 4],
       ['CAM4', 2],
     ]);
     if (Number(r.estimate) === 2760) ok('canonical 2760');
@@ -109,6 +110,7 @@ async function main() {
   }
 
   try {
+    // B2 order 2 = 85–90% quarter under 4-tier bands
     const r = await estimate('iPhone 14 Pro', '256GB', 'ps', [
       ['B1', 1],
       ['B2', 2],
@@ -120,10 +122,10 @@ async function main() {
       batt.length === 1 &&
       Number(r.total_deductions) === Number(batt[0].amount)
     ) {
-      ok('battery replaced + 80–84% single policy');
+      ok('battery replaced + health → single full_verify line');
     } else {
       fail(
-        'battery replaced + 80–84% single policy',
+        'battery replaced + health → single full_verify line',
         JSON.stringify({ batt, total: r.total_deductions }),
       );
     }
@@ -150,7 +152,7 @@ async function main() {
   }
 
   try {
-    const r = await estimate('iPhone 14 Pro', '256GB', 'ps', [['B2', 3]]);
+    const r = await estimate('iPhone 14 Pro', '256GB', 'ps', [['B2', 4]]);
     if (Number(r.estimate) % 5 === 0) ok('rounding to GHS 5');
     else fail('rounding to GHS 5', String(r.estimate));
   } catch (e) {

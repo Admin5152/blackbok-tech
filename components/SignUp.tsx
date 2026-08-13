@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Mail, Lock, User as UserIcon, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import AuthService, { type LoginCredentials, type AuthResponse } from '../lib/auth';
 import type { User } from '../interface/interface';
+import { saveReturnTo } from '../lib/returnTo';
 
 interface SignUpProps {
   setUser: (user: User | null) => void;
@@ -10,9 +11,11 @@ interface SignUpProps {
   notify: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
   /** When switching from Login after a failed attempt, pre-fill the email field. */
   prefillEmail?: string;
+  /** Preserve post-login destination through confirm → sign-in. */
+  returnTo?: string;
 }
 
-export const SignUp: React.FC<SignUpProps> = ({ setUser, navigateTo, theme, notify, prefillEmail }) => {
+export const SignUp: React.FC<SignUpProps> = ({ setUser, navigateTo, theme, notify, prefillEmail, returnTo }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -72,6 +75,7 @@ export const SignUp: React.FC<SignUpProps> = ({ setUser, navigateTo, theme, noti
 
         // Show success message and redirect to confirmation page
         notify(`Registration successful! Please check your email to confirm your account.`, 'success');
+        if (returnTo) saveReturnTo(returnTo);
 
         // Navigate to confirmation page with email
         console.log('Navigating to confirmation page');

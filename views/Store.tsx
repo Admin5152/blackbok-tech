@@ -53,6 +53,8 @@ import {
   encodeStoreSubcategorySearch,
   subcategoryFilterLabel,
   seriesFilterLabel,
+  getSubcategoryCount,
+  productMatchesStoreNewFilter,
   type StoreNewFilter,
   type StoreSubcategoryFilter,
   type SubcategoryOption,
@@ -91,6 +93,7 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   Laptops: <LaptopIcon size={14} />,
   Laptop: <LaptopIcon size={14} />,
   Tablet: <TabletIcon size={14} />,
+  'Apple Watches': <Watch size={14} />,
   'Smart watches': <Watch size={14} />,
   Accessories: <Watch size={14} />,
   Gaming: <Gamepad2 size={14} />,
@@ -110,6 +113,7 @@ const CATEGORY_ICONS_LG: Record<string, React.ReactNode> = {
   Laptops: <LaptopIcon size={28} strokeWidth={1.5} />,
   Laptop: <LaptopIcon size={28} strokeWidth={1.5} />,
   Tablet: <TabletIcon size={28} strokeWidth={1.5} />,
+  'Apple Watches': <Watch size={28} strokeWidth={1.5} />,
   'Smart watches': <Watch size={28} strokeWidth={1.5} />,
   Accessories: <Watch size={28} strokeWidth={1.5} />,
   Gaming: <Gamepad2 size={28} strokeWidth={1.5} />,
@@ -136,10 +140,10 @@ function subcategoryCardIcon(option: SubcategoryOption): React.ReactNode {
   if (v.includes('airpod') || v.includes('ear') || v.includes('jbl') || v.includes('sony') || v.includes('home') || v.includes('harman')) {
     return <Headphones size={28} strokeWidth={1.5} />;
   }
-  if (v.includes('watch') || v.includes('iwatch')) {
+  if (v.includes('ultra') || v.includes('series') || v.includes('galaxy') || v.includes('apple') || v.includes('samsung') || v.includes('watch') || v.includes('iwatch')) {
     return <Watch size={28} strokeWidth={1.5} />;
   }
-  if (v.includes('pixel') || v.includes('samsung') || v.includes('google')) {
+  if (v.includes('pixel') || v.includes('samsung') || v.includes('google') || v.includes('motorola') || v.includes('moto') || v.includes('fold') || v.includes('flip')) {
     return <Smartphone size={28} strokeWidth={1.5} />;
   }
   return <LayoutGrid size={28} strokeWidth={1.5} />;
@@ -163,7 +167,8 @@ const CATEGORY_COVER_BY_KEY: Record<string, string> = {
   MacBooks: '/macbook.jpeg',
   Laptops: '/laptop.jpeg',
   Laptop: '/laptop.jpeg',
-  'Smart watches': '/iphone_modern.png',
+  'Apple Watches': '/IMG_9008.JPG',
+  'Smart watches': '/IMG_9008.JPG',
   Gaming: '/ps5and xbox.jpeg',
   Consoles: '/ps5and xbox.jpeg',
   Controllers: '/ps5.jpeg',
@@ -192,6 +197,18 @@ const SUBCATEGORY_COVER_BY_VALUE: Record<string, string> = {
   HarmanKardon: '/Headphones111.jpeg',
   'Harman Kardon': '/Headphones111.jpeg',
   iWatches: '/IMG_9008.JPG',
+  Ultra: '/IMG_9008.JPG',
+  Series: '/IMG_9008.JPG',
+  Apple: '/IMG_9008.JPG',
+  Samsung: '/phones.jpeg',
+  Google: '/phones.jpeg',
+  Motorola: '/phones.jpeg',
+  Galaxy: '/iphone_modern.png',
+  'Fold 7': '/phones.jpeg',
+  'Flip 7': '/phones.jpeg',
+  'S26 Ultra': '/phones.jpeg',
+  'S25 Ultra': '/phones.jpeg',
+  Pixel: '/phones.jpeg',
   'Apple Watch': '/IMG_9008.JPG',
   Others: '/iphone_modern.png',
   PhoneCases: '/cases.jpeg',
@@ -325,11 +342,28 @@ export const Store: React.FC<StoreProps> = ({
   const activeCategory =
     selectedCategories.length === 1 ? String(selectedCategories[0]) : undefined;
 
+  const brandThenSeries = Boolean(
+    activeCategory && categoryUsesBrandThenSeries(activeCategory),
+  );
+
   const subcategoryFilter = useMemo(
     () =>
-      resolveStoreSubcategoryFilter(activeCategory, subcategoryFromUrl, conditionFromUrl),
-    [activeCategory, subcategoryFromUrl, conditionFromUrl],
+      resolveStoreSubcategoryFilter(
+        activeCategory,
+        subcategoryFromUrl,
+        // Brand→Series uses ?condition= independently of ?subcategory=brand
+        brandThenSeries ? undefined : conditionFromUrl,
+      ),
+    [activeCategory, subcategoryFromUrl, conditionFromUrl, brandThenSeries],
   );
+
+  /** New / Pre-owned refine — Brand→Series keeps this on ?condition= */
+  const activeConditionFilter: StoreNewFilter | undefined =
+    conditionFromUrl === 'new' || conditionFromUrl === 'used'
+      ? conditionFromUrl
+      : !brandThenSeries && subcategoryFilter?.kind === 'condition'
+        ? (subcategoryFilter.value as StoreNewFilter)
+        : undefined;
 
   const subcategoryOptions = useMemo(() => {
     if (!activeCategory) return [];
@@ -338,13 +372,14 @@ export const Store: React.FC<StoreProps> = ({
     return getCategorySubcategoryOptions(activeCategory);
   }, [activeCategory]);
 
+  const brandOptions = useMemo(
+    () => subcategoryOptions.filter((o) => o.kind === 'brand'),
+    [subcategoryOptions],
+  );
+
   const pickerParentCategory = storePickerParentCategory(activeCategory);
   const isNestedTypePicker = Boolean(
     activeCategory && getStorePickerNestedCategories(activeCategory).length > 0,
-  );
-
-  const brandThenSeries = Boolean(
-    activeCategory && categoryUsesBrandThenSeries(activeCategory),
   );
 
   const seriesOptions = useMemo(() => {
@@ -364,6 +399,12 @@ export const Store: React.FC<StoreProps> = ({
       ? seriesFromUrl
       : undefined;
 
+  /**
+   * Side-filter category pick sets series=all so shoppers land on the product
+   * grid and refine Brand / Series / Condition in the panel (no card drilldown).
+   */
+  const filterBrowseMode = seriesIsAll;
+
   /** Step 1: category cards. */
   const showCategoryPicker =
     selectedCategories.length === 0 && !searchTerm.trim() && !browseFlat;
@@ -377,10 +418,10 @@ export const Store: React.FC<StoreProps> = ({
     !showCategoryPicker &&
     !searchTerm.trim() &&
     !browseFlat &&
+    !filterBrowseMode &&
     selectedCategories.length === 1 &&
     seriesOptions.length > 0 &&
     !activeSeries &&
-    !seriesIsAll &&
     (brandThenSeries ? Boolean(subcategoryFilter) : !subcategoryFilter);
 
   /**
@@ -392,10 +433,11 @@ export const Store: React.FC<StoreProps> = ({
     !showSeriesPicker &&
     !searchTerm.trim() &&
     !browseFlat &&
+    !filterBrowseMode &&
     selectedCategories.length === 1 &&
     subcategoryOptions.length > 0 &&
     !subcategoryFilter &&
-    (brandThenSeries || seriesOptions.length === 0 || Boolean(activeSeries) || seriesIsAll);
+    (brandThenSeries || seriesOptions.length === 0 || Boolean(activeSeries));
 
   useEffect(() => {
     try {
@@ -871,10 +913,22 @@ export const Store: React.FC<StoreProps> = ({
         productMatchesStoreCategories(p, selectedCategories) &&
         productMatchesStoreSeries(p, activeSeries) &&
         productMatchesStoreSubcategoryFilter(p, subcategoryFilter) &&
+        // Brand→Series: condition is a separate ?condition= refine
+        (brandThenSeries
+          ? productMatchesStoreNewFilter(p, activeConditionFilter)
+          : true) &&
         (!browseDeals || isDealOfTheDayProduct(p)),
     );
     return sortProductsStockFirst(results);
-  }, [baseFilteredProducts, selectedCategories, activeSeries, subcategoryFilter, browseDeals]);
+  }, [
+    baseFilteredProducts,
+    selectedCategories,
+    activeSeries,
+    subcategoryFilter,
+    brandThenSeries,
+    activeConditionFilter,
+    browseDeals,
+  ]);
 
   const categoryOptions: StoreCategoryRow[] = useMemo(() => {
     const ordered = buildOrderedStoreCategoryKeys(products);
@@ -977,14 +1031,25 @@ export const Store: React.FC<StoreProps> = ({
 
   const subcategoryCards = useMemo(() => {
     if (!activeCategory) return [];
-    return subcategoryOptions.map((opt) => ({
-      key: `${opt.kind}-${opt.value}`,
-      option: opt,
-      icon: subcategoryCardIcon(opt),
-      cover: subcategoryCoverImage(products, activeCategory, opt, activeSeries),
-      onSelect: () => openSubcategory({ kind: opt.kind, value: opt.value }),
-    }));
-  }, [activeCategory, activeSeries, subcategoryOptions, products, openSubcategory]);
+    return subcategoryOptions.map((opt) => {
+      const count = getSubcategoryCount(baseFilteredProducts, activeCategory, opt);
+      return {
+        key: `${opt.kind}-${opt.value}`,
+        option: opt,
+        icon: subcategoryCardIcon(opt),
+        cover: subcategoryCoverImage(products, activeCategory, opt, activeSeries),
+        count,
+        onSelect: () => openSubcategory({ kind: opt.kind, value: opt.value }),
+      };
+    });
+  }, [
+    activeCategory,
+    activeSeries,
+    subcategoryOptions,
+    products,
+    baseFilteredProducts,
+    openSubcategory,
+  ]);
 
   const storePageResetKey = [
     searchTerm,
@@ -1073,41 +1138,53 @@ export const Store: React.FC<StoreProps> = ({
     });
   };
 
-  /** Refine series in-place. Empty value = all series in the current category. */
+  /** Refine series in-place. Empty / all = every series in scope. */
   const applySeriesFilter = useCallback(
     (value: string) => {
       const search: Record<string, string> = {
         ...categoryScopeSearch(),
         ...encodeStoreSubcategorySearch(subcategoryFilter),
       };
-      if (value) search.series = value;
+      if (brandThenSeries && activeConditionFilter) {
+        search.condition = activeConditionFilter;
+      }
+      if (value && value !== 'all') search.series = value;
       else if (seriesOptions.length > 0) search.series = 'all';
       navigate({ to: '/store', search: search as never, replace: true });
     },
-    [navigate, categoryScopeSearch, subcategoryFilter, seriesOptions.length],
+    [
+      navigate,
+      categoryScopeSearch,
+      subcategoryFilter,
+      seriesOptions.length,
+      brandThenSeries,
+      activeConditionFilter,
+    ],
   );
 
-  /** Refine New/Used (or brand) without wiping price / promo local state. */
+  /** Brand refine (Brand→Series categories). */
+  const applyBrandFilter = useCallback(
+    (value: string) => {
+      const search: Record<string, string> = {
+        ...categoryScopeSearch(),
+      };
+      if (value && value !== 'all') {
+        Object.assign(search, encodeStoreSubcategorySearch({ kind: 'brand', value }));
+      }
+      search.series = activeSeries || 'all';
+      if (activeConditionFilter) search.condition = activeConditionFilter;
+      navigate({ to: '/store', search: search as never, replace: true });
+    },
+    [navigate, categoryScopeSearch, activeSeries, activeConditionFilter],
+  );
+
+  /**
+   * Condition refine (New / Pre-owned).
+   * Brand→Series: writes ?condition= and keeps brand/series.
+   * Series→Condition categories: writes subcategory as before.
+   */
   const applyConditionFilter = useCallback(
     (value: string) => {
-      if (value === 'all' || value === '') {
-        const search: Record<string, string> = {
-          ...categoryScopeSearch(),
-        };
-        if (brandThenSeries) {
-          search.series = 'all';
-        } else if (activeSeries) {
-          search.series = activeSeries;
-        } else if (seriesIsAll || seriesOptions.length > 0) {
-          search.series = 'all';
-        }
-        navigate({
-          to: '/store',
-          search: search as never,
-          replace: true,
-        });
-        return;
-      }
       if (STORE_PICKER_NESTED_CHILD_CATEGORIES.has(value)) {
         setSelectedCategories([value as Category]);
         navigate({
@@ -1117,6 +1194,28 @@ export const Store: React.FC<StoreProps> = ({
         });
         return;
       }
+
+      if (brandThenSeries) {
+        const search: Record<string, string> = {
+          ...categoryScopeSearch(),
+          ...encodeStoreSubcategorySearch(subcategoryFilter),
+          series: activeSeries || 'all',
+        };
+        if (value && value !== 'all') search.condition = value;
+        navigate({ to: '/store', search: search as never, replace: true });
+        return;
+      }
+
+      if (value === 'all' || value === '') {
+        const search: Record<string, string> = {
+          ...categoryScopeSearch(),
+        };
+        if (activeSeries) search.series = activeSeries;
+        else if (seriesIsAll || seriesOptions.length > 0) search.series = 'all';
+        navigate({ to: '/store', search: search as never, replace: true });
+        return;
+      }
+
       const kind =
         subcategoryOptions.find((o) => o.value === value)?.kind ??
         (value === 'new' || value === 'used' ? 'condition' : 'brand');
@@ -1124,19 +1223,9 @@ export const Store: React.FC<StoreProps> = ({
         ...categoryScopeSearch(),
         ...encodeStoreSubcategorySearch({ kind, value }),
       };
-      // Brand → series: keep brand, clear to all series until staff picks one
-      if (brandThenSeries) {
-        search.series = 'all';
-      } else if (activeSeries) {
-        search.series = activeSeries;
-      } else if (seriesIsAll || seriesOptions.length > 0) {
-        search.series = 'all';
-      }
-      navigate({
-        to: '/store',
-        search: search as never,
-        replace: true,
-      });
+      if (activeSeries) search.series = activeSeries;
+      else if (seriesIsAll || seriesOptions.length > 0) search.series = 'all';
+      navigate({ to: '/store', search: search as never, replace: true });
     },
     [
       navigate,
@@ -1146,6 +1235,7 @@ export const Store: React.FC<StoreProps> = ({
       seriesOptions.length,
       subcategoryOptions,
       brandThenSeries,
+      subcategoryFilter,
       setSelectedCategories,
     ],
   );
@@ -1169,6 +1259,9 @@ export const Store: React.FC<StoreProps> = ({
     setDesktopMinInput(String(range.min));
     setDesktopMaxInput(String(range.max));
   };
+
+  /** New / Used in the side panel for any single-category browse (incl. Android + Brand→Series). */
+  const showConditionInFilter = Boolean(activeCategory);
 
   const filterPanelProps = {
     isLight,
@@ -1194,31 +1287,22 @@ export const Store: React.FC<StoreProps> = ({
     activeFiltersCount,
     onClearAll: clearAllFilters,
     resultCount: filteredProducts.length,
+    brandOptions: brandThenSeries
+      ? brandOptions.map((o) => ({ value: o.value, label: o.label }))
+      : undefined,
+    activeBrand: brandThenSeries ? subcategoryFilter?.value : undefined,
+    onBrandClick: brandThenSeries ? applyBrandFilter : undefined,
     seriesOptions: seriesOptions.map((o) => ({ value: o.value, label: o.label })),
     activeSeries: activeSeries ?? '',
     onSeriesClick: applySeriesFilter,
-    conditionOptions: (() => {
-      const opts = subcategoryOptions.map((o) => ({ value: o.value, label: o.label }));
-      // Filter sidebar only: All + New + Used for condition categories
-      const isConditionOnly =
-        !brandThenSeries &&
-        subcategoryOptions.length > 0 &&
-        subcategoryOptions.every((o) => o.kind === 'condition');
-      if (isConditionOnly) {
-        return [{ value: 'all', label: 'All' }, ...opts];
-      }
-      return opts;
-    })(),
-    activeCondition: (() => {
-      const isConditionOnly =
-        !brandThenSeries &&
-        subcategoryOptions.length > 0 &&
-        subcategoryOptions.every((o) => o.kind === 'condition');
-      if (isConditionOnly && !subcategoryFilter) return 'all';
-      return subcategoryFilter?.value;
-    })(),
-    onConditionClick: applyConditionFilter,
-    brandThenSeries,
+    conditionOptions: showConditionInFilter
+      ? [
+          { value: 'new', label: 'New' },
+          { value: 'used', label: 'Pre-owned' },
+        ]
+      : undefined,
+    activeCondition: showConditionInFilter ? activeConditionFilter ?? 'all' : undefined,
+    onConditionClick: showConditionInFilter ? applyConditionFilter : undefined,
   };
 
   const gridCols = showDesktopFilters
@@ -1533,7 +1617,7 @@ export const Store: React.FC<StoreProps> = ({
       : isConditionStep
         ? `Choose condition to see matching ${seriesLabel || scopeLabel} inventory.`
         : brandThenSeries
-          ? `Pick a brand, then choose a series.`
+          ? `Pick a brand — Apple, Samsung, and others each have their own series.`
           : `Pick a type to browse ${scopeLabel} products.`;
 
     return (
@@ -1620,6 +1704,15 @@ export const Store: React.FC<StoreProps> = ({
                       }`}
                     >
                       {card.option.description}
+                    </span>
+                    <span
+                      className={`mt-2 inline-block text-[10px] font-black uppercase tracking-wider ${
+                        card.count > 0 ? 'text-[#CDA032]' : isLight ? 'text-black/40' : 'text-white/40'
+                      }`}
+                    >
+                      {card.count > 0
+                        ? `${card.count} product${card.count === 1 ? '' : 's'}`
+                        : 'Coming soon'}
                     </span>
                   </div>
                 </div>
@@ -1735,27 +1828,56 @@ export const Store: React.FC<StoreProps> = ({
               </div>
             </div>
 
-            {/* Series + condition only (price stays in the side filter) */}
+            {/* Quick refine chips (full controls live in the side filter) */}
             {(seriesOptions.length > 0 ||
-              (subcategoryOptions.length > 0 && subcategoryFilter) ||
+              (brandThenSeries && brandOptions.length > 0) ||
+              showConditionInFilter ||
               activeFiltersCount > 0) && (
               <div
                 className={`bb-store-chip-rail bb-scrollbar ${showDesktopFilters ? 'lg:hidden' : ''}`}
                 role="toolbar"
                 aria-label="Category filters"
               >
+                {brandThenSeries && brandOptions.length > 0 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => applyBrandFilter('all')}
+                      className={`bb-store-chip ${!subcategoryFilter ? 'bb-store-chip--active' : ''}`}
+                    >
+                      All brands
+                    </button>
+                    {brandOptions.map((opt) => (
+                      <button
+                        key={`brand-${opt.value}`}
+                        type="button"
+                        onClick={() => applyBrandFilter(opt.value)}
+                        className={`bb-store-chip ${
+                          subcategoryFilter?.value === opt.value ? 'bb-store-chip--active' : ''
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </>
+                )}
+
+                {brandThenSeries && brandOptions.length > 0 && seriesOptions.length > 0 && (
+                  <span className="bb-store-chip-rail__sep" aria-hidden />
+                )}
+
                 {seriesOptions.length > 0 && (
                   <>
                     <button
                       type="button"
-                      onClick={() => applySeriesFilter('')}
+                      onClick={() => applySeriesFilter('all')}
                       className={`bb-store-chip ${!activeSeries ? 'bb-store-chip--active' : ''}`}
                     >
-                      All
+                      All series
                     </button>
                     {seriesOptions.map((opt) => (
                       <button
-                        key={opt.value}
+                        key={`series-${opt.value}`}
                         type="button"
                         onClick={() => applySeriesFilter(opt.value)}
                         className={`bb-store-chip ${activeSeries === opt.value ? 'bb-store-chip--active' : ''}`}
@@ -1766,26 +1888,36 @@ export const Store: React.FC<StoreProps> = ({
                   </>
                 )}
 
-                {seriesOptions.length > 0 &&
-                  subcategoryOptions.length > 0 &&
-                  subcategoryFilter && (
+                {showConditionInFilter &&
+                  (seriesOptions.length > 0 || (brandThenSeries && brandOptions.length > 0)) && (
                     <span className="bb-store-chip-rail__sep" aria-hidden />
                   )}
 
-                {subcategoryOptions.length > 0 &&
-                  subcategoryFilter &&
-                  subcategoryOptions.map((opt) => (
+                {showConditionInFilter && (
+                  <>
                     <button
-                      key={opt.value}
                       type="button"
-                      onClick={() => applyConditionFilter(opt.value)}
-                      className={`bb-store-chip ${
-                        subcategoryFilter?.value === opt.value ? 'bb-store-chip--active' : ''
-                      }`}
+                      onClick={() => applyConditionFilter('all')}
+                      className={`bb-store-chip ${!activeConditionFilter ? 'bb-store-chip--active' : ''}`}
                     >
-                      {opt.label}
+                      All
                     </button>
-                  ))}
+                    <button
+                      type="button"
+                      onClick={() => applyConditionFilter('new')}
+                      className={`bb-store-chip ${activeConditionFilter === 'new' ? 'bb-store-chip--active' : ''}`}
+                    >
+                      New
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => applyConditionFilter('used')}
+                      className={`bb-store-chip ${activeConditionFilter === 'used' ? 'bb-store-chip--active' : ''}`}
+                    >
+                      Pre-owned
+                    </button>
+                  </>
+                )}
 
                 {activeFiltersCount > 0 && (
                   <button
@@ -1910,10 +2042,18 @@ export const Store: React.FC<StoreProps> = ({
                     ? 'No consoles match these filters.'
                     : activeCategory === 'Controllers'
                       ? 'No controllers match these filters.'
-                      : 'No products found'}
+                      : normalizeProductCategory(activeCategory) === 'Smart watches'
+                        ? subcategoryFilter?.value === 'Samsung'
+                          ? 'No Samsung watches listed yet'
+                          : subcategoryFilter?.value === 'Others'
+                            ? 'No other-brand watches listed yet'
+                            : 'No watches match these filters'
+                        : 'No products found'}
                 </h3>
                 <p className="text-sm text-[color:var(--bb-muted)] max-w-sm mx-auto mb-6">
-                  Try a different search term, clear your filters, or browse another category.
+                  {normalizeProductCategory(activeCategory) === 'Smart watches'
+                    ? 'Try Apple Watch Ultra or Series, or go back and pick another brand.'
+                    : 'Try a different search term, clear your filters, or browse another category.'}
                 </p>
                 <button
                   type="button"
@@ -1929,7 +2069,9 @@ export const Store: React.FC<StoreProps> = ({
                   {activeCategory === 'Consoles' || activeCategory === 'Controllers'
                     ? 'Clear filters'
                     : canChangeSubcategory
-                      ? 'Change filter'
+                      ? brandThenSeries
+                        ? 'Change brand'
+                        : 'Change filter'
                       : 'Browse categories'}
                 </button>
               </div>

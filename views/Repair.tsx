@@ -368,7 +368,7 @@ Signed by: ${effectiveSignature || 'N/A'} (Agreed: ${formData.agreesToTerms ? 'Y
         displayId: created.display_id || created.id,
         referenceId: created.id,
       });
-      navigate({ to: '/profile' });
+      navigate({ to: `/tracking/repair/${created.id}` as any });
     } catch (err: unknown) {
       const message =
         err instanceof Error && err.message === REPAIR_REQUEST_CONSTRAINT_MESSAGE

@@ -10,11 +10,14 @@ import {
   toOptionString,
   getAvailableStock,
   findVariantRowForOptions,
+  productNeedsSkuHydration,
 } from '../lib/productOptions';
 import { variantEffectivePrice } from '../lib/catalogApi';
-import { getDealDiscountPercentage } from '../lib/dealOfTheDay';
+import { getDealDiscountPercentage, applyDealDiscountToAmount } from '../lib/dealOfTheDay';
+import { getProduct } from '../lib/api';
 import { ProductAvailabilityBadge } from './ProductAvailabilityBadge';
 import { lockPageScroll } from '../lib/pageScrollLock';
+import { formatProductConditionLabel } from '../lib/storeFilters';
 
 interface QuickViewModalProps {
   product: Product | null;
@@ -26,39 +29,65 @@ interface QuickViewModalProps {
 export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen, onClose, onAddToCart }) => {
   const { theme } = useAppContext();
   const isLight = theme === 'light';
-  const groupedVariants = useMemo(() => getProductOptionGroups(product), [product]);
+  const [liveProduct, setLiveProduct] = useState<Product | null>(product);
+  const [hydrating, setHydrating] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen || !product) {
+      setLiveProduct(product);
+      return;
+    }
+    let cancelled = false;
+    setLiveProduct(product);
+    if (!productNeedsSkuHydration(product)) return;
+    setHydrating(true);
+    void getProduct(product.id)
+      .then((remote) => {
+        if (!cancelled && remote) setLiveProduct(remote);
+      })
+      .catch(() => {
+        /* keep listing product */
+      })
+      .finally(() => {
+        if (!cancelled) setHydrating(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, product]);
+
+  const active = liveProduct ?? product;
+  const groupedVariants = useMemo(() => getProductOptionGroups(active), [active]);
 
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
 
   const availableStock = useMemo(
-    () => (product ? getAvailableStock(product, selectedOptions) : 0),
-    [product, selectedOptions],
+    () => (active ? getAvailableStock(active, selectedOptions) : 0),
+    [active, selectedOptions],
   );
 
   const matchedVariant = useMemo(() => {
-    if (!product) return null;
-    return findVariantRowForOptions(product, selectedOptions) as ProductVariant | null;
-  }, [product, selectedOptions]);
+    if (!active) return null;
+    return findVariantRowForOptions(active, selectedOptions) as ProductVariant | null;
+  }, [active, selectedOptions]);
 
   const listPrice = useMemo(() => {
-    if (!product) return 0;
-    return variantEffectivePrice(product, matchedVariant);
-  }, [product, matchedVariant]);
+    if (!active) return 0;
+    return variantEffectivePrice(active, matchedVariant);
+  }, [active, matchedVariant]);
 
   const unitPrice = useMemo(() => {
-    if (!product) return 0;
-    const pct = getDealDiscountPercentage(product);
-    if (pct > 0) return Math.round(listPrice * (1 - pct / 100) * 100) / 100;
-    return listPrice;
-  }, [product, listPrice]);
+    if (!active) return 0;
+    return applyDealDiscountToAmount(listPrice, active);
+  }, [active, listPrice]);
 
-  const discountPct = product ? getDealDiscountPercentage(product) : 0;
+  const discountPct = active ? getDealDiscountPercentage(active) : 0;
 
   useEffect(() => {
-    setSelectedOptions(product ? defaultSelectedOptionsForProduct(product) : {});
+    setSelectedOptions(active ? defaultSelectedOptionsForProduct(active) : {});
     setQuantity(1);
-  }, [product, groupedVariants]);
+  }, [active?.id, groupedVariants]);
 
   useEffect(() => {
     setQuantity((q) => Math.min(q, Math.max(1, availableStock || 1)));
@@ -70,15 +99,15 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
     return lockPageScroll();
   }, [isOpen]);
 
-  if (!product || !isOpen) return null;
+  if (!active || !isOpen) return null;
 
   const handleAddToCart = () => {
-    if (!product || availableStock <= 0) {
+    if (!active || availableStock <= 0) {
       window.alert('This configuration is out of stock.');
       return;
     }
-    const resolved = snapSelectionToInStock(product, groupedVariants, selectedOptions);
-    onAddToCart(product, resolved, quantity);
+    const resolved = snapSelectionToInStock(active, groupedVariants, selectedOptions);
+    onAddToCart(active, resolved, quantity);
     onClose();
   };
 
@@ -111,7 +140,7 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
               Terminal Quick-View
             </h2>
             <p className="mt-1 truncate text-sm sm:text-lg font-black uppercase italic tracking-tight">
-              {product.name}
+              {active.name}
             </p>
           </div>
           <button
@@ -140,11 +169,11 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
             <img
               src={
                 matchedVariant?.image_url ||
-                product.image ||
-                product.image_url ||
+                active.image ||
+                active.image_url ||
                 ''
               }
-              alt={product.name}
+              alt={active.name}
               className="absolute inset-0 h-full w-full object-contain object-center p-4 sm:p-6"
             />
           </div>
@@ -158,22 +187,13 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="rounded-full border border-[#CDA032]/20 bg-[#CDA032]/10 px-3 py-1 text-[8px] font-black uppercase tracking-widest text-[#CDA032]">
-                    {product.category}
+                    {active.category}
                   </span>
                   {(() => {
-                    const c = String(product.condition || '').toLowerCase();
-                    const isUsed =
-                      c === 'preowned' ||
-                      c === 'used' ||
-                      c === 'refurbished' ||
-                      (c !== 'new' && product.is_new === false);
-                    if (!isUsed && c !== 'new' && product.is_new !== true && !c) return null;
-                    const label =
-                      c === 'refurbished'
-                        ? 'Refurbished'
-                        : isUsed
-                          ? 'Pre-owned'
-                          : 'New';
+                    const label = formatProductConditionLabel(active);
+                    if (label === '—') return null;
+                    const isUsed = label === 'Pre-owned' || label === 'Refurbished';
+                    // Show New on quick view; store cards only badge pre-owned
                     return (
                       <span
                         className={`rounded-full border px-3 py-1 text-[8px] font-black uppercase tracking-widest ${
@@ -191,7 +211,7 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
                 </div>
 
                 <h2 className="select-none text-2xl sm:text-3xl font-black uppercase italic leading-[0.95] tracking-tighter">
-                  {product.name}
+                  {active.name}
                 </h2>
 
                 <div className="flex items-baseline gap-2 flex-wrap">
@@ -249,24 +269,24 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
                       {variant.options.map((option, optIdx) => {
                         const opt = toOptionString(option);
                         const ol = opt.toLowerCase();
-                        const trialOpts = product
-                          ? snapSelectionToInStock(product, groupedVariants, {
+                        const trialOpts = active
+                          ? snapSelectionToInStock(active, groupedVariants, {
                               ...selectedOptions,
                               [variant.name]: opt,
                             })
                           : selectedOptions;
-                        const optDisabled = product
-                          ? getAvailableStock(product, trialOpts) <= 0
-                          : false;
+                        const optDisabled =
+                          hydrating ||
+                          (active ? getAvailableStock(active, trialOpts) <= 0 : false);
                         return (
                           <button
                             key={`${variant.name}-${optIdx}-${opt}`}
                             type="button"
                             disabled={optDisabled}
                             onClick={() => {
-                              if (!product || optDisabled) return;
+                              if (!active || optDisabled) return;
                               setSelectedOptions((prev) =>
-                                snapSelectionToInStock(product, groupedVariants, {
+                                snapSelectionToInStock(active, groupedVariants, {
                                   ...prev,
                                   [variant.name]: opt,
                                 }),
@@ -374,13 +394,17 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, isOpen,
                   <button
                     type="button"
                     onClick={handleAddToCart}
-                    disabled={availableStock <= 0}
+                    disabled={hydrating || availableStock <= 0}
                     className="group flex flex-1 items-center justify-center gap-4 rounded-2xl bg-white py-4 text-[11px] font-black uppercase tracking-[0.35em] text-black shadow-2xl transition-all hover:bg-[#CDA032] hover:text-black active:scale-95 disabled:pointer-events-none disabled:opacity-40"
                   >
                     <span className="transition-transform group-hover:scale-125">
                       <ShoppingCart size={18} />
                     </span>
-                    {availableStock <= 0 ? 'Out of stock' : 'Authorize Purchase'}
+                    {hydrating
+                      ? 'Loading stock…'
+                      : availableStock <= 0
+                        ? 'Out of stock'
+                        : 'Authorize Purchase'}
                   </button>
                 </div>
 

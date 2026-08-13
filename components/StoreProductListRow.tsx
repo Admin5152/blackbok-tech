@@ -6,7 +6,9 @@ import {
   defaultSelectedOptionsForProduct,
   getAvailableStock,
 } from '../lib/productOptions';
+import { getDealDiscountedPrice, isDealOfTheDayProduct } from '../lib/dealOfTheDay';
 import { productRouteParam } from '../lib/productUrl';
+import { formatProductConditionLabel } from '../lib/storeFilters';
 
 interface Props {
   product: Product;
@@ -26,6 +28,8 @@ export const StoreProductListRow: React.FC<Props> = ({
   const priceFrom = Number(product.price_from ?? product.price ?? 0);
   const priceTo = Number(product.price_to ?? priceFrom);
   const showFrom = priceTo > priceFrom;
+  const displayFrom = getDealDiscountedPrice(product);
+  const isDeal = isDealOfTheDayProduct(product);
   const totalStock = Math.max(0, Math.floor(Number(product.total_stock ?? product.stock ?? 0)));
   const available =
     product.variants?.length
@@ -58,13 +62,31 @@ export const StoreProductListRow: React.FC<Props> = ({
               {product.name}
             </button>
             <div className="flex shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-1">
+              {(() => {
+                const label = formatProductConditionLabel(product);
+                if (label !== 'Pre-owned' && label !== 'Refurbished') return null;
+                return (
+                  <span
+                    className={`px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider ${
+                      isLight ? 'bg-amber-100 text-amber-800' : 'bg-amber-500/20 text-amber-300'
+                    }`}
+                  >
+                    {label}
+                  </span>
+                );
+              })()}
+              {isDeal && (
+                <span className="px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider bg-gradient-to-r from-orange-600 to-amber-500 text-white">
+                  Deal
+                </span>
+              )}
               {showFrom && (
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[color:var(--bb-muted)]">
                   from
                 </span>
               )}
               <span className="font-black text-base sm:text-lg text-[#CDA032] tabular-nums">
-                {formatCurrency(priceFrom)}
+                {formatCurrency(displayFrom)}
               </span>
               <ProductAvailabilityBadge available={available} isLight={isLight} inline />
             </div>

@@ -37,19 +37,19 @@ export interface AppContextType {
   setTrades: (t: TradeRequest[]) => void;
   setWishlist: Dispatch<SetStateAction<string[]>>;
   setCompareIds: Dispatch<SetStateAction<string[]>>;
-  addToCart: (p: Product, o?: Record<string, string>, q?: number) => void;
+  addToCart: (p: Product, o?: Record<string, string>, q?: number) => void | Promise<void>;
   toggleWishlist: (id: string) => void;
   /** Clears local + server wishlist for the signed-in user. */
   clearWishlist: () => void;
   toggleCompare: (id: string) => void;
   onToggleCompare: (id: string) => void;
-  updateQuantity: (id: string, o: Record<string, string> | undefined, d: number) => void;
+  updateQuantity: (id: string, o: Record<string, string> | undefined, d: number) => void | Promise<void>;
   removeFromCart: (uid: string) => void;
   handleCheckout: (t: number) => void;
   notify: (m: string, t?: 'success' | 'error' | 'info' | 'warning') => void;
   navigateTo: (v: string, second?: string | { search?: Record<string, unknown> }) => void;
   onQuickView: (p: Product) => void;
-  onAddToCart: (p: Product, options?: Record<string, string>, qty?: number) => void;
+  onAddToCart: (p: Product, options?: Record<string, string>, qty?: number) => void | Promise<void>;
   theme: Theme;
   setTheme: (t: Theme) => void;
   refreshProducts: () => Promise<void>;

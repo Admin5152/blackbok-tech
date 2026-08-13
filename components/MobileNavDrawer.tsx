@@ -119,37 +119,34 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
             >
               {isLight ? <Moon size={18} /> : <Sun size={18} />}
             </button>
-            <Link
-              to="/cart"
-              onClick={onAfterNavigate}
-              className="bb-mobile-nav__icon-btn bb-mobile-nav__icon-btn--cart"
-              aria-label={`Cart${cartCount > 0 ? `, ${cartCount} items` : ''}`}
-            >
-              <ShoppingCart size={18} />
-              {cartCount > 0 && (
-                <span className="bb-mobile-nav__cart-badge" aria-hidden>
-                  {cartCount > 99 ? '99+' : cartCount}
-                </span>
-              )}
-            </Link>
             <button type="button" className="bb-mobile-nav__icon-btn" onClick={onClose} aria-label="Close menu">
               <X size={20} />
             </button>
           </div>
         </header>
 
-        <Link to={user ? '/profile' : '/auth'} onClick={onClose} className="bb-mobile-nav__profile">
-          <span className="bb-mobile-nav__avatar" aria-hidden>
-            {user ? (user.avatarLetter || user.name.charAt(0)) : 'U'}
-          </span>
-          <span className="bb-mobile-nav__profile-text">
-            <span className="bb-mobile-nav__profile-name">{user ? user.name : 'Guest'}</span>
-            <span className="bb-mobile-nav__profile-hint">
-              {user ? user.email : 'Sign in for orders & offers'}
+        {user ? (
+          <Link to="/profile" onClick={onClose} className="bb-mobile-nav__profile">
+            <span className="bb-mobile-nav__avatar" aria-hidden>
+              {user.avatarLetter || user.name.charAt(0)}
             </span>
-          </span>
-          <ChevronRight size={18} className="bb-mobile-nav__profile-chevron" aria-hidden />
-        </Link>
+            <span className="bb-mobile-nav__profile-text">
+              <span className="bb-mobile-nav__profile-name">{user.name}</span>
+              <span className="bb-mobile-nav__profile-hint">{user.email}</span>
+            </span>
+            <ChevronRight size={18} className="bb-mobile-nav__profile-chevron" aria-hidden />
+          </Link>
+        ) : (
+          <div className="bb-mobile-nav__profile bb-mobile-nav__profile--static">
+            <span className="bb-mobile-nav__avatar" aria-hidden>
+              U
+            </span>
+            <span className="bb-mobile-nav__profile-text">
+              <span className="bb-mobile-nav__profile-name">Welcome</span>
+              <span className="bb-mobile-nav__profile-hint">Browse freely — sign in below to save orders</span>
+            </span>
+          </div>
+        )}
 
         <form onSubmit={onSearch} className="bb-mobile-nav__search" role="search">
           <label htmlFor="nav-mobile-catalog-search" className="sr-only">
@@ -166,20 +163,26 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
             className="bb-mobile-nav__search-input"
           />
           <button type="submit" className={`bb-mobile-nav__search-submit ${TW_DARK_GOLD_BTN_DEPTH}`}>
-            Search
+            Go
           </button>
         </form>
 
         <div className="bb-mobile-nav__quick">
           {[
-            { to: '/store' as const, label: 'Shop', icon: ShoppingBag },
+            { to: '/store' as const, label: 'Shop', icon: ShoppingBag, search: { browse: 'all' } },
             { to: '/repair' as const, label: 'Repair', icon: Wrench },
             { to: '/trade' as const, label: 'Trade-in', icon: RefreshCcw },
             ...(showAdminLink
               ? [{ to: '/admin' as const, label: 'Admin', icon: LayoutDashboard }]
               : []),
           ].map((link) => (
-            <Link key={link.to} to={link.to} onClick={onAfterNavigate} className="bb-mobile-nav__quick-link">
+            <Link
+              key={link.to}
+              to={link.to}
+              search={'search' in link ? (link.search as never) : undefined}
+              onClick={onAfterNavigate}
+              className="bb-mobile-nav__quick-link"
+            >
               <link.icon size={16} aria-hidden />
               <span>{link.label}</span>
             </Link>

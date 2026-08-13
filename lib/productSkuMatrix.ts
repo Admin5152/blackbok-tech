@@ -270,6 +270,44 @@ export function mergeSkuMatrix(combos: ComboDims[], existing: SkuMatrixRow[]): S
   });
 }
 
+/**
+ * BlackBox pricing model: Storage (+ RAM / size / SIM) set price; Color is for
+ * quantity. Copy absolute price + modifier from the first priced row in each
+ * config group onto every color twin so staff only enter price once per config.
+ */
+export function syncPricesByStorageRam(rows: SkuMatrixRow[]): SkuMatrixRow[] {
+  const configKey = (r: SkuMatrixRow) =>
+    `${normSize(r.display_size)}|${norm(r.storage)}|${normRam(r.ram)}|${norm(r.sim_type)}|${norm(r.edition)}`;
+
+  const sourceByConfig = new Map<
+    string,
+    { price: number | null; price_modifier: number }
+  >();
+
+  for (const r of rows) {
+    const key = configKey(r);
+    if (sourceByConfig.has(key)) continue;
+    const hasAbsolute = r.price != null && Number.isFinite(Number(r.price));
+    const hasMod = Number(r.price_modifier) !== 0;
+    if (hasAbsolute || hasMod) {
+      sourceByConfig.set(key, {
+        price: hasAbsolute ? Number(r.price) : null,
+        price_modifier: Number(r.price_modifier) || 0,
+      });
+    }
+  }
+
+  return rows.map((r) => {
+    const src = sourceByConfig.get(configKey(r));
+    if (!src) return r;
+    return {
+      ...r,
+      price: src.price,
+      price_modifier: src.price_modifier,
+    };
+  });
+}
+
 export function canUseSkuMatrix(
   colors: string[],
   storage: string[],

@@ -12,6 +12,7 @@ import {
   canUseSkuMatrix,
   skuMatrixKey,
   syncSkuRowsFromChips,
+  syncPricesByStorageRam,
   totalSkuStock,
   autoGenerateSku,
   findDuplicateSkuKeys,
@@ -168,9 +169,9 @@ export const ProductSkuMatrix: React.FC<Props> = ({
             <Layers size={12} /> Generate versions from options
           </p>
           <p className={`text-[11px] mt-1 max-w-md ${muted}`}>
-            Add all sizes, colors, storage
-            {tabletMode ? '' : ', RAM'}, and {tabletMode ? 'connectivity' : 'SIM'} above — then generate
-            every combination. You only need to fill or edit price and stock on each row.
+            Add colors, storage{tabletMode ? '' : ', RAM'}, and {tabletMode ? 'connectivity' : 'SIM'} —
+            then generate versions. <span className={title}>Price by Storage + RAM</span> (same across
+            colors). <span className={title}>Stock per color</span> on each row (e.g. Blue 6, Black 4).
           </p>
         </div>
         <label
@@ -226,9 +227,24 @@ export const ProductSkuMatrix: React.FC<Props> = ({
               <RefreshCw size={12} />
               {rows.length ? 'Rebuild from options' : `Create ${comboCount} versions`}
             </button>
+            {rows.length > 1 && (
+              <button
+                type="button"
+                onClick={() => onRowsChange(syncPricesByStorageRam(rows))}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-wide transition-colors ${
+                  isLight
+                    ? 'border-black/15 hover:border-[#B38B21]/60 hover:bg-black/[0.03]'
+                    : 'border-white/15 hover:border-[#B38B21]/50 hover:bg-white/[0.04]'
+                }`}
+                title="Copy price from the first row of each Storage+RAM(+size/SIM) group onto every color"
+              >
+                Match prices by Storage + RAM
+              </button>
+            )}
             <span className={`text-[10px] ${muted}`}>
               {rows.length} version{rows.length === 1 ? '' : 's'} · {inStockRows} in stock ·{' '}
-              <strong className="text-[#B38B21]">{total}</strong> units — edit price &amp; stock below
+              <strong className="text-[#B38B21]">{total}</strong> units — price by config, stock by
+              color
             </span>
           </div>
 

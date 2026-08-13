@@ -21,6 +21,7 @@ import { AdminCustomers } from './admin/AdminCustomers';
 import { AdminProducts } from './admin/AdminProducts';
 import { AdminIpads } from './admin/AdminIpads';
 import { AdminConsoles } from './admin/AdminConsoles';
+import { AdminDealOfTheDay } from './admin/AdminDealOfTheDay';
 import { AdminRepairs } from './admin/AdminRepairs';
 import { AdminReturns } from './admin/AdminReturns';
 import { AdminUsers } from './admin/AdminUsers';
@@ -29,11 +30,11 @@ import { TradeAdminShell } from './admin/trade/TradeAdminShell';
 // AdminTrades retired — Trade Admin lives at /admin/trade (embedded via TradeAdminShell).
 import {
   Home, Users, Package, ShoppingCart, RefreshCcw,
-  Wrench, LogOut, Menu, X, Shield, Store, RotateCcw, Tag, Tablet, Gamepad2,
+  Wrench, LogOut, Menu, X, Shield, Store, RotateCcw, Tag, Tablet, Gamepad2, Flame,
 } from 'lucide-react';
 import { AdminPromotionsShell } from './admin/promotions/AdminPromotionsShell';
 
-export type AdminSection = 'overview' | 'inbox' | 'orders' | 'customers' | 'products' | 'ipads' | 'consoles' | 'trades' | 'returns' | 'repairs' | 'users' | 'promotions';
+export type AdminSection = 'overview' | 'inbox' | 'orders' | 'customers' | 'products' | 'ipads' | 'consoles' | 'deals' | 'trades' | 'returns' | 'repairs' | 'users' | 'promotions';
 
 interface AdminProps {
   user?: any;
@@ -56,10 +57,11 @@ const NAV_ITEMS: { id: AdminSection; label: string; icon: any; adminOnly?: boole
   { id: 'users', label: 'User Roles', icon: Shield, adminOnly: true },
 ];
 
-const SHOP_SUBNAV: { id: 'products' | 'ipads' | 'consoles'; label: string; to: string; icon: any }[] = [
+const SHOP_SUBNAV: { id: 'products' | 'ipads' | 'consoles' | 'deals'; label: string; to: string; icon: any }[] = [
   { id: 'products', label: 'Products', to: '/admin/products', icon: Package },
   { id: 'ipads', label: 'iPads', to: '/admin/ipads', icon: Tablet },
   { id: 'consoles', label: 'Consoles', to: '/admin/consoles', icon: Gamepad2 },
+  { id: 'deals', label: 'Deal of the Day', to: '/admin/deals', icon: Flame },
 ];
 
 const SECTION_TITLES: Record<AdminSection, string> = {
@@ -70,6 +72,7 @@ const SECTION_TITLES: Record<AdminSection, string> = {
   products: 'Shop',
   ipads: 'Shop',
   consoles: 'Shop',
+  deals: 'Shop',
   promotions: 'Promotions',
   trades: 'Trade-ins',
   returns: 'Returns',
@@ -148,7 +151,8 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
   useEffect(() => {
     const uid = user?.id;
     if (!uid || section === 'overview') return;
-    const badgeKey = section === 'ipads' || section === 'consoles' ? 'products' : section;
+    const badgeKey =
+      section === 'ipads' || section === 'consoles' || section === 'deals' ? 'products' : section;
     if (!isNavBadgeKey(badgeKey)) return;
     markAdminNavSectionSeen(uid, badgeKey);
     void refreshBadgeCounts();
@@ -168,6 +172,8 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
       void routerNavigate({ to: '/admin/ipads' as any });
     } else if (s === 'consoles') {
       void routerNavigate({ to: '/admin/consoles' as any });
+    } else if (s === 'deals') {
+      void routerNavigate({ to: '/admin/deals' as any });
     } else if (s === 'trades') {
       void routerNavigate({ to: '/admin/trade' as any });
     } else if (s === 'promotions') {
@@ -182,7 +188,8 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
   };
 
   const isLight = theme === 'light';
-  const isShopSection = section === 'products' || section === 'ipads' || section === 'consoles';
+  const isShopSection =
+    section === 'products' || section === 'ipads' || section === 'consoles' || section === 'deals';
 
   return (
     <div className={`min-h-screen flex ${isLight ? 'bg-[#FAFAFA]' : 'bg-[#060606]'}`}>
@@ -398,6 +405,7 @@ export const Admin: React.FC<AdminProps> = ({ user, setUser, navigateTo, theme =
           {section === 'products' && <AdminProducts canEdit={canEditOps} theme={theme} />}
           {section === 'ipads' && <AdminIpads canEdit={canEditOps} theme={theme} />}
           {section === 'consoles' && <AdminConsoles canEdit={canEditOps} theme={theme} />}
+          {section === 'deals' && <AdminDealOfTheDay canEdit={canEditOps} theme={theme} />}
           {section === 'trades' && <TradeAdminShell />}
           {section === 'promotions' && <AdminPromotionsShell />}
           {section === 'returns' && <AdminReturns canEdit={canEditOps} />}

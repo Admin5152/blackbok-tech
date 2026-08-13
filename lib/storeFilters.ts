@@ -239,11 +239,34 @@ export function productMatchesStoreCategories(
   });
 }
 
-/** Storefront “new” flag — prefers `is_new`, falls back to legacy `new`. */
+/** Storefront “new” flag — prefers explicit condition, then is_new / new. */
 export function productIsNew(p: Product): boolean {
+  const condition = String(p.condition || '').toLowerCase().trim();
+  if (condition === 'preowned' || condition === 'refurbished' || condition === 'used' || condition === 'pre-owned') {
+    return false;
+  }
+  if (condition === 'new') return true;
   if (p.is_new != null) return Boolean(p.is_new);
   if (p.new != null) return Boolean(p.new);
   return false;
+}
+
+/** Customer-facing condition label for cards / PDP / compare. */
+export function formatProductConditionLabel(p: Pick<Product, 'condition' | 'is_new' | 'new'>): string {
+  const condition = String(p.condition || '').toLowerCase().trim();
+  if (condition === 'refurbished' || condition === 'refurb') return 'Refurbished';
+  if (
+    condition === 'preowned' ||
+    condition === 'used' ||
+    condition === 'pre-owned' ||
+    condition === 'pre_owned'
+  ) {
+    return 'Pre-owned';
+  }
+  if (condition === 'new') return 'New';
+  if (p.is_new === false || p.new === false) return 'Pre-owned';
+  if (p.is_new === true || p.new === true) return 'New';
+  return '—';
 }
 
 export function productMatchesStoreNewFilter(
@@ -257,12 +280,16 @@ export function productMatchesStoreNewFilter(
 
   if (filter === 'new') {
     if (condition === 'new') return true;
-    if (condition === 'preowned' || condition === 'refurbished' || condition === 'used') return false;
+    if (condition === 'preowned' || condition === 'refurbished' || condition === 'used' || condition === 'pre-owned') {
+      return false;
+    }
     return isNew;
   }
 
-  // used
-  if (condition === 'preowned' || condition === 'refurbished' || condition === 'used') return true;
+  // used / pre-owned
+  if (condition === 'preowned' || condition === 'refurbished' || condition === 'used' || condition === 'pre-owned') {
+    return true;
+  }
   if (condition === 'new') return false;
   return !isNew;
 }
@@ -284,10 +311,13 @@ export const CATEGORIES_WITH_SERIES = new Set([
   'Speakers',
   'Consoles',
   'Controllers',
+  'Smart watches',
+  'Apple Watches',
+  'Android phones',
 ]);
 
 /**
- * Brand picker first, then series (Audio + Windows laptops).
+ * Brand picker first, then series (Audio + Windows laptops + watches + Android).
  * Opposite of iPad/MacBooks (series → New/Used).
  */
 export const CATEGORIES_BRAND_THEN_SERIES = new Set([
@@ -296,6 +326,9 @@ export const CATEGORIES_BRAND_THEN_SERIES = new Set([
   'Speakers',
   'Consoles',
   'Controllers',
+  'Smart watches',
+  'Apple Watches',
+  'Android phones',
 ]);
 
 export const IPAD_SERIES_OPTIONS: StoreSeriesOption[] = [
@@ -321,7 +354,37 @@ export const IPHONE_SERIES_OPTIONS: StoreSeriesOption[] = [
 export const MACBOOK_SERIES_OPTIONS: StoreSeriesOption[] = [
   { value: 'pro', label: 'MacBook Pro', description: 'Pro notebooks' },
   { value: 'air', label: 'MacBook Air', description: 'Air notebooks' },
+  { value: 'neo', label: 'MacBook Neo', description: 'MacBook Neo notebooks' },
   { value: 'other', label: 'Other Mac', description: 'iMac, Mac mini & more' },
+];
+
+export const WATCH_SERIES_OPTIONS: StoreSeriesOption[] = [
+  { value: 'Ultra', label: 'Ultra', description: 'Apple Watch Ultra 2 and Ultra 3' },
+  { value: 'Series', label: 'Series', description: 'Apple Watch Series line' },
+  { value: 'Galaxy', label: 'Galaxy Watch', description: 'Samsung Galaxy Watch line' },
+  { value: 'Other', label: 'Other brands', description: 'Fitbit, Garmin and more' },
+];
+
+export const ANDROID_SERIES_OPTIONS: StoreSeriesOption[] = [
+  { value: 'Fold 7', label: 'Fold 7', description: 'Galaxy Z Fold 7' },
+  { value: 'Flip 7', label: 'Flip 7', description: 'Galaxy Z Flip 7' },
+  { value: 'Flip 7 FE', label: 'Flip 7 FE', description: 'Galaxy Z Flip 7 FE' },
+  { value: 'S26 Ultra', label: 'S26 Ultra', description: 'Galaxy S26 Ultra' },
+  { value: 'S25 Ultra', label: 'S25 Ultra', description: 'Galaxy S25 Ultra' },
+  { value: 'S25 FE', label: 'S25 FE', description: 'Galaxy S25 FE' },
+  { value: 'A06', label: 'A06', description: 'Galaxy A06' },
+  { value: 'A07', label: 'A07', description: 'Galaxy A07' },
+  { value: 'A17', label: 'A17', description: 'Galaxy A17' },
+  { value: 'A26', label: 'A26', description: 'Galaxy A26' },
+  { value: 'A36', label: 'A36', description: 'Galaxy A36' },
+  { value: 'A55', label: 'A55', description: 'Galaxy A55' },
+  { value: 'A56', label: 'A56', description: 'Galaxy A56' },
+  { value: 'Pixel 10 Pro XL', label: 'Pixel 10 Pro XL', description: 'Google Pixel 10 Pro XL' },
+  { value: 'Pixel 9 Pro XL', label: 'Pixel 9 Pro XL', description: 'Google Pixel 9 Pro XL' },
+  { value: 'Pixel 8', label: 'Pixel 8', description: 'Google Pixel 8' },
+  { value: 'Pixel 7', label: 'Pixel 7', description: 'Google Pixel 7' },
+  { value: 'Moto G 2024', label: 'Moto G 2024', description: 'Motorola Moto G (2024)' },
+  { value: 'Moto G 2025', label: 'Moto G 2025', description: 'Motorola Moto G (2025)' },
 ];
 
 export const LAPTOP_SERIES_OPTIONS: StoreSeriesOption[] = [
@@ -401,9 +464,20 @@ export function suggestBrandFromTaxonomy(
     Nintendo: 'Nintendo',
     Valve: 'Valve',
     iWatches: 'Apple',
+    Ultra: 'Apple',
+    Series: 'Apple',
+    Apple: 'Apple',
+    Samsung: 'Samsung',
+    Google: 'Google',
+    Motorola: 'Motorola',
   };
   if (map[v]) return map[v];
   const cat = normalizeProductCategory(category);
+  // Condition pickers (New/Used) — default Apple for Apple device categories
+  if (v === 'new' || v === 'used') {
+    if (cat === 'MacBooks' || cat === 'iPhone' || cat === 'iPad') return 'Apple';
+    return null;
+  }
   if (cat === 'Accessories') return null;
   // Store tag only — leave products.brand for staff to fill (e.g. Samsung)
   if (v === 'Others' || v === 'PhoneCases' || v === 'ScreenProtectors' || v === 'Chargers') {
@@ -417,7 +491,7 @@ export function suggestBrandFromTaxonomy(
  * Brand→series categories store series on subcategory, so prefer products.brand.
  */
 export function resolveAdminTaxonomyValue(
-  p: Pick<Product, 'category' | 'condition' | 'subcategory' | 'is_new' | 'new' | 'brand'>,
+  p: Pick<Product, 'category' | 'condition' | 'subcategory' | 'is_new' | 'new' | 'brand' | 'name'>,
 ): string {
   const category = String(p.category || 'iPhone');
   const opts = getCategorySubcategoryOptions(category);
@@ -467,6 +541,51 @@ export function resolveAdminTaxonomyValue(
     );
     if (hit) return hit.value;
   }
+
+  // Apple / Smart watches: prefer brand picker value (Apple / Samsung / Others)
+  const catNorm = normalizeProductCategory(category);
+  if (catNorm === 'Smart watches' || catNorm === 'Apple Watches') {
+    const brand = String(p.brand ?? '').trim();
+    if (brand) {
+      const byBrand = opts.find(
+        (o) =>
+          o.value.toLowerCase() === brand.toLowerCase() ||
+          o.label.toLowerCase() === brand.toLowerCase(),
+      );
+      if (byBrand) return byBrand.value;
+    }
+    const productName = 'name' in p ? String((p as { name?: string }).name ?? '') : '';
+    const hay = `${p.brand ?? ''} ${p.subcategory ?? ''} ${productName}`.toLowerCase();
+    if (hay.includes('samsung') || hay.includes('galaxy')) {
+      if (opts.some((o) => o.value === 'Samsung')) return 'Samsung';
+    }
+    if (hay.includes('apple') || hay.includes('ultra') || hay.includes('series') || hay.includes('watch')) {
+      if (opts.some((o) => o.value === 'Apple')) return 'Apple';
+    }
+    if (opts.some((o) => o.value === 'Others')) return 'Others';
+  }
+
+  if (catNorm === 'Android phones') {
+    const brand = String(p.brand ?? '').trim();
+    if (brand) {
+      const byBrand = opts.find(
+        (o) =>
+          o.value.toLowerCase() === brand.toLowerCase() ||
+          o.label.toLowerCase() === brand.toLowerCase(),
+      );
+      if (byBrand) return byBrand.value;
+    }
+    const productName = 'name' in p ? String((p as { name?: string }).name ?? '') : '';
+    const hay = `${p.brand ?? ''} ${p.subcategory ?? ''} ${productName}`.toLowerCase();
+    if (hay.includes('google') || hay.includes('pixel')) {
+      if (opts.some((o) => o.value === 'Google')) return 'Google';
+    }
+    if (hay.includes('motorola') || hay.includes('moto')) {
+      if (opts.some((o) => o.value === 'Motorola')) return 'Motorola';
+    }
+    if (opts.some((o) => o.value === 'Samsung')) return 'Samsung';
+  }
+
   return opts[0]?.value ?? '';
 }
 
@@ -476,11 +595,13 @@ export function catalogKeyForCategory(category: string | null | undefined): stri
   if (n === 'iPad' || n === 'Tablet') return 'ipad';
   if (n === 'Headphones' || n === 'Speakers') return 'audio';
   if (n === 'Laptops' || n === 'Laptop') return 'laptop';
+  if (n === 'MacBooks') return 'macbook';
+  if (n === 'Android phones') return 'android';
   if (n === 'Accessories') return 'accessories';
   if (n === 'Gaming') return 'gaming';
   if (n === 'Consoles') return 'console';
   if (n === 'Controllers') return 'controller';
-  if (n === 'Smart watches') return 'watches';
+  if (n === 'Apple Watches' || n === 'Smart watches') return 'watches';
   return null;
 }
 
@@ -502,6 +623,32 @@ const SPEAKER_BRAND_SERIES: Readonly<Record<string, readonly string[]>> = {
 const LAPTOP_BRAND_SERIES: Readonly<Record<string, readonly string[]>> = {
   HP: ['Omen', 'Envy', 'Victus'],
   Dell: ['Alienware'],
+};
+
+const WATCH_BRAND_SERIES: Readonly<Record<string, readonly string[]>> = {
+  Apple: ['Ultra', 'Series'],
+  Samsung: ['Galaxy'],
+  Others: ['Other'],
+};
+
+const ANDROID_BRAND_SERIES: Readonly<Record<string, readonly string[]>> = {
+  Samsung: [
+    'Fold 7',
+    'Flip 7',
+    'Flip 7 FE',
+    'S26 Ultra',
+    'S25 Ultra',
+    'S25 FE',
+    'A06',
+    'A07',
+    'A17',
+    'A26',
+    'A36',
+    'A55',
+    'A56',
+  ],
+  Google: ['Pixel 10 Pro XL', 'Pixel 9 Pro XL', 'Pixel 8', 'Pixel 7'],
+  Motorola: ['Moto G 2024', 'Moto G 2025'],
 };
 
 const CONSOLE_BRAND_SERIES: Readonly<Record<string, readonly string[]>> = {
@@ -526,6 +673,21 @@ export function getCategorySeriesOptions(
   if (n === 'iPad' || n === 'Tablet') return IPAD_SERIES_OPTIONS;
   if (n === 'iPhone') return IPHONE_SERIES_OPTIONS;
   if (n === 'MacBooks') return MACBOOK_SERIES_OPTIONS;
+
+  if (n === 'Smart watches' || n === 'Apple Watches') {
+    // Side filter: all lines when no brand; brand picker still scopes when set
+    if (!brand) return WATCH_SERIES_OPTIONS;
+    const allowed = WATCH_BRAND_SERIES[brand];
+    if (!allowed) return [];
+    return WATCH_SERIES_OPTIONS.filter((o) => allowed.includes(o.value));
+  }
+
+  if (n === 'Android phones') {
+    if (!brand) return ANDROID_SERIES_OPTIONS;
+    const allowed = ANDROID_BRAND_SERIES[brand];
+    if (!allowed) return [];
+    return ANDROID_SERIES_OPTIONS.filter((o) => allowed.includes(o.value));
+  }
 
   if (n === 'Headphones') {
     if (!brand) return HEADPHONE_SERIES_OPTIONS;
@@ -565,10 +727,20 @@ export function getProductSeriesSlug(p: Product): string | null {
   const specs = p.specifications;
   if (specs && typeof specs === 'object') {
     const s = String((specs as Record<string, unknown>).series ?? '').trim().toLowerCase();
-    if (s) return s;
+    if (s) return s.replace(/\s+/g, ' ');
   }
   const sub = String(p.subcategory ?? '').trim().toLowerCase();
-  if (sub && sub !== 'new' && sub !== 'used') return sub.replace(/\s+/g, '-');
+  // Keep spaces for series like "Fold 7" / "PlayStation 5" (do not hyphenate —
+  // that broke Android Brand → Series matching).
+  if (
+    sub &&
+    sub !== 'new' &&
+    sub !== 'used' &&
+    sub !== 'preowned' &&
+    sub !== 'refurbished'
+  ) {
+    return sub.replace(/\s+/g, ' ').trim();
+  }
 
   const cat = normalizeProductCategory(p.category);
   const hay = `${p.name || ''} ${p.model || ''} ${p.brand || ''}`.toLowerCase();
@@ -594,7 +766,47 @@ export function getProductSeriesSlug(p: Product): string | null {
   if (cat === 'MacBooks') {
     if (hay.includes('macbook pro') || hay.includes('mac book pro')) return 'pro';
     if (hay.includes('macbook air') || hay.includes('mac book air')) return 'air';
-    if (hay.includes('mac')) return 'other';
+    if (hay.includes('macbook neo') || hay.includes('mac book neo') || /\bneo\b/.test(hay)) {
+      return 'neo';
+    }
+    if (hay.includes('imac') || hay.includes('mac mini') || hay.includes('mac studio') || hay.includes('mac')) {
+      return 'other';
+    }
+  }
+  if (cat === 'Smart watches' || cat === 'Apple Watches') {
+    if (hay.includes('ultra') || sub === 'ultra') return 'ultra';
+    if (hay.includes('galaxy') || sub === 'galaxy') return 'galaxy';
+    if (
+      sub === 'series' ||
+      sub === 'iwatches' ||
+      hay.includes('series') ||
+      hay.includes('apple watch')
+    ) {
+      return 'series';
+    }
+    if (
+      sub === 'other' ||
+      hay.includes('fitbit') ||
+      hay.includes('garmin') ||
+      hay.includes('amazfit')
+    ) {
+      return 'other';
+    }
+  }
+  if (cat === 'Android phones') {
+    for (const opt of ANDROID_SERIES_OPTIONS) {
+      const needle = opt.value.toLowerCase();
+      if (sub === needle || hay.includes(needle)) return needle;
+    }
+    if (hay.includes('fold')) return 'fold 7';
+    if (hay.includes('flip 7 fe')) return 'flip 7 fe';
+    if (hay.includes('flip')) return 'flip 7';
+    if (hay.includes('pixel 10')) return 'pixel 10 pro xl';
+    if (hay.includes('pixel 9')) return 'pixel 9 pro xl';
+    if (hay.includes('pixel 8')) return 'pixel 8';
+    if (hay.includes('pixel 7')) return 'pixel 7';
+    if (hay.includes('moto g') && hay.includes('2025')) return 'moto g 2025';
+    if (hay.includes('moto g')) return 'moto g 2024';
   }
   if (cat === 'Laptops' || cat === 'Laptop') {
     if (hay.includes('alienware')) return 'alienware';
@@ -631,6 +843,11 @@ export function getProductSeriesSlug(p: Product): string | null {
   return null;
 }
 
+/** Compare series keys ignoring spaces / underscores / hyphens. */
+function normalizeSeriesKey(value: string): string {
+  return value.trim().toLowerCase().replace(/[\s_-]+/g, '');
+}
+
 export function productMatchesStoreSeries(
   p: Product,
   series: string | null | undefined,
@@ -639,7 +856,10 @@ export function productMatchesStoreSeries(
   const want = series.trim().toLowerCase();
   const got = getProductSeriesSlug(p);
   if (!got) return false;
-  return got === want || got.replace(/\s+/g, '-') === want;
+  if (got === want) return true;
+  if (got.replace(/\s+/g, '-') === want) return true;
+  if (want.replace(/\s+/g, '-') === got) return true;
+  return normalizeSeriesKey(got) === normalizeSeriesKey(want);
 }
 
 export function getSeriesCount(
@@ -688,7 +908,9 @@ export const CATEGORY_SUBCATEGORY_CONFIG: Readonly<Record<string, SubcategoryOpt
     { kind: 'condition', value: 'used', label: 'Used', description: 'Pre-owned & refurbished iPhones' },
   ],
   'Android phones': [
-    { kind: 'condition', value: 'new', label: 'New', description: 'Brand-new Android phones only' },
+    { kind: 'brand', value: 'Samsung', label: 'Samsung', description: 'Galaxy Fold, Flip, S & A series' },
+    { kind: 'brand', value: 'Google', label: 'Google', description: 'Pixel phones' },
+    { kind: 'brand', value: 'Motorola', label: 'Motorola', description: 'Moto G series' },
   ],
   iPad: [
     { kind: 'condition', value: 'new',  label: 'New',  description: 'Brand-new iPad models' },
@@ -707,9 +929,16 @@ export const CATEGORY_SUBCATEGORY_CONFIG: Readonly<Record<string, SubcategoryOpt
     { kind: 'brand', value: 'HP', label: 'HP', description: 'Omen, Envy & Victus notebooks' },
     { kind: 'brand', value: 'Dell', label: 'Dell', description: 'Alienware gaming notebooks' },
   ],
+  'Apple Watches': [
+    { kind: 'brand', value: 'Apple', label: 'Apple', description: 'Apple Watch Ultra & Series' },
+    { kind: 'brand', value: 'Samsung', label: 'Samsung', description: 'Galaxy Watch and more' },
+    { kind: 'brand', value: 'Others', label: 'Others', description: 'Fitbit, Garmin & more' },
+  ],
+  // Canonical multi-brand wearables category (Brand → Series)
   'Smart watches': [
-    { kind: 'brand', value: 'iWatches', label: 'iWatches', description: 'Apple Watch series' },
-    { kind: 'brand', value: 'Others',   label: 'Others',   description: 'Samsung, Fitbit & more' },
+    { kind: 'brand', value: 'Apple', label: 'Apple', description: 'Apple Watch Ultra & Series' },
+    { kind: 'brand', value: 'Samsung', label: 'Samsung', description: 'Galaxy Watch and more' },
+    { kind: 'brand', value: 'Others', label: 'Others', description: 'Fitbit, Garmin & more' },
   ],
   Gaming: [
     { kind: 'brand', value: 'PlayStation', label: 'PlayStation', description: 'Sony PS4, PS5 & accessories' },
@@ -828,7 +1057,6 @@ const CONDITION_MAIN_CATEGORIES = new Set([
   'iPhone',
   'iPad',
   'MacBooks',
-  'Android phones',
 ]);
 
 export function categoryUsesConditionSubcategory(category: string | null | undefined): boolean {
@@ -839,7 +1067,8 @@ export function categoryUsesConditionSubcategory(category: string | null | undef
 
 /**
  * Map admin taxonomy selection onto DB fields.
- * UI "Used" → condition=preowned. Android phones are New-only.
+ * UI "Used" → condition=preowned. Brand→Series categories (Android, watches,
+ * audio, laptops) preserve staff Condition on the product form.
  */
 export function applyAdminTaxonomyFields(input: {
   category: string;
@@ -872,12 +1101,22 @@ export function applyAdminTaxonomyFields(input: {
       : null);
 
   if (category === 'Android phones') {
+    // Brand → Series taxonomy (no New/Used step). Preserve Pre-owned /
+    // Refurbished when staff set Condition on the product form so legacy
+    // used stock still saves and renders correctly.
+    const existing = String(input.existingCondition ?? 'new').toLowerCase();
+    const condition: 'new' | 'preowned' | 'refurbished' =
+      existing === 'preowned' || existing === 'used' || existing === 'pre-owned'
+        ? 'preowned'
+        : existing === 'refurbished' || existing === 'refurb'
+          ? 'refurbished'
+          : 'new';
     return {
       category,
       subcategory: keepSeries,
-      condition: 'new',
-      is_new: true,
-      taxonomyLabel: hit?.label ?? 'New',
+      condition,
+      is_new: condition === 'new',
+      taxonomyLabel: hit?.label ?? raw ?? 'Android',
     };
   }
 
@@ -950,8 +1189,9 @@ export function validateAdminProductTaxonomy(input: {
     return `“${raw}” is not an approved sub-category for ${category}.`;
   }
 
-  if (category === 'Android phones' && hit.value !== 'new') {
-    return 'Android phones only accept New under current catalog rules.';
+  if (category === 'Android phones') {
+    // Brand → Series; condition is always New for this catalogue
+    return null;
   }
 
   return null;
@@ -987,16 +1227,37 @@ export function resolveStoreSubcategoryFilter(
   if (category) {
     const opts = getCategorySubcategoryOptions(category);
     const rawLower = raw.toLowerCase();
+    const catNorm = normalizeProductCategory(category);
+
+    // Watches: legacy Ultra / Series were line tags, not brands.
+    // Map them to Apple so Brand → Series still works from old URLs.
+    if (
+      (catNorm === 'Smart watches' || catNorm === 'Apple Watches') &&
+      (rawLower === 'ultra' || rawLower === 'series' || rawLower === 'iwatch' || rawLower === 'iwatches')
+    ) {
+      if (opts.some((o) => o.value === 'Apple')) {
+        return { kind: 'brand', value: 'Apple' };
+      }
+    }
+
     const alias =
-      rawLower === 'iwatch'
-        ? 'iwatches'
-        : rawLower === 'other'
-          ? 'others'
-          : rawLower === 'google pixel'
-            ? 'googlepixel'
-            : rawLower;
+      rawLower === 'iwatch' || rawLower === 'iwatches'
+        ? 'apple'
+        : rawLower === 'ultra' || rawLower === 'series'
+          ? 'apple'
+          : rawLower === 'other' || rawLower === 'others'
+            ? 'others'
+            : rawLower === 'google pixel'
+              ? 'googlepixel'
+              : rawLower;
     const hit = opts.find((o) => o.value.toLowerCase() === alias || o.value.toLowerCase() === rawLower);
     if (hit) return { kind: hit.kind, value: hit.value };
+
+    // Ignore unknown subcategory values for brand→series categories so the
+    // Brand picker still renders (e.g. stale Ultra/Series bookmarks).
+    if (categoryUsesBrandThenSeries(category)) {
+      return undefined;
+    }
   }
 
   if (raw === 'new' || raw === 'used') {
@@ -1068,7 +1329,90 @@ export function productMatchesStoreSubcategoryFilter(
   const brand = (p.brand ?? '').toLowerCase();
   const name = (p.name ?? '').toLowerCase();
   const model = (p.model ?? '').toLowerCase();
-  const haystack = `${brand} ${name} ${model}`;
+  const specs =
+    p.specifications && typeof p.specifications === 'object'
+      ? (p.specifications as Record<string, unknown>)
+      : null;
+  const watchGroup = String(specs?.watch_group ?? '').toLowerCase();
+  const haystack = `${brand} ${name} ${model} ${watchGroup}`;
+
+  // Brand-first watch taxonomy (Apple / Samsung / Others)
+  if (v === 'apple') {
+    if (brand.includes('apple')) return true;
+    return (
+      tagged === 'ultra' ||
+      tagged === 'series' ||
+      tagged === 'iwatches' ||
+      tagged === 'iwatch' ||
+      watchGroup === 'ultra' ||
+      watchGroup === 'series' ||
+      haystack.includes('apple watch') ||
+      haystack.includes('iwatch')
+    );
+  }
+  if (v === 'google') {
+    return (
+      brand.includes('google') ||
+      haystack.includes('google') ||
+      haystack.includes('pixel') ||
+      tagged.includes('pixel')
+    );
+  }
+  if (v === 'motorola') {
+    return (
+      brand.includes('motorola') ||
+      brand.includes('moto') ||
+      haystack.includes('motorola') ||
+      haystack.includes('moto g') ||
+      tagged.includes('moto')
+    );
+  }
+  if (v === 'samsung') {
+    if (brand.includes('samsung')) return true;
+    if (brand.includes('apple') || brand.includes('google') || brand.includes('motorola')) {
+      return false;
+    }
+    return (
+      haystack.includes('samsung') ||
+      haystack.includes('galaxy') ||
+      tagged === 'galaxy' ||
+      watchGroup === 'galaxy' ||
+      tagged.includes('fold') ||
+      tagged.includes('flip') ||
+      /^a\d{2}$/i.test(tagged) ||
+      /^s\d{2}/i.test(tagged)
+    );
+  }
+  if (v === 'others' || v === 'other') {
+    const isApple =
+      brand.includes('apple') ||
+      tagged === 'ultra' ||
+      tagged === 'series' ||
+      tagged === 'iwatches' ||
+      haystack.includes('apple watch');
+    const isSamsung =
+      brand.includes('samsung') || haystack.includes('samsung') || haystack.includes('galaxy');
+    return !isApple && !isSamsung;
+  }
+
+  // Legacy Ultra / Series URLs (pre brand→series) — still match line tags
+  if (v === 'ultra') {
+    if (tagged === 'ultra' || watchGroup === 'ultra') return true;
+    return haystack.includes('ultra');
+  }
+  if (v === 'series') {
+    if (tagged === 'series' || tagged === 'iwatches' || tagged === 'iwatch' || watchGroup === 'series') {
+      return true;
+    }
+    if (haystack.includes('ultra')) return false;
+    return (
+      haystack.includes('series') ||
+      haystack.includes('apple watch') ||
+      haystack.includes('iwatch') ||
+      ((brand.includes('apple') || name.includes('apple')) &&
+        (name.includes('watch') || model.includes('watch')))
+    );
+  }
 
   if (v === 'iwatch' || v === 'iwatches') {
     return (
@@ -1077,17 +1421,8 @@ export function productMatchesStoreSubcategoryFilter(
       haystack.includes('apple watch')
     );
   }
-  if (v === 'other' || v === 'others') {
-    const isAppleWatch =
-      (brand.includes('apple') || name.includes('apple')) &&
-      (name.includes('watch') || model.includes('watch') || haystack.includes('apple watch'));
-    return !isAppleWatch;
-  }
   if (v === 'googlepixel' || v === 'pixel') {
     return haystack.includes('pixel') || haystack.includes('google');
-  }
-  if (v === 'samsung') {
-    return haystack.includes('samsung') || haystack.includes('galaxy');
   }
   if (v === 'playstation') {
     return (

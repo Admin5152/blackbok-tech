@@ -136,7 +136,7 @@ export const ReturnsPage: React.FC = () => {
             </p>
           </div>
           <button
-            onClick={() => navigateTo('auth')}
+            onClick={() => navigateTo('/auth?returnTo=/returns')}
             className="px-10 py-4 bg-gradient-to-r from-[#B38B21] to-[#D4AF37] text-black font-black rounded-full text-[10px] uppercase tracking-[0.3em] hover:scale-105 transition-all shadow-[0_10px_40px_rgba(179,139,33,0.3)]"
           >
             Sign In

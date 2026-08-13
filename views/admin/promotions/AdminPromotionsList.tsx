@@ -79,7 +79,10 @@ export const AdminPromotionsList: React.FC = () => {
         <div>
           <h2 className={`text-sm font-medium ${fg}`}>Promotions</h2>
           <p className={`text-[13px] mt-0.5 ${muted}`}>
-            Campaigns, codes, and spend
+            Campaigns, codes, and spend ·{' '}
+            <Link to="/admin/deals" className="text-[#B38B21] font-semibold hover:underline">
+              Deal of the Day
+            </Link>
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

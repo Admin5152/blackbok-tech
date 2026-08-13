@@ -74,14 +74,22 @@ export interface TargetModelGroup {
 const CONDITION_ORDER = ['new', 'preowned', 'refurbished'] as const;
 
 /** Normalize products.condition for grouping / chips */
-export function normalizeProductCondition(raw?: string | null): string {
+export function normalizeProductCondition(
+  raw?: string | null,
+  isNewHint?: boolean | null,
+): string {
   const s = String(raw || '').trim().toLowerCase();
-  if (!s) return 'new';
   if (s === 'pre-owned' || s === 'pre_owned' || s === 'used' || s === 'preowned') {
     return 'preowned';
   }
   if (s === 'refurb' || s === 'refurbished') return 'refurbished';
   if (s === 'new') return 'new';
+  if (!s) {
+    // Empty condition: prefer is_new when known so pre-owned twins are not
+    // mis-grouped as New (wrong upgrade top-up price).
+    if (isNewHint === false) return 'preowned';
+    return 'new';
+  }
   return s;
 }
 

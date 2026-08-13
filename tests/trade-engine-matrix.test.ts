@@ -92,9 +92,10 @@ describe.skipIf(!configured)('compute_trade_estimate engine matrix', () => {
     sb = client();
   });
 
-  it('canonical: iPhone 14 Pro PS 256GB battery≤79% + back cam → 2760', async () => {
+  it('canonical: iPhone 14 Pro PS 256GB battery≤69% + back cam → 2760', async () => {
+    // 4-tier B2: order 1 ≥91 none · 2 85–90 quarter · 3 70–84 half · 4 ≤69 full
     const r = await estimate(sb, 'iPhone 14 Pro', '256GB', 'ps', [
-      { code: 'B2', order: 3 },
+      { code: 'B2', order: 4 },
       { code: 'CAM4', order: 2 },
     ]);
     expect(Number(r.estimate)).toBe(2760);
@@ -128,7 +129,8 @@ describe.skipIf(!configured)('compute_trade_estimate engine matrix', () => {
     expect(bg.length).toBeLessThanOrEqual(1);
   });
 
-  it('battery replaced + 80–84% = single policy amount (not sum)', async () => {
+  it('battery replaced + health band = single full policy amount (LIVE full_verify)', async () => {
+    // LIVE: replaced → full_verify (full amount). B2 order 2 = 85–90% must not double-count.
     const r = await estimate(sb, 'iPhone 14 Pro', '256GB', 'ps', [
       { code: 'B1', order: 1 },
       { code: 'B2', order: 2 },
@@ -157,7 +159,7 @@ describe.skipIf(!configured)('compute_trade_estimate engine matrix', () => {
     if (error) {
       // Fallback: estimate values must be multiples of 5
       const r = await estimate(sb, 'iPhone 14 Pro', '256GB', 'ps', [
-        { code: 'B2', order: 3 },
+        { code: 'B2', order: 4 },
       ]);
       expect(Number(r.estimate) % 5).toBe(0);
       return;

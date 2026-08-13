@@ -1,20 +1,32 @@
 import React, { useMemo, useState } from 'react';
-import { Tag, ArrowRight, Bell, AlertCircle, ShoppingBag, Sparkles } from 'lucide-react';
+import { Link } from '@tanstack/react-router';
+import { Tag, ArrowRight, Bell, AlertCircle, ShoppingBag, Sparkles, Flame } from 'lucide-react';
 import { useAppContext } from '../App';
 import { ProductCard } from '../components/ProductCard';
 import { PageBackButton } from '../components/PageBackButton';
 import { ProductGridSkeleton } from '../components/Skeleton';
 import { PAGE_SIZES, usePagination } from '../lib/pagination';
 import { Pagination } from '../components/Pagination';
+import { isDealOfTheDayProduct } from '../lib/dealOfTheDay';
 
 export const Promotions: React.FC = () => {
     const { products, theme, onAddToCart, wishlist, toggleWishlist, compareIds, toggleCompare, onQuickView } = useAppContext();
     const isLight = theme === 'light';
 
-    const discountedProducts = useMemo(
-      () => products.filter((p) => p.discount && p.discount > 0),
+    const dealCount = useMemo(
+      () => products.filter((p) => isDealOfTheDayProduct(p)).length,
       [products],
     );
+
+    const discountedProducts = useMemo(() => {
+      const list = products.filter((p) => (p.discount && p.discount > 0) || isDealOfTheDayProduct(p));
+      return [...list].sort((a, b) => {
+        const da = isDealOfTheDayProduct(a) ? 1 : 0;
+        const db = isDealOfTheDayProduct(b) ? 1 : 0;
+        if (db !== da) return db - da;
+        return Number(b.discount ?? 0) - Number(a.discount ?? 0);
+      });
+    }, [products]);
     const [isSubscribed, setIsSubscribed] = useState(false);
     const catalogHydrating = products.length === 0;
     const {
@@ -43,6 +55,17 @@ export const Promotions: React.FC = () => {
                         <h1 className={`text-5xl md:text-8xl font-black italic tracking-tighter uppercase ${isLight ? 'text-black' : 'text-white'}`}>
                             Shop <span className="text-[#CDA032]">Promotions</span>.
                         </h1>
+                        {dealCount > 0 && (
+                          <Link
+                            to="/store"
+                            search={{ browse: 'deals' } as any}
+                            className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-orange-500 hover:underline"
+                          >
+                            <Flame size={14} />
+                            {dealCount} Deal of the Day{dealCount === 1 ? '' : 's'} — view in shop
+                            <ArrowRight size={14} />
+                          </Link>
+                        )}
                     </div>
 
                     <div className={`p-8 rounded-[2.5rem] border backdrop-blur-3xl overflow-hidden relative ${isLight ? 'bg-white border-black/5 shadow-xl' : 'bg-white/5 border-white/5 shadow-2xl'}`}>

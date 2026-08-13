@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from '@tanstack/react-router';
 import { RepairRequest } from '../types';
-import { formatDate } from '../lib/utils';
 import { supabase } from '../lib/supabase';
 import { mapRepairFromDb } from '../lib/api';
 import { formatCustomerStatusShort } from '../lib/customerStatusLabels';
 import { InvoiceDocument } from '../components/invoice/InvoiceDocument';
+import { formatInvoiceDate, INVOICE_COPY } from '../lib/invoiceFormat';
 
 export const RepairReceipt: React.FC = () => {
   const { repairId } = useParams({ from: '/receipt/repair/$repairId' });
@@ -73,16 +73,16 @@ export const RepairReceipt: React.FC = () => {
       repair.issue ? `Issue: ${repair.issue}` : null,
       repair.fulfillmentMethod ? `Fulfillment: ${repair.fulfillmentMethod}` : null,
       `Status: ${formatCustomerStatusShort('repair', repair.status) || '—'}`,
-    ].filter(Boolean);
+    ].filter(Boolean) as string[];
 
     return {
       billToName: repair.userName || 'Customer',
       billToLines: [] as string[],
-      invoiceDate: formatDate(repair.date),
+      invoiceDate: formatInvoiceDate(repair.date),
       items: [
         {
           name: (repair.device || 'Repair service').toUpperCase(),
-          description: descParts.join(', '),
+          description: descParts.join('\n'),
           qty: 1,
           rate,
         },
@@ -93,14 +93,14 @@ export const RepairReceipt: React.FC = () => {
         paymentMade: 0,
         balanceDue: rate,
       },
-      notes: repair.adminNote || 'Repair service invoice — amount may be updated after diagnostics.',
+      notes: repair.adminNote || INVOICE_COPY.repairEstimateNote,
     };
   }, [repair]);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-neutral-200 flex items-center justify-center">
-        <p className="text-sm text-black/50">Loading repair invoice…</p>
+        <p className="text-sm text-black/50">{INVOICE_COPY.loadingRepair}</p>
       </div>
     );
   }
@@ -109,8 +109,8 @@ export const RepairReceipt: React.FC = () => {
     return (
       <div className="min-h-screen bg-neutral-200 flex items-center justify-center px-4">
         <div className="text-center space-y-4 max-w-md">
-          <h2 className="text-xl font-bold text-black">Invoice not available</h2>
-          <p className="text-sm text-black/50">This repair request could not be loaded, or you do not have access.</p>
+          <h2 className="text-xl font-bold text-black">{INVOICE_COPY.missing}</h2>
+          <p className="text-sm text-black/50">{INVOICE_COPY.missingRepairHint}</p>
           <button
             type="button"
             onClick={() => navigate({ to: '/profile' })}
@@ -125,7 +125,7 @@ export const RepairReceipt: React.FC = () => {
 
   return (
     <InvoiceDocument
-      kindLabel="Repair"
+      kindLabel={INVOICE_COPY.repairKind}
       invoiceId={repair.id}
       displayId={repair.display_id}
       billToName={model.billToName}
@@ -133,7 +133,10 @@ export const RepairReceipt: React.FC = () => {
       meta={{
         invoiceDate: model.invoiceDate,
         dueDate: model.invoiceDate,
-        terms: 'Due on Receipt',
+        terms:
+          repair.status === 'Estimate Sent' || repair.status === 'Pending' || repair.status === 'Diagnosing'
+            ? 'Service estimate — payable on approval'
+            : 'Due on Receipt',
       }}
       items={model.items}
       totals={model.totals}

@@ -42,11 +42,13 @@ import {
   applyAdminTaxonomyFields,
   catalogKeyForCategory,
   categoryUsesBrandThenSeries,
+  categoryUsesSeriesStep,
   formatProductClassification,
   getCategorySeriesOptions,
   resolveAdminTaxonomyValue,
   validateAdminProductTaxonomy,
 } from '../../lib/storeFilters';
+import { ensureProductInUpgradeAllowlist } from '../../lib/tradeUpgradePicks';
 import type { Product } from '../../types';
 import { formatCurrency } from '../../lib/utils';
 import { useAppContext } from '../../lib/appContext';
@@ -68,7 +70,7 @@ const EMPTY: ProductDraft = {
 };
 
 function resolveTaxonomyValueFromProduct(
-  p: Pick<Product, 'category' | 'condition' | 'subcategory' | 'is_new' | 'new' | 'brand'>,
+  p: Pick<Product, 'name' | 'category' | 'condition' | 'subcategory' | 'is_new' | 'new' | 'brand'>,
 ): string {
   return resolveAdminTaxonomyValue(p);
 }
@@ -390,6 +392,8 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
         const taxonomyValue =
           draft.taxonomy_value ||
           resolveTaxonomyValueFromProduct({
+            name: draft.name || '',
+            brand: draft.brand,
             category: draft.category || 'iPhone',
             condition: draft.condition,
             subcategory: draft.subcategory,
@@ -414,11 +418,32 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
             taxonomyValue,
           );
           if (brandOpts.length > 0) {
-            setError('Select a series for this brand (required for Laptops / Headphones / Speakers).');
+            setError('Select a series for this brand (required for Laptops / Headphones / Speakers / Android phones).');
             setSaving(false);
             return;
           }
         }
+        if (
+          categoryUsesSeriesStep(draft.category) &&
+          !categoryUsesBrandThenSeries(draft.category) &&
+          !String(draft.series ?? '').trim()
+        ) {
+          const seriesOpts = getCategorySeriesOptions(String(draft.category || ''));
+          if (seriesOpts.length > 0) {
+            setError('Select a series (required for MacBooks / iPad).');
+            setSaving(false);
+            return;
+          }
+        }
+
+        const dealOn = Boolean(draft.is_deal_of_the_day ?? draft.isDealOfTheDay);
+        const dealPct = Number(draft.discount ?? 0);
+        if (dealOn && (!Number.isFinite(dealPct) || dealPct <= 0)) {
+          setError('Deal of the Day requires a discount % (1–100). Set it on Details, or turn the deal off.');
+          setSaving(false);
+          return;
+        }
+
         const taxonomy = applyAdminTaxonomyFields({
           category: draft.category || 'iPhone',
           taxonomyValue,
@@ -441,6 +466,9 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
               if (catalog === 'audio') {
                 base.audio_type =
                   taxonomy.category === 'Speakers' ? 'speakers' : 'headphones';
+              }
+              if (catalog === 'watches') {
+                base.watch_group = draft.series;
               }
               if (catalog === 'ipad' && !base.model_family && draft.slug) {
                 base.model_family = String(draft.slug).replace(/-(new|preowned)$/, '');
@@ -465,7 +493,9 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                   base.platform = taxonomyValue || taxonomy.subcategory || null;
                 }
                 if (catalog === 'watches') {
-                  base.watch_group = taxonomyValue || taxonomy.subcategory || null;
+                  base.watch_group =
+                    draft.series || taxonomy.subcategory || taxonomyValue || null;
+                  base.series = base.watch_group;
                 }
                 specsPayload = base;
               }
@@ -572,6 +602,15 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                         }
                     }
                 }
+            }
+
+            // Linking trade_model should surface the product on /trade/target
+            if (productId && String(productPayload.trade_model ?? '').trim()) {
+              try {
+                await ensureProductInUpgradeAllowlist(productId);
+              } catch (upgradeErr) {
+                console.warn('ensureProductInUpgradeAllowlist failed:', upgradeErr);
+              }
             }
 
             setShowForm(false);

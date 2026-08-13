@@ -161,6 +161,12 @@ export interface CartItem {
   category?: Category;
   description?: string;
   stock: number;
+  total_stock?: number;
+  /** Preserved from hydrated product so qty bumps can resolve SKU caps without re-fetch. */
+  variants?: ProductVariant[];
+  colors?: string[];
+  storage?: string[];
+  ram?: string[];
   selectedOptions?: Record<string, string>;
   /** Staff-facing one line from checkout (Color: … · Storage: …). */
   configurationLine?: string;

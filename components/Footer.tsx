@@ -89,13 +89,17 @@ export const Footer: React.FC<FooterProps> = ({ theme }) => {
               'Shop',
               <>
                 {item('/store', 'Browse all', { browse: 'all' })}
-                {item('/store', 'iPhone', { category: 'iPhone' })}
-                {item('/store', 'Laptop', { category: 'Laptop' })}
+                {item('/store', 'Deal of the Day', { browse: 'deals' })}
+                {item('/store', 'iPhone', { category: 'iPhone', series: 'all' })}
+                {item('/store', 'Android phones', { category: 'Android phones', series: 'all' })}
+                {item('/store', 'iPad', { category: 'iPad', series: 'all' })}
+                {item('/store', 'MacBooks', { category: 'MacBooks', series: 'all' })}
+                {item('/store', 'Laptops', { category: 'Laptops', series: 'all' })}
+                {item('/store', 'Smart watches', { category: 'Smart watches', series: 'all' })}
+                {item('/store', 'Headphones', { category: 'Headphones', series: 'all' })}
+                {item('/store', 'Speakers', { category: 'Speakers', series: 'all' })}
                 {item('/store', 'Gaming', { category: 'Gaming' })}
                 {item('/store', 'Accessories', { category: 'Accessories' })}
-                {item('/store', 'Headphones', { category: 'Headphones' })}
-                {item('/store', 'Speakers', { category: 'Speakers' })}
-                {item('/store', 'Audio', { category: 'Audio' })}
                 {item('/compare', 'Compare')}
                 {item('/promotions', 'Special offers')}
               </>,
@@ -104,11 +108,11 @@ export const Footer: React.FC<FooterProps> = ({ theme }) => {
               'Services & tracking',
               <>
                 {item('/repair', 'Repairs')}
-                {item('/trades', 'Trade-ins')}
+                {item('/trade', 'Trade-ins')}
                 {item('/returns', 'Returns')}
                 {item('/history', 'Track orders', { tab: 'orders' })}
                 {item('/history', 'Repair history', { tab: 'repairs' })}
-                {item('/history', 'Trade-in history', { tab: 'trades' })}
+                {item('/account/trade-ins', 'Trade-in history')}
               </>,
             )}
             {footCol(

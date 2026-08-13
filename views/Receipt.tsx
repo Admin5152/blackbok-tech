@@ -1,17 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from '@tanstack/react-router';
 import { Order } from '../types';
-import { formatDate } from '../lib/utils';
 import { formatProductOptionLabel } from '../lib/productLabels';
-import { supabase } from '../lib/supabase';
+import { getOrder, getOrderByRef } from '../lib/api';
 import { useAppContext } from '../App';
-import {
-  getOrderItemConfigurationLine,
-  mergeVariantSkuFallback,
-  normalizeOrderItemOptions,
-} from '../lib/orderItemOptions';
 import { PosReceiptDocument } from '../components/invoice/PosReceiptDocument';
 import { InvoiceDocument } from '../components/invoice/InvoiceDocument';
+import { formatInvoiceDate, INVOICE_COPY } from '../lib/invoiceFormat';
 
 export const Receipt: React.FC = () => {
   const { orderId } = useParams({ from: '/receipt/$orderId' });
@@ -22,98 +17,26 @@ export const Receipt: React.FC = () => {
 
   useEffect(() => {
     const fetchOrder = async () => {
-      if (!orderId) return;
+      if (!orderId) {
+        setOrder(null);
+        setLoading(false);
+        return;
+      }
 
+      setLoading(true);
       try {
-        const { data: orderData, error } = await supabase
-          .from('orders')
-          .select(`
-            *,
-            order_items (
-              product_id,
-              quantity,
-              price,
-              unit_price,
-              product_name,
-              product_image,
-              product_options,
-              products (
-                name,
-                image_url
-              )
-            )
-          `)
-          .eq('id', orderId)
-          .single();
-
-        if (error) throw error;
-
-        if (orderData) {
-          const transformedOrder: Order = {
-            id: orderData.id,
-            display_id: orderData.display_id,
-            userId: orderData.user_id,
-            userName: orderData.customer_name?.trim() || 'Customer',
-            userEmail: orderData.customer_email?.trim() || undefined,
-            userPhone: orderData.customer_phone?.trim() || undefined,
-            notes: orderData.notes?.trim() || undefined,
-            tracking_number: orderData.tracking_number || undefined,
-            estimated_delivery: orderData.estimated_delivery || undefined,
-            items: orderData.order_items?.map((item: any) => ({
-              id: item.product_id,
-              name: item.products?.name || item.product_name || 'Product',
-              price: Number(item.price ?? item.unit_price ?? 0),
-              quantity: Number(item.quantity ?? 1),
-              image: item.products?.image_url || item.product_image || '/placeholder.png',
-              category: 'Accessories' as any,
-              stock: 0,
-              description: '',
-              selectedOptions: mergeVariantSkuFallback(
-                normalizeOrderItemOptions(item.product_options),
-                item.product_variants,
-              ),
-              configurationLine: getOrderItemConfigurationLine(item.product_options),
-            })) || [],
-            total: Number(orderData.total_price ?? 0),
-            status: String(orderData.status || '')
-              .charAt(0)
-              .toUpperCase() + String(orderData.status || '').slice(1),
-            date: orderData.created_at,
-            paymentMethod: orderData.payment_method || 'card',
-            payment_method: orderData.payment_method || 'card',
-            shipping_address:
-              orderData.shipping_address || orderData.delivery_location || undefined,
-            payment_status: orderData.payment_status,
-            shipping_method: orderData.shipping_method,
-            shipping_cost: Number(orderData.shipping_cost ?? 0),
-            actual_delivery: orderData.actual_delivery || undefined,
-          };
-
-          setOrder(transformedOrder);
-        }
+        let mapped = await getOrder(orderId).catch(() => null);
+        if (!mapped) mapped = await getOrderByRef(orderId);
+        setOrder(mapped);
       } catch (error) {
         console.error('Error fetching order:', error);
-        setOrder({
-          id: orderId,
-          userId: 'local',
-          userName: 'Customer',
-          items: [],
-          total: 0,
-          status: 'Pending',
-          date: new Date().toISOString(),
-          paymentMethod: 'card',
-          payment_method: 'card',
-          shipping_address: 'Store Pickup',
-          payment_status: 'paid',
-          shipping_method: 'pickup',
-          shipping_cost: 0,
-        });
+        setOrder(null);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchOrder();
+    void fetchOrder();
   }, [orderId]);
 
   useEffect(() => {
@@ -169,17 +92,17 @@ export const Receipt: React.FC = () => {
     ].filter(Boolean) as string[];
 
     const items = order.items.map((item) => {
-      const cfg =
-        item.configurationLine ||
-        (Object.keys(item.selectedOptions || {}).length
-          ? Object.entries(item.selectedOptions || {})
-              .filter(([, v]) => v)
-              .map(([k, v]) => `${formatProductOptionLabel(k)}: ${v}`)
-              .join(', ')
-          : '');
+      const fromOptions = Object.entries(item.selectedOptions || {})
+        .filter(([, v]) => v)
+        .map(([k, v]) => `${formatProductOptionLabel(k)}: ${v}`);
+      const fromLine = String(item.configurationLine || '')
+        .split(/\s*,\s*(?=[A-Za-z][^:]*:)/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const descLines = fromOptions.length ? fromOptions : fromLine;
       return {
         name: String(item.name || 'Product').toUpperCase(),
-        description: cfg || undefined,
+        description: descLines.length ? descLines.join('\n') : undefined,
         qty: item.quantity,
         rate: item.price,
       };
@@ -192,7 +115,7 @@ export const Receipt: React.FC = () => {
     const isPaid = payStatus === 'paid' || payStatus === 'completed' || payStatus === 'success';
     const paymentMade = isPaid ? total : 0;
     const balanceDue = Math.max(0, total - paymentMade);
-    const invoiceDate = formatDate(order.date);
+    const invoiceDate = formatInvoiceDate(order.date);
 
     const terms =
       String(order.shipping_method || '').toLowerCase() === 'pickup' ||
@@ -231,7 +154,7 @@ export const Receipt: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-neutral-200 flex items-center justify-center">
-        <p className="text-sm text-black/50">Loading invoice…</p>
+        <p className="text-sm text-black/50">{INVOICE_COPY.loadingPurchase}</p>
       </div>
     );
   }
@@ -240,7 +163,8 @@ export const Receipt: React.FC = () => {
     return (
       <div className="min-h-screen bg-neutral-200 flex items-center justify-center">
         <div className="text-center space-y-4">
-          <h2 className="text-xl font-bold text-black">Order not found</h2>
+          <h2 className="text-xl font-bold text-black">{INVOICE_COPY.missing}</h2>
+          <p className="text-sm text-black/50 max-w-sm mx-auto">{INVOICE_COPY.missingPurchaseHint}</p>
           <button
             type="button"
             onClick={() => navigate({ to: '/profile' })}
@@ -253,14 +177,14 @@ export const Receipt: React.FC = () => {
     );
   }
 
-  // Admin / POS mini-printer layout by default (?format=letter for full invoice).
+  // Letterhead invoice by default; POS mini-printer via ?format=pos
   const usePos =
-    typeof window === 'undefined' ||
-    new URLSearchParams(window.location.search).get('format') !== 'letter';
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('format') === 'pos';
 
   return usePos ? (
     <PosReceiptDocument
-      kindLabel="Sales receipt"
+      kindLabel={INVOICE_COPY.purchaseKind}
       invoiceId={order.id}
       displayId={order.display_id}
       customerName={invoiceModel.billToName}
@@ -282,6 +206,7 @@ export const Receipt: React.FC = () => {
     />
   ) : (
     <InvoiceDocument
+      kindLabel={INVOICE_COPY.purchaseKind}
       invoiceId={order.id}
       displayId={order.display_id}
       billToName={invoiceModel.billToName}

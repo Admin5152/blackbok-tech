@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from '@tanstack/react-router';
 import { TradeRequest } from '../types';
-import { formatDate } from '../lib/utils';
 import { supabase } from '../lib/supabase';
 import { mapTradeFromDb } from '../lib/api';
 import { formatCustomerStatusShort } from '../lib/customerStatusLabels';
 import { maskPhone } from '../lib/phoneMask';
 import { maskImeiSerial } from '../lib/imeiValidation';
 import { InvoiceDocument } from '../components/invoice/InvoiceDocument';
+import { formatInvoiceDate, INVOICE_COPY } from '../lib/invoiceFormat';
 
 export const TradeReceipt: React.FC = () => {
   const { tradeId } = useParams({ from: '/receipt/trade/$tradeId' });
@@ -70,7 +70,7 @@ export const TradeReceipt: React.FC = () => {
           ? `IMEI / serial: ${maskImeiSerial(trade.imei_serial)}`
           : null,
       `Status: ${formatCustomerStatusShort('trade', trade.status) || '—'}`,
-    ].filter(Boolean);
+    ].filter(Boolean) as string[];
 
     const billToLines = [
       trade.contactEmail,
@@ -82,11 +82,11 @@ export const TradeReceipt: React.FC = () => {
     return {
       billToName: trade.contactName || 'Customer',
       billToLines,
-      invoiceDate: formatDate(trade.date),
+      invoiceDate: formatInvoiceDate(trade.date),
       items: [
         {
           name: (trade.device || 'Trade-in device').toUpperCase(),
-          description: descParts.join(', '),
+          description: descParts.join('\n'),
           qty: 1,
           rate: value,
         },
@@ -100,14 +100,14 @@ export const TradeReceipt: React.FC = () => {
       tradeInValuation: value > 0
         ? [{ label: (trade.device || 'Device').toUpperCase(), amount: value }]
         : [],
-      notes: notesBits || 'Trade-in valuation invoice — credit applies toward an eligible upgrade.',
+      notes: notesBits || INVOICE_COPY.tradeNote,
     };
   }, [trade]);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-neutral-200 flex items-center justify-center">
-        <p className="text-sm text-black/50">Loading trade-in invoice…</p>
+        <p className="text-sm text-black/50">{INVOICE_COPY.loadingTrade}</p>
       </div>
     );
   }
@@ -116,8 +116,8 @@ export const TradeReceipt: React.FC = () => {
     return (
       <div className="min-h-screen bg-neutral-200 flex items-center justify-center px-4">
         <div className="text-center space-y-4 max-w-md">
-          <h2 className="text-xl font-bold text-black">Invoice not available</h2>
-          <p className="text-sm text-black/50">This trade-in could not be loaded, or you do not have access.</p>
+          <h2 className="text-xl font-bold text-black">{INVOICE_COPY.missing}</h2>
+          <p className="text-sm text-black/50">{INVOICE_COPY.missingTradeHint}</p>
           <button
             type="button"
             onClick={() => navigate({ to: '/profile' })}
@@ -132,7 +132,7 @@ export const TradeReceipt: React.FC = () => {
 
   return (
     <InvoiceDocument
-      kindLabel="Trade-in"
+      kindLabel={INVOICE_COPY.tradeKind}
       invoiceId={trade.id}
       displayId={trade.display_id}
       billToName={model.billToName}

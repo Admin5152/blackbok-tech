@@ -24,7 +24,11 @@ export function mapProductPageRow(row: ProductPageRow): Product {
       ? Number(row.price_to)
       : priceFrom;
   const totalStock = Math.max(0, Math.floor(Number(row.total_stock ?? 0)));
-  const isNew = row.is_new != null ? Boolean(row.is_new) : false;
+  const condition = normalizeProductCondition(row.condition) ?? undefined;
+  let isNew = row.is_new != null ? Boolean(row.is_new) : false;
+  // Keep badge / New|Used filters honest when condition and is_new disagree
+  if (condition === 'preowned' || condition === 'refurbished') isNew = false;
+  if (condition === 'new') isNew = true;
 
   return {
     id: row.id,
@@ -49,7 +53,7 @@ export function mapProductPageRow(row: ProductPageRow): Product {
     storage: Array.isArray(row.storage) ? row.storage.filter(Boolean) : [],
     ram: Array.isArray(row.ram) ? row.ram.filter(Boolean) : [],
     specs: Array.isArray(row.specs) ? row.specs.filter(Boolean) : [],
-    condition: normalizeProductCondition(row.condition) ?? undefined,
+    condition,
     status: row.status ?? undefined,
     trade_model: row.trade_model ?? undefined,
     featured: Boolean(row.featured),

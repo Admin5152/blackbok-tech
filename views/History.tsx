@@ -252,7 +252,9 @@ export const History: React.FC = () => {
                                             <Package size={28} className={isLight ? 'text-black' : 'text-white/60 group-hover:text-[#CDA032]'} />
                                         </div>
                                         <div className="space-y-1">
-                                            <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Order #{order.id.slice(-8).toUpperCase()}</p>
+                                            <p className="text-[10px] font-black uppercase tracking-widest opacity-40">
+                                              Order #{order.display_id || order.id.slice(-8).toUpperCase()}
+                                            </p>
                                             <h3 className={`text-xl font-black italic tracking-tight uppercase ${isLight ? 'text-black' : 'text-white'}`}>
                                                 {order.items.length} {order.items.length === 1 ? 'Item' : 'Items'} • {formatCurrency(order.total)}
                                             </h3>
@@ -263,6 +265,12 @@ export const History: React.FC = () => {
                                         <span className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest max-w-[11rem] truncate ${customerStatusBadgeClasses(order.status, 'order', isLight)}`} title={formatCustomerStatusShort('order', order.status)}>
                                             {formatCustomerStatusShort('order', order.status)}
                                         </span>
+                                        <Link
+                                            to={`/tracking/order/${order.id}` as any}
+                                            className={`px-4 py-2 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-colors whitespace-nowrap ${isLight ? 'border-black/10 text-black/70 hover:bg-black/5' : 'border-white/15 text-white/70 hover:bg-white/5'}`}
+                                        >
+                                            Track
+                                        </Link>
                                         <Link
                                             to={`/receipt/${order.id}` as any}
                                             className="px-4 py-2 rounded-xl bg-[#CDA032]/10 text-[#CDA032] border border-[#CDA032]/20 text-[9px] font-black uppercase tracking-widest hover:bg-[#CDA032]/20 transition-colors whitespace-nowrap"
@@ -367,6 +375,14 @@ export const History: React.FC = () => {
                                     isLight={isLight}
                                   />
                                 )}
+                                <div className="flex flex-wrap gap-2">
+                                  <Link
+                                    to={`/receipt/trade/${trade.id}` as any}
+                                    className="px-4 py-2 rounded-xl bg-[#CDA032]/10 text-[#CDA032] border border-[#CDA032]/20 text-[9px] font-black uppercase tracking-widest hover:bg-[#CDA032]/20 transition-colors"
+                                  >
+                                    View Invoice
+                                  </Link>
+                                </div>
                                 {canCancelTrade(trade) && notify && (
                                   <CancelRequestButton
                                     kind="trade"
@@ -412,32 +428,44 @@ export const History: React.FC = () => {
                         filteredRepairs.length > 0 ? (
                             <>
                             {repairsPaging.pageItems.map(repair => (
-                                <Link
+                                <div
                                     key={repair.id}
-                                    to={`/tracking/repair/${repair.id}`}
-                                    className={`group p-6 md:p-8 rounded-[2.5rem] border transition-all duration-500 flex flex-col md:flex-row md:items-center justify-between gap-8 ${isLight ? 'bg-white border-black/5 hover:border-black' : 'bg-white/5 border-white/5 hover:border-[#CDA032]/30 hover:bg-white/[0.07] shadow-2xl shadow-black'}`}
+                                    className={`group p-6 md:p-8 rounded-[2.5rem] border transition-all duration-500 flex flex-col gap-6 ${isLight ? 'bg-white border-black/5 hover:border-black' : 'bg-white/5 border-white/5 hover:border-[#CDA032]/30 hover:bg-white/[0.07] shadow-2xl shadow-black'}`}
                                 >
-                                    <div className="flex items-center gap-6">
+                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
+                                      <div className="flex items-center gap-6">
                                         <div className={`w-16 h-16 rounded-3xl flex items-center justify-center transition-colors ${isLight ? 'bg-gray-100' : 'bg-white/5 group-hover:bg-[#CDA032]/10'}`}>
                                             <Wrench size={28} className={isLight ? 'text-black' : 'text-white/60 group-hover:text-[#CDA032]'} />
                                         </div>
                                         <div className="space-y-1">
-                                            <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Repair Ticket #{repair.id}</p>
+                                            <p className="text-[10px] font-black uppercase tracking-widest opacity-40">
+                                              Repair Ticket #{repair.display_id || repair.id.slice(-8).toUpperCase()}
+                                            </p>
                                             <h3 className={`text-xl font-black italic tracking-tight uppercase ${isLight ? 'text-black' : 'text-white'}`}>
                                                 {repair.device} • <span className="opacity-40">{repair.issue}</span>
                                             </h3>
                                             <p className="text-[10px] font-bold opacity-60 uppercase tracking-widest">Logged {new Date(repair.date).toLocaleDateString()}</p>
                                         </div>
-                                    </div>
-                                    <div className="flex items-center justify-between md:justify-end gap-6 border-t md:border-0 pt-6 md:pt-0 border-white/5">
+                                      </div>
+                                      <div className="flex flex-wrap items-center justify-between md:justify-end gap-3 border-t md:border-0 pt-6 md:pt-0 border-white/5">
                                         <span className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest max-w-[11rem] truncate ${customerStatusBadgeClasses(repair.status, 'repair', isLight)}`} title={formatCustomerStatusShort('repair', repair.status)}>
                                             {formatCustomerStatusShort('repair', repair.status)}
                                         </span>
-                                        <div className={`w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-white/30 group-hover:text-[#CDA032] group-hover:border-[#CDA032] transition-all`}>
-                                            <ChevronRight size={20} />
-                                        </div>
+                                        <Link
+                                            to={`/tracking/repair/${repair.id}` as any}
+                                            className={`px-4 py-2 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-colors whitespace-nowrap ${isLight ? 'border-black/10 text-black/70 hover:bg-black/5' : 'border-white/15 text-white/70 hover:bg-white/5'}`}
+                                        >
+                                            Track
+                                        </Link>
+                                        <Link
+                                            to={`/receipt/repair/${repair.id}` as any}
+                                            className="px-4 py-2 rounded-xl bg-[#CDA032]/10 text-[#CDA032] border border-[#CDA032]/20 text-[9px] font-black uppercase tracking-widest hover:bg-[#CDA032]/20 transition-colors whitespace-nowrap"
+                                        >
+                                            View Invoice
+                                        </Link>
+                                      </div>
                                     </div>
-                                </Link>
+                                </div>
                             ))}
                             <Pagination
                                 page={repairsPaging.page}

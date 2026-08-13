@@ -124,15 +124,23 @@ export const TRADE_ADMIN_STATUS_PLAIN: Record<string, string> = {
 export const TRADE_CONFIG_KEY_LABELS: Record<string, { label: string; tip: string }> = {
   battery_healthy_min: {
     label: 'Healthy battery minimum %',
-    tip: 'Battery health at or above this % is treated as fine (no battery deduction).',
+    tip: 'At or above this % (live: 91+) → no battery deduction.',
+  },
+  battery_quarter_min: {
+    label: 'Quarter-deduction battery %',
+    tip: 'From this % up to healthy−1 (live: 85–90) → 25% of the battery amount.',
   },
   battery_half_min: {
     label: 'Half-deduction battery %',
-    tip: 'Between this % and the healthy minimum, apply a smaller battery deduction.',
+    tip: 'From this % up to quarter−1 (live: 70–84) → 50% of the battery amount.',
+  },
+  battery_full_below: {
+    label: 'Full-deduction below %',
+    tip: 'Strictly below this % or “Service” (live: ≤69) → full battery amount.',
   },
   battery_replaced_policy: {
     label: 'If battery was replaced',
-    tip: 'What happens when the customer says the battery was replaced.',
+    tip: 'LIVE: Full deduction online + flag for in-store check (engineer may raise the offer). Health % is still asked and stored; it does not waive the replaced deduction.',
   },
   camera_replaced_policy: {
     label: 'If camera was replaced',
@@ -148,7 +156,7 @@ export const TRADE_CONFIG_KEY_LABELS: Record<string, { label: string; tip: strin
   },
   threshold_mode: {
     label: 'Global minimum — mode',
-    tip: 'Fallback when a model has no per-model minimum. Fixed amount or percent of starting price.',
+    tip: 'Fallback when a model has no per-model minimum. Fixed amount, percent of starting price, or per-model only.',
   },
   threshold_value: {
     label: 'Global minimum — value',
@@ -198,9 +206,9 @@ export const TRADE_CONFIG_KEY_LABELS: Record<string, { label: string; tip: strin
 
 export const TRADE_CONFIG_VALUE_LABELS: Record<string, string> = {
   full: 'Full deduction',
-  half_if_85: 'Half deduction if under 85%',
-  none_if_90: 'No deduction if 90% or higher',
-  full_verify: 'Full deduction + check in store',
+  half_if_85: 'Half deduction (optional — not live default)',
+  none_if_90: 'No deduction (optional — not live default)',
+  full_verify: 'Full deduction + check in store (LIVE default for replaced battery)',
   none_if_working: 'No deduction if it still works',
   hard_stop: 'Stop the online trade-in',
   screen_deduction: 'Treat like screen damage',

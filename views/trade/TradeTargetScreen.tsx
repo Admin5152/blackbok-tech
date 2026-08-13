@@ -133,14 +133,11 @@ export function TradeTargetScreen() {
   const stockRows = useMemo(() => filterInStockTargets(scopedRows), [scopedRows]);
 
   /**
-   * Browse cards: when staff set an allowlist, show those products even if
-   * currently OOS (customer can still state preference). Without an allowlist,
-   * keep D11 in-stock-only browse.
+   * Browse cards: show every scoped upgrade target (allowlist ∪ linked).
+   * OOS rows stay visible so linked phones like iPhone 17 still appear;
+   * stock is indicated separately via productHasStock / groupHasStock.
    */
-  const browseSourceRows = useMemo(
-    () => (allowIds?.length ? scopedRows : stockRows),
-    [allowIds, scopedRows, stockRows],
-  );
+  const browseSourceRows = useMemo(() => scopedRows, [scopedRows]);
 
   const categories = useMemo(
     () => distinctTargetCategories(browseSourceRows),

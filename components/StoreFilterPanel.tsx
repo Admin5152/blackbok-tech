@@ -18,6 +18,12 @@ const PRICE_PRESETS = [
   { label: 'GH₵20,000 & above', range: { min: 20000, max: STORE_PRICE_SLIDER_MAX } },
 ] as const;
 
+export interface StoreFilterOption {
+  value: string;
+  label: string;
+  count?: number;
+}
+
 export interface StoreFilterPanelProps {
   variant: 'drawer' | 'sidebar';
   isLight: boolean;
@@ -39,14 +45,18 @@ export interface StoreFilterPanelProps {
   onClearAll: () => void;
   onClose?: () => void;
   resultCount: number;
-  seriesOptions?: { value: string; label: string }[];
+  /** Brand chips (Audio / Watches / Android / Laptops). */
+  brandOptions?: StoreFilterOption[];
+  activeBrand?: string;
+  onBrandClick?: (value: string) => void;
+  /** Series / line chips. */
+  seriesOptions?: StoreFilterOption[];
   activeSeries?: string;
   onSeriesClick?: (value: string) => void;
-  conditionOptions?: { value: string; label: string }[];
+  /** New / Used (or All). */
+  conditionOptions?: StoreFilterOption[];
   activeCondition?: string;
   onConditionClick?: (value: string) => void;
-  /** When true, conditionOptions are brands (Audio / Laptops Brand → Series). */
-  brandThenSeries?: boolean;
 }
 
 function clampPriceRange(min: number, max: number): { min: number; max: number } {
@@ -65,12 +75,14 @@ function FilterAccordion({
   onToggle,
   children,
   badge,
+  hint,
 }: {
   title: string;
   open: boolean;
   onToggle: () => void;
   children: React.ReactNode;
   badge?: string | number | null;
+  hint?: string | null;
 }) {
   return (
     <section className="bb-mp-filter-section">
@@ -90,7 +102,12 @@ function FilterAccordion({
           aria-hidden
         />
       </button>
-      {open && <div className="bb-mp-filter-section__body">{children}</div>}
+      {open && (
+        <div className="bb-mp-filter-section__body">
+          {hint ? <p className="bb-mp-filter-hint bb-mp-filter-hint--block">{hint}</p> : null}
+          {children}
+        </div>
+      )}
     </section>
   );
 }
@@ -128,6 +145,40 @@ function FilterCheckRow({
   );
 }
 
+function OptionList({
+  options,
+  activeValue,
+  onClick,
+  allLabel,
+  scroll,
+}: {
+  options: StoreFilterOption[];
+  activeValue?: string;
+  onClick: (value: string) => void;
+  allLabel: string;
+  scroll?: boolean;
+}) {
+  const active = activeValue || 'all';
+  return (
+    <div className={`bb-mp-filter-list ${scroll ? 'bb-mp-filter-list--scroll' : ''}`}>
+      <FilterCheckRow
+        label={allLabel}
+        checked={active === 'all' || active === ''}
+        onClick={() => onClick('all')}
+      />
+      {options.map((opt) => (
+        <FilterCheckRow
+          key={opt.value}
+          label={opt.label}
+          count={opt.count}
+          checked={active === opt.value}
+          onClick={() => onClick(opt.value)}
+        />
+      ))}
+    </div>
+  );
+}
+
 export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
   variant,
   isLight,
@@ -149,30 +200,29 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
   onClearAll,
   onClose,
   resultCount,
+  brandOptions,
+  activeBrand,
+  onBrandClick,
   seriesOptions,
   activeSeries,
   onSeriesClick,
   conditionOptions,
   activeCondition,
   onConditionClick,
-  brandThenSeries = false,
 }) => {
   const isDrawer = variant === 'drawer';
   const borderSubtle = isLight ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.12)';
   const inputBg = isLight ? '#ffffff' : '#0a0a0a';
 
+  const hasBrand = Boolean(brandOptions && brandOptions.length > 0 && onBrandClick);
   const hasSeries = Boolean(seriesOptions && seriesOptions.length > 0 && onSeriesClick);
   const hasCondition = Boolean(conditionOptions && conditionOptions.length > 0 && onConditionClick);
-  const conditionTitle = brandThenSeries
-    ? 'Brand'
-    : conditionOptions?.every((o) => o.value === 'new' || o.value === 'used' || o.value === 'all')
-      ? 'Condition'
-      : 'Type';
 
   const activeCat = categoryOptions.find((c) => isCategoryRowActive(c) && c.value !== 'All');
 
   const [openSections, setOpenSections] = useState({
     category: true,
+    brand: true,
     series: true,
     condition: true,
     price: true,
@@ -220,6 +270,7 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
         open={openSections.category}
         onToggle={() => toggleSection('category')}
         badge={activeCat?.label}
+        hint="Pick a category, then refine brand, series, and condition below."
       >
         <div className="bb-mp-filter-list">
           {groupedCategoryRows.deals.map((cat) => (
@@ -239,48 +290,14 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
               {group.rows.map((cat) => {
                 const active = isCategoryRowActive(cat);
                 return (
-                  <React.Fragment key={cat.key}>
-                    <FilterCheckRow
-                      label={cat.label.replace(/^🔥\s*/, '')}
-                      count={cat.count}
-                      checked={active}
-                      indent={Boolean(group.label)}
-                      onClick={() => onCategoryClick(cat)}
-                    />
-                    {active && cat.value !== 'All' && hasSeries && !brandThenSeries && (
-                      <div className="bb-mp-filter-tree">
-                        {seriesOptions!.slice(0, 6).map((opt) => (
-                          <FilterCheckRow
-                            key={opt.value}
-                            label={opt.label}
-                            checked={activeSeries === opt.value}
-                            indent
-                            onClick={() => onSeriesClick!(opt.value)}
-                          />
-                        ))}
-                        {seriesOptions!.length > 6 && (
-                          <p className="bb-mp-filter-more">+{seriesOptions!.length - 6} more in Series</p>
-                        )}
-                      </div>
-                    )}
-                    {active &&
-                      cat.value !== 'All' &&
-                      brandThenSeries &&
-                      hasCondition &&
-                      !activeCondition && (
-                        <div className="bb-mp-filter-tree">
-                          {conditionOptions!.slice(0, 6).map((opt) => (
-                            <FilterCheckRow
-                              key={opt.value}
-                              label={opt.label}
-                              checked={false}
-                              indent
-                              onClick={() => onConditionClick!(opt.value)}
-                            />
-                          ))}
-                        </div>
-                      )}
-                  </React.Fragment>
+                  <FilterCheckRow
+                    key={cat.key}
+                    label={cat.label.replace(/^🔥\s*/, '')}
+                    count={cat.count}
+                    checked={active}
+                    indent={Boolean(group.label)}
+                    onClick={() => onCategoryClick(cat)}
+                  />
                 );
               })}
             </div>
@@ -288,27 +305,24 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
         </div>
       </FilterAccordion>
 
-      {hasCondition && (
+      {hasBrand && (
         <FilterAccordion
-          title={conditionTitle}
-          open={openSections.condition}
-          onToggle={() => toggleSection('condition')}
+          title="Brand"
+          open={openSections.brand}
+          onToggle={() => toggleSection('brand')}
           badge={
-            activeCondition && activeCondition !== 'all'
-              ? conditionOptions!.find((o) => o.value === activeCondition)?.label
-              : null
+            activeBrand
+              ? brandOptions!.find((o) => o.value === activeBrand)?.label
+              : 'All'
           }
+          hint="Optional — leave on All brands to browse everything in this category."
         >
-          <div className="bb-mp-filter-list">
-            {conditionOptions!.map((opt) => (
-              <FilterCheckRow
-                key={opt.value}
-                label={opt.label}
-                checked={activeCondition === opt.value}
-                onClick={() => onConditionClick!(opt.value)}
-              />
-            ))}
-          </div>
+          <OptionList
+            options={brandOptions!}
+            activeValue={activeBrand}
+            onClick={onBrandClick!}
+            allLabel="All brands"
+          />
         </FilterAccordion>
       )}
 
@@ -320,19 +334,41 @@ export const StoreFilterPanel: React.FC<StoreFilterPanelProps> = ({
           badge={
             activeSeries
               ? seriesOptions!.find((o) => o.value === activeSeries)?.label
+              : 'All'
+          }
+          hint={
+            hasBrand && !activeBrand
+              ? 'Tip: choose a brand first to narrow these lines.'
               : null
           }
         >
-          <div className="bb-mp-filter-list bb-mp-filter-list--scroll">
-            {seriesOptions!.map((opt) => (
-              <FilterCheckRow
-                key={opt.value}
-                label={opt.label}
-                checked={activeSeries === opt.value}
-                onClick={() => onSeriesClick!(opt.value)}
-              />
-            ))}
-          </div>
+          <OptionList
+            options={seriesOptions!}
+            activeValue={activeSeries}
+            onClick={onSeriesClick!}
+            allLabel="All series"
+            scroll
+          />
+        </FilterAccordion>
+      )}
+
+      {hasCondition && (
+        <FilterAccordion
+          title="Condition"
+          open={openSections.condition}
+          onToggle={() => toggleSection('condition')}
+          badge={
+            activeCondition && activeCondition !== 'all'
+              ? conditionOptions!.find((o) => o.value === activeCondition)?.label
+              : 'All'
+          }
+        >
+          <OptionList
+            options={conditionOptions!.filter((o) => o.value !== 'all')}
+            activeValue={activeCondition}
+            onClick={onConditionClick!}
+            allLabel="All conditions"
+          />
         </FilterAccordion>
       )}
 

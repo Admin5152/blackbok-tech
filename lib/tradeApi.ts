@@ -587,8 +587,9 @@ export interface SubmitTradeRequestInput {
 
 /**
  * Screen 8 submit — browser sends answers + IDs only.
+ * Money lines re-fetched from compute_trade_estimate before insert
+ * (never trust the client snapshot for base / estimate / deductions).
  * Server triggers re-derive target price, top-up, expiry, display_id.
- * Assert response contains display_id / expires_at / top_up_amount.
  */
 export async function submitTradeRequest(input: SubmitTradeRequestInput) {
   const { createTradeRequest } = await import('./api');
@@ -605,6 +606,23 @@ export async function submitTradeRequest(input: SubmitTradeRequestInput) {
     answers,
     editLog: input.editLog,
   };
+
+  // Recompute on the server RPC so submitted money matches live engine
+  const serverEstimate = await computeTradeEstimate(
+    input.deviceLock.model,
+    input.deviceLock.storage,
+    input.deviceLock.sim,
+    Object.values(input.quizAnswers).map((a) => ({
+      answer_id: a.answerId,
+      ...(a.descriptionText || (a.descriptionTags?.length ?? 0)
+        ? {
+            description: [...(a.descriptionTags ?? []), a.descriptionText ?? '']
+              .filter(Boolean)
+              .join('; '),
+          }
+        : {}),
+    })),
+  );
 
   try {
     const row = await createTradeRequest({
@@ -623,17 +641,17 @@ export async function submitTradeRequest(input: SubmitTradeRequestInput) {
       target_product_id: input.targetLock.productId ?? undefined,
       target_variant_id: input.targetLock.variantId ?? undefined,
       pricing_mode: 'questionnaire_v2',
-      base_trade_value: input.estimate.base_value,
-      estimated_value: input.estimate.estimate,
-      estimatedValue: input.estimate.estimate,
-      deduction_breakdown: input.estimate.deductions.map((d) => ({
+      base_trade_value: serverEstimate.base_value,
+      estimated_value: serverEstimate.estimate,
+      estimatedValue: serverEstimate.estimate,
+      deduction_breakdown: serverEstimate.deductions.map((d) => ({
         key: d.component,
         label: d.component,
         amount: d.amount,
       })),
       answers_snapshot: snapshot,
       answers_edited: input.editLog.length > 0,
-      needs_verification: input.estimate.needs_verification,
+      needs_verification: serverEstimate.needs_verification,
       needs_manual_review: false,
       imei_1: (input.imei1 ?? input.deviceLock.imei1 ?? '').trim() || undefined,
       imei_2: (input.imei2 ?? input.deviceLock.imei2 ?? '').trim() || undefined,

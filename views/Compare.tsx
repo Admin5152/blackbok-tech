@@ -1,22 +1,43 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Search, Info, Trash2, ShoppingCart, GitCompare, X } from 'lucide-react';
+import {
+  Plus,
+  Search,
+  Info,
+  Trash2,
+  ShoppingCart,
+  GitCompare,
+  X,
+  RefreshCcw,
+  Sparkles,
+  Eye,
+  EyeOff,
+  Store,
+} from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import { useAppContext } from '../App';
 import { formatCurrency } from '../lib/utils';
 import { PageBackButton } from '../components/PageBackButton';
+import { normalizeProductCategory } from '../lib/api';
 import {
   buildCompareRows,
   buildCompareWinsByProductId,
   buildForkForProduct,
+  buildMatchupInsight,
   buildRuling,
   COMPARE_MAX_ITEMS,
   COMPARE_PICKER_PAGE_SIZE,
+  compareProductMetaLine,
   filterComparePickerProducts,
+  filterDifferingCompareRows,
   groupCompareRows,
   resolveCompareProducts,
   scoreCompareProducts,
+  sortComparePickerProducts,
+  suggestCompareStarters,
   type CompareRow,
 } from '../lib/compareProducts';
+import { isDealOfTheDayProduct, getDealDiscountPercentage, getDealDiscountedPrice } from '../lib/dealOfTheDay';
+import { formatProductConditionLabel } from '../lib/storeFilters';
 import { usePagination } from '../lib/pagination';
 import { Pagination } from '../components/Pagination';
 import type { Product } from '../types';
@@ -66,9 +87,9 @@ const CompareAddPanel: React.FC<CompareAddPanelProps> = ({
     >
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div>
-          <p className="text-sm font-bold">Add a device to compare</p>
+          <p className="text-sm font-bold">Build the matchup</p>
           <p className="text-xs text-[color:var(--bb-muted)] mt-0.5">
-            {compareCount} of {COMPARE_MAX_ITEMS} selected — tap a product below to add it.
+            {compareCount} of {COMPARE_MAX_ITEMS} on the bench — tap to add. Stock and deals float first.
           </p>
         </div>
         <button
@@ -90,7 +111,7 @@ const CompareAddPanel: React.FC<CompareAddPanelProps> = ({
         />
         <input
           type="search"
-          placeholder="Search by name, brand, or category…"
+          placeholder="Search name, brand, series, Pre-owned…"
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}
           autoFocus
@@ -136,15 +157,18 @@ const CompareAddPanel: React.FC<CompareAddPanelProps> = ({
         <div className="py-8 text-center">
           <p className="text-sm font-medium mb-1">No matching products</p>
           <p className="text-xs text-[color:var(--bb-muted)]">
-            Try another search or browse the shop to find more devices.
+            Try another search or open the shop — Android, MacBooks, and watches are all fair game.
           </p>
         </div>
       ) : (
         <div className="space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4 max-h-[min(60vh,420px)] overflow-y-auto bb-scrollbar pr-1">
             {pickerPaging.pageItems.map((product) => {
-              const displayPrice = product.price_from ?? product.price;
+              const displayPrice = getDealDiscountedPrice(product);
               const inStock = (product.total_stock ?? product.stock ?? 0) > 0;
+              const condition = formatProductConditionLabel(product);
+              const isDeal = isDealOfTheDayProduct(product);
+              const disc = getDealDiscountPercentage(product);
               return (
                 <button
                   key={product.id}
@@ -156,20 +180,33 @@ const CompareAddPanel: React.FC<CompareAddPanelProps> = ({
                       : 'border-[var(--bb-border)] hover:border-[#CDA032]/40 hover:bg-white/[0.03]'
                   }`}
                 >
-                  <div className="aspect-square bg-black rounded-lg p-2 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <div className="relative aspect-square bg-black rounded-lg p-2 flex items-center justify-center group-hover:scale-105 transition-transform">
                     <img
                       src={product.image || product.image_url || ''}
                       alt={product.name}
                       className="w-full h-full object-contain"
                     />
+                    {(isDeal || disc > 0) && (
+                      <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-[#CDA032] text-black">
+                        {isDeal ? 'Deal' : `${disc}%`}
+                      </span>
+                    )}
                   </div>
                   <div className="min-w-0">
                     <p className="text-[11px] font-bold leading-snug line-clamp-2 mb-1">{product.name}</p>
+                    <p className="text-[9px] text-[color:var(--bb-muted)] line-clamp-1 mb-1">
+                      {compareProductMetaLine(product)}
+                    </p>
                     <p className="text-[10px] font-bold text-[#CDA032] tabular-nums">
                       {formatCurrency(displayPrice)}
                     </p>
-                    <p className={`text-[9px] mt-1 ${inStock ? 'text-emerald-600' : 'text-[color:var(--bb-muted)]'}`}>
+                    <p
+                      className={`text-[9px] mt-1 ${
+                        inStock ? 'text-emerald-600' : 'text-[color:var(--bb-muted)]'
+                      }`}
+                    >
                       {inStock ? 'In stock' : 'Out of stock'}
+                      {condition !== 'New' ? ` · ${condition}` : ''}
                     </p>
                   </div>
                 </button>
@@ -196,7 +233,7 @@ function productImage(p: Product): string {
 }
 
 function productPrice(p: Product): number {
-  return p.price_from ?? p.price;
+  return getDealDiscountedPrice(p);
 }
 
 function truncateName(name: string, max = 28): string {
@@ -227,6 +264,9 @@ const ProductColumnHeader: React.FC<ProductColumnHeaderProps> = ({
   onOpen,
 }) => {
   const inStock = (product.total_stock ?? product.stock ?? 0) > 0;
+  const condition = formatProductConditionLabel(product);
+  const isDeal = isDealOfTheDayProduct(product);
+
   return (
     <div className="bb-compare-col-head">
       <button
@@ -240,10 +280,14 @@ const ProductColumnHeader: React.FC<ProductColumnHeaderProps> = ({
       <button type="button" onClick={onOpen} className="bb-compare-col-head__product">
         <div className="bb-compare-col-head__img">
           <img src={productImage(product)} alt="" />
+          {isDeal && <span className="bb-compare-col-head__deal">Deal</span>}
         </div>
         <h3 className="bb-compare-col-head__name">{product.name}</h3>
-        <p className="bb-compare-col-head__cat">{product.category}</p>
+        <p className="bb-compare-col-head__cat">{compareProductMetaLine(product)}</p>
         <p className="bb-compare-col-head__price">{formatCurrency(productPrice(product))}</p>
+        {condition !== 'New' && (
+          <span className="bb-compare-col-head__condition">{condition}</span>
+        )}
         {showScore && typeof score === 'number' && (
           <p className="bb-compare-col-head__score">
             <span>{score}</span>
@@ -387,6 +431,7 @@ type VersusDuelProps = {
   onOpen: (p: Product) => void;
   onAddSlot: () => void;
   atLimit: boolean;
+  onTrade: () => void;
 };
 
 const VersusDuel: React.FC<VersusDuelProps> = ({
@@ -399,6 +444,7 @@ const VersusDuel: React.FC<VersusDuelProps> = ({
   onOpen,
   onAddSlot,
   atLimit,
+  onTrade,
 }) => {
   const [a, b] = products;
   const ruling = useMemo(() => buildRuling(products, rows), [products, rows]);
@@ -410,6 +456,9 @@ const VersusDuel: React.FC<VersusDuelProps> = ({
   }, [scores]);
   const forkA = useMemo(() => buildForkForProduct(a, b, rows), [a, b, rows]);
   const forkB = useMemo(() => buildForkForProduct(b, a, rows), [a, b, rows]);
+  const eitherTradeLinked = Boolean(
+    String(a.trade_model ?? '').trim() || String(b.trade_model ?? '').trim(),
+  );
 
   return (
     <div className={`bb-compare-versus ${isLight ? 'bb-compare-versus--light' : ''}`}>
@@ -445,7 +494,7 @@ const VersusDuel: React.FC<VersusDuelProps> = ({
 
       {ruling && (
         <section className="bb-compare-ruling">
-          <p className="bb-compare-ruling__eyebrow">The ruling</p>
+          <p className="bb-compare-ruling__eyebrow">Shop-floor lean</p>
           <h2 className="bb-compare-ruling__summary">{ruling.summary}</h2>
           {ruling.winLabels.length > 0 && (
             <div className="bb-compare-ruling__chips">
@@ -456,16 +505,20 @@ const VersusDuel: React.FC<VersusDuelProps> = ({
               ))}
             </div>
           )}
+          {eitherTradeLinked && (
+            <button type="button" onClick={onTrade} className="bb-compare-ruling__trade">
+              <RefreshCcw size={14} />
+              Trade in your device toward one of these
+            </button>
+          )}
         </section>
       )}
 
       <section className="bb-compare-fork">
-        <h2 className="bb-compare-section-title">The fork</h2>
+        <h2 className="bb-compare-section-title">Where they pull apart</h2>
         <div className="bb-compare-fork__grid">
           <div className="bb-compare-fork__col">
-            <h3>
-              {truncateName(a.name)} — if you care about…
-            </h3>
+            <h3>{truncateName(a.name)} — if you care about…</h3>
             {forkA.length === 0 ? (
               <p className="bb-compare-fork__empty">No clear edges on the facts we have.</p>
             ) : (
@@ -486,9 +539,7 @@ const VersusDuel: React.FC<VersusDuelProps> = ({
             )}
           </div>
           <div className="bb-compare-fork__col">
-            <h3>
-              {truncateName(b.name)} — if you care about…
-            </h3>
+            <h3>{truncateName(b.name)} — if you care about…</h3>
             {forkB.length === 0 ? (
               <p className="bb-compare-fork__empty">No clear edges on the facts we have.</p>
             ) : (
@@ -512,7 +563,7 @@ const VersusDuel: React.FC<VersusDuelProps> = ({
       </section>
 
       <section className="bb-compare-record">
-        <h2 className="bb-compare-section-title">The record</h2>
+        <h2 className="bb-compare-section-title">The full record</h2>
         <SpecMatrix
           products={products}
           rows={rows}
@@ -535,6 +586,7 @@ export const Compare: React.FC = () => {
   const {
     products: allProducts,
     compareIds,
+    setCompareIds,
     onToggleCompare,
     onAddToCart,
     theme,
@@ -545,6 +597,7 @@ export const Compare: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [showAddPanel, setShowAddPanel] = useState(false);
+  const [diffOnly, setDiffOnly] = useState(true);
   const addPanelRef = useRef<HTMLDivElement>(null);
   const isLight = theme === 'light';
 
@@ -553,7 +606,14 @@ export const Compare: React.FC = () => {
     [allProducts, compareIds],
   );
 
-  const compareRows = useMemo(() => buildCompareRows(compareProducts), [compareProducts]);
+  const compareRowsAll = useMemo(() => buildCompareRows(compareProducts), [compareProducts]);
+  const compareRows = useMemo(
+    () =>
+      diffOnly && compareProducts.length >= 2
+        ? filterDifferingCompareRows(compareRowsAll, compareProducts)
+        : compareRowsAll,
+    [diffOnly, compareRowsAll, compareProducts],
+  );
 
   const compareWinsById = useMemo(
     () => buildCompareWinsByProductId(compareProducts),
@@ -561,11 +621,18 @@ export const Compare: React.FC = () => {
   );
 
   const scoresById = useMemo(() => {
-    const scores = scoreCompareProducts(compareProducts, compareRows);
+    const scores = scoreCompareProducts(compareProducts, compareRowsAll);
     const m = new Map<string, number>();
     for (const s of scores) m.set(s.productId, s.wins);
     return m;
-  }, [compareProducts, compareRows]);
+  }, [compareProducts, compareRowsAll]);
+
+  const matchupInsight = useMemo(
+    () => buildMatchupInsight(compareProducts),
+    [compareProducts],
+  );
+
+  const starters = useMemo(() => suggestCompareStarters(allProducts, 8), [allProducts]);
 
   const shopProducts = useMemo(
     () =>
@@ -579,7 +646,7 @@ export const Compare: React.FC = () => {
   const categories = useMemo(() => {
     const set = new Set<string>();
     for (const p of shopProducts) {
-      if (p.category) set.add(String(p.category));
+      if (p.category) set.add(normalizeProductCategory(p.category));
     }
     return Array.from(set).sort();
   }, [shopProducts]);
@@ -587,14 +654,12 @@ export const Compare: React.FC = () => {
   const availableProducts = useMemo(() => {
     let list = filterComparePickerProducts(shopProducts, compareIds, searchTerm);
     if (categoryFilter !== 'all') {
-      list = list.filter((p) => String(p.category) === categoryFilter);
+      list = list.filter((p) => normalizeProductCategory(p.category) === categoryFilter);
     }
-    return list;
+    return sortComparePickerProducts(list);
   }, [shopProducts, compareIds, searchTerm, categoryFilter]);
 
-  const openAddPanel = () => {
-    setShowAddPanel(true);
-  };
+  const openAddPanel = () => setShowAddPanel(true);
 
   const closeAddPanel = () => {
     setShowAddPanel(false);
@@ -611,11 +676,31 @@ export const Compare: React.FC = () => {
     onToggleCompare(productId);
   };
 
+  const clearCompare = () => {
+    setCompareIds([]);
+    notify('Compare tray cleared', 'success');
+  };
+
   const openProduct = (product: Product) => {
     navigate({
       to: '/product/$productId' as any,
       params: { productId: productRouteParam(product) } as any,
     });
+  };
+
+  const openTrade = () => {
+    navigate({ to: '/trade' as any });
+  };
+
+  const openShopForPrimary = () => {
+    const cat = compareProducts[0]
+      ? normalizeProductCategory(compareProducts[0].category)
+      : null;
+    if (cat) {
+      navigate({ to: '/store', search: { category: cat, series: 'all' } as any });
+    } else {
+      navigate({ to: '/store', search: { browse: 'all' } as any });
+    }
   };
 
   useEffect(() => {
@@ -626,14 +711,16 @@ export const Compare: React.FC = () => {
     return () => window.clearTimeout(t);
   }, [showAddPanel]);
 
-  const containerClass = isLight ? 'bg-white border-black/10' : 'bg-[var(--bb-surface)] border-[var(--bb-border)]';
+  const containerClass = isLight
+    ? 'bg-white border-black/10'
+    : 'bg-[var(--bb-surface)] border-[var(--bb-border)]';
   const textMuted = 'text-[color:var(--bb-muted)]';
   const atLimit = compareIds.length >= COMPARE_MAX_ITEMS;
 
   const pageTitle =
     compareProducts.length >= 2
       ? `${truncateName(compareProducts[0].name, 22)} vs ${truncateName(compareProducts[1].name, 22)}`
-      : 'Compare products';
+      : 'Compare on the floor';
 
   const addPanelProps = {
     isLight,
@@ -649,6 +736,8 @@ export const Compare: React.FC = () => {
     onClose: closeAddPanel,
   };
 
+  const hiddenSameCount = Math.max(0, compareRowsAll.length - compareRows.length);
+
   return (
     <div className="min-h-screen pt-24 sm:pt-32 pb-20 px-4 sm:px-6 lg:px-8 bg-[var(--bb-bg)] text-[var(--bb-text)]">
       <div className="max-w-[1440px] mx-auto">
@@ -656,7 +745,7 @@ export const Compare: React.FC = () => {
           <PageBackButton isLight={isLight} fallbackTo="/store" />
         </div>
 
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 sm:mb-10">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6 sm:mb-8">
           <div className="flex items-center gap-4">
             <div
               className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center ${
@@ -669,16 +758,44 @@ export const Compare: React.FC = () => {
               <h1 className="text-3xl sm:text-5xl font-black tracking-tight">{pageTitle}</h1>
               <p className={`text-sm mt-1 ${textMuted}`}>
                 {compareProducts.length === 2
-                  ? 'Head-to-head specs, ruling, and the full record.'
-                  : `Side-by-side specs and pricing — up to ${COMPARE_MAX_ITEMS} devices.`}
+                  ? 'Live prices, Pre-owned vs New, deals, stock, and a shop-floor lean.'
+                  : `BlackBox matchup — up to ${COMPARE_MAX_ITEMS} devices, scored on what actually ships.`}
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <span className={`text-xs font-bold uppercase tracking-wider tabular-nums ${textMuted}`}>
               {compareIds.length}/{COMPARE_MAX_ITEMS}
             </span>
+            {compareProducts.length >= 2 && (
+              <button
+                type="button"
+                onClick={() => setDiffOnly((v) => !v)}
+                className={`px-3 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 border transition-colors ${
+                  diffOnly
+                    ? 'border-[#CDA032] text-[#CDA032]'
+                    : isLight
+                      ? 'border-black/15 text-black/60'
+                      : 'border-white/15 text-white/60'
+                }`}
+                title={diffOnly ? 'Showing differences only' : 'Showing all rows'}
+              >
+                {diffOnly ? <EyeOff size={14} /> : <Eye size={14} />}
+                {diffOnly ? `Diffs${hiddenSameCount ? ` (−${hiddenSameCount})` : ''}` : 'All rows'}
+              </button>
+            )}
+            {compareIds.length > 0 && (
+              <button
+                type="button"
+                onClick={clearCompare}
+                className={`px-3 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider border ${
+                  isLight ? 'border-black/15 hover:bg-black/5' : 'border-white/15 hover:bg-white/5'
+                }`}
+              >
+                Clear
+              </button>
+            )}
             {!atLimit && (
               <button
                 type="button"
@@ -698,6 +815,28 @@ export const Compare: React.FC = () => {
           </div>
         </div>
 
+        {matchupInsight && compareProducts.length >= 2 && (
+          <div
+            className={`bb-compare-insight bb-compare-insight--${matchupInsight.tone} mb-6 ${
+              isLight ? 'bb-compare-insight--light' : ''
+            }`}
+          >
+            <Sparkles size={16} className="bb-compare-insight__icon" aria-hidden />
+            <div>
+              <p className="bb-compare-insight__title">{matchupInsight.title}</p>
+              <p className="bb-compare-insight__detail">{matchupInsight.detail}</p>
+            </div>
+            <div className="bb-compare-insight__actions">
+              <button type="button" onClick={openShopForPrimary}>
+                <Store size={14} /> Shop category
+              </button>
+              <button type="button" onClick={openTrade}>
+                <RefreshCcw size={14} /> Trade-in
+              </button>
+            </div>
+          </div>
+        )}
+
         <div ref={addPanelRef}>
           {showAddPanel && (
             <CompareAddPanel {...addPanelProps} sticky={compareProducts.length > 0} />
@@ -705,21 +844,68 @@ export const Compare: React.FC = () => {
         </div>
 
         {compareProducts.length === 0 ? (
-          <div className="py-24 sm:py-32 rounded-2xl border border-dashed border-[var(--bb-border)] flex flex-col items-center justify-center text-center px-6">
-            <Info size={40} className="mb-4 text-[color:var(--bb-muted)] opacity-60" />
-            <p className="text-base font-bold mb-2">No devices to compare yet</p>
-            <p className={`text-sm max-w-md ${textMuted}`}>
-              Add items from the shop using the scale icon on any product card, or search and pick
-              devices below.
-            </p>
-            {!showAddPanel && (
-              <button
-                type="button"
-                onClick={openAddPanel}
-                className="mt-6 px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-[#CDA032] text-black"
-              >
-                Add devices
-              </button>
+          <div className="space-y-10">
+            <div className="py-16 sm:py-20 rounded-2xl border border-dashed border-[var(--bb-border)] flex flex-col items-center justify-center text-center px-6">
+              <Info size={40} className="mb-4 text-[color:var(--bb-muted)] opacity-60" />
+              <p className="text-base font-bold mb-2">Empty bench</p>
+              <p className={`text-sm max-w-lg ${textMuted}`}>
+                Tap the scale on any shop card, or start from deals and in-stock picks below — phones,
+                MacBooks, watches, the lot.
+              </p>
+              <div className="mt-6 flex flex-wrap justify-center gap-3">
+                {!showAddPanel && (
+                  <button
+                    type="button"
+                    onClick={openAddPanel}
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-[#CDA032] text-black"
+                  >
+                    Browse catalogue
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => navigate({ to: '/store', search: { browse: 'deals' } as any })}
+                  className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider border ${
+                    isLight ? 'border-black/15' : 'border-white/15'
+                  }`}
+                >
+                  Deal of the Day
+                </button>
+              </div>
+            </div>
+
+            {starters.length > 0 && (
+              <section>
+                <h2 className="bb-compare-section-title">Start a matchup</h2>
+                <p className={`text-sm mb-4 ${textMuted}`}>
+                  Live floor picks — deals and stock first. Add two to unlock the ruling.
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+                  {starters.map((product) => {
+                    const inStock = (product.total_stock ?? product.stock ?? 0) > 0;
+                    return (
+                      <button
+                        key={product.id}
+                        type="button"
+                        onClick={() => handleAddProduct(product.id)}
+                        className={`bb-compare-starter ${isLight ? 'bb-compare-starter--light' : ''}`}
+                      >
+                        <div className="bb-compare-starter__img">
+                          <img src={productImage(product)} alt="" />
+                        </div>
+                        <p className="bb-compare-starter__name">{product.name}</p>
+                        <p className="bb-compare-starter__meta">{compareProductMetaLine(product)}</p>
+                        <p className="bb-compare-starter__price">
+                          {formatCurrency(productPrice(product))}
+                        </p>
+                        <span className="bb-compare-starter__cta">
+                          {inStock ? 'Add to bench' : 'Compare anyway'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
             )}
           </div>
         ) : compareProducts.length === 2 ? (
@@ -733,21 +919,30 @@ export const Compare: React.FC = () => {
             onOpen={openProduct}
             onAddSlot={openAddPanel}
             atLimit={atLimit}
+            onTrade={openTrade}
           />
         ) : (
-          <SpecMatrix
-            products={compareProducts}
-            rows={compareRows}
-            isLight={isLight}
-            winsById={compareWinsById}
-            scoresById={scoresById}
-            showScores={compareProducts.length > 1}
-            atLimit={atLimit}
-            onRemove={onToggleCompare}
-            onAddToCart={onAddToCart}
-            onOpen={openProduct}
-            onAddSlot={openAddPanel}
-          />
+          <div className="space-y-6">
+            {compareProducts.length > 2 && (
+              <p className={`text-sm ${textMuted}`}>
+                Multi-device sheet — wins counted across price, deals, condition, and stock. Add a
+                second for a full head-to-head ruling.
+              </p>
+            )}
+            <SpecMatrix
+              products={compareProducts}
+              rows={compareRows}
+              isLight={isLight}
+              winsById={compareWinsById}
+              scoresById={scoresById}
+              showScores={compareProducts.length > 1}
+              atLimit={atLimit}
+              onRemove={onToggleCompare}
+              onAddToCart={onAddToCart}
+              onOpen={openProduct}
+              onAddSlot={openAddPanel}
+            />
+          </div>
         )}
       </div>
     </div>

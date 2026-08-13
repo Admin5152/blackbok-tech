@@ -17,11 +17,12 @@ import {
   findVariantRowForOptions,
 } from '../lib/productOptions';
 import { variantEffectivePrice, getMaxTradeBaseForModel, saveTradeTargetSeed } from '../lib/catalogApi';
-import { getDealDiscountPercentage } from '../lib/dealOfTheDay';
+import { getDealDiscountPercentage, applyDealDiscountToAmount } from '../lib/dealOfTheDay';
 import { galleryImagesForSelection } from '../lib/productColorImages';
 import { PageBackButton } from '../components/PageBackButton';
 import type { ProductVariant } from '../types';
 import { productRouteParam } from '../lib/productUrl';
+import { formatProductConditionLabel } from '../lib/storeFilters';
 
 interface ProductDetailProps {
   product: Product;
@@ -69,11 +70,10 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
     () => variantEffectivePrice(product, matchedVariant),
     [product, matchedVariant],
   );
-  const unitPrice = useMemo(() => {
-    const pct = getDealDiscountPercentage(product);
-    if (pct > 0) return Math.round(listPrice * (1 - pct / 100) * 100) / 100;
-    return listPrice;
-  }, [product, listPrice]);
+  const unitPrice = useMemo(
+    () => applyDealDiscountToAmount(listPrice, product),
+    [product, listPrice],
+  );
   const discountPct = getDealDiscountPercentage(product);
 
   const [tradeMax, setTradeMax] = useState<number | null>(null);
@@ -272,6 +272,19 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                 <h1 className={`text-lg sm:text-xl font-bold tracking-tight leading-snug ${isLight ? 'text-black' : 'text-white'}`}>
                   {product.name}
                 </h1>
+                {(() => {
+                  const label = formatProductConditionLabel(product);
+                  if (label !== 'Pre-owned' && label !== 'Refurbished') return null;
+                  return (
+                    <span
+                      className={`inline-flex mt-1.5 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${
+                        isLight ? 'bg-amber-100 text-amber-800' : 'bg-amber-500/20 text-amber-300'
+                      }`}
+                    >
+                      {label}
+                    </span>
+                  );
+                })()}
               </div>
               <div className="shrink-0 text-right">
                 <span

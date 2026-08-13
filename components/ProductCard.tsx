@@ -20,6 +20,7 @@ import {
 import { useAppContext } from '../App';
 import { ProductAvailabilityBadge } from './ProductAvailabilityBadge';
 import { productRouteParam } from '../lib/productUrl';
+import { formatProductConditionLabel, productIsNew } from '../lib/storeFilters';
 
 interface ProductCardProps {
   product: Product;
@@ -238,6 +239,30 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             >
               {product.name}
             </h3>
+            {(() => {
+              const label = formatProductConditionLabel(product);
+              if (label === '—' || label === 'New') {
+                // New is the default catalogue state — only badge pre-owned / refurbished
+                if (label === 'New' && productIsNew(product)) return null;
+                if (label === '—') return null;
+              }
+              const isPreowned = label === 'Pre-owned' || label === 'Refurbished';
+              return (
+                <span
+                  className={`inline-flex mt-1 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider ${
+                    isPreowned
+                      ? isLight
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-amber-500/20 text-amber-300'
+                      : isLight
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-emerald-500/20 text-emerald-300'
+                  }`}
+                >
+                  {label}
+                </span>
+              );
+            })()}
             {isConsoleCatalog(product) &&
               (() => {
                 const storage =

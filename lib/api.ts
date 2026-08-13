@@ -95,7 +95,17 @@ export function normalizeProductCategory(category?: string | null): string {
   // Prefer "iPad" label for storefront filters (Tablet kept as alias)
   if (value.includes('ipad')) return 'iPad';
   if (value.includes('tablet')) return 'iPad';
-  if (value.includes('macbook')) return 'MacBooks';
+  if (
+    value.includes('macbook') ||
+    value.includes('imac') ||
+    value.includes('mac mini') ||
+    value.includes('mac studio') ||
+    value === 'macs' ||
+    value === 'other macs' ||
+    value.includes('other mac')
+  ) {
+    return 'MacBooks';
+  }
   // Legacy "Laptop" / "Laptops" / notebooks (non-Mac)
   if (value.includes('laptop') || value.includes('notebook') || value.includes('computer')) {
     return 'Laptops';
@@ -126,7 +136,14 @@ export function normalizeProductCategory(category?: string | null): string {
     return 'Consoles';
   }
   if (value.includes('gam')) return 'Gaming';
-  if (value.includes('watch') || value.includes('smartwatch') || value.includes('smart watch')) {
+  if (
+    value.includes('apple watch') ||
+    value === 'apple watches' ||
+    value.includes('smartwatch') ||
+    value.includes('smart watch') ||
+    value === 'smart watches' ||
+    (value.includes('watch') && !value.includes('stopwatch'))
+  ) {
     return 'Smart watches';
   }
   if (value.includes('accessor') || value.includes('case') || value.includes('wearable') || value.includes('charger') || value.includes('cable')) {
@@ -1422,7 +1439,10 @@ export const placeOrder = async (
 };
 
 export const getOrders = async (userId?: string): Promise<Order[]> => {
-  let query = supabase.from('orders').select('*, order_items(*, products(*, product_variants(*)))').order('created_at', { ascending: false });
+  let query = supabase
+    .from('orders')
+    .select('*, order_items(*, products(*), product_variants(*))')
+    .order('created_at', { ascending: false });
   if (userId) query = query.eq('user_id', userId);
   
   const { data, error } = await query;
@@ -1611,7 +1631,11 @@ export const getUserOrdersFromItems = async (userId: string): Promise<Order[]> =
 };
 
 export const getOrder = async (id: string): Promise<Order | null> => {
-  const { data, error } = await supabase.from('orders').select('*, order_items(*, products(*))').eq('id', id).single();
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*, order_items(*, products(*), product_variants(*))')
+    .eq('id', id)
+    .single();
   if (error) throw error;
   if (!data) return null;
 
@@ -1648,6 +1672,27 @@ export const getOrder = async (id: string): Promise<Order | null> => {
     total: Number(data.total_price),
     date: data.created_at
   };
+};
+
+/**
+ * Resolve an order by UUID or customer-facing display_id (ORD…).
+ * Used by Tracking when App context has not hydrated yet.
+ */
+export const getOrderByRef = async (ref: string): Promise<Order | null> => {
+  const key = String(ref || '').trim();
+  if (!key) return null;
+
+  const byId = await getOrder(key).catch(() => null);
+  if (byId) return byId;
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select('id')
+    .eq('display_id', key)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data?.id) return null;
+  return getOrder(String(data.id));
 };
 
 export const updateOrderStatus = async (id: string, status: string) => {
@@ -1962,6 +2007,26 @@ export const getRepairRequests = async (userId?: string): Promise<RepairRequest[
   const { data, error } = await query;
   if (error) throw error;
   return (data || []).map((r: any) => mapRepairFromDb(r));
+};
+
+/**
+ * Resolve a repair by UUID or customer-facing display_id (REP…).
+ * Used by Tracking deep links before App context hydrates.
+ */
+export const getRepairRequestByRef = async (ref: string): Promise<RepairRequest | null> => {
+  const key = String(ref || '').trim();
+  if (!key) return null;
+
+  const byId = await supabase.from('repair_requests').select('*').eq('id', key).maybeSingle();
+  if (!byId.error && byId.data) return mapRepairFromDb(byId.data);
+
+  const byDisplay = await supabase
+    .from('repair_requests')
+    .select('*')
+    .eq('display_id', key)
+    .maybeSingle();
+  if (byDisplay.error) throw byDisplay.error;
+  return byDisplay.data ? mapRepairFromDb(byDisplay.data) : null;
 };
 
 export const updateRepairRequest = async (id: string, updates: Partial<RepairRequest>) => {

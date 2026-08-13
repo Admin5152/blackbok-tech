@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" role="img" aria-label="BlackBox">
+  <!-- BlackBox letterhead mark (matches INV-000125): rounded outer corners, square ends, center pill -->
+  <g fill="none" stroke="#000" stroke-width="11" stroke-linecap="butt" stroke-linejoin="round">
+    <path d="M22 46 V24 H46" />
+    <path d="M54 24 H78 V46" />
+    <path d="M78 54 V76 H54" />
+    <path d="M46 76 H22 V54" />
+  </g>
+  <rect x="35" y="42" width="30" height="16" rx="8" fill="#000" />
+</svg>

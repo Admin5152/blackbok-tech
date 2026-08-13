@@ -1,5 +1,22 @@
+/**
+ * Compare engine — shop-floor matchups using live catalogue strengths:
+ * price/deals, Pre-owned vs New, series, stock, and trade-link readiness.
+ */
 import type { Product } from '../types';
 import { formatCurrency } from './utils';
+import {
+  formatProductConditionLabel,
+  getProductSeriesSlug,
+  productIsNew,
+} from './storeFilters';
+import { normalizeProductCategory } from './api';
+import {
+  getDealDiscountPercentage,
+  getDealDiscountedPrice,
+  getDealOriginalPrice,
+  getDealPromoText,
+  isDealOfTheDayProduct,
+} from './dealOfTheDay';
 
 export const COMPARE_MAX_ITEMS = 4;
 export const COMPARE_PICKER_PAGE_SIZE = 12;
@@ -13,8 +30,20 @@ export function normalizeCompareSearchText(value: unknown): string {
 }
 
 export function productCompareSearchHaystack(product: Product): string {
+  const series = getProductSeriesSlug(product) ?? '';
   return normalizeCompareSearchText(
-    [product.name, product.brand, product.category, product.description].filter(Boolean).join(' '),
+    [
+      product.name,
+      product.brand,
+      product.category,
+      product.subcategory,
+      series,
+      formatProductConditionLabel(product),
+      product.description,
+      product.trade_model,
+    ]
+      .filter(Boolean)
+      .join(' '),
   );
 }
 
@@ -33,6 +62,19 @@ export function filterComparePickerProducts(
   });
 }
 
+/** Stock-first, then deals, then name — better picker UX. */
+export function sortComparePickerProducts(products: Product[]): Product[] {
+  return [...products].sort((a, b) => {
+    const stockA = stockOf(a) > 0 ? 1 : 0;
+    const stockB = stockOf(b) > 0 ? 1 : 0;
+    if (stockB !== stockA) return stockB - stockA;
+    const dealA = isDealOfTheDayProduct(a) || getDealDiscountPercentage(a) > 0 ? 1 : 0;
+    const dealB = isDealOfTheDayProduct(b) || getDealDiscountPercentage(b) > 0 ? 1 : 0;
+    if (dealB !== dealA) return dealB - dealA;
+    return String(a.name).localeCompare(String(b.name));
+  });
+}
+
 /** Preserve compare column order from `compareIds`. */
 export function resolveCompareProducts(allProducts: Product[], compareIds: string[]): Product[] {
   return compareIds
@@ -48,6 +90,7 @@ export interface CompareWinBadge {
 
 export type CompareRowGroup =
   | 'Price & value'
+  | 'Shop floor'
   | 'Availability'
   | 'Specs'
   | 'Highlights';
@@ -87,7 +130,15 @@ export interface CompareForkItem {
   deltaLabel?: string;
 }
 
+export interface CompareMatchupInsight {
+  tone: 'aligned' | 'mixed' | 'thin';
+  title: string;
+  detail: string;
+}
+
 function displayPrice(p: Product): number {
+  const deal = getDealDiscountedPrice(p);
+  if (deal > 0) return deal;
   const n = Number(p.price_from ?? p.price ?? 0);
   return Number.isFinite(n) ? n : 0;
 }
@@ -98,11 +149,31 @@ function stockOf(p: Product): number {
 }
 
 function conditionLabel(p: Product): string {
-  const c = String(p.condition || '').toLowerCase();
-  if (c === 'refurbished') return 'Refurbished';
-  if (c === 'preowned' || c === 'used' || (c !== 'new' && p.is_new === false)) return 'Pre-owned';
-  if (c === 'new' || p.is_new === true) return 'New';
-  return c ? c.charAt(0).toUpperCase() + c.slice(1) : '—';
+  return formatProductConditionLabel(p);
+}
+
+/** Newer condition scores higher for “fresher unit” wins. */
+function conditionRank(p: Product): number {
+  const label = conditionLabel(p).toLowerCase();
+  if (label === 'new' || productIsNew(p)) return 3;
+  if (label === 'refurbished') return 2;
+  if (label === 'pre-owned') return 1;
+  return 0;
+}
+
+function seriesLabel(p: Product): string {
+  const slug = getProductSeriesSlug(p);
+  if (!slug) return '—';
+  const specs = p.specifications;
+  if (specs && typeof specs === 'object' && !Array.isArray(specs)) {
+    const named = String((specs as Record<string, unknown>).series_name ?? '').trim();
+    if (named) return named;
+  }
+  return slug
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
 }
 
 function uniqJoin(values: Array<string | null | undefined>): string {
@@ -127,9 +198,7 @@ function variantField(p: Product, field: 'storage' | 'ram' | 'color' | 'sim_type
         ? [...(p.ram ?? []), p.ram_capacity]
         : field === 'color'
           ? [...(p.colors ?? [])]
-          : field === 'sim_type'
-            ? []
-            : [];
+          : [];
 
   const fromVariants = (p.variants ?? []).map((v) => {
     if (field === 'color') return v.color;
@@ -170,7 +239,6 @@ function pickWinners(
   const target =
     mode === 'lower' ? Math.min(...entries.map((e) => e.n)) : Math.max(...entries.map((e) => e.n));
   const winners = entries.filter((e) => e.n === target).map((e) => e.id);
-  // All equal → EVEN (no winners)
   if (winners.length === entries.length) return [];
   return winners;
 }
@@ -202,11 +270,57 @@ export function buildCompareRows(products: Product[]): CompareRow[] {
     buildCoreRow(
       products,
       'price',
-      'Price',
+      'Price (today)',
       'Price & value',
       (p) => formatCurrency(displayPrice(p)),
       (p) => displayPrice(p),
       'lower',
+    ),
+    buildCoreRow(
+      products,
+      'list_price',
+      'List price',
+      'Price & value',
+      (p) => {
+        const list = getDealOriginalPrice(p);
+        const today = displayPrice(p);
+        if (!list) return '—';
+        if (Math.abs(list - today) < 0.01) return formatCurrency(list);
+        return formatCurrency(list);
+      },
+      (p) => {
+        const list = getDealOriginalPrice(p);
+        return list > 0 ? list : null;
+      },
+      'lower',
+    ),
+    buildCoreRow(
+      products,
+      'discount',
+      'Discount',
+      'Price & value',
+      (p) => {
+        const pct = getDealDiscountPercentage(p);
+        return pct > 0 ? `${pct}% off` : '—';
+      },
+      (p) => {
+        const pct = getDealDiscountPercentage(p);
+        return pct > 0 ? pct : null;
+      },
+      'higher',
+    ),
+    buildCoreRow(
+      products,
+      'deal',
+      'Deal of the Day',
+      'Price & value',
+      (p) => {
+        if (!isDealOfTheDayProduct(p)) return '—';
+        const promo = getDealPromoText(p);
+        return promo || 'Yes';
+      },
+      (p) => (isDealOfTheDayProduct(p) ? 1 : 0),
+      'higher',
     ),
     buildCoreRow(
       products,
@@ -229,7 +343,7 @@ export function buildCompareRows(products: Product[]): CompareRow[] {
       products,
       'stock',
       'Availability',
-      'Availability',
+      'Shop floor',
       (p) => {
         const s = stockOf(p);
         return s > 0 ? `In stock (${s})` : 'Out of stock';
@@ -241,10 +355,25 @@ export function buildCompareRows(products: Product[]): CompareRow[] {
       products,
       'condition',
       'Condition',
-      'Availability',
+      'Shop floor',
       (p) => conditionLabel(p),
-      null,
-      'none',
+      (p) => {
+        const r = conditionRank(p);
+        return r > 0 ? r : null;
+      },
+      'higher',
+    ),
+    buildCoreRow(
+      products,
+      'trade_ready',
+      'Trade upgrade link',
+      'Shop floor',
+      (p) => {
+        const m = String(p.trade_model ?? '').trim();
+        return m ? `Linked · ${m}` : 'Not linked';
+      },
+      (p) => (String(p.trade_model ?? '').trim() ? 1 : 0),
+      'higher',
     ),
     buildCoreRow(
       products,
@@ -260,7 +389,16 @@ export function buildCompareRows(products: Product[]): CompareRow[] {
       'category',
       'Category',
       'Specs',
-      (p) => String(p.category || '—').trim() || '—',
+      (p) => normalizeProductCategory(p.category) || '—',
+      null,
+      'none',
+    ),
+    buildCoreRow(
+      products,
+      'series',
+      'Series / line',
+      'Specs',
+      (p) => seriesLabel(p),
       null,
       'none',
     ),
@@ -311,7 +449,6 @@ export function buildCompareRows(products: Product[]): CompareRow[] {
     ),
   ];
 
-  // Union keys from specifications JSONB
   const specKeys = new Set<string>();
   for (const p of products) {
     const specs = p.specifications;
@@ -319,15 +456,19 @@ export function buildCompareRows(products: Product[]): CompareRow[] {
     for (const k of Object.keys(specs)) {
       const key = k.trim();
       if (!key) continue;
-      // Skip keys already represented as core rows
-      if (['series', 'catalog', 'model_family'].includes(key.toLowerCase())) {
-        // still include series as useful
-      }
       specKeys.add(key);
     }
   }
 
-  const skipSpecKeys = new Set(['catalog']);
+  const skipSpecKeys = new Set([
+    'catalog',
+    'series',
+    'series_name',
+    'model_slug',
+    'source_sku',
+    'brand_line',
+    'model_family',
+  ]);
   for (const key of Array.from(specKeys).sort((a, b) => a.localeCompare(b))) {
     if (skipSpecKeys.has(key.toLowerCase())) continue;
     const values: Record<string, string> = {};
@@ -358,7 +499,6 @@ export function buildCompareRows(products: Product[]): CompareRow[] {
     });
   }
 
-  // Freeform specs[] bullets — one row per unique bullet index unioned by text
   const maxBullets = Math.max(0, ...products.map((p) => (p.specs ?? []).length));
   for (let i = 0; i < Math.min(maxBullets, 8); i++) {
     const values: Record<string, string> = {};
@@ -377,12 +517,26 @@ export function buildCompareRows(products: Product[]): CompareRow[] {
     });
   }
 
-  // Drop rows where every product is "—"
   return rows.filter((row) => products.some((p) => row.values[p.id] && row.values[p.id] !== '—'));
 }
 
+/** Keep only rows where values actually differ across products. */
+export function filterDifferingCompareRows(rows: CompareRow[], products: Product[]): CompareRow[] {
+  if (products.length < 2) return rows;
+  return rows.filter((row) => {
+    const vals = products.map((p) => normalizeCompareSearchText(row.values[p.id] ?? ''));
+    return new Set(vals).size > 1;
+  });
+}
+
 export function groupCompareRows(rows: CompareRow[]): { group: CompareRowGroup; rows: CompareRow[] }[] {
-  const order: CompareRowGroup[] = ['Price & value', 'Availability', 'Specs', 'Highlights'];
+  const order: CompareRowGroup[] = [
+    'Price & value',
+    'Shop floor',
+    'Availability',
+    'Specs',
+    'Highlights',
+  ];
   return order
     .map((group) => ({ group, rows: rows.filter((r) => r.group === group) }))
     .filter((g) => g.rows.length > 0);
@@ -401,6 +555,49 @@ export function scoreCompareProducts(products: Product[], rows?: CompareRow[]): 
   return products.map((p) => ({ productId: p.id, wins: scores.get(p.id) ?? 0 }));
 }
 
+export function buildMatchupInsight(products: Product[]): CompareMatchupInsight | null {
+  if (products.length < 2) return null;
+  const cats = new Set(products.map((p) => normalizeProductCategory(p.category)));
+  const series = new Set(
+    products.map((p) => (getProductSeriesSlug(p) || '').toLowerCase()).filter(Boolean),
+  );
+  const conditions = new Set(products.map((p) => conditionLabel(p)));
+
+  if (cats.size > 1) {
+    return {
+      tone: 'mixed',
+      title: 'Cross-category matchup',
+      detail: `You’re comparing ${Array.from(cats).join(' · ')}. Useful for budget, less fair on raw specs — lean on price, stock, and condition.`,
+    };
+  }
+
+  if (series.size === 1 && products.length >= 2) {
+    const s = seriesLabel(products[0]);
+    return {
+      tone: 'aligned',
+      title: s !== '—' ? `Same line · ${s}` : 'Same category',
+      detail:
+        conditions.size > 1
+          ? `Condition differs (${Array.from(conditions).join(' vs ')}) — Pre-owned can win on price; New wins on freshness.`
+          : 'Close siblings — watch storage, RAM, and today’s deal price.',
+    };
+  }
+
+  if (products.every((p) => stockOf(p) <= 0)) {
+    return {
+      tone: 'thin',
+      title: 'All out of stock',
+      detail: 'You can still compare specs. Ask the counter or check back — stock moves fast on the shop floor.',
+    };
+  }
+
+  return {
+    tone: 'aligned',
+    title: normalizeProductCategory(products[0].category),
+    detail: 'Side-by-side on BlackBox live prices, condition, and what’s actually on the floor.',
+  };
+}
+
 export function buildRuling(products: Product[], rows?: CompareRow[]): CompareRuling | null {
   if (products.length !== 2) return null;
   const compareRows = rows ?? buildCompareRows(products);
@@ -410,29 +607,34 @@ export function buildRuling(products: Product[], rows?: CompareRow[]): CompareRu
   const scoreB = scores.find((s) => s.productId === b.id)?.wins ?? 0;
 
   const winLabelsFor = (id: string) =>
-    compareRows.filter((r) => r.winnerIds.includes(id) && r.winnerIds.length === 1).map((r) => r.label);
+    compareRows
+      .filter((r) => r.winnerIds.includes(id) && r.winnerIds.length === 1)
+      .map((r) => r.label);
 
   if (scoreA === scoreB) {
+    const cheaper = displayPrice(a) <= displayPrice(b) ? a : b;
     return {
       winnerId: null,
       winnerName: null,
       isTie: true,
       scores,
       winLabels: [],
-      summary: `It's close — ${a.name} and ${b.name} split the comparison.`,
+      summary: `Dead heat on the sheet — if budget leads, start with ${cheaper.name} at ${formatCurrency(displayPrice(cheaper))}.`,
     };
   }
 
   const winner = scoreA > scoreB ? a : b;
   const winLabels = winLabelsFor(winner.id).slice(0, 5);
-  const labelBit = winLabels.length ? ` — it wins on ${winLabels.join(', ')}` : '';
+  const dealBit = isDealOfTheDayProduct(winner) ? ' (Deal of the Day)' : '';
+  const stockBit = stockOf(winner) > 0 ? '' : ' — note: currently out of stock';
+  const labelBit = winLabels.length ? ` It edges ahead on ${winLabels.join(', ')}.` : '';
   return {
     winnerId: winner.id,
     winnerName: winner.name,
     isTie: false,
     scores,
     winLabels,
-    summary: `Get the ${winner.name}${labelBit}.`,
+    summary: `Shop-floor lean: ${winner.name}${dealBit}.${labelBit}${stockBit}`,
   };
 }
 
@@ -452,8 +654,10 @@ export function buildForkForProduct(
     const nOpp = row.numericValues?.[opponent.id];
     if (nSelf != null && nOpp != null && nSelf !== nOpp) {
       const diff = nSelf - nOpp;
-      if (row.key === 'price') {
+      if (row.key === 'price' || row.key === 'list_price') {
         deltaLabel = diff < 0 ? `${formatCurrency(Math.abs(diff))} less` : `${formatCurrency(diff)} more`;
+      } else if (row.key === 'discount') {
+        deltaLabel = `${diff > 0 ? '+' : ''}${diff}%`;
       } else {
         const sign = diff > 0 ? '+' : '';
         deltaLabel = `${sign}${Number.isInteger(diff) ? diff : diff.toFixed(1)}`;
@@ -480,15 +684,34 @@ export function getCompareWinBadges(product: Product, compared: Product[]): Comp
   if (priceRow?.winnerIds.includes(product.id)) {
     wins.push({ key: 'price', label: 'Best price', highlight: true });
   }
+  const discountRow = rows.find((r) => r.key === 'discount');
+  if (discountRow?.winnerIds.includes(product.id)) {
+    wins.push({ key: 'discount', label: 'Biggest cut', highlight: true });
+  }
+  if (isDealOfTheDayProduct(product)) {
+    wins.push({ key: 'deal', label: 'Deal of the Day', highlight: true });
+  }
   const ratingRow = rows.find((r) => r.key === 'rating');
   if (ratingRow?.winnerIds.includes(product.id)) {
     wins.push({ key: 'rating', label: 'Top rated' });
   }
+  const conditionRow = rows.find((r) => r.key === 'condition');
+  if (conditionRow?.winnerIds.includes(product.id)) {
+    wins.push({ key: 'condition', label: conditionLabel(product) });
+  } else {
+    const label = conditionLabel(product);
+    if (label === 'Pre-owned' || label === 'Refurbished') {
+      wins.push({ key: 'condition-tag', label });
+    }
+  }
   if (stockOf(product) > 0) {
     wins.push({ key: 'stock', label: 'In stock' });
   }
+  if (String(product.trade_model ?? '').trim()) {
+    wins.push({ key: 'trade', label: 'Trade-ready' });
+  }
 
-  return wins;
+  return wins.slice(0, 5);
 }
 
 export function buildCompareWinsByProductId(compared: Product[]): Map<string, CompareWinBadge[]> {
@@ -497,4 +720,34 @@ export function buildCompareWinsByProductId(compared: Product[]): Map<string, Co
     map.set(product.id, getCompareWinBadges(product, compared));
   }
   return map;
+}
+
+/** Starter picks when compare tray is empty — deals + in-stock across categories. */
+export function suggestCompareStarters(allProducts: Product[], limit = 8): Product[] {
+  const active = allProducts.filter((p) => {
+    const status = String(p.status || 'active').toLowerCase();
+    return status === 'active' || status === '';
+  });
+  const deals = active.filter((p) => isDealOfTheDayProduct(p) || getDealDiscountPercentage(p) > 0);
+  const stocked = active.filter((p) => stockOf(p) > 0);
+  const pool = sortComparePickerProducts(deals.length ? deals : stocked.length ? stocked : active);
+  const seenCats = new Set<string>();
+  const diverse: Product[] = [];
+  for (const p of pool) {
+    const cat = normalizeProductCategory(p.category);
+    if (seenCats.has(cat) && diverse.length >= Math.min(4, limit)) continue;
+    seenCats.add(cat);
+    diverse.push(p);
+    if (diverse.length >= limit) break;
+  }
+  return diverse;
+}
+
+export function compareProductMetaLine(p: Product): string {
+  const bits = [
+    normalizeProductCategory(p.category),
+    seriesLabel(p) !== '—' ? seriesLabel(p) : null,
+    conditionLabel(p),
+  ].filter(Boolean);
+  return bits.join(' · ');
 }

@@ -12,6 +12,7 @@ import {
 
 export type InvoiceLineItem = {
   name: string;
+  /** Multi-line OK — use newlines for Condition / Storage / Color / SIM like the store PDF. */
   description?: string;
   qty: number;
   rate: number;
@@ -56,7 +57,7 @@ export type InvoiceDocumentProps = {
 };
 
 /**
- * Printable customer invoice matching BlackBox letterhead (Zoho-style).
+ * Printable customer invoice matching BlackBox store letterhead (INV-000125 style).
  */
 export const InvoiceDocument: React.FC<InvoiceDocumentProps> = ({
   kindLabel,
@@ -126,7 +127,7 @@ export const InvoiceDocument: React.FC<InvoiceDocumentProps> = ({
         >
           <header className="bb-invoice__header flex items-start justify-between gap-6">
             <div className="min-w-0">
-              <BlackBoxInvoiceMark className="bb-invoice__mark h-16 w-16 text-black" />
+              <BlackBoxInvoiceMark className="bb-invoice__mark h-[4.5rem] w-[4.5rem] text-black" />
               <div className="bb-invoice__company mt-5">
                 <p className="bb-invoice__company-name">{INVOICE_COMPANY.legalName}</p>
                 {INVOICE_COMPANY.lines.map((line) => (
@@ -138,7 +139,7 @@ export const InvoiceDocument: React.FC<InvoiceDocumentProps> = ({
 
             <div className="bb-invoice__title-block shrink-0 text-right">
               <h1 className="bb-invoice__title">INVOICE</h1>
-              {kindLabel ? <p className="bb-invoice__kind">{kindLabel}</p> : null}
+              {kindLabel ? <p className="bb-invoice__kind no-print">{kindLabel}</p> : null}
               <p className="bb-invoice__number">{invNo}</p>
               <div className="bb-invoice__balance-top">
                 <p>Balance Due</p>
@@ -201,7 +202,10 @@ export const InvoiceDocument: React.FC<InvoiceDocumentProps> = ({
                           <p className="bb-invoice__item-desc">{item.description}</p>
                         ) : null}
                       </td>
-                      <td className="text-right tabular-nums">{formatInvoiceQty(item.qty)}</td>
+                      <td className="bb-invoice__qty text-right tabular-nums">
+                        <span className="bb-invoice__qty-num">{formatInvoiceQty(item.qty)}</span>
+                        <span className="bb-invoice__qty-unit">pcs</span>
+                      </td>
                       <td className="text-right tabular-nums">{formatInvoicePlain(item.rate)}</td>
                       <td className="text-right tabular-nums font-medium">
                         {formatInvoicePlain(item.rate * item.qty)}
@@ -236,7 +240,7 @@ export const InvoiceDocument: React.FC<InvoiceDocumentProps> = ({
                 <dd>{formatInvoiceMoney(totals.total)}</dd>
               </div>
               {paymentMade > 0 ? (
-                <div className="bb-invoice__tot-row">
+                <div className="bb-invoice__tot-row bb-invoice__tot-row--paid">
                   <dt>Payment Made</dt>
                   <dd className="bb-invoice__paid">(-) {formatInvoicePlain(paymentMade)}</dd>
                 </div>
@@ -272,8 +276,11 @@ export const InvoiceDocument: React.FC<InvoiceDocumentProps> = ({
           <p className="bb-invoice__thanks mt-9">Thank you for your business.</p>
 
           <footer className="bb-invoice__footer">
-            <p>BlackBox Technologies Ghana</p>
-            <p>1</p>
+            <div className="bb-invoice__footer-brand">
+              <BlackBoxInvoiceMark className="bb-invoice__footer-mark h-5 w-5 text-black/55" />
+              <span>BlackBox Technologies Ghana</span>
+            </div>
+            <p className="bb-invoice__page">1</p>
           </footer>
         </article>
       </div>

@@ -144,6 +144,7 @@ export const Auth: React.FC<AuthProps> = ({
                   theme={theme}
                   notify={notify}
                   prefillEmail={signUpPrefillEmail}
+                  returnTo={returnTo}
                 />
               )}
             </div>

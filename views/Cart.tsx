@@ -17,6 +17,7 @@ import {
 import { CartItem, Product, User } from "../types";
 import { formatCurrency } from "../lib/utils";
 import { productRouteParam } from "../lib/productUrl";
+import { cartLineKey } from "../lib/cartLineKey";
 import { formatGHS, pesewasToGhs } from "../lib/promotions";
 import { ProductCard } from "../components/ProductCard";
 import { PageBackButton } from "../components/PageBackButton";
@@ -127,7 +128,7 @@ export const Cart: React.FC<CartProps> = ({
               <p className="text-sm font-bold opacity-50 uppercase tracking-widest">{cart.length} {cart.length === 1 ? 'Item' : 'Items'} Selected</p>
               {cart.length > 0 && (
                 <button
-                  onClick={() => { if (window.confirm('Clear all items from your cart?')) cart.forEach(item => removeFromCart(`${item.id}-${JSON.stringify(item.selectedOptions)}`)) }}
+                  onClick={() => { if (window.confirm('Clear all items from your cart?')) cart.forEach(item => removeFromCart(cartLineKey(item))) }}
                   className="text-[10px] font-black uppercase tracking-widest text-[#CDA032] hover:text-[#B38B21] transition-colors flex items-center gap-2"
                 >
                   <Trash2 size={12} /> Empty Cart
@@ -207,9 +208,9 @@ export const Cart: React.FC<CartProps> = ({
               </div>
             ) : (
               cart.map((item) => {
-                const uniqueId = `${item.id}-${JSON.stringify(
-                  item.selectedOptions
-                )}`;
+                const uniqueId = cartLineKey(item);
+                const maxQty = Math.max(0, Math.floor(Number(item.stock ?? 0)));
+                const atCap = maxQty > 0 && item.quantity >= maxQty;
 
                 return (
                   <div
@@ -293,8 +294,11 @@ export const Cart: React.FC<CartProps> = ({
                             </span>
 
                             <button
+                              type="button"
                               onClick={() => updateQuantity(item.id, item.selectedOptions, 1)}
-                              className="w-8 h-8 rounded-full border border-[var(--bb-border)] flex items-center justify-center opacity-50 hover:opacity-100 hover:border-[#CDA032] hover:text-[#CDA032] transition-all"
+                              disabled={atCap}
+                              title={atCap ? 'Max stock for this configuration' : 'Increase quantity'}
+                              className="w-8 h-8 rounded-full border border-[var(--bb-border)] flex items-center justify-center opacity-50 hover:opacity-100 hover:border-[#CDA032] hover:text-[#CDA032] transition-all disabled:pointer-events-none disabled:opacity-25"
                             >
                               <Plus size={12} strokeWidth={3} />
                             </button>

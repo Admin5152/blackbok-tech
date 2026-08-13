@@ -22,6 +22,8 @@ import { useAppContext } from '../App';
 import { formatCurrency } from '../lib/utils';
 import {
   getTradeRequestByRef,
+  getOrderByRef,
+  getRepairRequestByRef,
   updateRepairRequest,
 } from '../lib/api';
 import { formatCustomerStatusShort } from '../lib/customerStatusLabels';
@@ -32,7 +34,7 @@ import { TRADE_COPY } from '../lib/tradeCopy';
 import { TradeOfferRespondButtons } from '../components/TradeOfferRespondButtons';
 import { CancelRequestButton } from '../components/CancelRequestButton';
 import { canCancelOrder, canCancelTrade } from '../lib/customerCancel';
-import type { Order, TradeRequest } from '../types';
+import type { Order, RepairRequest, TradeRequest } from '../types';
 
 interface TimelineStep {
   id: string;
@@ -81,15 +83,37 @@ export const Tracking: React.FC = () => {
   const [tradeLookupDone, setTradeLookupDone] = useState(type !== 'trade');
   const [tradeLookupError, setTradeLookupError] = useState(false);
 
+  const [fetchedOrder, setFetchedOrder] = useState<Order | null>(null);
+  const [orderLookupDone, setOrderLookupDone] = useState(type !== 'order');
+  const [orderLookupError, setOrderLookupError] = useState(false);
+
+  const [fetchedRepair, setFetchedRepair] = useState<RepairRequest | null>(null);
+  const [repairLookupDone, setRepairLookupDone] = useState(type !== 'repair');
+  const [repairLookupError, setRepairLookupError] = useState(false);
+
   const contextTrade = useMemo(
     () => (type === 'trade' ? matchByRef(trades, id) : undefined),
     [type, id, trades],
   );
+  const contextOrder = useMemo(
+    () => (type === 'order' ? matchByRef(orders, id) : undefined),
+    [type, id, orders],
+  );
+  const contextRepair = useMemo(
+    () => (type === 'repair' ? matchByRef(repairs, id) : undefined),
+    [type, id, repairs],
+  );
 
   const trade = contextTrade || fetchedTrade || undefined;
+  const order = contextOrder || fetchedOrder || undefined;
+  const repair = contextRepair || fetchedRepair || undefined;
 
   const tradesRef = React.useRef(trades);
   tradesRef.current = trades;
+  const ordersRef = React.useRef(orders);
+  ordersRef.current = orders;
+  const repairsRef = React.useRef(repairs);
+  repairsRef.current = repairs;
 
   useEffect(() => {
     if (type !== 'trade') {
@@ -137,9 +161,100 @@ export const Tracking: React.FC = () => {
     };
   }, [type, id, contextTrade, setTrades]);
 
+  useEffect(() => {
+    if (type !== 'order') {
+      setOrderLookupDone(true);
+      return;
+    }
+    if (contextOrder) {
+      setFetchedOrder(null);
+      setOrderLookupDone(true);
+      setOrderLookupError(false);
+      return;
+    }
+
+    let cancelled = false;
+    setOrderLookupDone(false);
+    setOrderLookupError(false);
+    void (async () => {
+      try {
+        const row = await getOrderByRef(id);
+        if (cancelled) return;
+        if (row) {
+          setFetchedOrder(row);
+          const list = Array.isArray(ordersRef.current) ? ordersRef.current : [];
+          if (list.some((o) => o.id === row.id)) {
+            setOrders(list.map((o) => (o.id === row.id ? row : o)));
+          } else {
+            setOrders([row, ...list]);
+          }
+        } else {
+          setFetchedOrder(null);
+          setOrderLookupError(true);
+        }
+      } catch {
+        if (!cancelled) {
+          setFetchedOrder(null);
+          setOrderLookupError(true);
+        }
+      } finally {
+        if (!cancelled) setOrderLookupDone(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [type, id, contextOrder, setOrders]);
+
+  useEffect(() => {
+    if (type !== 'repair') {
+      setRepairLookupDone(true);
+      return;
+    }
+    if (contextRepair) {
+      setFetchedRepair(null);
+      setRepairLookupDone(true);
+      setRepairLookupError(false);
+      return;
+    }
+
+    let cancelled = false;
+    setRepairLookupDone(false);
+    setRepairLookupError(false);
+    void (async () => {
+      try {
+        const row = await getRepairRequestByRef(id);
+        if (cancelled) return;
+        if (row) {
+          setFetchedRepair(row);
+          const list = Array.isArray(repairsRef.current) ? repairsRef.current : [];
+          if (list.some((r) => r.id === row.id)) {
+            setRepairs(list.map((r) => (r.id === row.id ? row : r)));
+          } else {
+            setRepairs([row, ...list]);
+          }
+        } else {
+          setFetchedRepair(null);
+          setRepairLookupError(true);
+        }
+      } catch {
+        if (!cancelled) {
+          setFetchedRepair(null);
+          setRepairLookupError(true);
+        }
+      } finally {
+        if (!cancelled) setRepairLookupDone(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [type, id, contextRepair, setRepairs]);
+
   const trackingData = useMemo(() => {
     if (type === 'order') {
-      const order = matchByRef(orders, id);
       if (!order) return null;
 
       const ost = order.status;
@@ -198,7 +313,6 @@ export const Tracking: React.FC = () => {
     }
 
     if (type === 'repair') {
-      const repair = matchByRef(repairs, id);
       if (!repair) return null;
 
       const st = repair.status;
@@ -408,9 +522,13 @@ export const Tracking: React.FC = () => {
     }
 
     return null;
-  }, [type, id, orders, repairs, trade]);
+  }, [type, id, order, repair, trade]);
 
-  if (type === 'trade' && !tradeLookupDone) {
+  if (
+    (type === 'trade' && !tradeLookupDone) ||
+    (type === 'order' && !orderLookupDone) ||
+    (type === 'repair' && !repairLookupDone)
+  ) {
     return (
       <div
         className={`min-h-screen px-4 py-16 ${
@@ -424,7 +542,12 @@ export const Tracking: React.FC = () => {
     );
   }
 
-  if (!trackingData || (type === 'trade' && tradeLookupError && !trade)) {
+  if (
+    !trackingData ||
+    (type === 'trade' && tradeLookupError && !trade) ||
+    (type === 'order' && orderLookupError && !order) ||
+    (type === 'repair' && repairLookupError && !repair)
+  ) {
     return (
       <div
         className={`min-h-screen flex items-center justify-center px-4 ${
@@ -485,44 +608,66 @@ export const Tracking: React.FC = () => {
           label="Back"
         />
 
-        {(type === 'order' || type === 'trade') && (
-          <div className="flex flex-wrap items-center gap-4 -mt-4">
-            {type === 'order' &&
-              trackingData.originalData &&
-              canCancelOrder(trackingData.originalData as Order) && (
-                <CancelRequestButton
-                  kind="order"
-                  order={trackingData.originalData as Order}
-                  isLight={isLight}
-                  notify={notify}
-                  onCancelled={(id) => {
-                    setOrders(
-                      orders.map((o) =>
-                        o.id === id ? { ...o, status: 'Cancelled' } : o,
-                      ),
-                    );
-                  }}
-                />
-              )}
-            {type === 'trade' && trade && canCancelTrade(trade) && (
+        <div className="flex flex-wrap items-center gap-4 -mt-4">
+          {type === 'order' && entityId && (
+            <Link
+              to={`/receipt/${entityId}` as any}
+              className="inline-flex px-4 py-2 rounded-xl bg-[#CDA032]/10 text-[#CDA032] border border-[#CDA032]/20 text-[9px] font-black uppercase tracking-widest hover:bg-[#CDA032]/20 transition-colors"
+            >
+              View Invoice
+            </Link>
+          )}
+          {type === 'repair' && entityId && (
+            <Link
+              to={`/receipt/repair/${entityId}` as any}
+              className="inline-flex px-4 py-2 rounded-xl bg-[#CDA032]/10 text-[#CDA032] border border-[#CDA032]/20 text-[9px] font-black uppercase tracking-widest hover:bg-[#CDA032]/20 transition-colors"
+            >
+              View Invoice
+            </Link>
+          )}
+          {type === 'trade' && entityId && (
+            <Link
+              to={`/receipt/trade/${entityId}` as any}
+              className="inline-flex px-4 py-2 rounded-xl bg-[#CDA032]/10 text-[#CDA032] border border-[#CDA032]/20 text-[9px] font-black uppercase tracking-widest hover:bg-[#CDA032]/20 transition-colors"
+            >
+              View Invoice
+            </Link>
+          )}
+          {type === 'order' &&
+            trackingData.originalData &&
+            canCancelOrder(trackingData.originalData as Order) && (
               <CancelRequestButton
-                kind="trade"
-                trade={trade}
+                kind="order"
+                order={trackingData.originalData as Order}
                 isLight={isLight}
                 notify={notify}
-                onCancelled={() => {
-                  const updated = { ...trade, status: 'Cancelled' as const };
-                  setFetchedTrade(updated);
-                  setTrades(
-                    (Array.isArray(trades) ? trades : []).map((t) =>
-                      t.id === trade.id ? updated : t,
+                onCancelled={(id) => {
+                  setOrders(
+                    orders.map((o) =>
+                      o.id === id ? { ...o, status: 'Cancelled' } : o,
                     ),
                   );
                 }}
               />
             )}
-          </div>
-        )}
+          {type === 'trade' && trade && canCancelTrade(trade) && (
+            <CancelRequestButton
+              kind="trade"
+              trade={trade}
+              isLight={isLight}
+              notify={notify}
+              onCancelled={() => {
+                const updated = { ...trade, status: 'Cancelled' as const };
+                setFetchedTrade(updated);
+                setTrades(
+                  (Array.isArray(trades) ? trades : []).map((t) =>
+                    t.id === trade.id ? updated : t,
+                  ),
+                );
+              }}
+            />
+          )}
+        </div>
 
         <div className="grid md:grid-cols-2 gap-12 items-end">
           <div className="space-y-4">

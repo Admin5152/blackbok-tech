@@ -9,6 +9,7 @@ import { Product, Category } from '../types';
 import { HERO_COLLAGE_FILENAMES, getImagesForTheme } from '../data/heroImages';
 import { formatCurrency, TW_DARK_BTN_DEPTH, TW_DARK_GOLD_BTN_DEPTH } from '../lib/utils';
 import { productMatchesStoreCategories } from '../lib/storeFilters';
+import { isDealOfTheDayProduct, getDealDiscountedPrice } from '../lib/dealOfTheDay';
 import { scrollHomeRail } from '../lib/homeCarouselScroll';
 import { useHomeRailScroll } from '../hooks/useHomeRailScroll';
 import { useAutoHomeRails } from '../hooks/useAutoHomeRails';
@@ -127,6 +128,11 @@ export const Home: React.FC<HomeProps> = ({
   const featuredProducts = useMemo(
     () => homeProducts.filter(p => Boolean((p as any).featured)),
     [homeProducts]
+  );
+
+  const dealOfTheDayProducts = useMemo(
+    () => homeProducts.filter((p) => isDealOfTheDayProduct(p)).slice(0, 12),
+    [homeProducts],
   );
 
   const sortFeaturedFirst = (items: Product[]) => {
@@ -349,7 +355,7 @@ export const Home: React.FC<HomeProps> = ({
             <Link to="/repair" className={quickLinkClass}>
               Repairs
             </Link>
-            <Link to="/trades" className={quickLinkClass}>
+            <Link to="/trade" className={quickLinkClass}>
               Trade-in
             </Link>
             <Link to="/history" className={quickLinkClass}>
@@ -361,9 +367,106 @@ export const Home: React.FC<HomeProps> = ({
             <Link to="/contact" className={quickLinkClass}>
               Contact
             </Link>
+            {dealOfTheDayProducts.length > 0 && (
+              <Link to="/store" search={{ browse: 'deals' } as any} className={quickLinkClass}>
+                Deal of the Day
+              </Link>
+            )}
           </div>
         </div>
       </section>
+
+      {dealOfTheDayProducts.length > 0 && (
+        <section
+          className={`section-connector py-6 md:py-10 overflow-hidden ${isDark ? 'bg-[#0a0806]' : 'bg-[#fff8f0]'}`}
+          aria-labelledby="home-deals-heading"
+        >
+          <div className="max-w-screen-2xl mx-auto">
+            <div className="mb-6 px-4 md:px-8 reveal-on-scroll flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2
+                  id="home-deals-heading"
+                  className={`text-3xl font-heading font-bold tracking-wider md:text-4xl ${theme === 'dark' ? 'text-white' : 'text-black'}`}
+                >
+                  Deal of the Day
+                </h2>
+                <p className={`mt-2 text-sm ${isDark ? 'text-white/55' : 'text-black/55'}`}>
+                  Limited offers — same stock rules as the shop.
+                </p>
+              </div>
+              <Link
+                to="/store"
+                search={{ browse: 'deals' } as any}
+                className={`text-xs font-black uppercase tracking-widest text-[#CDA032] hover:underline`}
+              >
+                View all deals
+              </Link>
+            </div>
+
+            <div
+              id="deals-slider"
+              className="bb-home-rail flex gap-4 overflow-x-auto px-4 md:px-8 pb-2 snap-x snap-mandatory"
+            >
+              {dealOfTheDayProducts.map((p) => (
+                <Link
+                  key={p.id}
+                  to="/product/$productId"
+                  params={{ productId: productRouteParam(p) }}
+                  className={`w-[240px] md:w-[280px] shrink-0 snap-start rounded-2xl border overflow-hidden flex flex-col ${
+                    isDark
+                      ? 'bg-[#14110e] border-orange-500/25'
+                      : 'bg-white border-orange-400/35'
+                  } ${homeProductCardHover}`}
+                >
+                  <div className={`aspect-square relative ${isDark ? 'bg-black/40' : 'bg-black/[0.03]'}`}>
+                    <span className="absolute top-2 left-2 z-10 rounded-md bg-gradient-to-r from-orange-600 to-amber-500 px-2 py-0.5 text-[7px] font-black uppercase tracking-widest text-white">
+                      Deal
+                    </span>
+                    <img
+                      src={p.image || p.image_url || ''}
+                      alt={p.name}
+                      className="h-full w-full object-contain p-4"
+                      loading="lazy"
+                    />
+                  </div>
+                  <div className="p-3 flex flex-col gap-1">
+                    <p className={`text-xs font-black uppercase italic line-clamp-2 ${isDark ? 'text-white' : 'text-black'}`}>
+                      {p.name}
+                    </p>
+                    <p className="text-sm font-black text-[#CDA032] tabular-nums">
+                      <span className={`text-[9px] font-bold uppercase tracking-wider mr-1 ${isDark ? 'text-white/45' : 'text-black/45'}`}>
+                        from
+                      </span>
+                      {formatCurrency(getDealDiscountedPrice(p))}
+                    </p>
+                    <button
+                      type="button"
+                      disabled={(p.total_stock ?? p.stock ?? 0) <= 0}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if ((p.total_stock ?? p.stock ?? 0) <= 0) {
+                          window.alert('This item is out of stock.');
+                          return;
+                        }
+                        onAddToCart(p);
+                      }}
+                      className={`mt-2 inline-flex items-center justify-center gap-2 rounded-xl py-2 text-[10px] font-black uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none ${
+                        isDark
+                          ? 'bg-white/10 text-white hover:bg-[#CDA032] hover:text-black'
+                          : 'bg-black/[0.06] text-black hover:bg-[#CDA032]'
+                      }`}
+                    >
+                      <ShoppingCart size={14} />
+                      {(p.total_stock ?? p.stock ?? 0) <= 0 ? 'Out of stock' : 'Add to cart'}
+                    </button>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Quick Access / Phones Slider */}
       <section className={`section-connector py-6 md:py-10 overflow-hidden ${isDark ? 'bg-[#030308]' : 'bg-[#f5f5f7]'}`}>
@@ -415,7 +518,7 @@ export const Home: React.FC<HomeProps> = ({
                   </div>
                 </Link>
               ) : (
-                <Link to="/store" search={{ category: 'iPhone' } as any} className="absolute inset-0 z-10" aria-label="Browse phones">
+                <Link to="/store" search={{ category: 'iPhone', series: 'all' } as any} className="absolute inset-0 z-10" aria-label="Browse phones">
                   <img src="/iPhone.jpeg" alt="Phones" className="bb-home-rail-promo-card__img" loading="lazy" decoding="async" />
                   <div className="bb-home-rail-promo-card__scrim" aria-hidden />
                   <div className="bb-home-rail-promo-card__content">
@@ -503,7 +606,7 @@ export const Home: React.FC<HomeProps> = ({
           <div className="flex justify-center mt-6 px-4 reveal-on-scroll reveal-delay-1">
             <Link
               to="/store"
-              search={{ category: 'iPhone' } as any}
+              search={{ category: 'iPhone', series: 'all' } as any}
               className={`group inline-flex items-center gap-4 px-10 py-5 bg-black dark:bg-white text-white dark:text-black rounded-full font-black text-xs uppercase tracking-[0.2em] shadow-2xl hover:scale-105 hover:shadow-[0_0_0_2px_rgba(212,175,55,0.35)] transition-all w-full md:w-auto justify-center ${TW_DARK_BTN_DEPTH}`}
             >
               View All Phones
@@ -566,7 +669,7 @@ export const Home: React.FC<HomeProps> = ({
                   </div>
                 </Link>
               ) : (
-                <Link to="/store" search={{ category: 'Laptop' } as any} className="absolute inset-0 z-10" aria-label="Browse laptops">
+                <Link to="/store" search={{ category: 'Laptops', series: 'all' } as any} className="absolute inset-0 z-10" aria-label="Browse laptops">
                   <img src="/laptop.jpeg" alt="Laptops" className="bb-home-rail-promo-card__img" loading="lazy" decoding="async" />
                   <div className="bb-home-rail-promo-card__scrim" aria-hidden />
                   <div className="absolute -bottom-10 -right-10 z-[1] w-40 h-40 rounded-full bg-[#CDA032]/25 blur-[60px] transition-transform duration-1000 group-hover:scale-150 pointer-events-none" aria-hidden />
@@ -654,7 +757,7 @@ export const Home: React.FC<HomeProps> = ({
           <div className="flex justify-center mt-12 px-4 reveal-on-scroll reveal-delay-1">
             <Link
               to="/store"
-              search={{ category: 'Laptop' } as any}
+              search={{ category: 'Laptops', series: 'all' } as any}
               className={`group inline-flex items-center gap-4 px-10 py-5 bg-black dark:bg-white text-white dark:text-black rounded-full font-black text-xs uppercase tracking-[0.2em] shadow-2xl hover:scale-105 hover:shadow-[0_0_0_2px_rgba(212,175,55,0.35)] transition-all w-full md:w-auto justify-center ${TW_DARK_BTN_DEPTH}`}
             >
               View All Laptops
@@ -694,7 +797,7 @@ export const Home: React.FC<HomeProps> = ({
 
           <div className="mt-12">
             <Link
-              to="/trades"
+              to="/trade"
               className={`inline-flex px-10 py-4 bg-[#CDA032] text-black rounded-full text-sm font-black items-center gap-3 transition-all hover:scale-105 hover:bg-[#B38B21] hover:shadow-[0_0_0_2px_rgba(212,175,55,0.45)] shadow-lg active:scale-95 ${TW_DARK_GOLD_BTN_DEPTH}`}
             >
               Let's Trade
@@ -807,7 +910,7 @@ export const Home: React.FC<HomeProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 grid-rows-[auto] gap-4 md:gap-6 auto-rows-[240px] md:auto-rows-[280px] reveal-on-scroll reveal-delay-1">
 
             {(exploreFilter === 'All Gear' || exploreFilter === 'Pro Series') && (
-              <Link to="/store" search={{ category: 'Headphones' } as any} className={`col-span-1 md:col-span-2 row-span-1 md:row-span-1 rounded-[2rem] p-8 md:p-10 flex flex-col justify-center relative overflow-hidden group transition-transform duration-500 hover:-translate-y-1 hover:shadow-2xl hover:ring-2 hover:ring-[#D4AF37]/25 ${theme === 'light' ? 'bg-[#E1F2EB] text-[#0A261D]' : 'bg-gradient-to-br from-[#1A362D] to-[#0A1A14] text-[#86EFAC] border border-[#22C55E]/20'}`}>
+              <Link to="/store" search={{ category: 'Headphones', series: 'all' } as any} className={`col-span-1 md:col-span-2 row-span-1 md:row-span-1 rounded-[2rem] p-8 md:p-10 flex flex-col justify-center relative overflow-hidden group transition-transform duration-500 hover:-translate-y-1 hover:shadow-2xl hover:ring-2 hover:ring-[#D4AF37]/25 ${theme === 'light' ? 'bg-[#E1F2EB] text-[#0A261D]' : 'bg-gradient-to-br from-[#1A362D] to-[#0A1A14] text-[#86EFAC] border border-[#22C55E]/20'}`}>
                 <div className="relative z-10 w-full md:w-2/3">
                   <span className={`inline-block px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.2em] mb-4 backdrop-blur-md ${theme === 'light' ? 'bg-white/50 text-[#0A261D]' : 'bg-black/30 text-[#86EFAC]'}`}>Hear the sound of quality</span>
                   <h3 className={`text-3xl md:text-5xl font-black italic tracking-tighter uppercase leading-[1.1] mb-2 ${theme === 'light' ? 'text-[#0A261D]' : 'text-white'}`}>
@@ -832,7 +935,7 @@ export const Home: React.FC<HomeProps> = ({
             )}
 
             {(exploreFilter === 'All Gear' || exploreFilter === 'Essentials') && (
-              <Link to="/store" search={{ category: 'iPhone' } as any} className={`col-span-1 md:col-span-1 row-span-1 md:row-span-2 rounded-[2rem] p-6 flex flex-col justify-between relative overflow-hidden group transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl hover:ring-2 hover:ring-[#D4AF37]/25 ${theme === 'light' ? 'bg-white' : 'bg-[#14141c] border border-white/[0.07] shadow-[0_12px_40px_-8px_rgba(0,0,0,0.5)]'}`}>
+              <Link to="/store" search={{ category: 'iPhone', series: 'all' } as any} className={`col-span-1 md:col-span-1 row-span-1 md:row-span-2 rounded-[2rem] p-6 flex flex-col justify-between relative overflow-hidden group transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl hover:ring-2 hover:ring-[#D4AF37]/25 ${theme === 'light' ? 'bg-white' : 'bg-[#14141c] border border-white/[0.07] shadow-[0_12px_40px_-8px_rgba(0,0,0,0.5)]'}`}>
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 z-10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
 
                 <div className="flex justify-between items-start z-20">
@@ -896,7 +999,7 @@ export const Home: React.FC<HomeProps> = ({
             )}
 
             {(exploreFilter === 'All Gear' || exploreFilter === 'Pro Series') && (
-              <Link to="/store" search={{ category: 'Laptop' } as any} className={`col-span-1 md:col-span-2 row-span-1 md:row-span-1 rounded-[2rem] p-8 md:p-10 flex flex-col justify-center relative overflow-hidden group transition-transform duration-500 hover:-translate-y-1 hover:shadow-2xl hover:ring-2 hover:ring-[#D4AF37]/25 ${theme === 'light' ? 'bg-[#FFF3CD]' : 'bg-gradient-to-br from-[#CDA032]/20 to-[#4A3B12] border border-[#CDA032]/20'}`}>
+              <Link to="/store" search={{ category: 'Laptops', series: 'all' } as any} className={`col-span-1 md:col-span-2 row-span-1 md:row-span-1 rounded-[2rem] p-8 md:p-10 flex flex-col justify-center relative overflow-hidden group transition-transform duration-500 hover:-translate-y-1 hover:shadow-2xl hover:ring-2 hover:ring-[#D4AF37]/25 ${theme === 'light' ? 'bg-[#FFF3CD]' : 'bg-gradient-to-br from-[#CDA032]/20 to-[#4A3B12] border border-[#CDA032]/20'}`}>
                 <div className="relative z-10 w-full md:w-1/2">
                   <h3 className={`text-2xl md:text-4xl font-black italic tracking-tighter uppercase leading-[1.1] mb-2 ${theme === 'light' ? 'text-black' : 'text-white'}`}>
                     Pro Power.<br />Anywhere.
@@ -921,7 +1024,7 @@ export const Home: React.FC<HomeProps> = ({
             )}
 
             {(exploreFilter === 'All Gear' || exploreFilter === 'Essentials') && (
-              <Link to="/trades" className={`col-span-1 md:col-span-1 row-span-1 rounded-[2rem] p-8 relative overflow-hidden group transition-transform duration-500 hover:-translate-y-1 hover:shadow-xl hover:ring-2 hover:ring-[#D4AF37]/25 flex flex-col justify-end ${theme === 'light' ? 'bg-[#F9FAFB] shadow-inner' : 'bg-[#14141c] shadow-inner border border-white/[0.07]'}`}>
+              <Link to="/trade" className={`col-span-1 md:col-span-1 row-span-1 rounded-[2rem] p-8 relative overflow-hidden group transition-transform duration-500 hover:-translate-y-1 hover:shadow-xl hover:ring-2 hover:ring-[#D4AF37]/25 flex flex-col justify-end ${theme === 'light' ? 'bg-[#F9FAFB] shadow-inner' : 'bg-[#14141c] shadow-inner border border-white/[0.07]'}`}>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent z-10 opacity-70"></div>
                 <div className="absolute inset-0 bg-gradient-to-br from-[#CDA032]/20 to-transparent z-20 mix-blend-overlay"></div>
                 <img src="/trade.jpeg" alt="Trade In Promo" className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-[2s] z-0 filter saturate-150" />
@@ -991,7 +1094,7 @@ export const Home: React.FC<HomeProps> = ({
             )}
 
             {(exploreFilter === 'All Gear' || exploreFilter === 'Essentials') && (
-              <Link to="/store" search={{ category: 'iPhone' } as any} className={`col-span-1 md:col-span-2 row-span-1 rounded-[2rem] p-8 md:p-10 flex items-center relative overflow-hidden group transition-transform duration-500 hover:-translate-y-1 hover:shadow-2xl hover:ring-2 hover:ring-[#D4AF37]/25 ${theme === 'light' ? 'bg-[#F8F9FA]' : 'bg-gradient-to-r from-[#111] to-[#0A0A0A] border border-white/5'}`}>
+              <Link to="/store" search={{ category: 'iPhone', series: 'all' } as any} className={`col-span-1 md:col-span-2 row-span-1 rounded-[2rem] p-8 md:p-10 flex items-center relative overflow-hidden group transition-transform duration-500 hover:-translate-y-1 hover:shadow-2xl hover:ring-2 hover:ring-[#D4AF37]/25 ${theme === 'light' ? 'bg-[#F8F9FA]' : 'bg-gradient-to-r from-[#111] to-[#0A0A0A] border border-white/5'}`}>
                 <div className="relative z-10 w-2/3 md:w-1/2">
                   <h3 className={`text-2xl md:text-4xl font-black italic tracking-tighter uppercase leading-[1] mb-2 ${theme === 'light' ? 'text-black' : 'text-white'}`}>
                     Latest<br />iPhones

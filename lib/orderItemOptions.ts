@@ -7,7 +7,7 @@
 import { formatProductOptionLabel } from './productLabels';
 
 /** Preferred display order for storefront option groups. */
-const CANONICAL_KEYS = ['Color', 'Storage', 'RAM'] as const;
+const CANONICAL_KEYS = ['Color', 'Storage', 'RAM', 'SIM', 'Size', 'Edition'] as const;
 
 /** Build "Color: Black · Storage: 256GB · RAM: 8GB" from a flat map. */
 export function buildConfigurationSummary(opts: Record<string, string>): string {
@@ -70,9 +70,29 @@ export function getOrderItemConfigurationLine(raw: unknown): string | null {
 
 export function mergeVariantSkuFallback(
   opts: Record<string, string>,
-  variant: { sku?: string | null } | null | undefined,
+  variant:
+    | {
+        sku?: string | null;
+        color?: string | null;
+        storage?: string | null;
+        ram?: string | null;
+        sim_type?: string | null;
+        display_size?: string | null;
+        edition?: string | null;
+      }
+    | null
+    | undefined,
 ): Record<string, string> {
   if (Object.keys(opts).length > 0) return opts;
-  if (variant?.sku) return { 'Item code': String(variant.sku) };
+  if (!variant || typeof variant !== 'object') return {};
+  const fromSku: Record<string, string> = {};
+  if (variant.color) fromSku.Color = String(variant.color);
+  if (variant.storage) fromSku.Storage = String(variant.storage);
+  if (variant.ram) fromSku.RAM = String(variant.ram);
+  if (variant.sim_type) fromSku.SIM = String(variant.sim_type);
+  if (variant.display_size) fromSku.Size = String(variant.display_size);
+  if (variant.edition) fromSku.Edition = String(variant.edition);
+  if (Object.keys(fromSku).length > 0) return fromSku;
+  if (variant.sku) return { 'Item code': String(variant.sku) };
   return {};
 }

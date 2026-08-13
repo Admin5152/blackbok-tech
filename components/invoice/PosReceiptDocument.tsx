@@ -1,5 +1,6 @@
 /**
- * 80mm thermal / POS mini-printer receipt layout.
+ * 80mm thermal / POS mini-printer invoice layout (store counter print).
+ * Customer-facing title uses Invoice wording; layout remains receipt-width.
  * Designed for ~72mm printable width; no clipped borders under @media print.
  */
 import React from 'react';
@@ -36,7 +37,7 @@ export type PosReceiptDocumentProps = {
 };
 
 export const PosReceiptDocument: React.FC<PosReceiptDocumentProps> = ({
-  kindLabel = 'Receipt',
+  kindLabel = 'Invoice',
   invoiceId,
   displayId,
   customerName,

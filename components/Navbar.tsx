@@ -3,7 +3,7 @@ import {
   X, CheckCircle2, Activity, Scale, RefreshCcw, RotateCcw, Home as HomeIcon,
   ShoppingBag, Wrench, ShoppingCart, User as UserIcon,
   ChevronRight, ChevronDown, Settings, AlertTriangle,
-  Sparkles, Eye, Clock, Menu, Sun, Moon, Search, TrendingUp, Box, Laptop, Smartphone, Gamepad2, History, Calendar, Info, Heart, UserCog, Headphones, LayoutDashboard, Tablet
+  Sparkles, Eye, Clock, Menu, Sun, Moon, Search, TrendingUp, Box, Laptop, Smartphone, Gamepad2, History, Calendar, Info, Heart, UserCog, Headphones, LayoutDashboard, Tablet, Watch, Flame
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from '@tanstack/react-router';
 import { User, CartItem, Product, Order, RepairRequest, TradeRequest } from '../types';
@@ -191,14 +191,47 @@ export const Navbar: React.FC<{
             badge: storeUnread.orders,
             subItems: [
               { path: '/store', label: 'Browse all', icon: Box, search: { browse: 'all' } },
-              { path: '/store', label: 'iPhone', icon: Smartphone, search: { category: 'iPhone' } },
-              { path: '/store', label: 'iPad', icon: Tablet, search: { category: 'iPad' } },
-              { path: '/store', label: 'Laptops', icon: Laptop, search: { category: 'Laptops' } },
-              { path: '/store', label: 'Accessories', icon: Box, search: { category: 'Accessories' } },
+              { path: '/store', label: 'Deal of the Day', icon: Flame, search: { browse: 'deals' } },
+              { path: '/store', label: 'iPhone', icon: Smartphone, search: { category: 'iPhone', series: 'all' } },
+              {
+                path: '/store',
+                label: 'Android phones',
+                icon: Smartphone,
+                search: { category: 'Android phones', series: 'all' },
+              },
+              { path: '/store', label: 'iPad', icon: Tablet, search: { category: 'iPad', series: 'all' } },
+              {
+                path: '/store',
+                label: 'MacBooks',
+                icon: Laptop,
+                search: { category: 'MacBooks', series: 'all' },
+              },
+              {
+                path: '/store',
+                label: 'Laptops',
+                icon: Laptop,
+                search: { category: 'Laptops', series: 'all' },
+              },
+              {
+                path: '/store',
+                label: 'Smart watches',
+                icon: Watch,
+                search: { category: 'Smart watches', series: 'all' },
+              },
+              {
+                path: '/store',
+                label: 'Headphones',
+                icon: Headphones,
+                search: { category: 'Headphones', series: 'all' },
+              },
+              {
+                path: '/store',
+                label: 'Speakers',
+                icon: Headphones,
+                search: { category: 'Speakers', series: 'all' },
+              },
               { path: '/store', label: 'Gaming', icon: Gamepad2, search: { category: 'Gaming' } },
-              { path: '/store', label: 'Headphones', icon: Headphones, search: { category: 'Headphones' } },
-              { path: '/store', label: 'Speakers', icon: Headphones, search: { category: 'Speakers' } },
-              { path: '/store', label: 'Audio (all)', icon: Headphones, search: { category: 'Audio' } },
+              { path: '/store', label: 'Accessories', icon: Box, search: { category: 'Accessories' } },
               {
                 path: '/history',
                 label: 'Track Orders',
@@ -241,13 +274,18 @@ export const Navbar: React.FC<{
             ],
           },
           { path: '/returns', label: 'Returns', icon: RotateCcw },
-          { path: '/cart', label: 'Cart', icon: ShoppingCart, badge: cartCount },
           ...(showAdminLink
             ? [{ path: '/admin' as const, label: 'Manage', icon: LayoutDashboard, ariaLabel: 'Staff dashboard' }]
             : []),
         ] as const,
       [storeUnread.orders, storeUnread.trades, storeUnread.repairs, cartCount, showAdminLink],
     );
+
+    useEffect(() => {
+      if (!isMobileMenuOpen) return;
+      // Open Shop links by default so categories are one tap away
+      setActiveMobileSubmenu((prev) => prev ?? 'Shop');
+    }, [isMobileMenuOpen]);
 
     useEffect(() => {
       if (!searchExpanded) return;
@@ -492,36 +530,61 @@ export const Navbar: React.FC<{
                   <ChevronDown size={14} className="opacity-40 group-hover:rotate-180 transition-transform duration-300" />
                 </Link>
                 <div className={`absolute top-full left-0 pt-2 opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-300 z-[100]`}>
-                  <div className={`w-56 rounded-2xl border shadow-2xl p-2 backdrop-blur-3xl ${isLight ? 'bg-white/95 border-black/5' : 'bg-[#121212]/95 border-white/5'}`}>
-                    <Link to="/store" search={{ category: 'iPhone' } as any} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
+                  <div className={`w-64 max-h-[min(70vh,32rem)] overflow-y-auto rounded-2xl border shadow-2xl p-2 backdrop-blur-3xl ${isLight ? 'bg-white/95 border-black/5' : 'bg-[#121212]/95 border-white/5'}`}>
+                    <Link to="/store" search={{ browse: 'all' } as any} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
+                      <Box size={14} className="opacity-40" /> Browse all
+                    </Link>
+                    <Link to="/store" search={{ browse: 'deals' } as any} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
+                      <Flame size={14} className="opacity-40" /> Deal of the Day
+                    </Link>
+
+                    <p className={`px-4 pt-2.5 pb-1 text-[9px] font-black uppercase tracking-[0.2em] opacity-40 ${isLight ? 'text-black' : 'text-white'}`}>
+                      Phones
+                    </p>
+                    <Link to="/store" search={{ category: 'iPhone', series: 'all' } as any} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
                       <Smartphone size={14} className="opacity-40" /> iPhone
                     </Link>
-                    <Link to="/store" search={{ category: 'iPad' } as any} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
+                    <Link to="/store" search={{ category: 'Android phones', series: 'all' } as any} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
+                      <Smartphone size={14} className="opacity-40" /> Android phones
+                    </Link>
+
+                    <p className={`px-4 pt-2.5 pb-1 text-[9px] font-black uppercase tracking-[0.2em] opacity-40 ${isLight ? 'text-black' : 'text-white'}`}>
+                      Tablets & computers
+                    </p>
+                    <Link to="/store" search={{ category: 'iPad', series: 'all' } as any} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
                       <Tablet size={14} className="opacity-40" /> iPad
                     </Link>
-                    <Link to="/store" search={{ category: 'Laptop' } as any} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
-                      <Laptop size={14} className="opacity-40" /> Laptops
+                    <Link to="/store" search={{ category: 'MacBooks', series: 'all' } as any} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
+                      <Laptop size={14} className="opacity-40" /> MacBooks
                     </Link>
-                    <Link to="/store" search={{ category: 'Gaming' } as any} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
-                      <Gamepad2 size={14} className="opacity-40" /> Gaming
+                    <Link to="/store" search={{ category: 'Laptops', series: 'all' } as any} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
+                      <Laptop size={14} className="opacity-40" /> Windows laptops
                     </Link>
-                    <Link to="/store" search={{ category: 'Accessories' } as any} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
-                      <Box size={14} className="opacity-40" /> Accessories
-                    </Link>
-                    <p className={`px-4 pt-2 pb-1 text-[9px] font-black uppercase tracking-[0.2em] opacity-40 ${isLight ? 'text-black' : 'text-white'}`}>
-                      Audio
+
+                    <p className={`px-4 pt-2.5 pb-1 text-[9px] font-black uppercase tracking-[0.2em] opacity-40 ${isLight ? 'text-black' : 'text-white'}`}>
+                      Wearables & audio
                     </p>
-                    <Link to="/store" search={{ category: 'Headphones' } as any} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
+                    <Link to="/store" search={{ category: 'Smart watches', series: 'all' } as any} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
+                      <Watch size={14} className="opacity-40" /> Smart watches
+                    </Link>
+                    <Link to="/store" search={{ category: 'Headphones', series: 'all' } as any} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
                       <Headphones size={14} className="opacity-40" /> Headphones
                     </Link>
-                    <Link to="/store" search={{ category: 'Speakers' } as any} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
+                    <Link to="/store" search={{ category: 'Speakers', series: 'all' } as any} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
                       <Headphones size={14} className="opacity-40" /> Speakers
                     </Link>
-                    <Link to="/store" search={{ category: 'Audio' } as any} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
-                      <Headphones size={14} className="opacity-40" /> All audio
+
+                    <p className={`px-4 pt-2.5 pb-1 text-[9px] font-black uppercase tracking-[0.2em] opacity-40 ${isLight ? 'text-black' : 'text-white'}`}>
+                      More
+                    </p>
+                    <Link to="/store" search={{ category: 'Gaming' } as any} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
+                      <Gamepad2 size={14} className="opacity-40" /> Gaming
+                    </Link>
+                    <Link to="/store" search={{ category: 'Accessories' } as any} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
+                      <Box size={14} className="opacity-40" /> Accessories
                     </Link>
                     <div className={`my-1 h-px ${isLight ? 'bg-black/5' : 'bg-white/5'}`} />
-                    <Link to="/history" search={{ tab: 'orders' } as any} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
+                    <Link to="/history" search={{ tab: 'orders' } as any} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
                       <History size={14} className="opacity-40 shrink-0" /> Track Orders
                       <NavUnreadBadge count={storeUnread.orders} className="ml-auto" title="New orders" />
                     </Link>
@@ -677,25 +740,6 @@ export const Navbar: React.FC<{
               >
                 {isLight ? <Moon size={18} /> : <Sun size={18} />}
               </button>
-
-              {!user && (
-                <Link
-                  to="/auth"
-                  search={{ returnTo: location.pathname } as any}
-                  onClick={() => saveReturnTo(location.pathname)}
-                  title="Sign in"
-                  aria-label="Sign in"
-                  className={[
-                    'sm:hidden flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-all',
-                    isLight
-                      ? 'border-black/10 bg-black/5 text-black hover:bg-[#CDA032] hover:text-black hover:border-[#CDA032]/50'
-                      : 'border-white/10 bg-white/5 text-white hover:bg-[#CDA032] hover:text-black hover:border-[#CDA032]/50',
-                    TW_DARK_BTN_DEPTH,
-                  ].join(' ')}
-                >
-                  <UserIcon size={20} strokeWidth={2.25} />
-                </Link>
-              )}
 
               {/* Mobile / tablet cart */}
               <Link

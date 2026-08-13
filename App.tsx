@@ -13,8 +13,8 @@ import {
 import { X, Activity, Scale, RefreshCcw, Home as HomeIcon, ShoppingBag, Wrench, ShoppingCart, User as UserIcon, LogOut, ChevronRight, ChevronDown, Settings, Sparkles, Eye, Clock } from 'lucide-react';
 import { supabase, getSupabaseClient, isSupabaseConfigured } from './lib/supabase';
 import { WhatsAppIcon } from './components/Icons';
-import { Product, User, CartItem, Category, RepairRequest, Order, TradeRequest } from './types';
-import { getProducts, getOrders, getTradeRequests, getRepairRequests, syncWishlistWithServer, addToWishlist, removeFromWishlistByProduct, clearWishlistItems } from './lib/api';
+import { Product, User, CartItem, Category, RepairRequest, Order, TradeRequest, ProductVariant } from './types';
+import { getProducts, getProduct, getOrders, getTradeRequests, getRepairRequests, syncWishlistWithServer, addToWishlist, removeFromWishlistByProduct, clearWishlistItems } from './lib/api';
 import { friendlyError } from './lib/friendlyErrors';
 import { fetchTradePricing } from './lib/tradePricingStore';
 import { handleSignOut } from './lib/signOut';
@@ -36,10 +36,12 @@ import {
   findVariantIdForOptions,
   findVariantRowForOptions,
   formatSelectedOptionsLabel,
+  productNeedsSkuHydration,
 } from './lib/productOptions';
 import { variantEffectivePrice } from './lib/catalogApi';
-import { getDealDiscountPercentage } from './lib/dealOfTheDay';
-import type { ProductVariant } from './types';
+import { applyDealDiscountToAmount } from './lib/dealOfTheDay';
+import { COMPARE_MAX_ITEMS } from './lib/compareProducts';
+import { cartLineKey, cartLineKeyFromParts } from './lib/cartLineKey';
 import { Navbar } from './components/Navbar';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { Footer } from './components/Footer';
@@ -100,7 +102,6 @@ import { NotFound } from './views/NotFound';
 import { ErrorPage } from './views/ErrorPage';
 import { History } from './views/History';
 import { Tracking } from './views/Tracking';
-import { OrderReceipt } from './views/OrderReceipt';
 import { Receipt } from './views/Receipt';
 import { TradeReceipt } from './views/TradeReceipt';
 import { RepairReceipt } from './views/RepairReceipt';
@@ -109,8 +110,6 @@ import { ReturnsPage } from './views/ReturnsPage';
 import { QuickViewModal } from './components/QuickViewModal';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { generateId } from './lib/utils';
-import { COMPARE_MAX_ITEMS } from './lib/compareProducts';
-import { getProduct } from './lib/api';
 import { productMatchesRouteParam, productRouteParam } from './lib/productUrl';
 import { SessionTimeoutProvider } from './components/SessionTimeoutProvider';
 import {
@@ -377,7 +376,7 @@ const productDetailRoute = createRoute({
       return () => {
         cancelled = true;
       };
-    }, [productId, localProduct?.id, localProduct?.price, localProduct?.price_from]);
+    }, [productId, localProduct?.id, localProduct?.price, localProduct?.price_from, localProduct?.total_stock, localProduct?.stock]);
 
     // Browser tab / share title — show product name, not a UUID.
     useEffect(() => {
@@ -706,10 +705,13 @@ const AdminRouteShell: React.FC = () => {
           : location.pathname === '/admin/consoles' ||
               location.pathname.startsWith('/admin/consoles/')
             ? ('consoles' as const)
-            : location.pathname === '/admin/products' ||
-                location.pathname.startsWith('/admin/products/')
-              ? ('products' as const)
-              : undefined;
+            : location.pathname === '/admin/deals' ||
+                location.pathname.startsWith('/admin/deals/')
+              ? ('deals' as const)
+              : location.pathname === '/admin/products' ||
+                  location.pathname.startsWith('/admin/products/')
+                ? ('products' as const)
+                : undefined;
 
   useEffect(() => {
     if (!authReady) {
@@ -880,6 +882,13 @@ const adminIpadsRoute = createRoute({
 const adminConsolesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/admin/consoles',
+  component: AdminRouteShell,
+});
+
+/** Deal of the Day manager — Shop → Deals tab. */
+const adminDealsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/admin/deals',
   component: AdminRouteShell,
 });
 
@@ -1220,6 +1229,7 @@ const routeTree = rootRoute.addChildren([
   adminProductsRoute,
   adminIpadsRoute,
   adminConsolesRoute,
+  adminDealsRoute,
   adminPromotionsRoute.addChildren([
     adminPromotionsIndexRoute,
     adminPromotionsNewRoute,
@@ -1331,6 +1341,8 @@ function RootComponent() {
     location.pathname === '/admin' ||
     location.pathname === '/admin/products' ||
     location.pathname.startsWith('/admin/products/') ||
+    location.pathname === '/admin/deals' ||
+    location.pathname.startsWith('/admin/deals/') ||
     location.pathname === '/admin/promotions' ||
     location.pathname.startsWith('/admin/promotions/') ||
     location.pathname === '/admin/trade' ||
@@ -1775,13 +1787,26 @@ function RootComponent() {
     scrollToDocumentTop();
   };
 
-  const addToCart = (product: Product, options: Record<string, string> = {}, qty: number = 1) => {
+  const addToCart = async (product: Product, options: Record<string, string> = {}, qty: number = 1) => {
     const safeQty = Math.max(1, Math.floor(Number(qty) || 1));
+
+    // Listing cards come from v_product_page without SKU rows — hydrate so
+    // Color×Storage stock and variant_id resolve correctly.
+    let resolvedProduct = product;
+    if (productNeedsSkuHydration(product)) {
+      try {
+        const hydrated = await getProduct(product.id);
+        if (hydrated) resolvedProduct = hydrated;
+      } catch (e) {
+        console.warn('addToCart: SKU hydrate failed', e);
+      }
+    }
+
     const resolvedOptions =
       Object.keys(options).some((k) => toOptionString(options[k]))
         ? options
-        : defaultSelectedOptionsForProduct(product);
-    const available = getAvailableStock(product, resolvedOptions);
+        : defaultSelectedOptionsForProduct(resolvedProduct);
+    const available = getAvailableStock(resolvedProduct, resolvedOptions);
     if (available <= 0) {
       notify('This item is out of stock.', 'error');
       return;
@@ -1789,22 +1814,20 @@ function RootComponent() {
 
     // BUGFIX: cart previously stored products.price blindly and omitted variant_id.
     // Checkout/orders need the selected SKU id + fn_variant_effective_price amount.
-    const variantId = findVariantIdForOptions(product, resolvedOptions);
-    const variantRow = findVariantRowForOptions(product, resolvedOptions) as ProductVariant | null;
-    const listPrice = variantEffectivePrice(product, variantRow);
-    const discountPct = getDealDiscountPercentage(product);
-    const unitPrice =
-      discountPct > 0
-        ? Math.round(listPrice * (1 - discountPct / 100) * 100) / 100
-        : listPrice;
+    const variantId = findVariantIdForOptions(resolvedProduct, resolvedOptions);
+    if ((resolvedProduct.variants?.length ?? 0) > 0 && !variantId) {
+      notify('That configuration is unavailable. Pick another color or storage.', 'error');
+      return;
+    }
+
+    const variantRow = findVariantRowForOptions(resolvedProduct, resolvedOptions) as ProductVariant | null;
+    const listPrice = variantEffectivePrice(resolvedProduct, variantRow);
+    const unitPrice = applyDealDiscountToAmount(listPrice, resolvedProduct);
     const configLine = formatSelectedOptionsLabel(resolvedOptions);
 
     const prev = cartRef.current;
-    const existingId = `${product.id}-${variantId || JSON.stringify(resolvedOptions)}`;
-    const existingIndex = prev.findIndex((p) => {
-      const key = `${p.id}-${p.variant_id || JSON.stringify(p.selectedOptions)}`;
-      return key === existingId;
-    });
+    const existingId = cartLineKeyFromParts(resolvedProduct.id, variantId, resolvedOptions);
+    const existingIndex = prev.findIndex((p) => cartLineKey(p) === existingId);
     if (existingIndex > -1) {
       const cur = prev[existingIndex].quantity;
       if (cur + safeQty > available) {
@@ -1817,11 +1840,8 @@ function RootComponent() {
     }
 
     setCart((prevCart) => {
-      const exId = `${product.id}-${variantId || JSON.stringify(resolvedOptions)}`;
-      const exIdx = prevCart.findIndex((p) => {
-        const key = `${p.id}-${p.variant_id || JSON.stringify(p.selectedOptions)}`;
-        return key === exId;
-      });
+      const exId = cartLineKeyFromParts(resolvedProduct.id, variantId, resolvedOptions);
+      const exIdx = prevCart.findIndex((p) => cartLineKey(p) === exId);
       if (exIdx > -1) {
         const updated = [...prevCart];
         updated[exIdx] = { ...updated[exIdx], quantity: updated[exIdx].quantity + safeQty };
@@ -1830,7 +1850,7 @@ function RootComponent() {
       return [
         ...prevCart,
         {
-          ...product,
+          ...resolvedProduct,
           quantity: safeQty,
           selectedOptions: resolvedOptions,
           variant_id: variantId ?? undefined,
@@ -1840,7 +1860,7 @@ function RootComponent() {
         },
       ];
     });
-    notify(`${product.name} added to your cart.`);
+    notify(`${resolvedProduct.name} added to your cart.`);
   };
 
   const toggleWishlist = (productId: string) => {
@@ -1902,28 +1922,60 @@ function RootComponent() {
     });
   };
 
-  const updateQuantity = (id: string, options: Record<string, string> | undefined, delta: number) => {
+  const updateQuantity = async (id: string, options: Record<string, string> | undefined, delta: number) => {
+    const line = cartRef.current.find(
+      (item) =>
+        item.id === id && JSON.stringify(item.selectedOptions) === JSON.stringify(options),
+    );
+    if (!line) return;
+
+    if (delta > 0) {
+      const live = products.find((p) => p.id === id);
+      const lineAsProduct = line as Product & CartItem;
+      // Prefer cart line's hydrated variants when listing products lack SKUs
+      let capProduct: Product =
+        lineAsProduct.variants && lineAsProduct.variants.length > 0
+          ? {
+              ...lineAsProduct,
+              stock: live?.stock ?? line.stock,
+              total_stock: live?.total_stock ?? lineAsProduct.total_stock,
+            }
+          : live ?? lineAsProduct;
+
+      if (productNeedsSkuHydration(capProduct) || ((capProduct.variants?.length ?? 0) > 0 && !line.variant_id)) {
+        try {
+          const hydrated = await getProduct(id);
+          if (hydrated) capProduct = hydrated;
+        } catch {
+          /* use cart line / listing stock */
+        }
+      }
+
+      const nextQty = line.quantity + delta;
+      const cap = getAvailableStock(capProduct, line.selectedOptions || {});
+      const effectiveCap =
+        Number.isFinite(cap) && cap >= 0
+          ? cap
+          : Math.max(0, Math.floor(Number(line.stock ?? 0)));
+
+      if (nextQty > effectiveCap) {
+        notify('The requested quantity exceeds available stock.', 'error');
+        return;
+      }
+    }
+
     setCart((prev) =>
       prev.map((item) => {
         if (item.id !== id || JSON.stringify(item.selectedOptions) !== JSON.stringify(options)) {
           return item;
         }
-        const nextQty = item.quantity + delta;
-        if (delta > 0) {
-          const live = products.find((p) => p.id === id);
-          const cap = live ? getAvailableStock(live, item.selectedOptions || {}) : Math.max(0, Number(item.stock ?? 0));
-          if (nextQty > cap) {
-            notify('The requested quantity exceeds available stock.', 'error');
-            return item;
-          }
-        }
-        return { ...item, quantity: Math.max(1, nextQty) };
+        return { ...item, quantity: Math.max(1, item.quantity + delta) };
       }),
     );
   };
 
   const removeFromCart = (uniqueId: string) => {
-    setCart(prev => prev.filter(p => `${p.id}-${JSON.stringify(p.selectedOptions)}` !== uniqueId));
+    setCart((prev) => prev.filter((p) => cartLineKey(p) !== uniqueId));
   };
 
   const handleCheckout = (_total: number) => {
@@ -2098,7 +2150,7 @@ function RootComponent() {
               <div className="flex-1 min-h-0 overflow-auto py-4 px-3 space-y-1 [-webkit-overflow-scrolling:touch]" data-lenis-prevent>
                 {[
                   { id: 'home', label: 'Home', icon: HomeIcon, path: '/' },
-                  { id: 'store', label: 'Shop', icon: ShoppingBag, path: '/store', subItems: ['iPhone', 'Laptop', 'Accessories', 'Gaming', 'Audio', 'Track Orders'] },
+                  { id: 'store', label: 'Shop', icon: ShoppingBag, path: '/store', subItems: ['iPhone', 'Android phones', 'iPad', 'MacBooks', 'Laptops', 'Smart watches', 'Headphones', 'Speakers', 'Gaming', 'Accessories', 'Track Orders'] },
                   { id: 'trades', label: 'Trades', icon: RefreshCcw, path: '/trade', subItems: ['Initiate Trade', 'Track Trade-In'] },
                   { id: 'repair', label: 'Repairs', icon: Wrench, path: '/repair', subItems: ['Schedule Repair', 'Repair Status'] },
                   { id: 'cart', label: 'Cart', icon: ShoppingCart, path: '/cart', count: cart.length },
@@ -2141,15 +2193,15 @@ function RootComponent() {
                                 if (sub === 'Track Orders') {
                                   navigateTo('/history', { search: { tab: 'orders' } } as any);
                                 } else if (sub === 'Track Trade-In') {
-                                  navigateTo('/history', { search: { tab: 'trades' } } as any);
+                                  navigateTo('/account/trade-ins');
                                 } else if (sub === 'Repair Status') {
                                   navigateTo('/history', { search: { tab: 'repairs' } } as any);
                                 } else if (sub === 'Initiate Trade') {
-                                  navigateTo('trades');
+                                  navigateTo('/trade');
                                 } else if (sub === 'Schedule Repair') {
                                   navigateTo('repair');
                                 } else {
-                                  navigateTo('/store', { search: { category: sub } });
+                                  navigateTo('/store', { search: { category: sub, series: 'all' } });
                                 }
                                 setIsMobileMenuOpen(false);
                               }}

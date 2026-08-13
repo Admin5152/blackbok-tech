@@ -4,7 +4,7 @@ import {
   ChevronRight, CreditCard as CardIcon,
   User as UserIcon, Settings, Heart, Sliders, HelpCircle,
   RefreshCw, RotateCcw, Trash2, FileText, Menu, X,
-  Calendar, ShoppingBag,
+  Calendar, ShoppingBag, Bell,
 } from 'lucide-react';
 import { User, RepairRequest, Order, Product, TradeRequest } from '../types';
 import { formatDate, formatCurrency } from '../lib/utils';
@@ -176,7 +176,7 @@ export const Profile: React.FC<ProfileProps> = ({
             </p>
           </div>
           <button
-            onClick={() => navigateTo('auth')}
+            onClick={() => navigateTo('/auth?returnTo=/profile')}
             className="px-10 py-4 bg-gradient-to-r from-[#B38B21] to-[#D4AF37] text-black font-black rounded-full text-[10px] uppercase tracking-[0.3em] hover:scale-105 transition-all shadow-[0_10px_40px_rgba(179,139,33,0.3)]"
           >
             Sign In
@@ -419,6 +419,7 @@ export const Profile: React.FC<ProfileProps> = ({
                 { label: 'Recent Orders', count: orders.length, icon: Package, onClick: () => navigateTo('/history?tab=orders') },
                 { label: 'Pending Repairs', count: activeRepairsCount, icon: Wrench, onClick: () => navigateTo('/history?tab=repairs') },
                 { label: 'Wishlist Items', count: wishlist.length, icon: Heart, onClick: () => setActiveTab('wishlist') },
+                { label: 'Notifications', count: null as any, icon: Bell, onClick: () => navigateTo('/account/notifications') },
                 { label: 'Trade-in status', count: trades.length, icon: RefreshCw, onClick: () => navigateTo('/account/trade-ins') },
               ].map((card, i) => (
                 <button
@@ -522,7 +523,7 @@ export const Profile: React.FC<ProfileProps> = ({
                 <div className="space-y-2">
                   <h3 className={`text-4xl font-black italic tracking-tighter uppercase ${isLight ? 'text-black' : 'text-white'}`}>Purchases & <span className="text-[#B38B21]">History</span></h3>
                   <p className={`text-xs font-bold uppercase tracking-[0.2em] ${isLight ? 'text-gray-400' : 'text-white/40'}`}>
-                    All orders, trade-ins, and repairs — invoices, tracking, and refund requests for eligible delivered orders
+                    All orders, trade-ins, and repairs — invoices (including repair estimates printed at the store), tracking, and refund requests for eligible delivered orders
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3 shrink-0">

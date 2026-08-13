@@ -301,12 +301,22 @@ export const AdminProductForm: React.FC<Props> = ({
         } else if (cat === 'Laptops') {
           prevSpecs.catalog = 'laptop';
           if (keepSeries) prevSpecs.series = keepSeries;
+        } else if (cat === 'Android phones') {
+          prevSpecs.catalog = 'android';
+          if (keepSeries) prevSpecs.series = keepSeries;
+        } else if (cat === 'MacBooks') {
+          prevSpecs.catalog = 'macbook';
+          if (keepSeries) prevSpecs.series = keepSeries;
         } else if (cat === 'Gaming') {
           prevSpecs.catalog = 'gaming';
           prevSpecs.platform = taxonomyValue || null;
-        } else if (cat === 'Smart watches') {
+        } else if (cat === 'Smart watches' || cat === 'Apple Watches') {
           prevSpecs.catalog = 'watches';
-          prevSpecs.watch_group = taxonomyValue || null;
+          // Line (Ultra / Series / Galaxy) lives on series after Brand
+          if (keepSeries) {
+            prevSpecs.watch_group = keepSeries;
+            prevSpecs.series = keepSeries;
+          }
         }
         return {
           ...prev,
@@ -344,7 +354,8 @@ export const AdminProductForm: React.FC<Props> = ({
     normalizedCategory === 'Headphones' || normalizedCategory === 'Speakers';
   const isAccessoryCategory = normalizedCategory === 'Accessories';
   const isGamingCategory = normalizedCategory === 'Gaming';
-  const isWatchCategory = normalizedCategory === 'Smart watches';
+  const isWatchCategory =
+    normalizedCategory === 'Smart watches' || normalizedCategory === 'Apple Watches';
   const isPhoneCategory =
     normalizedCategory === 'iPhone' || normalizedCategory === 'Android phones';
   const isMacCategory = normalizedCategory === 'MacBooks';
@@ -367,12 +378,19 @@ export const AdminProductForm: React.FC<Props> = ({
       return `Shop path: ${normalizedCategory} → New/Used → products.`;
     }
     if (brandThenSeries) {
-      return `Shop path: ${normalizedCategory} → Brand → Series → products.`;
+      return isWatchCategory
+        ? `Shop path: Smart watches → Brand (Apple / Samsung / Others) → Series → products.`
+        : normalizedCategory === 'Android phones'
+          ? `Shop path: Android phones → Brand (Samsung / Google / Motorola) → Series → products.`
+          : `Shop path: ${normalizedCategory} → Brand → Series → products.`;
     }
     if (isAccessoryCategory) {
       return `Shop path: Accessories → Type (Cases / Protectors / Chargers) → products.`;
     }
-    if (isGamingCategory || isWatchCategory) {
+    if (isWatchCategory) {
+      return `Shop path: Smart watches → Brand (Apple / Samsung / Others) → Series → products.`;
+    }
+    if (isGamingCategory) {
       return `Shop path: ${normalizedCategory} → Brand/platform → products.`;
     }
     return null;
@@ -867,7 +885,9 @@ export const AdminProductForm: React.FC<Props> = ({
                           ? 'Brand *'
                           : isAccessoryCategory
                             ? 'Type *'
-                            : isGamingCategory || isWatchCategory
+                            : isWatchCategory
+                              ? 'Line *'
+                              : isGamingCategory
                               ? 'Platform / brand *'
                               : 'Sub-category *'}
                     </label>
@@ -884,7 +904,9 @@ export const AdminProductForm: React.FC<Props> = ({
                             ? 'Select brand'
                             : isAccessoryCategory
                               ? 'Select accessory type'
-                              : 'Select sub-category'}
+                              : isWatchCategory
+                                ? 'Select Ultra or Series'
+                                : 'Select sub-category'}
                       </option>
                       {taxonomyOptions.map((o) => (
                         <option key={o.value} value={o.value}>
@@ -919,7 +941,13 @@ export const AdminProductForm: React.FC<Props> = ({
                               }
                             : isLaptopCategory
                               ? { catalog: 'laptop' }
-                              : {}),
+                              : isMacCategory
+                                ? { catalog: 'macbook' }
+                                : isWatchCategory
+                                  ? { catalog: 'watches', watch_group: series }
+                                  : normalizedCategory === 'Android phones'
+                                    ? { catalog: 'android' }
+                                    : {}),
                         };
                         setDraft({
                           ...draft,
@@ -942,7 +970,9 @@ export const AdminProductForm: React.FC<Props> = ({
                     </select>
                     <p className={`text-[10px] mt-1 ${s.muted}`}>
                       {brandThenSeries
-                        ? 'Required. Matches the shop Brand → Series filters (incl. Sony, EarPods, HomePod).'
+                        ? isWatchCategory
+                          ? 'Required. Shop path: Brand → Series (Ultra / Series / Galaxy).'
+                          : 'Required. Matches the shop Brand → Series filters (incl. Sony, EarPods, HomePod).'
                         : 'Shown on the shop as Category → Series → New/Used.'}
                     </p>
                   </div>
@@ -959,18 +989,22 @@ export const AdminProductForm: React.FC<Props> = ({
                     placeholder={
                       isAccessoryCategory
                         ? 'e.g. Spigen, Anker…'
-                        : taxonomySelectValue === 'Others'
-                          ? 'e.g. Samsung, Fitbit…'
-                          : 'Apple'
+                        : isWatchCategory
+                          ? 'Apple'
+                          : taxonomySelectValue === 'Others'
+                            ? 'e.g. Samsung, Fitbit…'
+                            : 'Apple'
                     }
                   />
-                  {(brandThenSeries || isAccessoryCategory || taxonomySelectValue === 'Others') && (
+                  {(brandThenSeries || isAccessoryCategory || isWatchCategory) && (
                     <p className={`text-[10px] mt-1 ${s.muted}`}>
                       {brandThenSeries
                         ? 'Filled from the Brand picker above — edit if the listing brand differs.'
                         : isAccessoryCategory
                           ? 'Maker / label shown on the product card. Type above sets the shop filter.'
-                          : 'Required when platform is Others — enter the real watch brand.'}
+                          : isWatchCategory
+                            ? 'Defaults to Apple for Ultra and Series listings.'
+                            : 'Required when platform is Others — enter the real watch brand.'}
                     </p>
                   )}
                 </div>
@@ -1133,8 +1167,9 @@ export const AdminProductForm: React.FC<Props> = ({
                       document.body,
                     )}
                   <p className={`text-[10px] mt-1.5 leading-relaxed ${s.muted}`}>
-                    Links this shop phone so customers can choose it as their upgrade. You can
-                    type a new model name if it isn’t listed yet.
+                    Links this shop phone so customers can choose it as their upgrade on Trade-in.
+                    Linked iPhone / iPad products appear in upgrade options (and are added to the
+                    staff upgrade list when one is saved). Type a new model name if it isn’t listed yet.
                   </p>
                 </div>
                 {!skuMatrixEnabled && (
@@ -1258,11 +1293,13 @@ export const AdminProductForm: React.FC<Props> = ({
                     ? 'Add Size, Colour, Storage, and Connectivity (Wi‑Fi / Cellular). Generate versions, then set prices and stock.'
                     : isAudioCategory || isAccessoryCategory
                       ? 'These categories usually need Colour only. Skip Storage / RAM / SIM unless this product has real variants.'
-                      : isLaptopCategory
-                        ? 'Add Colour, Storage, and RAM for laptop versions. SIM is hidden for notebooks.'
-                        : isGamingCategory || isWatchCategory
-                          ? 'Add Colour and Storage if needed for variants. SIM is usually not required.'
-                          : 'Add every Color, Storage, RAM, and SIM option once. Generate versions to auto-build all combinations — then only fill or edit prices and stock.'}
+                      : isLaptopCategory || isMacCategory
+                        ? 'Add Colour, Storage, and RAM for notebook versions. SIM is hidden for Macs / laptops.'
+                        : isWatchCategory
+                          ? 'Add Case size (e.g. 49mm) and Colour for watch versions. SIM is not required.'
+                          : isGamingCategory
+                            ? 'Add Colour and Storage if needed for variants. SIM is usually not required.'
+                            : 'Add every Color, Storage, RAM, and SIM option once. Generate versions to auto-build all combinations — then only fill or edit prices and stock.'}
               </p>
               {isTabletCategory && (
                 <ChipField
@@ -1278,9 +1315,43 @@ export const AdminProductForm: React.FC<Props> = ({
                   readOnlyNote="Managed by generated versions"
                 />
               )}
+              {isWatchCategory && (
+                <ChipField
+                  label="Case size"
+                  chips={displaySizes}
+                  inputVal={sizeIn}
+                  setInputVal={setSizeIn}
+                  placeholder="e.g. 49mm or 46mm"
+                  onAdd={() => onAddChip('display_sizes', sizeIn, () => setSizeIn(''))}
+                  onRemove={(v) => onRemoveChip('display_sizes', v)}
+                  styles={s}
+                  readOnly={chipsLocked}
+                  readOnlyNote="Managed by generated versions"
+                />
+              )}
               {isTabletCategory && !chipsLocked && (
                 <div className="flex flex-wrap gap-1.5 px-1 -mt-2 mb-3">
                   {['11"', '13"', '8.3"', '10.9"', '10.2"'].map((sz) => (
+                    <button
+                      key={sz}
+                      type="button"
+                      onClick={() => onAddChip('display_sizes', sz, () => setSizeIn(''))}
+                      className={`text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-lg border ${
+                        (displaySizes || []).includes(sz)
+                          ? 'border-[#B38B21] text-[#B38B21] bg-[#B38B21]/10'
+                          : isLight
+                            ? 'border-black/10 text-black/50'
+                            : 'border-white/10 text-white/45'
+                      }`}
+                    >
+                      {sz}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {isWatchCategory && !chipsLocked && (
+                <div className="flex flex-wrap gap-1.5 px-1 -mt-2 mb-3">
+                  {['49mm', '46mm', '45mm', '44mm', '42mm', '41mm', '40mm'].map((sz) => (
                     <button
                       key={sz}
                       type="button"
@@ -1546,7 +1617,7 @@ export const AdminProductForm: React.FC<Props> = ({
 
               <div className={s.card}>
                 <label className={s.label}>Extra product details</label>
-                {(isLaptopCategory || isAudioCategory || isAccessoryCategory) && (
+                {(isLaptopCategory || isMacCategory || isWatchCategory || isAudioCategory || isAccessoryCategory) && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                     {isAudioCategory && (
                       <>
@@ -1676,6 +1747,138 @@ export const AdminProductForm: React.FC<Props> = ({
                           />
                         </div>
                       ))}
+                    {isMacCategory &&
+                      (
+                        [
+                          ['processor', 'Chip / processor'],
+                          ['generation', 'Year'],
+                          ['storage_label', 'Storage'],
+                          ['memory', 'Memory'],
+                          ['display', 'Display size'],
+                          ['os', 'OS'],
+                          ['extras', 'Extras'],
+                        ] as const
+                      ).map(([key, label]) => (
+                        <div key={key} className={key === 'extras' ? 'sm:col-span-2' : ''}>
+                          <label className={s.label}>{label}</label>
+                          <input
+                            className={s.input}
+                            value={String((draft.specifications as Record<string, unknown> | null)?.[key] ?? '')}
+                            onChange={(e) => {
+                              const raw = e.target.value.trim();
+                              const next = {
+                                ...(draft.specifications && typeof draft.specifications === 'object'
+                                  ? (draft.specifications as Record<string, unknown>)
+                                  : {}),
+                                catalog: 'macbook',
+                                series: draft.series ?? null,
+                                [key]: raw || null,
+                                ...(key === 'processor' ? { chip: raw || null } : {}),
+                                ...(key === 'generation'
+                                  ? { year: raw ? Number(raw) || raw : null }
+                                  : {}),
+                              };
+                              setDraft({
+                                ...draft,
+                                specifications: next,
+                                specificationsJson: JSON.stringify(next, null, 2),
+                              });
+                            }}
+                            placeholder={
+                              key === 'processor'
+                                ? 'e.g. M5 Pro'
+                                : key === 'generation'
+                                  ? 'e.g. 2026'
+                                  : key === 'display'
+                                    ? 'e.g. 14"'
+                                    : key === 'memory'
+                                      ? 'e.g. 16GB RAM'
+                                      : 'Leave blank if unknown'
+                            }
+                          />
+                        </div>
+                      ))}
+                    {isWatchCategory &&
+                      (
+                        [
+                          ['watch_group', 'Line (Ultra / Series)'],
+                          ['generation', 'Generation'],
+                          ['case_size', 'Case size'],
+                          ['display', 'Display size'],
+                          ['os', 'OS'],
+                          ['extras', 'Extras'],
+                        ] as const
+                      ).map(([key, label]) => (
+                        <div key={key} className={key === 'extras' ? 'sm:col-span-2' : ''}>
+                          <label className={s.label}>{label}</label>
+                          {key === 'watch_group' ? (
+                            <select
+                              className={s.input}
+                              value={String(
+                                (draft.specifications as Record<string, unknown> | null)?.watch_group ??
+                                  draft.series ??
+                                  '',
+                              )}
+                              onChange={(e) => {
+                                const watch_group = e.target.value || null;
+                                const next = {
+                                  ...(draft.specifications && typeof draft.specifications === 'object'
+                                    ? (draft.specifications as Record<string, unknown>)
+                                    : {}),
+                                  catalog: 'watches',
+                                  watch_group,
+                                  series: watch_group,
+                                };
+                                setDraft({
+                                  ...draft,
+                                  series: watch_group,
+                                  subcategory: watch_group,
+                                  specifications: next,
+                                  specificationsJson: JSON.stringify(next, null, 2),
+                                });
+                              }}
+                            >
+                              <option value="">Same as Details → Series</option>
+                              <option value="Ultra">Ultra</option>
+                              <option value="Series">Series</option>
+                              <option value="Galaxy">Galaxy Watch</option>
+                              <option value="Other">Other brands</option>
+                            </select>
+                          ) : (
+                            <input
+                              className={s.input}
+                              value={String((draft.specifications as Record<string, unknown> | null)?.[key] ?? '')}
+                              onChange={(e) => {
+                                const raw = e.target.value.trim();
+                                const next = {
+                                  ...(draft.specifications && typeof draft.specifications === 'object'
+                                    ? (draft.specifications as Record<string, unknown>)
+                                    : {}),
+                                  catalog: 'watches',
+                                  watch_group:
+                                    (draft.specifications as Record<string, unknown> | null)?.watch_group ??
+                                    draft.taxonomy_value ??
+                                    null,
+                                  [key]: raw || null,
+                                  ...(key === 'case_size' ? { display: raw || null } : {}),
+                                };
+                                setDraft({
+                                  ...draft,
+                                  specifications: next,
+                                  specificationsJson: JSON.stringify(next, null, 2),
+                                });
+                              }}
+                              placeholder={
+                                key === 'generation'
+                                  ? 'e.g. 11 or 3'
+                                  : key === 'case_size' || key === 'display'
+                                    ? 'e.g. 49mm'
+                                    : 'Leave blank if unknown'
+                              }
+                            />
+                          )}
+                        </div>
+                      ))}
                   </div>
                 )}
                 <textarea
@@ -1691,11 +1894,15 @@ export const AdminProductForm: React.FC<Props> = ({
                 <p className={`text-[10px] mt-1 ${s.muted}`}>
                   {isLaptopCategory
                     ? 'Laptop KEY fields (processor, RAM, graphics…) stay blank until you fill them — do not invent specs.'
-                    : isAudioCategory
-                      ? 'Audio catalog fields help the shop Brand → Series filters. Colour SKUs stay on the Options tab.'
-                      : isAccessoryCategory
-                        ? 'Accessory type must match Cases / Protectors / Chargers so shop filters work.'
-                        : 'Optional extra details for the product page. Ask a manager if you are unsure.'}
+                    : isMacCategory
+                      ? 'Mac KEY fields (chip, year, display, storage, memory) stay blank until you fill them — match the price list.'
+                      : isWatchCategory
+                        ? 'Watch KEY fields (Ultra/Series, generation, case size) stay blank until you fill them — match the price list.'
+                      : isAudioCategory
+                        ? 'Audio catalog fields help the shop Brand → Series filters. Colour SKUs stay on the Options tab.'
+                        : isAccessoryCategory
+                          ? 'Accessory type must match Cases / Protectors / Chargers so shop filters work.'
+                          : 'Optional extra details for the product page. Ask a manager if you are unsure.'}
                 </p>
               </div>
 
