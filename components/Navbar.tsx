@@ -598,7 +598,6 @@ export const Navbar: React.FC<{
                         { label: 'Apple · AirPods', subcategory: 'Apple' },
                         { label: 'JBL Tune', subcategory: 'JBL' },
                         { label: 'Beats Solo', subcategory: 'Beats' },
-                        { label: 'Sony', subcategory: 'Sony' },
                       ].map((b) => (
                         <Link
                           key={b.subcategory}
@@ -618,7 +617,6 @@ export const Navbar: React.FC<{
                         { label: 'JBL', subcategory: 'JBL' },
                         { label: 'Harman Kardon', subcategory: 'HarmanKardon' },
                         { label: 'Beats Pill', subcategory: 'Beats' },
-                        { label: 'Apple HomePod', subcategory: 'Apple' },
                       ].map((b) => (
                         <Link
                           key={b.subcategory}
@@ -646,7 +644,7 @@ export const Navbar: React.FC<{
                         { label: 'Phone covers', subcategory: 'Covers' },
                         { label: 'Screen protectors', subcategory: 'ScreenProtectors' },
                         { label: 'AirTags', subcategory: 'AirTags' },
-                        { label: 'Apple Watch', subcategory: 'AppleWatchAccessories' },
+                        { label: 'Apple Watch bands', subcategory: 'AppleWatchAccessories' },
                         { label: 'Apple Pencil', subcategory: 'ApplePencil' },
                         { label: 'Magic Keyboard', subcategory: 'MagicKeyboard' },
                         { label: 'Power banks', subcategory: 'PowerBanks' },

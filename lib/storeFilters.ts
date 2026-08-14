@@ -403,7 +403,6 @@ export const HEADPHONE_SERIES_OPTIONS: StoreSeriesOption[] = [
   { value: 'EarPods', label: 'EarPods', description: 'Wired EarPods / earphones' },
   { value: 'Tune', label: 'Tune', description: 'JBL Tune headphones' },
   { value: 'Solo', label: 'Solo', description: 'Beats Solo headphones' },
-  { value: 'Sony', label: 'Sony', description: 'Sony headphones & earbuds' },
 ];
 
 export const SPEAKER_SERIES_OPTIONS: StoreSeriesOption[] = [
@@ -413,7 +412,6 @@ export const SPEAKER_SERIES_OPTIONS: StoreSeriesOption[] = [
   { value: 'Go', label: 'Go', description: 'JBL Go speakers' },
   { value: 'Onyx', label: 'Onyx', description: 'Harman Kardon Onyx' },
   { value: 'Pill', label: 'Pill', description: 'Beats Pill speakers' },
-  { value: 'HomePod', label: 'HomePod', description: 'Apple HomePod speakers' },
 ];
 
 export const CONSOLE_SERIES_OPTIONS: StoreSeriesOption[] = [
@@ -434,7 +432,7 @@ export const ACCESSORY_TYPE_OPTIONS: StoreSeriesOption[] = [
   { value: 'ScreenProtectors', label: 'Screen Protectors', description: 'Glass, ceramic, clear & privacy' },
   { value: 'Covers', label: 'Phone Covers', description: 'iPhone, iPad & MacBook cases' },
   { value: 'AirTags', label: 'AirTags', description: 'Single pack & packs of 4' },
-  { value: 'AppleWatchAccessories', label: 'Apple Watch', description: 'Straps, protectors & covers' },
+  { value: 'AppleWatchAccessories', label: 'Apple Watch bands', description: 'Rubber sports & leather straps' },
   { value: 'MagicKeyboard', label: 'Magic Keyboard', description: 'iPad Magic Keyboard' },
   { value: 'ApplePencil', label: 'Apple Pencil', description: 'Pro, Gen 2, Gen 1 & USB-C' },
   { value: 'PowerBanks', label: 'Power Banks', description: 'Portable power banks' },
@@ -719,16 +717,12 @@ const HEADPHONE_BRAND_SERIES: Readonly<Record<string, readonly string[]>> = {
   EarPods: ['EarPods'],
   JBL: ['Tune'],
   Beats: ['Solo'],
-  Sony: ['Sony'],
 };
 
 const SPEAKER_BRAND_SERIES: Readonly<Record<string, readonly string[]>> = {
   JBL: ['Flip', 'Charge', 'Boombox', 'Go'],
   HarmanKardon: ['Onyx'],
   Beats: ['Pill'],
-  Apple: ['HomePod'],
-  // Legacy brand key
-  HomePod: ['HomePod'],
 };
 
 const LAPTOP_BRAND_SERIES: Readonly<Record<string, readonly string[]>> = {
@@ -782,7 +776,7 @@ const ACCESSORY_TYPE_SERIES: Readonly<Record<string, readonly string[]>> = {
   // Legacy alias
   PhoneCases: ['iPhone', 'iPad', 'MacBook'],
   AirTags: ['Single', 'PackOf4'],
-  AppleWatchAccessories: ['Straps', 'ScreenProtectors', 'Covers'],
+  AppleWatchAccessories: ['Straps'],
   MagicKeyboard: ['iPad'],
   ApplePencil: ['Pro', 'Gen2', 'Gen1', 'USBC'],
   PowerBanks: ['General'],
@@ -1181,28 +1175,25 @@ export const CATEGORY_SUBCATEGORY_CONFIG: Readonly<Record<string, SubcategoryOpt
     { kind: 'brand', value: 'Apple', label: 'Apple', description: 'AirPods, AirPods Pro, AirPods Max & EarPods' },
     { kind: 'brand', value: 'JBL',   label: 'JBL',   description: 'JBL Tune headphones & earbuds' },
     { kind: 'brand', value: 'Beats', label: 'Beats', description: 'Beats Solo headphones' },
-    { kind: 'brand', value: 'Sony',  label: 'Sony',  description: 'Sony headphones & earbuds' },
   ],
   Speakers: [
     { kind: 'brand', value: 'JBL',          label: 'JBL',           description: 'JBL Flip, Charge, Boombox & Go' },
     { kind: 'brand', value: 'HarmanKardon', label: 'Harman Kardon', description: 'Harman Kardon speakers' },
     { kind: 'brand', value: 'Beats',        label: 'Beats',         description: 'Beats Pill speakers' },
-    { kind: 'brand', value: 'Apple',        label: 'Apple',         description: 'Apple HomePod speakers' },
   ],
   // Legacy alias — old ?category=Audio URLs (umbrella brands)
   Audio: [
-    { kind: 'brand', value: 'Apple', label: 'Apple', description: 'AirPods & HomePod' },
+    { kind: 'brand', value: 'Apple', label: 'Apple', description: 'AirPods' },
     { kind: 'brand', value: 'JBL',   label: 'JBL',   description: 'JBL headphones & speakers' },
     { kind: 'brand', value: 'Beats', label: 'Beats', description: 'Beats headphones & speakers' },
     { kind: 'brand', value: 'HarmanKardon', label: 'Harman Kardon', description: 'Harman Kardon speakers' },
-    { kind: 'brand', value: 'Sony',  label: 'Sony',  description: 'Sony headphones & earbuds' },
   ],
   Accessories: [
     { kind: 'brand', value: 'Chargers', label: 'Chargers', description: 'Apple, Samsung, laptops & others' },
     { kind: 'brand', value: 'ScreenProtectors', label: 'Screen Protectors', description: 'Glass & ceramic · clear / privacy' },
     { kind: 'brand', value: 'Covers', label: 'Phone Covers', description: 'iPhone, iPad & MacBook cases' },
     { kind: 'brand', value: 'AirTags', label: 'AirTags', description: 'Single pack & pack of 4' },
-    { kind: 'brand', value: 'AppleWatchAccessories', label: 'Apple Watch', description: 'Straps, protectors & covers' },
+    { kind: 'brand', value: 'AppleWatchAccessories', label: 'Apple Watch bands', description: 'Rubber sports & leather straps' },
     { kind: 'brand', value: 'MagicKeyboard', label: 'Magic Keyboard', description: 'iPad Magic Keyboard' },
     { kind: 'brand', value: 'ApplePencil', label: 'Apple Pencil', description: 'Pro, Gen 2, Gen 1 & USB-C' },
     { kind: 'brand', value: 'PowerBanks', label: 'Power Banks', description: 'Portable power banks' },

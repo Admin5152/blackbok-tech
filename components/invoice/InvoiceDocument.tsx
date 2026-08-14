@@ -154,18 +154,6 @@ export const InvoiceDocument: React.FC<InvoiceDocumentProps> = ({
           id="invoice-content"
           className="bb-invoice receipt-print-root invoice-print-root bg-white px-8 py-9 shadow-sm sm:px-12 sm:py-11 print:px-10 print:py-6 print:shadow-none"
         >
-          <div
-            className={`bb-invoice__phase ${isEstimate ? 'bb-invoice__phase--estimate' : 'bb-invoice__phase--final'}`}
-            role="status"
-          >
-            <p className="bb-invoice__phase-badge">
-              {isEstimate ? INVOICE_COPY.phaseEstimateBadge : INVOICE_COPY.phaseFinalBadge}
-            </p>
-            <p className="bb-invoice__phase-copy">
-              {isEstimate ? INVOICE_COPY.phaseEstimateBanner : INVOICE_COPY.phaseFinalBanner}
-            </p>
-          </div>
-
           <header className="bb-invoice__header flex items-start justify-between gap-6">
             <div className="min-w-0">
               <BlackBoxInvoiceMark className="bb-invoice__mark h-[4.5rem] w-[4.5rem] text-black" />
