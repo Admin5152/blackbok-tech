@@ -69,6 +69,7 @@ import {
   productMatchesAccessoryDevice,
 } from '../lib/accessoryCatalog';
 import type { Theme } from '../App';
+import { taxonomyChildren, useShopTaxonomy } from '../lib/shopTaxonomy';
 
 interface StoreProps {
   products: Product[];
@@ -371,6 +372,7 @@ export const Store: React.FC<StoreProps> = ({
   const [searchHitIds, setSearchHitIds] = useState<Set<string> | null>(null);
   const [searchPending, setSearchPending] = useState(false);
   const navigate = useNavigate();
+  const { nodes: shopTaxonomy } = useShopTaxonomy();
   const isLight = theme === 'light';
   const browseAll = browseFromUrl === 'all';
   const browseDeals = browseFromUrl === 'deals';
@@ -379,14 +381,45 @@ export const Store: React.FC<StoreProps> = ({
 
   const activeCategory =
     selectedCategories.length === 1 ? String(selectedCategories[0]) : undefined;
+  const customCategory = useMemo(
+    () =>
+      shopTaxonomy.find(
+        (node) =>
+          node.kind === 'category' &&
+          node.value.toLowerCase() === String(activeCategory ?? '').toLowerCase(),
+      ),
+    [activeCategory, shopTaxonomy],
+  );
+  const customSubcategories = useMemo(
+    () =>
+      customCategory
+        ? taxonomyChildren(shopTaxonomy, customCategory.id, 'subcategory')
+        : [],
+    [customCategory, shopTaxonomy],
+  );
+  const customCategoryRoots = useMemo(
+    () => taxonomyChildren(shopTaxonomy, null, 'category'),
+    [shopTaxonomy],
+  );
+  const categoryDisplayLabel = useCallback(
+    (value: string) =>
+      customCategoryRoots.find(
+        (node) => node.value.toLowerCase() === value.toLowerCase(),
+      )?.label ?? value,
+    [customCategoryRoots],
+  );
 
   const brandThenSeries = Boolean(
-    activeCategory && categoryUsesBrandThenSeries(activeCategory),
+    (activeCategory && categoryUsesBrandThenSeries(activeCategory)) ||
+      customSubcategories.length > 0,
   );
   const typeThenSeries = Boolean(
     activeCategory && categoryUsesTypeThenSeries(activeCategory),
   );
   const isAccessories = normalizeProductCategory(activeCategory) === 'Accessories';
+  const isSmartWatchCategory =
+    normalizeProductCategory(activeCategory) === 'Smart watches' ||
+    normalizeProductCategory(activeCategory) === 'Apple Watches';
   const brandStepLabel = typeThenSeries ? 'Type' : 'Brand';
   const brandAllLabel = typeThenSeries ? 'All types' : 'All brands';
 
@@ -411,10 +444,18 @@ export const Store: React.FC<StoreProps> = ({
 
   const subcategoryOptions = useMemo(() => {
     if (!activeCategory) return [];
+    if (customCategory) {
+      return customSubcategories.map((node) => ({
+        kind: 'brand' as const,
+        value: node.value,
+        label: node.label,
+        description: node.description,
+      }));
+    }
     const nested = getStorePickerNestedCategories(activeCategory);
     if (nested.length) return nested;
     return getCategorySubcategoryOptions(activeCategory);
-  }, [activeCategory]);
+  }, [activeCategory, customCategory, customSubcategories]);
 
   const brandOptions = useMemo(
     () => subcategoryOptions.filter((o) => o.kind === 'brand'),
@@ -427,13 +468,30 @@ export const Store: React.FC<StoreProps> = ({
   );
 
   const seriesOptions = useMemo(() => {
-    if (!activeCategory || !categoryUsesSeriesStep(activeCategory)) return [];
     const brandValue =
       brandThenSeries && subcategoryFilter?.kind === 'brand'
         ? subcategoryFilter.value
         : undefined;
+    if (customCategory) {
+      const subcategory = customSubcategories.find((node) => node.value === brandValue);
+      return subcategory
+        ? taxonomyChildren(shopTaxonomy, subcategory.id, 'series').map((node) => ({
+            value: node.value,
+            label: node.label,
+            description: node.description,
+          }))
+        : [];
+    }
+    if (!activeCategory || !categoryUsesSeriesStep(activeCategory)) return [];
     return getCategorySeriesOptions(activeCategory, brandValue);
-  }, [activeCategory, brandThenSeries, subcategoryFilter]);
+  }, [
+    activeCategory,
+    brandThenSeries,
+    subcategoryFilter,
+    customCategory,
+    customSubcategories,
+    shopTaxonomy,
+  ]);
 
   const seriesIsAll = seriesFromUrl === 'all';
   const activeSeries =
@@ -442,6 +500,14 @@ export const Store: React.FC<StoreProps> = ({
     seriesOptions.some((o) => o.value === seriesFromUrl)
       ? seriesFromUrl
       : undefined;
+  const activeSubcategoryLabel = subcategoryFilter
+    ? subcategoryOptions.find((option) => option.value === subcategoryFilter.value)?.label ??
+      subcategoryFilterLabel(subcategoryFilter, activeCategory)
+    : '';
+  const activeSeriesLabel = activeSeries
+    ? seriesOptions.find((option) => option.value === activeSeries)?.label ??
+      seriesFilterLabel(activeSeries, activeCategory)
+    : '';
 
   const activeAccessoryType =
     isAccessories && subcategoryFilter?.kind === 'brand' ? subcategoryFilter.value : undefined;
@@ -775,23 +841,21 @@ export const Store: React.FC<StoreProps> = ({
     }
 
     if (isNestedTypePicker) {
-      items.push({ label: String(activeCategory) });
+      items.push({ label: categoryDisplayLabel(String(activeCategory)) });
       return items;
     }
 
     if (brandThenSeries) {
       // Shop › [Gaming] › Category › Brand › Series
       if (showSubcategoryPicker) {
-        items.push({ label: String(activeCategory) });
+        items.push({ label: categoryDisplayLabel(String(activeCategory)) });
         return items;
       }
       items.push({
-        label: String(activeCategory),
+        label: categoryDisplayLabel(String(activeCategory)),
         onClick: goToSubcategoryPicker,
       });
-      const brandLabel = subcategoryFilter
-        ? subcategoryFilterLabel(subcategoryFilter, activeCategory)
-        : brandStepLabel;
+      const brandLabel = subcategoryFilter ? activeSubcategoryLabel : brandStepLabel;
       if (showSeriesPicker) {
         items.push({ label: brandLabel });
         return items;
@@ -804,9 +868,7 @@ export const Store: React.FC<StoreProps> = ({
       }
       if (activeSeries || (seriesIsAll && seriesOptions.length > 0)) {
         items.push({
-          label: activeSeries
-            ? seriesFilterLabel(activeSeries, activeCategory)
-            : 'All series',
+          label: activeSeries ? activeSeriesLabel : 'All series',
           ...(isAccessories && activeSeries
             ? {
                 onClick: () =>
@@ -839,18 +901,18 @@ export const Store: React.FC<StoreProps> = ({
 
     // On series step: Shop / Category (current)
     if (showSeriesPicker) {
-      items.push({ label: String(activeCategory) });
+      items.push({ label: categoryDisplayLabel(String(activeCategory)) });
       return items;
     }
 
     // Past series picker (or no series step)
     if (seriesOptions.length > 0) {
       items.push({
-        label: String(activeCategory),
+        label: categoryDisplayLabel(String(activeCategory)),
         onClick: goToSeriesPicker,
       });
       const seriesCrumbLabel = activeSeries
-        ? seriesFilterLabel(activeSeries, activeCategory)
+        ? activeSeriesLabel
         : seriesIsAll
           ? 'All series'
           : 'Series';
@@ -864,17 +926,17 @@ export const Store: React.FC<StoreProps> = ({
       });
     } else {
       if (showSubcategoryPicker) {
-        items.push({ label: String(activeCategory) });
+        items.push({ label: categoryDisplayLabel(String(activeCategory)) });
         return items;
       }
       items.push({
-        label: String(activeCategory),
+        label: categoryDisplayLabel(String(activeCategory)),
         onClick: goToSubcategoryPicker,
       });
     }
 
     if (subcategoryFilter) {
-      const sub = subcategoryFilterLabel(subcategoryFilter, activeCategory);
+      const sub = activeSubcategoryLabel;
       if (sub) items.push({ label: sub });
     } else if (showSubcategoryPicker) {
       items.push({
@@ -909,6 +971,9 @@ export const Store: React.FC<StoreProps> = ({
     goToSubcategoryPicker,
     categoryScopeSearch,
     navigate,
+    categoryDisplayLabel,
+    activeSubcategoryLabel,
+    activeSeriesLabel,
   ]);
 
   const openCategory = useCallback(
@@ -967,7 +1032,7 @@ export const Store: React.FC<StoreProps> = ({
         to: '/store',
         search: {
           ...categoryScopeSearch(),
-          ...(isAccessories
+          ...(isAccessories || isSmartWatchCategory || customCategory
             ? {}
             : brandThenSeries
               ? { series: 'all' }
@@ -990,6 +1055,8 @@ export const Store: React.FC<StoreProps> = ({
       seriesIsAll,
       brandThenSeries,
       isAccessories,
+      isSmartWatchCategory,
+      customCategory,
     ],
   );
 
@@ -1073,7 +1140,17 @@ export const Store: React.FC<StoreProps> = ({
   ]);
 
   const categoryOptions: StoreCategoryRow[] = useMemo(() => {
-    const ordered = buildOrderedStoreCategoryKeys(products);
+    const ordered = [
+      ...buildOrderedStoreCategoryKeys(products),
+      ...customCategoryRoots
+        .map((node) => node.value)
+        .filter(
+          (value) =>
+            !buildOrderedStoreCategoryKeys(products).some(
+              (existing) => existing.toLowerCase() === value.toLowerCase(),
+            ),
+        ),
+    ];
     /** Counts respect series + condition so chip totals match “N results”. */
     const countInBucket = (bucket: string) =>
       baseFilteredProducts.filter((p) => {
@@ -1120,7 +1197,7 @@ export const Store: React.FC<StoreProps> = ({
       },
       ...ordered.map((cat) => ({
         key: `cat-${cat}`,
-        label: cat,
+        label: categoryDisplayLabel(cat),
         value: cat as Category,
         icon: categoryIcon(cat),
         // Active category: always show the live result total (same as header).
@@ -1137,10 +1214,21 @@ export const Store: React.FC<StoreProps> = ({
     selectedCategories,
     activeSeries,
     subcategoryFilter,
+    customCategoryRoots,
+    categoryDisplayLabel,
   ]);
 
   const categoryPickerCards = useMemo(() => {
-    const ordered = buildOrderedStoreCategoryKeys(products).filter(
+    const baseOrdered = buildOrderedStoreCategoryKeys(products);
+    const ordered = [
+      ...baseOrdered,
+      ...customCategoryRoots
+        .map((node) => node.value)
+        .filter(
+          (value) =>
+            !baseOrdered.some((existing) => existing.toLowerCase() === value.toLowerCase()),
+        ),
+    ].filter(
       (cat) => !STORE_PICKER_NESTED_CHILD_CATEGORIES.has(cat),
     );
     const dealProducts = products.filter((p) => isDealOfTheDayProduct(p));
@@ -1161,7 +1249,7 @@ export const Store: React.FC<StoreProps> = ({
       },
       ...ordered.map((cat) => ({
         key: `pick-${cat}`,
-        label: cat,
+        label: categoryDisplayLabel(cat),
         cover: categoryCoverImage(products, cat),
         onSelect: () => openCategory(cat as Category),
         icon: categoryIconLg(cat),
@@ -1169,7 +1257,14 @@ export const Store: React.FC<StoreProps> = ({
         count: countProductsInCategoryBucket(baseFilteredProducts, cat),
       })),
     ];
-  }, [products, baseFilteredProducts, openDealOfTheDay, openCategory]);
+  }, [
+    products,
+    baseFilteredProducts,
+    openDealOfTheDay,
+    openCategory,
+    customCategoryRoots,
+    categoryDisplayLabel,
+  ]);
 
   const subcategoryCards = useMemo(() => {
     if (!activeCategory) return [];
@@ -1732,8 +1827,8 @@ export const Store: React.FC<StoreProps> = ({
   }
 
   if (showSubcategoryPicker) {
-    const scopeLabel = activeCategory ?? 'Products';
-    const seriesLabel = activeSeries ? seriesFilterLabel(activeSeries, activeCategory) : '';
+    const scopeLabel = activeCategory ? categoryDisplayLabel(activeCategory) : 'Products';
+    const seriesLabel = activeSeriesLabel;
     const isConditionStep = !isNestedTypePicker && subcategoryOptions.every((o) => o.kind === 'condition');
     const onBack = isNestedTypePicker
       ? goToCategoryPicker
@@ -1876,7 +1971,7 @@ export const Store: React.FC<StoreProps> = ({
 
   if (showAccessoryDevicePicker && activeCategory) {
     const typeLabel = accessoryTypeLabel(activeAccessoryType);
-    const seriesLabel = activeSeries ? seriesFilterLabel(activeSeries, activeCategory) : '';
+    const seriesLabel = activeSeriesLabel;
     return (
       <div className="bb-store-page">
         <header className="bb-store-picker-header">
@@ -1958,7 +2053,7 @@ export const Store: React.FC<StoreProps> = ({
   }
 
   const canChangeSubcategory =
-    Boolean(activeCategory) && getCategorySubcategoryOptions(activeCategory!).length > 0;
+    Boolean(activeCategory) && subcategoryOptions.length > 0;
   const onProductGridBack =
     isAccessories && activeAccessoryDevice
       ? () =>
@@ -2297,16 +2392,12 @@ export const Store: React.FC<StoreProps> = ({
                     : activeCategory === 'Controllers'
                       ? 'No controllers match these filters.'
                       : normalizeProductCategory(activeCategory) === 'Smart watches'
-                        ? subcategoryFilter?.value === 'Samsung'
-                          ? 'No Samsung watches listed yet'
-                          : subcategoryFilter?.value === 'Others'
-                            ? 'No other-brand watches listed yet'
-                            : 'No watches match these filters'
+                        ? 'No watches match these filters'
                         : 'No products found'}
                 </h3>
                 <p className="text-sm text-[color:var(--bb-muted)] max-w-sm mx-auto mb-6">
                   {normalizeProductCategory(activeCategory) === 'Smart watches'
-                    ? 'Try Apple Watch Ultra or Series, or go back and pick another brand.'
+                    ? 'Try Apple Watch Ultra or Series, or go back and pick another category.'
                     : 'Try a different search term, clear your filters, or browse another category.'}
                 </p>
                 <button

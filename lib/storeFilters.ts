@@ -363,8 +363,6 @@ export const MACBOOK_SERIES_OPTIONS: StoreSeriesOption[] = [
 export const WATCH_SERIES_OPTIONS: StoreSeriesOption[] = [
   { value: 'Ultra', label: 'Ultra', description: 'Apple Watch Ultra 2 and Ultra 3' },
   { value: 'Series', label: 'Series', description: 'Apple Watch Series line' },
-  { value: 'Galaxy', label: 'Galaxy Watch', description: 'Samsung Galaxy Watch line' },
-  { value: 'Other', label: 'Other brands', description: 'Fitbit, Garmin and more' },
 ];
 
 export const ANDROID_SERIES_OPTIONS: StoreSeriesOption[] = [
@@ -650,7 +648,7 @@ export function resolveAdminTaxonomyValue(
     if (hit) return hit.value;
   }
 
-  // Apple / Smart watches: prefer brand picker value (Apple / Samsung / Others)
+  // Apple / Smart watches: use the Apple brand picker value.
   const catNorm = normalizeProductCategory(category);
   if (catNorm === 'Smart watches' || catNorm === 'Apple Watches') {
     const brand = String(p.brand ?? '').trim();
@@ -735,8 +733,6 @@ const LAPTOP_BRAND_SERIES: Readonly<Record<string, readonly string[]>> = {
 
 const WATCH_BRAND_SERIES: Readonly<Record<string, readonly string[]>> = {
   Apple: ['Ultra', 'Series'],
-  Samsung: ['Galaxy'],
-  Others: ['Other'],
 };
 
 const ANDROID_BRAND_SERIES: Readonly<Record<string, readonly string[]>> = {
@@ -1157,14 +1153,10 @@ export const CATEGORY_SUBCATEGORY_CONFIG: Readonly<Record<string, SubcategoryOpt
   ],
   'Apple Watches': [
     { kind: 'brand', value: 'Apple', label: 'Apple', description: 'Apple Watch Ultra & Series' },
-    { kind: 'brand', value: 'Samsung', label: 'Samsung', description: 'Galaxy Watch and more' },
-    { kind: 'brand', value: 'Others', label: 'Others', description: 'Fitbit, Garmin & more' },
   ],
   // Canonical multi-brand wearables category (Brand → Series)
   'Smart watches': [
     { kind: 'brand', value: 'Apple', label: 'Apple', description: 'Apple Watch Ultra & Series' },
-    { kind: 'brand', value: 'Samsung', label: 'Samsung', description: 'Galaxy Watch and more' },
-    { kind: 'brand', value: 'Others', label: 'Others', description: 'Fitbit, Garmin & more' },
   ],
   Gaming: [
     { kind: 'brand', value: 'PlayStation', label: 'PlayStation', description: 'Sony PS4, PS5 & accessories' },
@@ -1564,7 +1556,7 @@ export function productMatchesStoreSubcategoryFilter(
   const watchGroup = String(specs?.watch_group ?? '').toLowerCase();
   const haystack = `${brand} ${name} ${model} ${watchGroup}`;
 
-  // Brand-first watch taxonomy (Apple / Samsung / Others)
+  // Brand-first watch taxonomy (Apple).
   if (v === 'apple') {
     if (brand.includes('apple')) return true;
     return (

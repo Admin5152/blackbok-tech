@@ -47,6 +47,10 @@ import {
   suggestBrandFromTaxonomy,
 } from '../../lib/storeFilters';
 import { formatSimTypeLabel } from '../../lib/productLabels';
+import {
+  taxonomyChildren,
+  type ShopTaxonomyNode,
+} from '../../lib/shopTaxonomy';
 
 type TabId = 'details' | 'options' | 'images' | 'listing';
 
@@ -149,6 +153,7 @@ type Props = {
   error: string;
   onSubmit: () => void;
   isLight?: boolean;
+  shopTaxonomy?: ShopTaxonomyNode[];
 };
 
 export const AdminProductForm: React.FC<Props> = ({
@@ -180,6 +185,7 @@ export const AdminProductForm: React.FC<Props> = ({
   saving,
   error,
   onSubmit,
+  shopTaxonomy = [],
 }) => {
   const s = getApf(isLight);
   const [tab, setTab] = useState<TabId>('details');
@@ -211,12 +217,53 @@ export const AdminProductForm: React.FC<Props> = ({
   const comboCount = skuRows.length;
   const gallery = draft.images || [];
   const categoryKey = String(draft.category || 'iPhone');
-  const taxonomyOptions = useMemo(
-    () => getCategorySubcategoryOptions(categoryKey),
-    [categoryKey],
+  const customCategory = useMemo(
+    () =>
+      shopTaxonomy.find(
+        (node) =>
+          node.kind === 'category' &&
+          node.value.toLowerCase() === categoryKey.toLowerCase(),
+      ),
+    [categoryKey, shopTaxonomy],
   );
-  const usesConditionTaxonomy = categoryUsesConditionSubcategory(categoryKey);
-  const brandThenSeries = categoryUsesBrandThenSeries(categoryKey);
+  const allCategoryOptions = useMemo(
+    () => [
+      ...PRODUCT_CATEGORIES.map((value) => ({ value, label: value })),
+      ...taxonomyChildren(shopTaxonomy, null, 'category')
+        .filter(
+          (node) =>
+            !(PRODUCT_CATEGORIES as readonly string[]).some(
+              (value) => value.toLowerCase() === node.value.toLowerCase(),
+            ),
+        )
+        .map((node) => ({ value: node.value, label: node.label })),
+    ],
+    [shopTaxonomy],
+  );
+  const customSubcategories = useMemo(
+    () =>
+      customCategory
+        ? taxonomyChildren(shopTaxonomy, customCategory.id, 'subcategory')
+        : [],
+    [customCategory, shopTaxonomy],
+  );
+  const taxonomyOptions = useMemo(
+    () =>
+      customCategory
+        ? customSubcategories.map((node) => ({
+            kind: 'brand' as const,
+            value: node.value,
+            label: node.label,
+            description: node.description,
+          }))
+        : getCategorySubcategoryOptions(categoryKey),
+    [categoryKey, customCategory, customSubcategories],
+  );
+  const usesConditionTaxonomy =
+    !customCategory && categoryUsesConditionSubcategory(categoryKey);
+  const brandThenSeries =
+    Boolean(customCategory && customSubcategories.length > 0) ||
+    categoryUsesBrandThenSeries(categoryKey);
   const taxonomySelectValue = useMemo(() => {
     const raw = String(draft.taxonomy_value ?? '').trim();
     if (raw && taxonomyOptions.some((o) => o.value === raw)) return raw;
@@ -280,31 +327,64 @@ export const AdminProductForm: React.FC<Props> = ({
 
   const applyTaxonomySelection = useCallback(
     (category: string, taxonomyValue: string) => {
-      const seriesAllowed = getCategorySeriesOptions(
-        category,
-        categoryUsesBrandThenSeries(category) ? taxonomyValue : undefined,
+      const selectedCustomCategory = shopTaxonomy.find(
+        (node) =>
+          node.kind === 'category' &&
+          node.value.toLowerCase() === category.toLowerCase(),
       );
+      const selectedCustomSubcategory = selectedCustomCategory
+        ? taxonomyChildren(shopTaxonomy, selectedCustomCategory.id, 'subcategory').find(
+            (node) => node.value === taxonomyValue,
+          )
+        : undefined;
+      const seriesAllowed = selectedCustomSubcategory
+        ? taxonomyChildren(shopTaxonomy, selectedCustomSubcategory.id, 'series').map(
+            (node) => ({
+              value: node.value,
+              label: node.label,
+              description: node.description,
+            }),
+          )
+        : getCategorySeriesOptions(
+            category,
+            categoryUsesBrandThenSeries(category) ? taxonomyValue : undefined,
+          );
       const keepSeries =
         draft.series && seriesAllowed.some((o) => o.value === draft.series)
           ? draft.series
           : seriesAllowed.length === 1
             ? seriesAllowed[0].value
             : null;
-      const applied = applyAdminTaxonomyFields({
-        category,
-        taxonomyValue,
-        existingCondition: draft.condition,
-        series: keepSeries,
-        existingSubcategory: draft.subcategory,
-      });
-      const suggested = suggestBrandFromTaxonomy(category, taxonomyValue);
+      const applied = selectedCustomCategory
+        ? {
+            category: selectedCustomCategory.value,
+            subcategory: keepSeries,
+            condition: draft.condition ?? 'new',
+            is_new: String(draft.condition ?? 'new').toLowerCase() === 'new',
+          }
+        : applyAdminTaxonomyFields({
+            category,
+            taxonomyValue,
+            existingCondition: draft.condition,
+            series: keepSeries,
+            existingSubcategory: draft.subcategory,
+          });
+      const suggested = selectedCustomCategory
+        ? taxonomyValue || null
+        : suggestBrandFromTaxonomy(category, taxonomyValue);
       const cat = normalizeProductCategory(category);
       setDraft((prev) => {
         const prevSpecs =
           prev.specifications && typeof prev.specifications === 'object'
             ? { ...(prev.specifications as Record<string, unknown>) }
             : {};
-        if (cat === 'Accessories') {
+        if (selectedCustomCategory) {
+          prevSpecs.catalog = 'custom';
+          prevSpecs.taxonomy_category = selectedCustomCategory.value;
+          prevSpecs.taxonomy_subcategory = taxonomyValue || null;
+          prevSpecs.taxonomy_series = keepSeries;
+          if (keepSeries) prevSpecs.series = keepSeries;
+        } else if (cat === 'Accessories') {
           prevSpecs.catalog = 'accessories';
           prevSpecs.accessory_type = taxonomyValue || null;
         } else if (cat === 'Headphones' || cat === 'Speakers') {
@@ -325,7 +405,7 @@ export const AdminProductForm: React.FC<Props> = ({
           prevSpecs.platform = taxonomyValue || null;
         } else if (cat === 'Smart watches' || cat === 'Apple Watches') {
           prevSpecs.catalog = 'watches';
-          // Line (Ultra / Series / Galaxy) lives on series after Brand
+          // Line (Ultra / Series) lives on series after Apple
           if (keepSeries) {
             prevSpecs.watch_group = keepSeries;
             prevSpecs.series = keepSeries;
@@ -348,7 +428,7 @@ export const AdminProductForm: React.FC<Props> = ({
         };
       });
     },
-    [draft.condition, draft.series, draft.subcategory, setDraft],
+    [draft.condition, draft.series, draft.subcategory, setDraft, shopTaxonomy],
   );
 
   const derivedChips = useMemo(
@@ -389,12 +469,21 @@ export const AdminProductForm: React.FC<Props> = ({
   const showEditionOption = isConsoleCategory;
   const showRamOption = isLaptopCategory || isPhoneCategory || isMacCategory;
   const showSimOption = isPhoneCategory || isTabletCategory;
-  const seriesOptions = categoryUsesSeriesStep(categoryKey)
-    ? getCategorySeriesOptions(
-        categoryKey,
-        brandThenSeries ? taxonomySelectValue || undefined : undefined,
-      )
-    : [];
+  const selectedCustomSubcategory = customCategory
+    ? customSubcategories.find((node) => node.value === taxonomySelectValue)
+    : undefined;
+  const seriesOptions = selectedCustomSubcategory
+    ? taxonomyChildren(shopTaxonomy, selectedCustomSubcategory.id, 'series').map((node) => ({
+        value: node.value,
+        label: node.label,
+        description: node.description,
+      }))
+    : categoryUsesSeriesStep(categoryKey)
+      ? getCategorySeriesOptions(
+          categoryKey,
+          brandThenSeries ? taxonomySelectValue || undefined : undefined,
+        )
+      : [];
   const taxonomyPathHint = (() => {
     if (usesConditionTaxonomy && seriesOptions.length > 0) {
       return `Shop path: ${normalizedCategory} → Series → New/Used → products.`;
@@ -403,8 +492,10 @@ export const AdminProductForm: React.FC<Props> = ({
       return `Shop path: ${normalizedCategory} → New/Used → products.`;
     }
     if (brandThenSeries) {
-      return isWatchCategory
-        ? `Shop path: Smart watches → Brand (Apple / Samsung / Others) → Series → products.`
+      return customCategory
+        ? `Shop path: ${customCategory.label} → Subcategory →${seriesOptions.length ? ' Series →' : ''} products.`
+        : isWatchCategory
+        ? `Shop path: Smart watches → Brand (Apple) → Series (Ultra / Series) → products.`
         : normalizedCategory === 'Android phones'
           ? `Shop path: Android phones → Brand (Samsung / Google / Motorola) → Series → products.`
           : `Shop path: ${normalizedCategory} → Brand → Series → products.`;
@@ -413,7 +504,7 @@ export const AdminProductForm: React.FC<Props> = ({
       return `Shop path: Accessories → Type (Chargers / Covers / Protectors / AirTags / …) → Device series → products.`;
     }
     if (isWatchCategory) {
-      return `Shop path: Smart watches → Brand (Apple / Samsung / Others) → Series → products.`;
+      return `Shop path: Smart watches → Brand (Apple) → Series → products.`;
     }
     if (isConsoleCategory) {
       return `Shop path: Gaming → ${
@@ -888,21 +979,26 @@ export const AdminProductForm: React.FC<Props> = ({
                   <label className={s.label}>Main category *</label>
                   <select
                     value={
-                      PRODUCT_CATEGORIES.includes(categoryKey as (typeof PRODUCT_CATEGORIES)[number])
+                      allCategoryOptions.some((option) => option.value === categoryKey)
                         ? categoryKey
                         : PRODUCT_CATEGORIES[0]
                     }
                     onChange={(e) => {
                       const nextCat = e.target.value;
-                      const opts = getCategorySubcategoryOptions(nextCat);
+                      const custom = shopTaxonomy.find(
+                        (node) => node.kind === 'category' && node.value === nextCat,
+                      );
+                      const opts = custom
+                        ? taxonomyChildren(shopTaxonomy, custom.id, 'subcategory')
+                        : getCategorySubcategoryOptions(nextCat);
                       const defaultTax = opts[0]?.value ?? '';
                       applyTaxonomySelection(nextCat, defaultTax);
                     }}
                     className={s.input}
                   >
-                    {PRODUCT_CATEGORIES.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
+                    {allCategoryOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
                       </option>
                     ))}
                   </select>
@@ -912,6 +1008,8 @@ export const AdminProductForm: React.FC<Props> = ({
                     <label className={s.label}>
                       {usesConditionTaxonomy
                         ? 'Condition *'
+                        : customCategory
+                          ? 'Sub-category *'
                         : brandThenSeries
                           ? 'Brand *'
                           : isAccessoryCategory
@@ -931,6 +1029,8 @@ export const AdminProductForm: React.FC<Props> = ({
                       <option value="" disabled>
                         {usesConditionTaxonomy
                           ? 'Select New or Used'
+                          : customCategory
+                            ? 'Select sub-category'
                           : brandThenSeries
                             ? 'Select brand'
                             : isAccessoryCategory
@@ -964,6 +1064,7 @@ export const AdminProductForm: React.FC<Props> = ({
                             ? (draft.specifications as Record<string, unknown>)
                             : {}),
                           series,
+                          ...(customCategory ? { taxonomy_series: series } : {}),
                           ...(isAudioCategory
                             ? {
                                 catalog: 'audio',
@@ -1002,7 +1103,9 @@ export const AdminProductForm: React.FC<Props> = ({
                     <p className={`text-[10px] mt-1 ${s.muted}`}>
                       {brandThenSeries
                         ? isWatchCategory
-                          ? 'Required. Shop path: Brand → Series (Ultra / Series / Galaxy).'
+                          ? 'Required. Shop path: Apple → Series (Ultra / Series).'
+                          : customCategory
+                            ? 'Assigns this product to the selected custom series.'
                           : 'Required. Matches the shop Brand → Series filters (Apple → AirPods / Pro / Max, JBL, Beats, Sony).'
                         : 'Shown on the shop as Category → Series → New/Used.'}
                     </p>
@@ -1933,8 +2036,6 @@ export const AdminProductForm: React.FC<Props> = ({
                               <option value="">Same as Details → Series</option>
                               <option value="Ultra">Ultra</option>
                               <option value="Series">Series</option>
-                              <option value="Galaxy">Galaxy Watch</option>
-                              <option value="Other">Other brands</option>
                             </select>
                           ) : (
                             <input

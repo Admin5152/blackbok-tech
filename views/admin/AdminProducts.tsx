@@ -54,6 +54,8 @@ import { ensureProductInUpgradeAllowlist } from '../../lib/tradeUpgradePicks';
 import type { Product } from '../../types';
 import { formatCurrency } from '../../lib/utils';
 import { useAppContext } from '../../lib/appContext';
+import { useShopTaxonomy } from '../../lib/shopTaxonomy';
+import { AdminShopTaxonomy } from './AdminShopTaxonomy';
 
 interface Props { canEdit?: boolean; theme?: 'light' | 'dark'; }
 
@@ -175,6 +177,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
     const [csvPreview, setCsvPreview] = useState<CsvPreviewRow[]>([]);
     const [csvBusy, setCsvBusy] = useState(false);
     const [csvResult, setCsvResult] = useState('');
+    const { nodes: shopTaxonomy } = useShopTaxonomy(true);
     /** Product price when the edit form opened — used to scale fixed SKU prices on save. */
     const priceEditBaselineRef = useRef<number | null>(null);
 
@@ -277,6 +280,15 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
         const ram = mergeChipLists(p.ram, fromRows.ram);
         const editions = fromRows.editions;
         const spec = p.specifications;
+        const customCategory = shopTaxonomy.find(
+          (node) =>
+            node.kind === 'category' &&
+            node.value.toLowerCase() === String(p.category ?? '').toLowerCase(),
+        );
+        const customTaxonomyValue =
+          spec && typeof spec === 'object'
+            ? String((spec as Record<string, unknown>).taxonomy_subcategory ?? '').trim()
+            : '';
         const seriesFromSpecs =
           spec && typeof spec === 'object'
             ? String((spec as Record<string, unknown>).series ?? '').trim()
@@ -300,7 +312,9 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
             images: p.images || [],
             specifications: spec ?? {},
             specificationsJson: spec && typeof spec === 'object' ? JSON.stringify(spec, null, 2) : '{}',
-            taxonomy_value: resolveTaxonomyValueFromProduct(p),
+            taxonomy_value: customCategory
+              ? customTaxonomyValue || String(p.brand ?? '').trim()
+              : resolveTaxonomyValueFromProduct(p),
         } as ProductDraft;
         setDraft(hydrated);
         setColorIn(''); setStorageIn(''); setRamIn(''); setSimIn(''); setSizeIn(''); setEditionIn(''); setSpecsIn('');
@@ -422,10 +436,40 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
             is_new: draft.is_new,
             new: draft.new,
           });
-        const taxonomyErr = validateAdminProductTaxonomy({
-          category: draft.category,
-          taxonomyValue,
-        });
+        const customCategory = shopTaxonomy.find(
+          (node) =>
+            node.kind === 'category' &&
+            node.value.toLowerCase() === String(draft.category ?? '').trim().toLowerCase(),
+        );
+        if (customCategory) {
+          const customSubcategories = shopTaxonomy.filter(
+            (node) => node.kind === 'subcategory' && node.parent_id === customCategory.id,
+          );
+          if (customSubcategories.length > 0 && !taxonomyValue) {
+            setError('Select a sub-category for this custom category.');
+            setSaving(false);
+            return;
+          }
+          const selectedSubcategory = customSubcategories.find(
+            (node) => node.value === taxonomyValue,
+          );
+          const customSeries = selectedSubcategory
+            ? shopTaxonomy.filter(
+                (node) => node.kind === 'series' && node.parent_id === selectedSubcategory.id,
+              )
+            : [];
+          if (customSeries.length > 0 && !String(draft.series ?? '').trim()) {
+            setError('Select a series for this custom sub-category.');
+            setSaving(false);
+            return;
+          }
+        }
+        const taxonomyErr = customCategory
+          ? null
+          : validateAdminProductTaxonomy({
+              category: draft.category,
+              taxonomyValue,
+            });
         if (taxonomyErr) {
           setError(taxonomyErr);
           setSaving(false);
@@ -466,17 +510,42 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
           return;
         }
 
-        const taxonomy = applyAdminTaxonomyFields({
-          category: draft.category || 'iPhone',
-          taxonomyValue,
-          existingCondition: draft.condition,
-          series: draft.series,
-          existingSubcategory: draft.subcategory,
-        });
+        const taxonomy = customCategory
+          ? {
+              category: customCategory.value,
+              subcategory: String(draft.series ?? '').trim() || null,
+              condition:
+                String(draft.condition ?? 'new').toLowerCase() === 'refurbished'
+                  ? ('refurbished' as const)
+                  : String(draft.condition ?? 'new').toLowerCase() === 'preowned'
+                    ? ('preowned' as const)
+                    : ('new' as const),
+              is_new: String(draft.condition ?? 'new').toLowerCase() === 'new',
+              taxonomyLabel: taxonomyValue || customCategory.label,
+            }
+          : applyAdminTaxonomyFields({
+              category: draft.category || 'iPhone',
+              taxonomyValue,
+              existingCondition: draft.condition,
+              series: draft.series,
+              existingSubcategory: draft.subcategory,
+            });
 
         try {
             let productId = draft.id;
             let specsPayload = draft.specifications ?? null;
+            if (customCategory) {
+              const base =
+                specsPayload && typeof specsPayload === 'object'
+                  ? { ...(specsPayload as Record<string, unknown>) }
+                  : {};
+              base.catalog = 'custom';
+              base.taxonomy_category = customCategory.value;
+              base.taxonomy_subcategory = taxonomyValue || null;
+              base.taxonomy_series = draft.series || null;
+              if (draft.series) base.series = draft.series;
+              specsPayload = base;
+            }
             if (draft.series && taxonomy.category) {
               const base =
                 specsPayload && typeof specsPayload === 'object'
@@ -797,6 +866,8 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
 
     return (
         <div className="space-y-5">
+            <AdminShopTaxonomy canEdit={canEdit} theme={theme} />
+
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
                     { label: 'Total', val: products.length, col: '#B38B21' },
@@ -1032,6 +1103,7 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                         saving={saving}
                         error={error}
                         onSubmit={() => void submitForm()}
+                        shopTaxonomy={shopTaxonomy}
                     />
                 </Modal>
             )}
