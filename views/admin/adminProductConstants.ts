@@ -29,6 +29,8 @@ export type ProductDraft = Partial<Product> & {
   sim_types?: string[];
   /** Screen sizes for tablets (e.g. 11", 13") — product_variants.display_size */
   display_sizes?: string[];
+  /** Console editions (Digital / Standard / Disc) — product_variants.edition */
+  editions?: string[];
   featured?: boolean;
   /**
    * Admin taxonomy picker value (condition new|used OR brand/type config value).

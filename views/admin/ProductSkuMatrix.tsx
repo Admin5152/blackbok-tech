@@ -28,6 +28,7 @@ type Props = {
   ram: string[];
   simTypes?: string[];
   displaySizes?: string[];
+  editions?: string[];
   basePrice: number;
   enabled: boolean;
   onEnabledChange: (v: boolean) => void;
@@ -37,6 +38,10 @@ type Props = {
   onUploadRowImage?: (index: number, file: File) => void | Promise<void>;
   /** When true, hide RAM emphasis and label SIM as Connectivity (iPad). */
   tabletMode?: boolean;
+  /** Consoles / controllers — colour + storage + edition. */
+  consoleMode?: boolean;
+  /** Headphones / speakers / accessories — colour-first variants. */
+  simpleVariantMode?: boolean;
   /** Highlight these row indices (duplicate / save error). */
   highlightIndices?: number[];
   /** Bump to force scroll to the first highlighted card. */
@@ -49,6 +54,7 @@ export const ProductSkuMatrix: React.FC<Props> = ({
   ram,
   simTypes = [],
   displaySizes = [],
+  editions = [],
   basePrice,
   enabled,
   onEnabledChange,
@@ -57,20 +63,24 @@ export const ProductSkuMatrix: React.FC<Props> = ({
   isLight = false,
   onUploadRowImage,
   tabletMode = false,
+  consoleMode = false,
+  simpleVariantMode = false,
   highlightIndices = [],
   focusNonce = 0,
 }) => {
-  const canMatrix = canUseSkuMatrix(colors, storage, ram, simTypes, displaySizes);
+  const chipMatrix = canUseSkuMatrix(colors, storage, ram, simTypes, displaySizes, editions);
+  /** Existing SKU rows (e.g. console seed) still unlock Generate versions. */
+  const canMatrix = chipMatrix || rows.length > 0;
   const chipSignature = useMemo(
     () =>
-      `${displaySizes.join('\u0001')}|${colors.join('\u0001')}|${storage.join('\u0001')}|${ram.join('\u0001')}|${simTypes.join('\u0001')}`,
-    [colors, storage, ram, simTypes, displaySizes],
+      `${displaySizes.join('\u0001')}|${colors.join('\u0001')}|${storage.join('\u0001')}|${ram.join('\u0001')}|${simTypes.join('\u0001')}|${editions.join('\u0001')}`,
+    [colors, storage, ram, simTypes, displaySizes, editions],
   );
 
   const comboCount = useMemo(() => {
-    if (!canMatrix) return 0;
-    return buildSkuCombinations(colors, storage, ram, simTypes, displaySizes).length;
-  }, [colors, storage, ram, simTypes, displaySizes, canMatrix]);
+    if (!chipMatrix) return rows.length;
+    return buildSkuCombinations(colors, storage, ram, simTypes, displaySizes, editions).length;
+  }, [colors, storage, ram, simTypes, displaySizes, editions, chipMatrix, rows.length]);
 
   const duplicateKeys = useMemo(() => new Set(findDuplicateSkuKeys(rows)), [rows]);
   const liveDupIndices = useMemo(() => new Set(findDuplicateSkuRowIndices(rows)), [rows]);
@@ -78,10 +88,12 @@ export const ProductSkuMatrix: React.FC<Props> = ({
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   useEffect(() => {
-    if (!enabled || !canMatrix) return;
-    onRowsChange(syncSkuRowsFromChips(colors, storage, ram, rows, simTypes, displaySizes));
+    if (!enabled || !chipMatrix) return;
+    onRowsChange(
+      syncSkuRowsFromChips(colors, storage, ram, rows, simTypes, displaySizes, editions),
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chipSignature, enabled, canMatrix]);
+  }, [chipSignature, enabled, chipMatrix]);
 
   useEffect(() => {
     if (!focusNonce) return;
@@ -95,12 +107,16 @@ export const ProductSkuMatrix: React.FC<Props> = ({
   }, [focusNonce, highlightIndices, rows]);
 
   const regenerate = () =>
-    onRowsChange(syncSkuRowsFromChips(colors, storage, ram, rows, simTypes, displaySizes));
+    onRowsChange(
+      syncSkuRowsFromChips(colors, storage, ram, rows, simTypes, displaySizes, editions),
+    );
 
   const handleEnable = (next: boolean) => {
     onEnabledChange(next);
-    if (next && canMatrix) {
-      onRowsChange(syncSkuRowsFromChips(colors, storage, ram, rows, simTypes, displaySizes));
+    if (next && chipMatrix) {
+      onRowsChange(
+        syncSkuRowsFromChips(colors, storage, ram, rows, simTypes, displaySizes, editions),
+      );
     }
   };
 
@@ -161,6 +177,18 @@ export const ProductSkuMatrix: React.FC<Props> = ({
     handleEnable(true);
   };
 
+  const helpBlurb = consoleMode
+    ? 'Add Colour, Storage, and Edition — then generate versions. Set price and stock on each row (e.g. Digital White · 4 units).'
+    : simpleVariantMode
+      ? 'Add Colour (and Storage if needed) — then generate versions. Edit price and stock on each row.'
+      : `Add colors, storage${tabletMode ? '' : ', RAM'}, and ${tabletMode ? 'connectivity' : 'SIM'} — then generate versions. Price by Storage + RAM (same across colors). Stock per color on each row (e.g. Blue 6, Black 4).`;
+
+  const missingHint = consoleMode
+    ? 'Add Colour, Storage, or Edition options above first — then generate versions here.'
+    : simpleVariantMode
+      ? 'Add Colour (or Storage) options above first — then generate versions here.'
+      : `Add Color, Size, Storage${tabletMode ? '' : ', RAM'}, or ${tabletMode ? 'Connectivity' : 'SIM'} options above first — then generate versions here.`;
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl border border-[#B38B21]/30 bg-gradient-to-br from-[#B38B21]/10 to-transparent">
@@ -168,11 +196,7 @@ export const ProductSkuMatrix: React.FC<Props> = ({
           <p className="text-[10px] font-black uppercase tracking-widest text-[#B38B21] flex items-center gap-1.5">
             <Layers size={12} /> Generate versions from options
           </p>
-          <p className={`text-[11px] mt-1 max-w-md ${muted}`}>
-            Add colors, storage{tabletMode ? '' : ', RAM'}, and {tabletMode ? 'connectivity' : 'SIM'} —
-            then generate versions. <span className={title}>Price by Storage + RAM</span> (same across
-            colors). <span className={title}>Stock per color</span> on each row (e.g. Blue 6, Black 4).
-          </p>
+          <p className={`text-[11px] mt-1 max-w-md ${muted}`}>{helpBlurb}</p>
         </div>
         <label
           className={`flex items-center gap-2.5 cursor-pointer shrink-0 rounded-xl border px-4 py-2.5 ${
@@ -192,8 +216,7 @@ export const ProductSkuMatrix: React.FC<Props> = ({
 
       {!canMatrix && (
         <p className="text-xs text-amber-400/95 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3">
-          Add Color, Size, Storage{tabletMode ? '' : ', RAM'}, or {tabletMode ? 'Connectivity' : 'SIM'}{' '}
-          options above first — then generate versions here.
+          {missingHint}
         </p>
       )}
 

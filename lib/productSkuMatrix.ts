@@ -194,6 +194,7 @@ export function chipsFromSkuRows(rows: SkuMatrixRow[]): {
   ram: string[];
   sim_types: string[];
   display_sizes: string[];
+  editions: string[];
 } {
   const uniq = (vals: string[]) => {
     const out: string[] = [];
@@ -214,7 +215,25 @@ export function chipsFromSkuRows(rows: SkuMatrixRow[]): {
     ram: uniq(rows.map((r) => r.ram).filter((x) => x.toUpperCase() !== 'N/A')),
     sim_types: uniq(rows.map((r) => r.sim_type)),
     display_sizes: uniq(rows.map((r) => r.display_size)),
+    editions: uniq(rows.map((r) => r.edition)),
   };
+}
+
+/** Merge chip lists (product arrays + variant-derived) without duplicates. */
+export function mergeChipLists(...lists: (string[] | undefined | null)[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const list of lists) {
+    for (const raw of list || []) {
+      const t = String(raw ?? '').trim();
+      if (!t) continue;
+      const low = t.toLowerCase();
+      if (seen.has(low)) continue;
+      seen.add(low);
+      out.push(t);
+    }
+  }
+  return out;
 }
 
 type ComboDims = Pick<SkuMatrixRow, 'color' | 'storage' | 'ram' | 'sim_type' | 'display_size' | 'edition'>;
@@ -226,6 +245,7 @@ export function buildSkuCombinations(
   ram: string[],
   simTypes: string[] = [],
   displaySizes: string[] = [],
+  editions: string[] = [],
 ): ComboDims[] {
   const dims: { key: keyof ComboDims; values: string[] }[] = [];
   if (displaySizes.length) dims.push({ key: 'display_size', values: displaySizes });
@@ -233,6 +253,7 @@ export function buildSkuCombinations(
   if (storage.length) dims.push({ key: 'storage', values: storage });
   if (ram.length) dims.push({ key: 'ram', values: ram });
   if (simTypes.length) dims.push({ key: 'sim_type', values: simTypes });
+  if (editions.length) dims.push({ key: 'edition', values: editions });
   if (dims.length === 0) return [];
 
   const walk = (idx: number, cur: ComboDims): ComboDims[] => {
@@ -314,8 +335,17 @@ export function canUseSkuMatrix(
   ram: string[],
   simTypes: string[] = [],
   displaySizes: string[] = [],
+  editions: string[] = [],
 ): boolean {
-  return colors.length + storage.length + ram.length + simTypes.length + displaySizes.length > 0;
+  return (
+    colors.length +
+      storage.length +
+      ram.length +
+      simTypes.length +
+      displaySizes.length +
+      editions.length >
+    0
+  );
 }
 
 export function skuMatrixEnabledForProduct(product: Product | null | undefined): boolean {
@@ -327,13 +357,16 @@ export function skuMatrixEnabledForProduct(product: Product | null | undefined):
     ram?: string[];
     sim_types?: string[];
     display_sizes?: string[];
+    editions?: string[];
   };
+  const fromRows = chipsFromSkuRows(parseSkuVariants(product.variants));
   return canUseSkuMatrix(
-    p.colors || [],
-    p.storage || [],
-    p.ram || [],
-    p.sim_types || [],
-    p.display_sizes || [],
+    mergeChipLists(p.colors, fromRows.colors),
+    mergeChipLists(p.storage, fromRows.storage),
+    mergeChipLists(p.ram, fromRows.ram),
+    mergeChipLists(p.sim_types, fromRows.sim_types),
+    mergeChipLists(p.display_sizes, fromRows.display_sizes),
+    mergeChipLists(p.editions, fromRows.editions),
   );
 }
 
@@ -345,17 +378,25 @@ export function syncSkuRowsFromChips(
   existing: SkuMatrixRow[],
   simTypes: string[] = [],
   displaySizes: string[] = [],
+  editions: string[] = [],
 ): SkuMatrixRow[] {
-  if (!canUseSkuMatrix(colors, storage, ram, simTypes, displaySizes)) return [];
-  const combos = buildSkuCombinations(colors, storage, ram, simTypes, displaySizes);
-  const editions = Array.from(
-    new Set(existing.map((r) => String(r.edition ?? '').trim()).filter(Boolean)),
-  );
-  const expanded =
+  const editionList =
     editions.length > 0
-      ? combos.flatMap((c) => editions.map((edition) => ({ ...c, edition })))
-      : combos;
-  return mergeSkuMatrix(expanded, existing);
+      ? editions
+      : Array.from(new Set(existing.map((r) => String(r.edition ?? '').trim()).filter(Boolean)));
+  if (!canUseSkuMatrix(colors, storage, ram, simTypes, displaySizes, editionList)) {
+    // Keep existing SKU rows (consoles/audio often load with variants before chips hydrate).
+    return existing.length ? existing : [];
+  }
+  const combos = buildSkuCombinations(
+    colors,
+    storage,
+    ram,
+    simTypes,
+    displaySizes,
+    editionList,
+  );
+  return mergeSkuMatrix(combos, existing);
 }
 
 /** Health view 12f — Apple / iPhone / iPad active catalog missing trade bridge. */

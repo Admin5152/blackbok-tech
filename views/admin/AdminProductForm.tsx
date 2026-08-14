@@ -133,10 +133,12 @@ type Props = {
   setSimIn: (v: string) => void;
   specsIn: string;
   setSpecsIn: (v: string) => void;
-  onAddChip: (field: 'colors' | 'storage' | 'ram' | 'specs' | 'sim_types' | 'display_sizes', val: string, clear: () => void) => void;
-  onRemoveChip: (field: 'colors' | 'storage' | 'ram' | 'specs' | 'sim_types' | 'display_sizes', val: string) => void;
+  onAddChip: (field: 'colors' | 'storage' | 'ram' | 'specs' | 'sim_types' | 'display_sizes' | 'editions', val: string, clear: () => void) => void;
+  onRemoveChip: (field: 'colors' | 'storage' | 'ram' | 'specs' | 'sim_types' | 'display_sizes' | 'editions', val: string) => void;
   sizeIn: string;
   setSizeIn: (v: string) => void;
+  editionIn: string;
+  setEditionIn: (v: string) => void;
   skuMatrixEnabled: boolean;
   setSkuMatrixEnabled: (v: boolean) => void;
   skuRows: SkuMatrixRow[];
@@ -163,6 +165,8 @@ export const AdminProductForm: React.FC<Props> = ({
   setSimIn,
   sizeIn,
   setSizeIn,
+  editionIn,
+  setEditionIn,
   specsIn,
   setSpecsIn,
   onAddChip,
@@ -201,6 +205,7 @@ export const AdminProductForm: React.FC<Props> = ({
     draft.ram || [],
     draft.sim_types || [],
     draft.display_sizes || [],
+    draft.editions || [],
   );
   const displayStock = skuMatrixEnabled && skuRows.length > 0 ? totalSkuStock(skuRows) : (draft.stock ?? 0);
   const comboCount = skuRows.length;
@@ -355,6 +360,7 @@ export const AdminProductForm: React.FC<Props> = ({
   const displayRam = derivedChips?.ram ?? draft.ram ?? [];
   const displaySimTypes = derivedChips?.sim_types ?? draft.sim_types ?? [];
   const displaySizes = derivedChips?.display_sizes ?? draft.display_sizes ?? [];
+  const displayEditions = derivedChips?.editions ?? draft.editions ?? [];
   const isTabletCategory = String(draft.category || '').toLowerCase() === 'ipad';
   const normalizedCategory = normalizeProductCategory(categoryKey);
   const isLaptopCategory = normalizedCategory === 'Laptops';
@@ -362,14 +368,25 @@ export const AdminProductForm: React.FC<Props> = ({
     normalizedCategory === 'Headphones' || normalizedCategory === 'Speakers';
   const isAccessoryCategory = normalizedCategory === 'Accessories';
   const isGamingCategory = normalizedCategory === 'Gaming';
+  const isConsoleCategory =
+    isGamingCategory ||
+    normalizedCategory === 'Consoles' ||
+    normalizedCategory === 'Controllers';
   const isWatchCategory =
     normalizedCategory === 'Smart watches' || normalizedCategory === 'Apple Watches';
   const isPhoneCategory =
     normalizedCategory === 'iPhone' || normalizedCategory === 'Android phones';
   const isMacCategory = normalizedCategory === 'MacBooks';
-  /** Phone / tablet / Mac keep storage+SIM; laptops keep storage+RAM; audio/accessories are usually colour SKUs. */
+  /** Phone / tablet / Mac / laptop / console / audio / accessories — all can use storage SKUs. */
   const showStorageOption =
-    isPhoneCategory || isTabletCategory || isMacCategory || isLaptopCategory || isGamingCategory;
+    isPhoneCategory ||
+    isTabletCategory ||
+    isMacCategory ||
+    isLaptopCategory ||
+    isConsoleCategory ||
+    isAudioCategory ||
+    isAccessoryCategory;
+  const showEditionOption = isConsoleCategory;
   const showRamOption = isLaptopCategory || isPhoneCategory || isMacCategory;
   const showSimOption = isPhoneCategory || isTabletCategory;
   const seriesOptions = categoryUsesSeriesStep(categoryKey)
@@ -398,8 +415,14 @@ export const AdminProductForm: React.FC<Props> = ({
     if (isWatchCategory) {
       return `Shop path: Smart watches → Brand (Apple / Samsung / Others) → Series → products.`;
     }
-    if (isGamingCategory) {
-      return `Shop path: ${normalizedCategory} → Brand/platform → products.`;
+    if (isConsoleCategory) {
+      return `Shop path: Gaming → ${
+        normalizedCategory === 'Controllers'
+          ? 'Controllers'
+          : normalizedCategory === 'Consoles'
+            ? 'Consoles'
+            : 'Brand/platform'
+      } → products.`;
     }
     return null;
   })();
@@ -895,7 +918,7 @@ export const AdminProductForm: React.FC<Props> = ({
                             ? 'Type *'
                             : isWatchCategory
                               ? 'Line *'
-                              : isGamingCategory
+                              : isConsoleCategory
                               ? 'Platform / brand *'
                               : 'Sub-category *'}
                     </label>
@@ -1180,7 +1203,7 @@ export const AdminProductForm: React.FC<Props> = ({
                     staff upgrade list when one is saved). Type a new model name if it isn’t listed yet.
                   </p>
                 </div>
-                {!skuMatrixEnabled && (
+                {(!skuMatrixEnabled || skuRows.length === 0) && (
                   <div>
                     <label className={s.label}>Stock</label>
                     <input
@@ -1299,14 +1322,14 @@ export const AdminProductForm: React.FC<Props> = ({
                   ? 'Options are locked to the generated versions below. Edit price and stock on each row — or rebuild from options.'
                   : isTabletCategory
                     ? 'Add Size, Colour, Storage, and Connectivity (Wi‑Fi / Cellular). Generate versions, then set prices and stock.'
-                    : isAudioCategory || isAccessoryCategory
-                      ? 'These categories usually need Colour only. Skip Storage / RAM / SIM unless this product has real variants.'
-                      : isLaptopCategory || isMacCategory
-                        ? 'Add Colour, Storage, and RAM for notebook versions. SIM is hidden for Macs / laptops.'
-                        : isWatchCategory
-                          ? 'Add Case size (e.g. 49mm) and Colour for watch versions. SIM is not required.'
-                          : isGamingCategory
-                            ? 'Add Colour and Storage if needed for variants. SIM is usually not required.'
+                    : isConsoleCategory
+                      ? 'Add Colour, Storage, and Edition (Digital / Standard / Disc). Generate versions, then set price and stock on each row.'
+                      : isAudioCategory || isAccessoryCategory
+                        ? 'Add Colour (and Storage if needed). Generate versions, then set price and stock on each row.'
+                        : isLaptopCategory || isMacCategory
+                          ? 'Add Colour, Storage, and RAM for notebook versions. SIM is hidden for Macs / laptops.'
+                          : isWatchCategory
+                            ? 'Add Case size (e.g. 49mm) and Colour for watch versions. SIM is not required.'
                             : 'Add every Color, Storage, RAM, and SIM option once. Generate versions to auto-build all combinations — then only fill or edit prices and stock.'}
               </p>
               {isTabletCategory && (
@@ -1390,18 +1413,76 @@ export const AdminProductForm: React.FC<Props> = ({
                 readOnlyNote="Managed by generated versions"
               />
               {showStorageOption && (
-                <ChipField
-                  label="Storage"
-                  chips={displayStorage}
-                  inputVal={storageIn}
-                  setInputVal={setStorageIn}
-                  placeholder="e.g. 256GB"
-                  onAdd={() => onAddChip('storage', storageIn, () => setStorageIn(''))}
-                  onRemove={(v) => onRemoveChip('storage', v)}
-                  styles={s}
-                  readOnly={chipsLocked}
-                  readOnlyNote="Managed by generated versions"
-                />
+                <>
+                  <ChipField
+                    label="Storage"
+                    chips={displayStorage}
+                    inputVal={storageIn}
+                    setInputVal={setStorageIn}
+                    placeholder="e.g. 256GB or 1TB"
+                    onAdd={() => onAddChip('storage', storageIn, () => setStorageIn(''))}
+                    onRemove={(v) => onRemoveChip('storage', v)}
+                    styles={s}
+                    readOnly={chipsLocked}
+                    readOnlyNote="Managed by generated versions"
+                  />
+                  {isConsoleCategory && !chipsLocked && (
+                    <div className="flex flex-wrap gap-1.5 px-1 -mt-2 mb-3">
+                      {['512GB', '1TB', '2TB'].map((sz) => (
+                        <button
+                          key={sz}
+                          type="button"
+                          onClick={() => onAddChip('storage', sz, () => setStorageIn(''))}
+                          className={`text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-lg border ${
+                            (displayStorage || []).includes(sz)
+                              ? 'border-[#B38B21] text-[#B38B21] bg-[#B38B21]/10'
+                              : isLight
+                                ? 'border-black/10 text-black/50'
+                                : 'border-white/10 text-white/45'
+                          }`}
+                        >
+                          {sz}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+              {showEditionOption && (
+                <>
+                  <ChipField
+                    label="Edition"
+                    chips={displayEditions}
+                    inputVal={editionIn}
+                    setInputVal={setEditionIn}
+                    placeholder="e.g. Digital"
+                    onAdd={() => onAddChip('editions', editionIn, () => setEditionIn(''))}
+                    onRemove={(v) => onRemoveChip('editions', v)}
+                    styles={s}
+                    readOnly={chipsLocked}
+                    readOnlyNote="Managed by generated versions"
+                  />
+                  {!chipsLocked && (
+                    <div className="flex flex-wrap gap-1.5 px-1 -mt-2 mb-3">
+                      {['Digital', 'Standard', 'Disc'].map((ed) => (
+                        <button
+                          key={ed}
+                          type="button"
+                          onClick={() => onAddChip('editions', ed, () => setEditionIn(''))}
+                          className={`text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-lg border ${
+                            (displayEditions || []).includes(ed)
+                              ? 'border-[#B38B21] text-[#B38B21] bg-[#B38B21]/10'
+                              : isLight
+                                ? 'border-black/10 text-black/50'
+                                : 'border-white/10 text-white/45'
+                          }`}
+                        >
+                          {ed}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
               {showRamOption && (
                 <ChipField
@@ -1462,6 +1543,7 @@ export const AdminProductForm: React.FC<Props> = ({
                   ram={showRamOption ? draft.ram || [] : []}
                   simTypes={showSimOption ? draft.sim_types || [] : []}
                   displaySizes={draft.display_sizes || []}
+                  editions={showEditionOption ? draft.editions || [] : []}
                   basePrice={priceNum}
                   enabled={skuMatrixEnabled}
                   onEnabledChange={setSkuMatrixEnabled}
@@ -1469,6 +1551,8 @@ export const AdminProductForm: React.FC<Props> = ({
                   onRowsChange={setSkuRows}
                   isLight={isLight}
                   tabletMode={isTabletCategory}
+                  consoleMode={isConsoleCategory}
+                  simpleVariantMode={isAudioCategory || isAccessoryCategory}
                   highlightIndices={skuHighlightIndices}
                   focusNonce={skuFocusNonce}
                   onUploadRowImage={async (index, file) => {
