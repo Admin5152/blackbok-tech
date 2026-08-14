@@ -189,7 +189,12 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
           ))}
         </div>
 
-        <nav className="bb-mobile-nav__scroll" aria-label="Site sections">
+        <nav
+          className="bb-mobile-nav__scroll"
+          aria-label="Site sections"
+          data-lenis-prevent
+          data-lenis-prevent-touch
+        >
           {items.map((item) => {
             const active = Boolean(item.path) && pathname === item.path;
             const hasSubItems = Boolean(item.subItems?.length);

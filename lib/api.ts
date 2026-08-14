@@ -1399,7 +1399,7 @@ export const syncCartWithServer = async (
   const uid = String(userId || '').trim();
   if (!uid) return localItems;
 
-  const serverItems = await getCartItems(uid).catch(() => [] as CartItem[]);
+  const serverItems = await getCartItems(uid);
   const merged = new Map<string, CartItem>();
 
   for (const item of [...serverItems, ...localItems]) {

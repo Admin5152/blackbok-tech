@@ -241,19 +241,19 @@ export const Navbar: React.FC<{
                 path: '/store',
                 label: 'Accessories',
                 icon: Box,
-                search: { category: 'Accessories', series: 'all' },
+                search: { category: 'Accessories' },
               },
               {
                 path: '/store',
                 label: 'Chargers',
                 icon: Box,
-                search: { category: 'Accessories', subcategory: 'Chargers', series: 'all' },
+                search: { category: 'Accessories', subcategory: 'Chargers' },
               },
               {
                 path: '/store',
                 label: 'Covers',
                 icon: Box,
-                search: { category: 'Accessories', subcategory: 'Covers', series: 'all' },
+                search: { category: 'Accessories', subcategory: 'Covers' },
               },
               {
                 path: '/history',
@@ -635,16 +635,16 @@ export const Navbar: React.FC<{
                     <Link to="/store" search={{ category: 'Gaming' } as any} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
                       <Gamepad2 size={14} className="opacity-40" /> Gaming
                     </Link>
-                    <Link to="/store" search={{ category: 'Accessories', series: 'all' } as any} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
+                    <Link to="/store" search={{ category: 'Accessories' } as any} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/5 text-white'}`}>
                       <Box size={14} className="opacity-40" /> Accessories
                     </Link>
                     <div className="pl-7 flex flex-col gap-0.5 pb-1">
                       {[
                         { label: 'Chargers', subcategory: 'Chargers' },
-                        { label: 'Phone covers', subcategory: 'Covers' },
+                        { label: 'Covers', subcategory: 'Covers' },
                         { label: 'Screen protectors', subcategory: 'ScreenProtectors' },
                         { label: 'AirTags', subcategory: 'AirTags' },
-                        { label: 'Apple Watch bands', subcategory: 'AppleWatchAccessories' },
+                        { label: 'Apple Watch accessories', subcategory: 'AppleWatchAccessories' },
                         { label: 'Apple Pencil', subcategory: 'ApplePencil' },
                         { label: 'Magic Keyboard', subcategory: 'MagicKeyboard' },
                         { label: 'Power banks', subcategory: 'PowerBanks' },
@@ -655,7 +655,7 @@ export const Navbar: React.FC<{
                         <Link
                           key={b.subcategory}
                           to="/store"
-                          search={{ category: 'Accessories', subcategory: b.subcategory, series: 'all' } as any}
+                          search={{ category: 'Accessories', subcategory: b.subcategory } as any}
                           className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all ${isLight ? 'text-black/50 hover:text-black hover:bg-black/5' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
                         >
                           {b.label}

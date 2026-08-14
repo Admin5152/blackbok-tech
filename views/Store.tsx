@@ -61,6 +61,13 @@ import {
   type SubcategoryOption,
   type StoreSeriesOption,
 } from '../lib/storeFilters';
+import {
+  accessoryDeviceLabel,
+  accessoryLeafProductName,
+  accessoryTypeLabel,
+  getAccessoryDeviceOptions,
+  productMatchesAccessoryDevice,
+} from '../lib/accessoryCatalog';
 import type { Theme } from '../App';
 
 interface StoreProps {
@@ -84,6 +91,7 @@ interface StoreProps {
   conditionFromUrl?: StoreNewFilter;
   subcategoryFromUrl?: string;
   seriesFromUrl?: string;
+  deviceFromUrl?: string;
 }
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
@@ -336,6 +344,7 @@ export const Store: React.FC<StoreProps> = ({
   conditionFromUrl,
   subcategoryFromUrl,
   seriesFromUrl,
+  deviceFromUrl,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -377,6 +386,7 @@ export const Store: React.FC<StoreProps> = ({
   const typeThenSeries = Boolean(
     activeCategory && categoryUsesTypeThenSeries(activeCategory),
   );
+  const isAccessories = normalizeProductCategory(activeCategory) === 'Accessories';
   const brandStepLabel = typeThenSeries ? 'Type' : 'Brand';
   const brandAllLabel = typeThenSeries ? 'All types' : 'All brands';
 
@@ -433,6 +443,18 @@ export const Store: React.FC<StoreProps> = ({
       ? seriesFromUrl
       : undefined;
 
+  const activeAccessoryType =
+    isAccessories && subcategoryFilter?.kind === 'brand' ? subcategoryFilter.value : undefined;
+  const accessoryDeviceOptions = useMemo(
+    () => getAccessoryDeviceOptions(activeAccessoryType, activeSeries),
+    [activeAccessoryType, activeSeries],
+  );
+  const activeAccessoryDevice =
+    deviceFromUrl &&
+    accessoryDeviceOptions.some((option) => option.value === deviceFromUrl)
+      ? deviceFromUrl
+      : undefined;
+
   /**
    * Side-filter category pick sets series=all so shoppers land on the product
    * grid and refine Brand / Series / Condition in the panel (no card drilldown).
@@ -472,6 +494,15 @@ export const Store: React.FC<StoreProps> = ({
     subcategoryOptions.length > 0 &&
     !subcategoryFilter &&
     (brandThenSeries || seriesOptions.length === 0 || Boolean(activeSeries));
+
+  const showAccessoryDevicePicker =
+    isAccessories &&
+    !searchTerm.trim() &&
+    !browseFlat &&
+    Boolean(activeAccessoryType) &&
+    Boolean(activeSeries) &&
+    accessoryDeviceOptions.length > 0 &&
+    !activeAccessoryDevice;
 
   useEffect(() => {
     try {
@@ -582,16 +613,33 @@ export const Store: React.FC<StoreProps> = ({
     }
     if (activeSeries && !t) out.series = activeSeries;
     else if (seriesIsAll && !t) out.series = 'all';
+    if (activeAccessoryDevice && !t) out.device = activeAccessoryDevice;
     if (subcategoryFilter && !t) {
       Object.assign(out, encodeStoreSubcategorySearch(subcategoryFilter));
     }
     return out;
-  }, [searchTerm, selectedCategories, browseAll, browseDeals, subcategoryFilter, activeSeries, seriesIsAll]);
+  }, [
+    searchTerm,
+    selectedCategories,
+    browseAll,
+    browseDeals,
+    subcategoryFilter,
+    activeSeries,
+    seriesIsAll,
+    activeAccessoryDevice,
+  ]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     // Don't rewrite URL on pickers (keeps /store + category/subcategory steps clean).
-    if (showCategoryPicker || showSeriesPicker || showSubcategoryPicker) return;
+    if (
+      showCategoryPicker ||
+      showSeriesPicker ||
+      showSubcategoryPicker ||
+      showAccessoryDevicePicker
+    ) {
+      return;
+    }
     const id = window.setTimeout(() => {
       setSearchQuery(searchTerm.trim());
       navigate({ to: '/store', search: buildStoreSearchParams() as never, replace: true });
@@ -605,6 +653,7 @@ export const Store: React.FC<StoreProps> = ({
     showCategoryPicker,
     showSeriesPicker,
     showSubcategoryPicker,
+    showAccessoryDevicePicker,
   ]);
 
   const categoryScopeSearch = useCallback((): Record<string, string> => {
@@ -657,6 +706,29 @@ export const Store: React.FC<StoreProps> = ({
     brandThenSeries,
     subcategoryFilter,
   ]);
+
+  const openAccessoryDevice = useCallback(
+    (device: string) => {
+      resetLocalStoreFilters();
+      navigate({
+        to: '/store',
+        search: {
+          ...categoryScopeSearch(),
+          ...(subcategoryFilter ? encodeStoreSubcategorySearch(subcategoryFilter) : {}),
+          ...(activeSeries ? { series: activeSeries } : {}),
+          device,
+        } as never,
+        replace: true,
+      });
+    },
+    [
+      activeSeries,
+      categoryScopeSearch,
+      navigate,
+      resetLocalStoreFilters,
+      subcategoryFilter,
+    ],
+  );
 
   const goToSubcategoryPicker = useCallback(() => {
     resetLocalStoreFilters();
@@ -730,11 +802,36 @@ export const Store: React.FC<StoreProps> = ({
           onClick: goToSeriesPicker,
         });
       }
-      if (activeSeries || seriesIsAll) {
+      if (activeSeries || (seriesIsAll && seriesOptions.length > 0)) {
         items.push({
           label: activeSeries
             ? seriesFilterLabel(activeSeries, activeCategory)
             : 'All series',
+          ...(isAccessories && activeSeries
+            ? {
+                onClick: () =>
+                  navigate({
+                    to: '/store',
+                    search: {
+                      ...categoryScopeSearch(),
+                      ...(subcategoryFilter
+                        ? encodeStoreSubcategorySearch(subcategoryFilter)
+                        : {}),
+                      series: activeSeries,
+                    } as never,
+                    replace: true,
+                  }),
+              }
+            : {}),
+        });
+      }
+      if (isAccessories && activeAccessoryDevice) {
+        items.push({
+          label: accessoryDeviceLabel(
+            activeAccessoryType,
+            activeSeries,
+            activeAccessoryDevice,
+          ),
         });
       }
       return items;
@@ -803,10 +900,15 @@ export const Store: React.FC<StoreProps> = ({
     brandStepLabel,
     pickerParentCategory,
     isNestedTypePicker,
+    isAccessories,
+    activeAccessoryType,
+    activeAccessoryDevice,
     goToCategoryPicker,
     goToParentCategoryPicker,
     goToSeriesPicker,
     goToSubcategoryPicker,
+    categoryScopeSearch,
+    navigate,
   ]);
 
   const openCategory = useCallback(
@@ -865,13 +967,15 @@ export const Store: React.FC<StoreProps> = ({
         to: '/store',
         search: {
           ...categoryScopeSearch(),
-          ...(brandThenSeries
-            ? { series: 'all' }
-            : activeSeries
-              ? { series: activeSeries }
-              : seriesIsAll
-                ? { series: 'all' }
-                : {}),
+          ...(isAccessories
+            ? {}
+            : brandThenSeries
+              ? { series: 'all' }
+              : activeSeries
+                ? { series: activeSeries }
+                : seriesIsAll
+                  ? { series: 'all' }
+                  : {}),
           ...encodeStoreSubcategorySearch(filter),
         } as never,
         replace: true,
@@ -885,6 +989,7 @@ export const Store: React.FC<StoreProps> = ({
       activeSeries,
       seriesIsAll,
       brandThenSeries,
+      isAccessories,
     ],
   );
 
@@ -948,6 +1053,7 @@ export const Store: React.FC<StoreProps> = ({
         productMatchesStoreCategories(p, selectedCategories) &&
         productMatchesStoreSeries(p, activeSeries) &&
         productMatchesStoreSubcategoryFilter(p, subcategoryFilter) &&
+        productMatchesAccessoryDevice(p, activeAccessoryDevice) &&
         // Brand→Series: condition is a separate ?condition= refine
         (brandThenSeries
           ? productMatchesStoreNewFilter(p, activeConditionFilter)
@@ -960,6 +1066,7 @@ export const Store: React.FC<StoreProps> = ({
     selectedCategories,
     activeSeries,
     subcategoryFilter,
+    activeAccessoryDevice,
     brandThenSeries,
     activeConditionFilter,
     browseDeals,
@@ -1528,7 +1635,9 @@ export const Store: React.FC<StoreProps> = ({
             <FlowBreadcrumb items={storeBreadcrumbItems} className="mt-2.5" />
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-[color:var(--bb-muted)]">
               {brandThenSeries
-                ? `Pick a series to see matching products.`
+                ? isAccessories
+                  ? 'Pick a group, then a device if needed. Products only appear at the last step.'
+                  : `Pick a series to see matching products.`
                 : 'Pick a series, then choose Brand new or Used.'}
             </p>
           </div>
@@ -1765,16 +1874,114 @@ export const Store: React.FC<StoreProps> = ({
     );
   }
 
+  if (showAccessoryDevicePicker && activeCategory) {
+    const typeLabel = accessoryTypeLabel(activeAccessoryType);
+    const seriesLabel = activeSeries ? seriesFilterLabel(activeSeries, activeCategory) : '';
+    return (
+      <div className="bb-store-page">
+        <header className="bb-store-picker-header">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 pt-5 sm:pt-7 pb-1">
+            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+              <PageBackButton
+                isLight={isLight}
+                onClick={goToSeriesPicker}
+                label={seriesLabel || 'Series'}
+                className="bb-store-picker-back"
+              />
+              <h1 className="text-xl sm:text-2xl font-black tracking-tight leading-tight min-w-0 truncate">
+                Choose a device
+              </h1>
+            </div>
+            <FlowBreadcrumb items={storeBreadcrumbItems} className="mt-2.5" />
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-[color:var(--bb-muted)]">
+              Pick a device under {typeLabel}
+              {seriesLabel ? ` · ${seriesLabel}` : ''}. Products appear after this step.
+            </p>
+          </div>
+        </header>
+
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 pt-6 sm:pt-8 pb-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            {accessoryDeviceOptions.map((opt) => {
+              const count = baseFilteredProducts.filter(
+                (p) =>
+                  productMatchesStoreCategories(p, [activeCategory as Category]) &&
+                  productMatchesStoreSeries(p, activeSeries) &&
+                  productMatchesStoreSubcategoryFilter(p, subcategoryFilter) &&
+                  productMatchesAccessoryDevice(p, opt.value),
+              ).length;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => openAccessoryDevice(opt.value)}
+                  className="group relative flex min-h-[8.5rem] flex-col overflow-hidden rounded-2xl border border-[var(--bb-border)] bg-[var(--bb-surface)] text-left transition-all hover:border-[#CDA032]/50 hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CDA032]/50"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#CDA032]/12 via-transparent to-transparent" />
+                  <div className="relative z-[1] flex flex-1 flex-col justify-between p-4 sm:p-5">
+                    <span
+                      className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border text-[#CDA032] ${
+                        isLight
+                          ? 'border-black/10 bg-white shadow-sm'
+                          : 'border-white/15 bg-black/50 backdrop-blur-sm'
+                      }`}
+                    >
+                      {categoryIconLg(activeCategory)}
+                    </span>
+                    <div>
+                      <span
+                        className={`block text-sm sm:text-base font-bold tracking-tight ${
+                          isLight
+                            ? 'text-black'
+                            : 'text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.65)]'
+                        }`}
+                      >
+                        {opt.label}
+                      </span>
+                      <span className={`mt-1 block text-xs ${isLight ? 'text-black/60' : 'text-white/65'}`}>
+                        {opt.description}
+                      </span>
+                      <span className="mt-2 block text-[10px] font-black uppercase tracking-widest text-[#CDA032]/80">
+                        {count > 0
+                          ? `${count} product${count === 1 ? '' : 's'}`
+                          : 'Coming soon'}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const canChangeSubcategory =
     Boolean(activeCategory) && getCategorySubcategoryOptions(activeCategory!).length > 0;
   const onProductGridBack =
-    brandThenSeries && (activeSeries || seriesIsAll)
-      ? goToSeriesPicker
-      : canChangeSubcategory
+    isAccessories && activeAccessoryDevice
+      ? () =>
+          navigate({
+            to: '/store',
+            search: {
+              ...categoryScopeSearch(),
+              ...(subcategoryFilter ? encodeStoreSubcategorySearch(subcategoryFilter) : {}),
+              ...(activeSeries ? { series: activeSeries } : {}),
+            } as never,
+            replace: true,
+          })
+      : isAccessories && seriesOptions.length === 0
         ? goToSubcategoryPicker
-        : seriesOptions.length > 0
+        : isAccessories && activeSeries
           ? goToSeriesPicker
-          : goToCategoryPicker;
+          : brandThenSeries && (activeSeries || seriesIsAll)
+            ? goToSeriesPicker
+            : canChangeSubcategory
+              ? goToSubcategoryPicker
+              : seriesOptions.length > 0
+                ? goToSeriesPicker
+                : goToCategoryPicker;
 
   return (
     <div className="bb-store-page">
@@ -2033,7 +2240,10 @@ export const Store: React.FC<StoreProps> = ({
                     className={`reveal-on-scroll ${['reveal-delay-1', 'reveal-delay-2', 'reveal-delay-3'][index % 3]}`}
                   >
                     <ProductCard
-                      product={product}
+                      product={{
+                        ...product,
+                        name: accessoryLeafProductName(product),
+                      }}
                       onQuickView={onQuickView}
                       isWishlisted={wishlist.includes(product.id)}
                       onToggleWishlist={toggleWishlist}
@@ -2052,7 +2262,10 @@ export const Store: React.FC<StoreProps> = ({
                 {pageProducts.map((product) => (
                   <StoreProductListRow
                     key={product.id}
-                    product={product}
+                    product={{
+                      ...product,
+                      name: accessoryLeafProductName(product),
+                    }}
                     isLight={isLight}
                     onQuickView={onQuickView}
                     onViewDetails={(id) => navigateTo('product', id)}

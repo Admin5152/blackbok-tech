@@ -245,6 +245,7 @@ const storeRoute = createRoute({
     condition?: 'new' | 'used';
     subcategory?: string;
     series?: string;
+    device?: string;
   } => {
     let categories: string[] | undefined;
     
@@ -282,12 +283,16 @@ const storeRoute = createRoute({
       typeof search.series === 'string' && search.series.trim()
         ? search.series.trim().slice(0, 80)
         : undefined;
+    const device =
+      typeof search.device === 'string' && search.device.trim()
+        ? search.device.trim().slice(0, 120)
+        : undefined;
     
-    return { categories, q, browse, condition, subcategory, series };
+    return { categories, q, browse, condition, subcategory, series, device };
   },
   component: () => {
     const context = useAppContext();
-    const { categories, q, browse, condition, subcategory, series } = storeRoute.useSearch();
+    const { categories, q, browse, condition, subcategory, series, device } = storeRoute.useSearch();
     return (
       <Store
         {...context}
@@ -297,6 +302,7 @@ const storeRoute = createRoute({
         conditionFromUrl={condition}
         subcategoryFromUrl={subcategory}
         seriesFromUrl={series}
+        deviceFromUrl={device}
       />
     );
   },
@@ -2288,12 +2294,12 @@ function RootComponent() {
                     { label: 'Apple AirPods', search: { category: 'Headphones', subcategory: 'Apple', series: 'all' } },
                     { label: 'Speakers', search: { category: 'Speakers', series: 'all' } },
                     { label: 'Gaming', search: { category: 'Gaming' } },
-                    { label: 'Accessories', search: { category: 'Accessories', series: 'all' } },
-                    { label: 'Chargers', search: { category: 'Accessories', subcategory: 'Chargers', series: 'all' } },
-                    { label: 'Screen Protectors', search: { category: 'Accessories', subcategory: 'ScreenProtectors', series: 'all' } },
-                    { label: 'Phone Covers', search: { category: 'Accessories', subcategory: 'Covers', series: 'all' } },
-                    { label: 'AirTags', search: { category: 'Accessories', subcategory: 'AirTags', series: 'all' } },
-                    { label: 'Apple Pencil', search: { category: 'Accessories', subcategory: 'ApplePencil', series: 'all' } },
+                    { label: 'Accessories', search: { category: 'Accessories' } },
+                    { label: 'Chargers', search: { category: 'Accessories', subcategory: 'Chargers' } },
+                    { label: 'Screen Protectors', search: { category: 'Accessories', subcategory: 'ScreenProtectors' } },
+                    { label: 'Covers', search: { category: 'Accessories', subcategory: 'Covers' } },
+                    { label: 'AirTags', search: { category: 'Accessories', subcategory: 'AirTags' } },
+                    { label: 'Apple Pencil', search: { category: 'Accessories', subcategory: 'ApplePencil' } },
                     { label: 'Track Orders', path: '/history', search: { tab: 'orders' } },
                   ] },
                   { id: 'trades', label: 'Trades', icon: RefreshCcw, path: '/trade', subItems: [

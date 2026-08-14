@@ -136,7 +136,10 @@ export function friendlyError(e: unknown, action: FriendlyAction = 'complete tha
       raw.match(/column ["']?([a-z0-9_]+)["']? of/i)?.[1] ||
       raw.match(/column ["']?([a-z0-9_]+)["']? does not exist/i)?.[1];
     if (col) {
-      return `Could not ${act} because the database is missing “${col}”. Ask IT to run the latest trade-in migrations, then try again.`;
+      if (/cart_items|line_key|selected_options|unit_price/i.test(lower)) {
+        return `Could not ${act} because cart storage is not fully set up (“${col}” is missing). Ask IT to run the latest cart migration, then try again.`;
+      }
+      return `Could not ${act} because the database is missing “${col}”. Ask IT to run the latest setup migrations, then try again.`;
     }
     return `Could not ${act} because the database is missing a required table or column. Ask IT to run the latest setup migrations.`;
   }

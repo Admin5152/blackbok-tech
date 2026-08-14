@@ -25,6 +25,13 @@ import { PageBackButton } from '../components/PageBackButton';
 import type { ProductVariant } from '../types';
 import { productRouteParam } from '../lib/productUrl';
 import { formatProductConditionLabel } from '../lib/storeFilters';
+import {
+  accessoryDeviceLabel,
+  accessoryLeafProductName,
+  accessoryTypeLabel,
+  productAccessoryDevice,
+  productAccessoryType,
+} from '../lib/accessoryCatalog';
 
 interface ProductDetailProps {
   product: Product;
@@ -47,6 +54,9 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
 }) => {
   const isLight = theme === 'light';
   const isConsole = isConsoleCatalog(product);
+  const displayName = accessoryLeafProductName(product);
+  const accessoryType = productAccessoryType(product);
+  const accessoryDevice = productAccessoryDevice(product);
   const coloursExist = consoleHasColourSkus(product);
   const [quantity, setQuantity] = useState(1);
   const normalizedVariants = useMemo(() => getProductOptionGroups(product), [product]);
@@ -235,7 +245,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             </li>
             <li className="hidden sm:inline">/</li>
             <li className={`hidden sm:inline truncate max-w-[min(20rem,50vw)] ${isLight ? 'text-black font-medium' : 'text-white'}`}>
-              {product.name}
+              {displayName}
             </li>
           </ol>
         </nav>
@@ -269,10 +279,20 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 space-y-0.5">
                 <p className={`text-[9px] font-black uppercase tracking-[0.22em] ${isLight ? 'text-black/45' : 'text-white/45'}`}>
-                  {product.brand || product.category}
+                  {accessoryType
+                    ? [
+                        'Accessories',
+                        accessoryTypeLabel(accessoryType),
+                        accessoryDevice
+                          ? accessoryDeviceLabel(accessoryType, String((product.specifications as Record<string, unknown> | null)?.series ?? ''), accessoryDevice)
+                          : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')
+                    : product.brand || product.category}
                 </p>
                 <h1 className={`text-lg sm:text-xl font-bold tracking-tight leading-snug ${isLight ? 'text-black' : 'text-white'}`}>
-                  {product.name}
+                  {displayName}
                 </h1>
                 {(() => {
                   const label = formatProductConditionLabel(product);

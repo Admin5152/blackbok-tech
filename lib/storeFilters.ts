@@ -430,9 +430,9 @@ export const CONTROLLER_SERIES_OPTIONS: StoreSeriesOption[] = [
 export const ACCESSORY_TYPE_OPTIONS: StoreSeriesOption[] = [
   { value: 'Chargers', label: 'Chargers', description: 'Apple, Samsung, laptop & more' },
   { value: 'ScreenProtectors', label: 'Screen Protectors', description: 'Glass, ceramic, clear & privacy' },
-  { value: 'Covers', label: 'Phone Covers', description: 'iPhone, iPad & MacBook cases' },
+  { value: 'Covers', label: 'Covers', description: 'iPhone, iPad & MacBook cases' },
   { value: 'AirTags', label: 'AirTags', description: 'Single pack & packs of 4' },
-  { value: 'AppleWatchAccessories', label: 'Apple Watch bands', description: 'Rubber sports & leather straps' },
+  { value: 'AppleWatchAccessories', label: 'Apple Watch Accessories', description: 'Straps, protectors & covers' },
   { value: 'MagicKeyboard', label: 'Magic Keyboard', description: 'iPad Magic Keyboard' },
   { value: 'ApplePencil', label: 'Apple Pencil', description: 'Pro, Gen 2, Gen 1 & USB-C' },
   { value: 'PowerBanks', label: 'Power Banks', description: 'Portable power banks' },
@@ -443,6 +443,7 @@ export const ACCESSORY_TYPE_OPTIONS: StoreSeriesOption[] = [
 
 /** Device / line series under each Accessories type (August pricelist). */
 export const ACCESSORY_SERIES_OPTIONS: StoreSeriesOption[] = [
+  { value: 'Apple', label: 'Apple', description: 'MacBook, iPhone and Apple Watch chargers' },
   { value: 'iPhone', label: 'iPhone', description: 'iPhone chargers, protectors & covers' },
   { value: 'MacBook', label: 'MacBook', description: 'MacBook chargers & hard shells' },
   { value: 'AppleWatch', label: 'Apple Watch', description: 'Watch chargers & straps' },
@@ -451,6 +452,8 @@ export const ACCESSORY_SERIES_OPTIONS: StoreSeriesOption[] = [
   { value: 'Others', label: 'Others', description: 'Other device chargers' },
   { value: 'iPad', label: 'iPad', description: 'iPad protectors, covers & keyboards' },
   { value: 'Straps', label: 'Straps', description: 'Rubber sports & leather straps' },
+  { value: 'ScreenProtectors', label: 'Screen Protectors', description: 'Apple Watch screen protectors' },
+  { value: 'Covers', label: 'Covers', description: 'Apple Watch covers' },
   { value: 'Single', label: 'Single pack', description: '1 AirTag' },
   { value: 'PackOf4', label: 'Pack of 4', description: '4 AirTags' },
   { value: 'Pro', label: 'Apple Pencil Pro', description: 'Apple Pencil Pro' },
@@ -770,19 +773,20 @@ const CONTROLLER_BRAND_SERIES: Readonly<Record<string, readonly string[]>> = {
 
 /** Accessories “brand” step is the PDF type (Chargers, Covers, …). */
 const ACCESSORY_TYPE_SERIES: Readonly<Record<string, readonly string[]>> = {
-  Chargers: ['iPhone', 'MacBook', 'AppleWatch', 'Samsung', 'Laptops', 'Others'],
+  Chargers: ['Apple', 'Samsung', 'Laptops', 'Others'],
   ScreenProtectors: ['iPhone', 'iPad'],
   Covers: ['iPhone', 'iPad', 'MacBook'],
   // Legacy alias
   PhoneCases: ['iPhone', 'iPad', 'MacBook'],
-  AirTags: ['Single', 'PackOf4'],
-  AppleWatchAccessories: ['Straps'],
-  MagicKeyboard: ['iPad'],
-  ApplePencil: ['Pro', 'Gen2', 'Gen1', 'USBC'],
-  PowerBanks: ['General'],
-  Keyboards: ['General'],
-  Mouse: ['General'],
-  FlashDrives: ['General'],
+  // These types go directly to purchasable leaf products.
+  AirTags: [],
+  AppleWatchAccessories: ['Straps', 'ScreenProtectors', 'Covers'],
+  MagicKeyboard: [],
+  ApplePencil: [],
+  PowerBanks: [],
+  Keyboards: [],
+  Mouse: [],
+  FlashDrives: [],
 };
 
 export function getCategorySeriesOptions(
@@ -1030,9 +1034,16 @@ export function getProductSeriesSlug(p: Product): string | null {
     if (hay.includes('pill')) return 'pill';
   }
   if (cat === 'Accessories') {
-    const specsSeries = specs && typeof specs === 'object'
-      ? String((specs as Record<string, unknown>).series ?? '').trim()
-      : '';
+    const specsObj = specs && typeof specs === 'object' ? (specs as Record<string, unknown>) : null;
+    const specsSeries = specsObj ? String(specsObj.series ?? '').trim() : '';
+    const accessoryType = specsObj ? String(specsObj.accessory_type ?? '').trim() : '';
+    // Chargers: Apple is the series; iPhone / MacBook / Watch are the device step.
+    if (accessoryType === 'Chargers') {
+      const chargerSeries = specsSeries.toLowerCase();
+      if (['iphone', 'macbook', 'applewatch', 'apple watch'].includes(chargerSeries)) {
+        return 'apple';
+      }
+    }
     if (specsSeries) return specsSeries.toLowerCase();
     const subKey = sub.replace(/\s+/g, '');
     // Device / line tags on subcategory — ignore old type tags (Chargers, Covers, …)
@@ -1191,9 +1202,9 @@ export const CATEGORY_SUBCATEGORY_CONFIG: Readonly<Record<string, SubcategoryOpt
   Accessories: [
     { kind: 'brand', value: 'Chargers', label: 'Chargers', description: 'Apple, Samsung, laptops & others' },
     { kind: 'brand', value: 'ScreenProtectors', label: 'Screen Protectors', description: 'Glass & ceramic · clear / privacy' },
-    { kind: 'brand', value: 'Covers', label: 'Phone Covers', description: 'iPhone, iPad & MacBook cases' },
+    { kind: 'brand', value: 'Covers', label: 'Covers', description: 'iPhone, iPad & MacBook cases' },
     { kind: 'brand', value: 'AirTags', label: 'AirTags', description: 'Single pack & pack of 4' },
-    { kind: 'brand', value: 'AppleWatchAccessories', label: 'Apple Watch bands', description: 'Rubber sports & leather straps' },
+    { kind: 'brand', value: 'AppleWatchAccessories', label: 'Apple Watch Accessories', description: 'Straps, protectors & covers' },
     { kind: 'brand', value: 'MagicKeyboard', label: 'Magic Keyboard', description: 'iPad Magic Keyboard' },
     { kind: 'brand', value: 'ApplePencil', label: 'Apple Pencil', description: 'Pro, Gen 2, Gen 1 & USB-C' },
     { kind: 'brand', value: 'PowerBanks', label: 'Power Banks', description: 'Portable power banks' },
