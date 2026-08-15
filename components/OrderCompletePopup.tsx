@@ -3,6 +3,7 @@ import { Check, Package, ArrowRight, ShoppingBag } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import { Order } from '../types';
 import { formatCurrency } from '../lib/utils';
+import { cartSubtotal, orderDiscountGhs, orderPayableTotal } from '../lib/cartTotals';
 
 interface OrderCompletePopupProps {
   order: Order;
@@ -22,9 +23,9 @@ export const OrderCompletePopup: React.FC<OrderCompletePopupProps> = ({ order, o
     navigate({ to: '/store' });
   };
 
-  const subtotal = order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const shippingCost = order.shipping_cost || 0;
-  const total = subtotal + shippingCost;
+  const subtotal = cartSubtotal(order.items);
+  const discount = orderDiscountGhs(order);
+  const total = orderPayableTotal(order, Math.max(0, subtotal - discount));
 
   return (
     <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -84,12 +85,12 @@ export const OrderCompletePopup: React.FC<OrderCompletePopupProps> = ({ order, o
               <span className="text-gray-400">Subtotal</span>
               <span className="text-white">{formatCurrency(subtotal)}</span>
             </div>
-            {shippingCost > 0 && (
+            {discount > 0 ? (
               <div className="flex justify-between">
-                <span className="text-gray-400">Delivery Fee</span>
-                <span className="text-white">{formatCurrency(shippingCost)}</span>
+                <span className="text-gray-400">Discount</span>
+                <span className="text-emerald-400">−{formatCurrency(discount)}</span>
               </div>
-            )}
+            ) : null}
             <div className="flex justify-between font-bold text-lg pt-2 border-t border-white/10">
               <span className="text-[#B38B21]">Total</span>
               <span className="text-[#B38B21]">{formatCurrency(total)}</span>

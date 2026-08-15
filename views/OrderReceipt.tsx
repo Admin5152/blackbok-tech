@@ -19,6 +19,7 @@ import { getOrder } from '../lib/api';
 import { formatCurrency } from '../lib/utils';
 import type { Order } from '../types';
 import { customerStatusBadgeClasses, formatCustomerStatusShort } from '../lib/customerStatusLabels';
+import { cartSubtotal, orderDiscountGhs, orderPayableTotal } from '../lib/cartTotals';
 
 const StatusStep = ({ label, icon: Icon, active, done }: { label: string; icon: any; active: boolean; done: boolean }) => (
     <div className="flex flex-col items-center gap-2 flex-1">
@@ -96,8 +97,9 @@ export const OrderReceipt: React.FC = () => {
         );
     }
 
-    const subtotal = order.items.reduce((s, i) => s + i.price * i.quantity, 0);
-    const shipping = order.shipping_cost || 0;
+    const subtotal = cartSubtotal(order.items);
+    const discount = orderDiscountGhs(order);
+    const grandTotal = orderPayableTotal(order, Math.max(0, subtotal - discount));
 
     const statusSteps: { label: string; key: string; icon: any }[] = [
         { label: 'Order Placed', key: 'Pending', icon: FileText },
@@ -263,13 +265,15 @@ export const OrderReceipt: React.FC = () => {
                                     <span className="text-white/50 font-bold">Subtotal</span>
                                     <span className="text-white font-bold">{formatCurrency(subtotal)}</span>
                                 </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-white/50 font-bold">Delivery Fee</span>
-                                    <span className="text-white font-bold">{formatCurrency(shipping)}</span>
-                                </div>
+                                {discount > 0 ? (
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-white/50 font-bold">Discount</span>
+                                        <span className="text-emerald-400 font-bold">−{formatCurrency(discount)}</span>
+                                    </div>
+                                ) : null}
                                 <div className="border-t border-white/10 pt-3 flex justify-between items-center">
                                     <span className="text-sm font-black uppercase text-white">Grand Total</span>
-                                    <span className="text-2xl font-black text-[#B38B21]">{formatCurrency(order.total)}</span>
+                                    <span className="text-2xl font-black text-[#B38B21]">{formatCurrency(grandTotal)}</span>
                                 </div>
                             </div>
                         </div>

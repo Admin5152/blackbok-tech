@@ -34,6 +34,7 @@ import {
   loadPersistedPromoCode,
 } from '../lib/promoCart';
 import { promoFriendlyMessage, promoRpcErrorMessage } from '../lib/promoErrors';
+import { cartPayableTotal, cartSubtotal } from '../lib/cartTotals';
 import {
   fetchOrderChargeTotalGhs,
   formatGHS,
@@ -68,9 +69,6 @@ const GHANA_REGIONS = [
 
 type ShippingMethod = 'pickup' | 'delivery';
 type PaymentMethod = 'pickup_cash' | 'card' | 'mobile_money';
-
-const SHIPPING_COST_DELIVERY_FLAT = 50; // GHS — applied below the free threshold
-const FREE_SHIPPING_THRESHOLD = 5000;   // GHS
 
 // ============================================================
 // Helpers
@@ -153,16 +151,11 @@ export const Checkout: React.FC = () => {
 
   // --- Pricing (discount from promo_quote only — never computed locally) ---
   const [appliedPromo, setAppliedPromo] = useState<AppliedPromoQuote | null>(null);
-  const subtotal = useMemo(
-    () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
-    [cart],
-  );
-  const shippingCost = useMemo(() => {
-    if (shippingMethod === 'pickup') return 0;
-    return subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST_DELIVERY_FLAT;
-  }, [shippingMethod, subtotal]);
+  const subtotal = useMemo(() => cartSubtotal(cart), [cart]);
+  // Fulfilment does not alter product pricing. Pickup and delivery carry no fee.
+  const shippingCost = 0;
   const discountGhs = appliedPromo ? pesewasToGhs(appliedPromo.discount_pesewas) : 0;
-  const total = Math.max(0, subtotal + shippingCost - discountGhs);
+  const total = cartPayableTotal(cart, discountGhs);
 
   // Drop the promo if the cart empties out mid-flow.
   useEffect(() => {
@@ -589,8 +582,8 @@ export const Checkout: React.FC = () => {
                   </div>
                 )}
                 <div className="flex justify-between text-sm">
-                  <span>Pickup</span>
-                  <span>{shippingCost === 0 ? 'Free · Store' : formatCurrency(shippingCost)}</span>
+                  <span>Fulfilment</span>
+                  <span>Free</span>
                 </div>
                 <div className="flex justify-between font-bold text-lg pt-2 border-t border-black/10 dark:border-white/10">
                   <span>Total</span>

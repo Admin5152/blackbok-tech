@@ -11,6 +11,7 @@ import { PageBackButton } from '../components/PageBackButton';
 import { ProductGridSkeleton } from '../components/Skeleton';
 import { PAGE_SIZES, usePagination } from '../lib/pagination';
 import { Pagination } from '../components/Pagination';
+import { databaseSellPrice } from '../lib/productPrice';
 
 type IpadProductRow = {
   id: string;
@@ -20,6 +21,7 @@ type IpadProductRow = {
   subcategory: string | null;
   image_url: string | null;
   price: number | null;
+  discount: number | null;
   specifications: Record<string, unknown> | null;
 };
 
@@ -62,7 +64,13 @@ export const Ipads: React.FC<Props> = ({ theme = 'dark', search }) => {
   const navigate = useNavigate();
   const [rows, setRows] = useState<IpadProductRow[]>([]);
   const [variantMeta, setVariantMeta] = useState<
-    Array<{ product_id: string; storage: string | null; sim_type: string | null; price: number | null }>
+    Array<{
+      product_id: string;
+      storage: string | null;
+      sim_type: string | null;
+      price: number | null;
+      price_modifier: number | null;
+    }>
   >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -75,7 +83,7 @@ export const Ipads: React.FC<Props> = ({ theme = 'dark', search }) => {
       try {
         const { data: products, error: pErr } = await supabase
           .from('products')
-          .select('id, name, slug, condition, subcategory, image_url, price, specifications')
+          .select('id, name, slug, condition, subcategory, image_url, price, discount, specifications')
           .eq('category', 'iPad')
           .eq('status', 'active');
         if (pErr) throw pErr;
@@ -85,7 +93,7 @@ export const Ipads: React.FC<Props> = ({ theme = 'dark', search }) => {
         if (ids.length) {
           const { data: vrows, error: vErr } = await supabase
             .from('product_variants')
-            .select('product_id, storage, sim_type, price, is_active')
+            .select('product_id, storage, sim_type, price, price_modifier, is_active')
             .in('product_id', ids)
             .eq('is_active', true);
           if (vErr) throw vErr;
@@ -94,6 +102,7 @@ export const Ipads: React.FC<Props> = ({ theme = 'dark', search }) => {
             storage: v.storage ?? null,
             sim_type: v.sim_type ?? null,
             price: v.price != null ? Number(v.price) : null,
+            price_modifier: v.price_modifier != null ? Number(v.price_modifier) : 0,
           }));
         }
         if (!cancelled) {
@@ -132,8 +141,10 @@ export const Ipads: React.FC<Props> = ({ theme = 'dark', search }) => {
       );
       const existing = byFamily.get(family);
       const vs = variantsByProduct.get(p.id) ?? [];
-      const prices = vs.map((v) => v.price).filter((n): n is number => n != null && n > 0);
-      const minP = prices.length ? Math.min(...prices) : Number(p.price ?? 0);
+      const prices = vs
+        .map((variant) => databaseSellPrice(p, variant))
+        .filter((price) => Number.isFinite(price) && price >= 0);
+      const minP = prices.length ? Math.min(...prices) : databaseSellPrice(p);
 
       if (!existing) {
         const card: ModelCard = {

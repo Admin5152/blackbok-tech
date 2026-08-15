@@ -7,6 +7,7 @@ import { useAppContext } from '../App';
 import { PosReceiptDocument } from '../components/invoice/PosReceiptDocument';
 import { InvoiceDocument } from '../components/invoice/InvoiceDocument';
 import { formatInvoiceDate, INVOICE_COPY } from '../lib/invoiceFormat';
+import { cartPayableTotal, cartSubtotal, orderDiscountGhs, orderPayableTotal } from '../lib/cartTotals';
 
 export const Receipt: React.FC = () => {
   const { orderId } = useParams({ from: '/receipt/$orderId' });
@@ -108,9 +109,10 @@ export const Receipt: React.FC = () => {
       };
     });
 
-    const subTotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const shipping = order.shipping_cost || 0;
-    const total = Number(order.total) > 0 ? Number(order.total) : subTotal + shipping;
+    const subTotal = cartSubtotal(order.items);
+    const shipping = Number(order.shipping_cost ?? 0);
+    const discount = orderDiscountGhs(order);
+    const total = orderPayableTotal(order, cartPayableTotal(order.items, discount) + shipping);
     const payStatus = String(order.payment_status || '').toLowerCase();
     const isPaid = payStatus === 'paid' || payStatus === 'completed' || payStatus === 'success';
     const paymentMade = isPaid ? total : 0;
@@ -144,10 +146,14 @@ export const Receipt: React.FC = () => {
       totals: {
         subTotal,
         shipping,
+        ...(discount > 0
+          ? { adjustment: discount, adjustmentLabel: 'Promotion discount' }
+          : {}),
         total,
         paymentMade,
         balanceDue,
       },
+      discount,
     };
   }, [order, user]);
 
@@ -197,6 +203,7 @@ export const Receipt: React.FC = () => {
         description: item.description,
       }))}
       subTotal={invoiceModel.totals.subTotal}
+      discount={invoiceModel.discount}
       shipping={invoiceModel.totals.shipping}
       total={invoiceModel.totals.total}
       paymentLabel={invoiceModel.terms}

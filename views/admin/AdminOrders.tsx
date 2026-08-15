@@ -9,6 +9,7 @@ import { formatCurrency } from '../../lib/utils';
 import { ListSkeleton } from '../../components/Skeleton';
 import { PAGE_SIZES, usePagination } from '../../lib/pagination';
 import { Pagination } from '../../components/Pagination';
+import { cartSubtotal, orderDiscountGhs } from '../../lib/cartTotals';
 
 function isStorePickupOrder(order: Pick<Order, 'shipping_method'>): boolean {
     const m = String(order.shipping_method || '').toLowerCase();
@@ -56,7 +57,7 @@ export const AdminOrders: React.FC = () => {
 
     const modalLineSubtotal = useMemo(() => {
         if (!sel?.items?.length) return 0;
-        return sel.items.reduce((s, i) => s + (i.price || 0) * (i.quantity || 1), 0);
+        return cartSubtotal(sel.items);
     }, [sel]);
 
     const paymentMethodLabel = (raw?: string) => {
@@ -550,13 +551,18 @@ export const AdminOrders: React.FC = () => {
                                         <span className={`font-bold ${bodyCls}`}>Subtotal</span>
                                         <span className={`font-bold text-right break-all ${strongCls}`}>{formatCurrency(modalLineSubtotal)}</span>
                                     </div>
+                                    {orderDiscountGhs(sel) > 0 ? (
+                                        <div className="flex justify-between items-start gap-3 text-xs">
+                                            <span className={`font-bold ${bodyCls}`}>Discount</span>
+                                            <span className={`font-bold text-right break-all text-emerald-500`}>
+                                                −{formatCurrency(orderDiscountGhs(sel))}
+                                            </span>
+                                        </div>
+                                    ) : null}
                                     <div className="flex justify-between items-start gap-3 text-xs">
                                         <span className={`font-bold ${bodyCls}`}>Shipping</span>
                                         <span className={`font-bold text-right break-all ${strongCls}`}>{formatCurrency(sel.shipping_cost ?? 0)}</span>
                                     </div>
-                                    {Math.abs(modalLineSubtotal + (sel.shipping_cost ?? 0) - sel.total) > 0.02 && (
-                                        <p className={`text-[10px] font-bold text-right ${mutedCls}`}>Order total reflects discounts or adjustments from checkout.</p>
-                                    )}
                                     <div className={`pt-3 border-t flex justify-between items-start gap-3 ${isLight ? 'border-black/10' : 'border-white/10'}`}>
                                         <span className={`text-xs font-black uppercase ${isLight ? 'text-black/60' : 'text-white/70'}`}>Total</span>
                                         <span className="text-base sm:text-lg font-black text-[#B38B21] text-right break-all leading-tight">{formatCurrency(sel.total)}</span>

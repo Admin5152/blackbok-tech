@@ -47,6 +47,8 @@ import {
   mergeVariantSkuFallback,
   normalizeOrderItemOptions,
 } from './orderItemOptions';
+import { databaseSellPrice, findDatabaseVariant } from './productPrice';
+import { resolveSkuEffectivePrice } from './skuPrice';
 
 // Normalizes admin-entered category strings (e.g. "Mobile Phones",
 // "Laptops & Notebooks", "Apple iPhones") to canonical values used by
@@ -1100,12 +1102,30 @@ export function mapProductFromDb(p: any): Product {
   const isNew = p.is_new != null ? Boolean(p.is_new) : Boolean(p.new);
     const storageChips = coerceTextArray(p.storage);
     const ramChips = coerceTextArray(p.ram);
-    const priceFrom =
-      p.price_from != null && Number.isFinite(Number(p.price_from))
+    const basePrice = Number(p.price ?? p.base_price ?? p.price_from ?? 0);
+    const variantRows = Array.isArray(p.product_variants)
+      ? p.product_variants
+      : Array.isArray(p.variants)
+        ? p.variants
+        : [];
+    const effectiveVariantPrices = variantRows
+      .filter((variant: any) => variant?.is_active !== false)
+      .map((variant: any) =>
+        resolveSkuEffectivePrice({
+          productPrice: basePrice,
+          variantPrice: variant?.price,
+          priceModifier: variant?.price_modifier,
+        }),
+      )
+      .filter((price: number) => Number.isFinite(price) && price >= 0);
+    const priceFrom = effectiveVariantPrices.length
+      ? Math.min(...effectiveVariantPrices)
+      : p.price_from != null && Number.isFinite(Number(p.price_from))
         ? Number(p.price_from)
-        : Number(p.price ?? p.base_price ?? 0);
-    const priceTo =
-      p.price_to != null && Number.isFinite(Number(p.price_to))
+        : basePrice;
+    const priceTo = effectiveVariantPrices.length
+      ? Math.max(...effectiveVariantPrices)
+      : p.price_to != null && Number.isFinite(Number(p.price_to))
         ? Number(p.price_to)
         : priceFrom;
     const totalStock =
@@ -1126,7 +1146,7 @@ export function mapProductFromDb(p: any): Product {
     reviewCount: p.review_count,
     variants: p.product_variants ?? p.variants,
     images: normalizeProductImages(p.product_images ?? p.images),
-    price: priceFrom,
+    price: basePrice,
     price_from: priceFrom,
     price_to: priceTo,
     stock: totalStock,
@@ -1208,7 +1228,7 @@ export const getProduct = async (id: string): Promise<Product | null> => {
 
 type CartItemPersist = Pick<
   CartItem,
-  'id' | 'variant_id' | 'quantity' | 'selectedOptions' | 'price' | 'name' | 'image' | 'image_url' | 'stock' | 'variants'
+  'id' | 'variant_id' | 'quantity' | 'selectedOptions' | 'name' | 'image' | 'image_url' | 'stock' | 'variants'
 >;
 
 const cartRowToPayload = (userId: string, item: CartItemPersist) => {
@@ -1226,8 +1246,6 @@ const cartRowToPayload = (userId: string, item: CartItemPersist) => {
     quantity: Math.max(1, Math.floor(Number(item.quantity) || 1)),
     selected_options: options,
     line_key: lineKey,
-    unit_price:
-      item.price != null && Number.isFinite(Number(item.price)) ? Number(item.price) : null,
     updated_at: new Date().toISOString(),
   };
 };
@@ -1243,14 +1261,13 @@ export const getCartItemRows = async (
     quantity: number;
     selected_options: Record<string, string>;
     line_key: string;
-    unit_price: number | null;
   }>
 > => {
   const uid = String(userId || '').trim();
   if (!uid) return [];
   const { data, error } = await supabase
     .from('cart_items')
-    .select('id, product_id, variant_id, quantity, selected_options, line_key, unit_price')
+    .select('id, product_id, variant_id, quantity, selected_options, line_key')
     .eq('user_id', uid)
     .order('updated_at', { ascending: false });
   if (error) throw error;
@@ -1264,10 +1281,6 @@ export const getCartItemRows = async (
         ? (row.selected_options as Record<string, string>)
         : {},
     line_key: String(row.line_key || ''),
-    unit_price:
-      row.unit_price != null && Number.isFinite(Number(row.unit_price))
-        ? Number(row.unit_price)
-        : null,
   }));
 };
 
@@ -1294,17 +1307,52 @@ export const getCartItems = async (userId: string): Promise<CartItem[]> => {
       const product = byId.get(row.product_id);
       if (!product) return null;
       const options = row.selected_options || {};
+      const variant = findDatabaseVariant(product, row.variant_id);
+      if (row.variant_id && !variant) return null;
       return {
         ...product,
         quantity: row.quantity,
         selectedOptions: options,
         variant_id: row.variant_id || undefined,
-        price: row.unit_price != null ? row.unit_price : product.price,
-        stock: product.stock,
+        price: databaseSellPrice(product, variant),
+        stock: variant ? Math.max(0, Number(variant.stock ?? 0)) : product.stock,
         configurationLine: undefined,
       } as CartItem;
     })
     .filter(Boolean) as CartItem[];
+};
+
+/** Replace every cart price snapshot with the current database product/SKU price. */
+export const refreshCartPrices = async (items: CartItem[]): Promise<CartItem[]> => {
+  if (items.length === 0) return [];
+  const ids = [...new Set(items.map((item) => String(item.product_id || item.id)).filter(Boolean))];
+  const currentProducts = await Promise.all(
+    ids.map(async (id) => {
+      const product = await getProduct(id);
+      if (!product) throw new Error(`Product ${id} is no longer available.`);
+      return product;
+    }),
+  );
+  const byId = new Map(currentProducts.map((product) => [String(product.id), product]));
+
+  return items.map((item) => {
+    const productId = String(item.product_id || item.id);
+    const product = byId.get(productId);
+    if (!product) throw new Error(`Product ${productId} is no longer available.`);
+    const variant = findDatabaseVariant(product, item.variant_id);
+    if (item.variant_id && !variant) {
+      throw new Error(`The selected version of “${product.name}” is no longer available.`);
+    }
+    return {
+      ...product,
+      quantity: Math.max(1, Math.floor(Number(item.quantity) || 1)),
+      selectedOptions: item.selectedOptions ?? {},
+      variant_id: item.variant_id,
+      price: databaseSellPrice(product, variant),
+      stock: variant ? Math.max(0, Number(variant.stock ?? 0)) : product.stock,
+      configurationLine: item.configurationLine,
+    };
+  });
 };
 
 export const addToCart = async (
@@ -1319,7 +1367,6 @@ export const addToCart = async (
     variant_id: variantId,
     quantity,
     selectedOptions,
-    price: 0,
     name: '',
     stock: 0,
   });
@@ -1422,7 +1469,9 @@ export const syncCartWithServer = async (
     });
   }
 
-  const next = Array.from(merged.values());
+  // Local guest snapshots may contain an old price. Resolve every merged line
+  // from products/product_variants before it is displayed or persisted.
+  const next = await refreshCartPrices(Array.from(merged.values()));
   await replaceUserCart(uid, next);
   return next;
 };
@@ -1561,116 +1610,41 @@ export const addReview = async (review: Omit<Review, 'id' | 'created_at'>) => {
 // ORDERS & CHECKOUT
 // ==========================================
 
-/**
- * @deprecated Prefer Checkout → `place_order` RPC (variant-aware stock).
- * Kept for legacy callers only — does not mirror live checkout stock rules.
- */
+/** @deprecated Compatibility wrapper; the canonical DB RPC owns all pricing. */
 export const placeOrder = async (
-  userId: string, 
-  customerId: string | null, 
-  shippingAddress: string, 
-  paymentMethod: string, 
+  _userId: string,
+  customerId: string | null,
+  shippingAddress: string,
+  paymentMethod: string,
   shippingMethod: string = 'Standard Delivery',
   cartItems: CartItem[] = []
 ) => {
-  const isUuid = (v: any) =>
-    typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
-
-  const buildLineItems = (orderId: string) =>
-    cartItems.map((item: any) => {
-      const rawId = item.product_id || item.id;
-      return {
-        order_id: orderId,
-        product_id: isUuid(rawId) ? rawId : null,
-        quantity: Number(item.quantity || 1),
-        price: Number(item.price || 0),
-        unit_price: Number(item.price || 0),
-        // Snapshot so order detail survives product edits/deletes and
-        // works for cart items coming from seed/local products.
-        product_name: item.name || item.title || null,
-        product_image: item.image || item.image_url || null,
-        product_options: buildProductOptionsForRpc(item.selectedOptions) ?? {},
-      };
-    });
-
-  const ensureOrderItems = async (orderId: string) => {
-    if (cartItems.length === 0) return;
-
-    const { data: existingItems, error: existingError } = await supabase
-      .from('order_items')
-      .select('id')
-      .eq('order_id', orderId)
-      .limit(1);
-
-    if (existingError) throw existingError;
-    if (existingItems && existingItems.length > 0) return;
-
-    const rows = buildLineItems(orderId);
-    const { error: itemsError } = await supabase.from('order_items').insert(rows);
-    if (itemsError) {
-      // Fallback: retry without product_id (in case of FK violation).
-      console.warn('order_items insert failed, retrying without product_id:', itemsError);
-      const fallback = rows.map((r) => ({ ...r, product_id: null }));
-      const { error: retryError } = await supabase.from('order_items').insert(fallback);
-      if (retryError) throw retryError;
-    }
-  };
-
-  // Use direct insert so payment status starts as pending until admin confirmation.
-  const subtotal = cartItems.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity || 1)), 0);
-  const shippingCost = shippingMethod.toLowerCase().includes('pick') ? 0 : 50;
-  const total = subtotal + shippingCost;
-
-  const { data: latestOrder } = await supabase
-    .from('orders')
-    .select('display_id')
-    .not('display_id', 'is', null)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  const lastDisplay = latestOrder?.display_id || 'ORD00000';
-  const lastNumber = Number(String(lastDisplay).replace(/[^0-9]/g, '')) || 0;
-  const nextDisplayId = `ORD${String(lastNumber + 1).padStart(5, '0')}`;
-
-  const { data: order, error: orderError } = await supabase
-    .from('orders')
-    .insert({
-      display_id: nextDisplayId,
-      user_id: userId,
-      customer_id: customerId || null,
-      status: 'pending',
-      payment_status: 'pending',
-      payment_method: paymentMethod,
-      shipping_address: shippingAddress,
-      shipping_method: shippingMethod,
-      shipping_cost: shippingCost,
-      total_price: total
-    })
-    .select()
-    .single();
-
-  if (orderError) throw orderError;
-
-  await ensureOrderItems(order.id);
-
-  // Atomically decrement stock for each line item that maps to a real product row.
-  for (const item of cartItems as any[]) {
-    const pid = item.product_id || item.id;
-    const qty = Number(item.quantity || 1);
-    if (typeof pid === 'string' && qty > 0) {
-      try {
-        await supabase.rpc('decrement_product_stock', {
-          _product_id: pid,
-          _quantity: qty,
-        });
-      } catch (e) {
-        console.warn('decrement_product_stock failed for', pid, e);
-      }
-    }
-  }
-
-  return order;
+  const payload = cartItems.map((item) => ({
+    product_id: item.product_id || item.id,
+    variant_id: item.variant_id ?? null,
+    quantity: Math.max(1, Math.floor(Number(item.quantity) || 1)),
+    // Retained for old RPC signatures; migration 20260815000100 ignores it.
+    unit_price: Number(item.price || 0),
+    product_name: item.name || null,
+    product_image: item.image || item.image_url || null,
+    product_options: buildProductOptionsForRpc(item.selectedOptions) ?? {},
+  }));
+  const { data, error } = await supabase.rpc('place_order', {
+    p_cart_items: payload,
+    p_coupon_id: null,
+    p_discount_amount: 0,
+    p_shipping_address: shippingAddress,
+    p_shipping_method: shippingMethod,
+    p_payment_method: paymentMethod,
+    p_shipping_cost: 0,
+    p_customer_id: customerId,
+    p_notes: null,
+  });
+  if (error) throw error;
+  const first = Array.isArray(data) ? data[0] : data;
+  const orderId = first?.order_id || first?.id;
+  if (!orderId) throw new Error('Order did not return an id.');
+  return getOrder(orderId);
 };
 
 export const getOrders = async (userId?: string): Promise<Order[]> => {
@@ -1711,9 +1685,12 @@ export const getOrders = async (userId?: string): Promise<Order[]> => {
       ),
       configurationLine: getOrderItemConfigurationLine(i.product_options),
       quantity: Number(i.quantity || 1),
-      price: Number(i.price ?? i.unit_price ?? 0),
+      price: Number(i.unit_price ?? i.price ?? 0),
     })),
-    total: Number(o.total_price),
+    shipping_cost: Number(o.shipping_cost ?? 0),
+    discount_amount: Number(o.discount_amount ?? 0),
+    discount_pesewas: Number(o.discount_pesewas ?? 0),
+    total: Number(o.total_price ?? 0),
     date: o.created_at
   }));
 };
@@ -1748,8 +1725,10 @@ export const getAdminOrdersFromItems = async (): Promise<Order[]> => {
         payment_status: ord.payment_status,
         shipping_method: ord.shipping_method,
         shipping_cost: Number(ord.shipping_cost ?? 0),
+        discount_amount: Number(ord.discount_amount ?? 0),
+        discount_pesewas: Number(ord.discount_pesewas ?? 0),
         items: [],
-        total: Number(ord.total_price || 0),
+        total: Number(ord.total_price ?? 0),
         date: ord.created_at
       });
     }
@@ -1815,8 +1794,10 @@ export const getUserOrdersFromItems = async (userId: string): Promise<Order[]> =
       paymentMethod: ord.payment_method,
       shipping_method: ord.shipping_method,
       shipping_cost: Number(ord.shipping_cost ?? 0),
+      discount_amount: Number(ord.discount_amount ?? 0),
+      discount_pesewas: Number(ord.discount_pesewas ?? 0),
       items: [],
-      total: Number(ord.total_price || 0),
+      total: Number(ord.total_price ?? 0),
       date: ord.created_at
     });
   }
@@ -1897,14 +1878,17 @@ export const getOrder = async (id: string): Promise<Order | null> => {
       name: i.products?.name || i.product_name || 'Item',
       image: i.products?.image_url || i.product_image || null,
       quantity: Number(i.quantity ?? 1),
-      price: Number(i.price ?? i.unit_price ?? 0),
+      price: Number(i.unit_price ?? i.price ?? 0),
       selectedOptions: mergeVariantSkuFallback(
         normalizeOrderItemOptions(i.product_options),
         i.product_variants,
       ),
       configurationLine: getOrderItemConfigurationLine(i.product_options),
     })),
-    total: Number(data.total_price),
+    shipping_cost: Number(data.shipping_cost ?? 0),
+    discount_amount: Number(data.discount_amount ?? 0),
+    discount_pesewas: Number(data.discount_pesewas ?? 0),
+    total: Number(data.total_price ?? 0),
     date: data.created_at
   };
 };

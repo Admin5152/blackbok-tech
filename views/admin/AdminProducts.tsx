@@ -30,6 +30,7 @@ import {
 } from '../../lib/productSkuMatrix';
 import type { SkuMatrixRow } from '../../lib/productSkuMatrix';
 import { scaleAbsoluteSkuPrices } from '../../lib/skuPrice';
+import { databaseSellPrice } from '../../lib/productPrice';
 import { AdminProductForm } from './AdminProductForm';
 import { ListSkeleton } from '../../components/Skeleton';
 import { PAGE_SIZES, usePagination } from '../../lib/pagination';
@@ -991,6 +992,13 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                         {productsPaging.pageItems.map(p => {
                             const stock = productStock(p);
                             const status = String(p.status || 'active').toLowerCase();
+                            const sellPrices = (p.variants ?? [])
+                                .filter((variant) => variant.is_active !== false)
+                                .map((variant) => databaseSellPrice(p, variant))
+                                .filter((price) => Number.isFinite(price) && price >= 0);
+                            const fallbackSellPrice = databaseSellPrice(p);
+                            const sellFrom = sellPrices.length ? Math.min(...sellPrices) : fallbackSellPrice;
+                            const sellTo = sellPrices.length ? Math.max(...sellPrices) : fallbackSellPrice;
                             return (
                             <tr key={p.id} className="hover:bg-white/[0.02] transition-all">
                                 <Td>
@@ -1009,7 +1017,15 @@ export const AdminProducts: React.FC<Props> = ({ canEdit = true, theme = 'dark' 
                                     </span>
                                 </Td>
                                 <Td>
-                                    <span className={`text-xs font-black ${isLight ? 'text-black' : 'text-white'}`}>{formatCurrency(p.price)}</span>
+                                    <span className={`block text-xs font-black ${isLight ? 'text-black' : 'text-white'}`}>
+                                        {formatCurrency(sellFrom)}
+                                        {Math.abs(sellTo - sellFrom) > 0.005 ? ` – ${formatCurrency(sellTo)}` : ''}
+                                    </span>
+                                    {Math.abs(sellFrom - Number(p.price ?? 0)) > 0.005 && (
+                                        <span className={`block text-[9px] ${isLight ? 'text-black/40' : 'text-white/35'}`}>
+                                            Base {formatCurrency(p.price)}
+                                        </span>
+                                    )}
                                     {p.discount != null && Number(p.discount) > 0 && (
                                         <span className="ml-1 text-[9px] text-red-400 font-bold">-{p.discount}%</span>
                                     )}

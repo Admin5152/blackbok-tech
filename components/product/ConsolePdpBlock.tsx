@@ -11,6 +11,7 @@ import {
   getConsoleAvailability,
   type ConsoleCombo,
 } from '../../lib/consoleApi';
+import { databaseSellPrice } from '../../lib/productPrice';
 import { StockAwareOptionButton } from '../StockAwareOptionButton';
 
 type Props = {
@@ -65,7 +66,7 @@ export const ConsolePdpBlock: React.FC<Props> = ({
       edition: v.edition ?? null,
       storage: v.storage ?? null,
       color: v.color ?? null,
-      price_ghs: Number(v.price ?? product.price ?? 0),
+      price_ghs: databaseSellPrice(product, v),
       stock_qty: Number(v.stock ?? 0),
       status: v.is_active === false ? 'not_stocked' : Number(v.stock ?? 0) <= 0 ? 'out_of_stock' : 'active',
       hex: (v.attributes as Record<string, unknown> | null | undefined)?.hex as string | undefined,
@@ -94,7 +95,17 @@ export const ConsolePdpBlock: React.FC<Props> = ({
     };
   }, [modelSlug]);
 
-  const combos = rpcCombos && rpcCombos.length > 0 ? rpcCombos : localCombos;
+  const combos = useMemo(() => {
+    const source = rpcCombos && rpcCombos.length > 0 ? rpcCombos : localCombos;
+    return source.map((combo) => {
+      const variant = product.variants?.find(
+        (row) => String(row.id ?? '') === String(combo.variant_id ?? ''),
+      );
+      return variant
+        ? { ...combo, price_ghs: databaseSellPrice(product, variant) }
+        : combo;
+    });
+  }, [localCombos, product, rpcCombos]);
 
   const editions = useMemo(() => {
     const map = new Map<string, { edition: string; price: number; sku: string; inStock: boolean }>();

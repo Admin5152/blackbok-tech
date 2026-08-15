@@ -14,7 +14,7 @@ import { X, Activity, Scale, RefreshCcw, Home as HomeIcon, ShoppingBag, Wrench, 
 import { supabase, getSupabaseClient, isSupabaseConfigured } from './lib/supabase';
 import { WhatsAppIcon } from './components/Icons';
 import { Product, User, CartItem, Category, RepairRequest, Order, TradeRequest, ProductVariant } from './types';
-import { getProducts, getProduct, getOrders, getTradeRequests, getRepairRequests, syncWishlistWithServer, syncCartWithServer, replaceUserCart, addToWishlist, removeFromWishlistByProduct, clearWishlistItems } from './lib/api';
+import { getProducts, getProduct, getOrders, getTradeRequests, getRepairRequests, syncWishlistWithServer, syncCartWithServer, replaceUserCart, refreshCartPrices, addToWishlist, removeFromWishlistByProduct, clearWishlistItems } from './lib/api';
 import { dbNotSavedMessage, dbSavedMessage } from './lib/dbSaveFeedback';
 import { friendlyError } from './lib/friendlyErrors';
 import { fetchTradePricing } from './lib/tradePricingStore';
@@ -38,8 +38,7 @@ import {
   formatSelectedOptionsLabel,
   productNeedsSkuHydration,
 } from './lib/productOptions';
-import { variantEffectivePrice } from './lib/catalogApi';
-import { applyDealDiscountToAmount } from './lib/dealOfTheDay';
+import { databaseSellPrice, findDatabaseVariant } from './lib/productPrice';
 import { COMPARE_MAX_ITEMS } from './lib/compareProducts';
 import { cartLineKey, cartLineKeyFromParts } from './lib/cartLineKey';
 import { Navbar } from './components/Navbar';
@@ -1348,6 +1347,7 @@ function RootComponent() {
   const [productsLoading, setProductsLoading] = useState(true);
   const [cart, setCart] = useState<CartItem[]>([]);
   const cartRef = useRef<CartItem[]>([]);
+  const guestCartHydratingRef = useRef(false);
   /** Skip server cart writes until sign-in merge finishes (avoids wiping DB with []). */
   const cartServerReadyRef = useRef(false);
   const wishlistRef = useRef<string[]>([]);
@@ -1567,7 +1567,30 @@ function RootComponent() {
       // after auth hydrate (syncCartWithServer / syncWishlistWithServer).
       if (localCart) {
         try {
-          setCart(JSON.parse(localCart));
+          const parsed = JSON.parse(localCart);
+          const guestCart = Array.isArray(parsed) ? (parsed as CartItem[]) : [];
+          // Keep identities available for an immediate sign-in merge while the
+          // UI waits for verified prices.
+          cartRef.current = guestCart;
+          // localStorage only preserves product/SKU identity and quantity in
+          // practice. Re-read prices immediately so badges, drawers and cart
+          // totals do not render an old admin price.
+          if (guestCart.length > 0 && isSupabaseConfigured()) {
+            guestCartHydratingRef.current = true;
+            void refreshCartPrices(guestCart)
+              .then((repriced) => {
+                if (cancelled) return;
+                guestCartHydratingRef.current = false;
+                cartRef.current = repriced;
+                setCart(repriced);
+              })
+              .catch((error) => {
+                guestCartHydratingRef.current = false;
+                console.warn('Could not refresh saved cart prices:', error);
+              });
+          } else {
+            setCart(guestCart);
+          }
         } catch {
           localStorage.removeItem(STORAGE_KEYS.CART);
         }
@@ -1678,7 +1701,9 @@ function RootComponent() {
       localStorage.removeItem(STORAGE_KEYS.CART);
       localStorage.removeItem(STORAGE_KEYS.WISHLIST);
     } else {
-      localStorage.setItem(STORAGE_KEYS.CART, JSON.stringify(cart));
+      if (!guestCartHydratingRef.current) {
+        localStorage.setItem(STORAGE_KEYS.CART, JSON.stringify(cart));
+      }
       localStorage.setItem(STORAGE_KEYS.WISHLIST, JSON.stringify(wishlist));
     }
 
@@ -1713,6 +1738,39 @@ function RootComponent() {
   useEffect(() => {
     cartRef.current = cart;
   }, [cart]);
+
+  // Reprice old guest/server cart snapshots whenever the customer enters cart
+  // or checkout. This also heals baskets created before canonical DB pricing.
+  useEffect(() => {
+    if (
+      (location.pathname !== '/cart' && location.pathname !== '/checkout') ||
+      cartRef.current.length === 0
+    ) {
+      return;
+    }
+    let cancelled = false;
+    void refreshCartPrices(cartRef.current)
+      .then((repriced) => {
+        if (cancelled) return;
+        const changed = repriced.some(
+          (item, index) =>
+            Number(item.price) !== Number(cartRef.current[index]?.price) ||
+            item.variant_id !== cartRef.current[index]?.variant_id,
+        );
+        if (!changed) return;
+        cartRef.current = repriced;
+        setCart(repriced);
+      })
+      .catch((error) => {
+        console.warn('Could not refresh cart prices:', error);
+        if (!cancelled) {
+          notify('Could not verify the latest cart prices. Refresh and try again.', 'error');
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [location.pathname, cart.length]);
 
   useEffect(() => {
     wishlistRef.current = wishlist;
@@ -1923,16 +1981,17 @@ function RootComponent() {
       return;
     }
 
-    // Listing cards come from v_product_page without SKU rows — hydrate so
-    // Color×Storage stock and variant_id resolve correctly.
-    let resolvedProduct = product;
-    if (productNeedsSkuHydration(product)) {
-      try {
-        const hydrated = await getProduct(product.id);
-        if (hydrated) resolvedProduct = hydrated;
-      } catch (e) {
-        console.warn('addToCart: SKU hydrate failed', e);
-      }
+    // Always re-read the product at add time. The cart never trusts a card/PDP
+    // snapshot for price, stock, discount, or selected SKU data.
+    let resolvedProduct: Product;
+    try {
+      const hydrated = await getProduct(product.id);
+      if (!hydrated) throw new Error('Product not found.');
+      resolvedProduct = hydrated;
+    } catch (e) {
+      console.warn('addToCart: live product read failed', e);
+      notify('Could not verify the latest product price. Refresh and try again.', 'error');
+      return;
     }
 
     const resolvedOptions =
@@ -1954,8 +2013,7 @@ function RootComponent() {
     }
 
     const variantRow = findVariantRowForOptions(resolvedProduct, resolvedOptions) as ProductVariant | null;
-    const listPrice = variantEffectivePrice(resolvedProduct, variantRow);
-    const unitPrice = applyDealDiscountToAmount(listPrice, resolvedProduct);
+    const unitPrice = databaseSellPrice(resolvedProduct, variantRow);
     const configLine = formatSelectedOptionsLabel(resolvedOptions);
 
     const prev = cartRef.current;
@@ -1977,7 +2035,15 @@ function RootComponent() {
       const exIdx = prevCart.findIndex((p) => cartLineKey(p) === exId);
       if (exIdx > -1) {
         const updated = [...prevCart];
-        updated[exIdx] = { ...updated[exIdx], quantity: updated[exIdx].quantity + safeQty };
+        updated[exIdx] = {
+          ...resolvedProduct,
+          quantity: updated[exIdx].quantity + safeQty,
+          selectedOptions: resolvedOptions,
+          variant_id: variantId ?? undefined,
+          price: unitPrice,
+          stock: available,
+          configurationLine: configLine || undefined,
+        };
         return updated;
       }
       return [
@@ -2062,30 +2128,20 @@ function RootComponent() {
     );
     if (!line) return;
 
+    let liveProduct: Product;
+    try {
+      const hydrated = await getProduct(id);
+      if (!hydrated) throw new Error('Product not found.');
+      liveProduct = hydrated;
+    } catch (error) {
+      console.warn('Could not verify product before quantity update:', error);
+      notify('Could not verify the latest product price. Refresh and try again.', 'error');
+      return;
+    }
+
+    const nextQty = Math.max(1, line.quantity + delta);
     if (delta > 0) {
-      const live = products.find((p) => p.id === id);
-      const lineAsProduct = line as Product & CartItem;
-      // Prefer cart line's hydrated variants when listing products lack SKUs
-      let capProduct: Product =
-        lineAsProduct.variants && lineAsProduct.variants.length > 0
-          ? {
-              ...lineAsProduct,
-              stock: live?.stock ?? line.stock,
-              total_stock: live?.total_stock ?? lineAsProduct.total_stock,
-            }
-          : live ?? lineAsProduct;
-
-      if (productNeedsSkuHydration(capProduct) || ((capProduct.variants?.length ?? 0) > 0 && !line.variant_id)) {
-        try {
-          const hydrated = await getProduct(id);
-          if (hydrated) capProduct = hydrated;
-        } catch {
-          /* use cart line / listing stock */
-        }
-      }
-
-      const nextQty = line.quantity + delta;
-      const cap = getAvailableStock(capProduct, line.selectedOptions || {});
+      const cap = getAvailableStock(liveProduct, line.selectedOptions || {});
       const effectiveCap =
         Number.isFinite(cap) && cap >= 0
           ? cap
@@ -2097,12 +2153,26 @@ function RootComponent() {
       }
     }
 
+    const liveVariant = findDatabaseVariant(liveProduct, line.variant_id);
+    if (line.variant_id && !liveVariant) {
+      notify('The selected product version is no longer available.', 'error');
+      return;
+    }
+    const livePrice = databaseSellPrice(liveProduct, liveVariant);
     setCart((prev) =>
       prev.map((item) => {
         if (item.id !== id || JSON.stringify(item.selectedOptions) !== JSON.stringify(options)) {
           return item;
         }
-        return { ...item, quantity: Math.max(1, item.quantity + delta) };
+        return {
+          ...liveProduct,
+          quantity: nextQty,
+          selectedOptions: item.selectedOptions,
+          variant_id: item.variant_id,
+          price: livePrice,
+          stock: liveVariant ? Math.max(0, Number(liveVariant.stock ?? 0)) : liveProduct.stock,
+          configurationLine: item.configurationLine,
+        };
       }),
     );
   };

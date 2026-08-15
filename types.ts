@@ -190,6 +190,10 @@ export interface Order {
   shipping_address?: string;
   shipping_method?: string;
   shipping_cost?: number;
+  /** Catalog merchandise discount in GHS (promotions / admin). */
+  discount_amount?: number;
+  /** Exact promotion discount in pesewas when a promo was reserved. */
+  discount_pesewas?: number;
   total_price?: number;
   tracking_number?: string;
   estimated_delivery?: string;

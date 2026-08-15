@@ -15,10 +15,14 @@ import { buildIlikeOrFilter, sanitizeSearchQuery } from './security';
 
 /** Map one v_product_page row → UI Product (card-ready; no variants). */
 export function mapProductPageRow(row: ProductPageRow): Product {
+  const basePrice =
+    row.base_price != null && Number.isFinite(Number(row.base_price))
+      ? Number(row.base_price)
+      : Number(row.price_from ?? 0);
   const priceFrom =
     row.price_from != null && Number.isFinite(Number(row.price_from))
       ? Number(row.price_from)
-      : Number(row.base_price ?? 0);
+      : basePrice;
   const priceTo =
     row.price_to != null && Number.isFinite(Number(row.price_to))
       ? Number(row.price_to)
@@ -38,7 +42,10 @@ export function mapProductPageRow(row: ProductPageRow): Product {
     category: normalizeProductCategory(row.category),
     subcategory: (row as ProductPageRow & { subcategory?: string | null }).subcategory ?? undefined,
     description: row.description ?? '',
-    price: priceFrom,
+    // `price` is always products.price. SKU ranges live in price_from/to.
+    // Keeping these separate prevents modifier SKUs from using a view aggregate
+    // as their base when the customer opens the PDP or adds to cart.
+    price: basePrice,
     price_from: priceFrom,
     price_to: priceTo,
     discount:
@@ -80,6 +87,56 @@ export function mapProductPageRow(row: ProductPageRow): Product {
 }
 
 /**
+ * Recompute card ranges from the same live product/SKU fields used by PDP and
+ * checkout. Some older v_product_page definitions aggregate pv.price directly,
+ * which misses modifier-only variants and can disagree with admin.
+ */
+async function mapCatalogRowsWithLivePrices(rows: ProductPageRow[]): Promise<Product[]> {
+  const products = rows.map(mapProductPageRow);
+  const ids = products.map((product) => product.id).filter(Boolean);
+  if (ids.length === 0) return products;
+
+  const { data, error } = await supabase
+    .from('product_variants')
+    .select('product_id, price, price_modifier, is_active')
+    .in('product_id', ids)
+    .eq('is_active', true);
+  if (error) throw error;
+
+  const variantsByProduct = new Map<
+    string,
+    Array<{ price?: number | null; price_modifier?: number | null }>
+  >();
+  for (const row of data || []) {
+    const productId = String(row.product_id || '');
+    const list = variantsByProduct.get(productId) ?? [];
+    list.push({
+      price: row.price != null ? Number(row.price) : null,
+      price_modifier: row.price_modifier != null ? Number(row.price_modifier) : 0,
+    });
+    variantsByProduct.set(productId, list);
+  }
+
+  return products.map((product) => {
+    const variants = variantsByProduct.get(product.id) ?? [];
+    const effectivePrices = variants
+      .map((variant) =>
+        resolveSkuEffectivePrice({
+          productPrice: product.price,
+          variantPrice: variant.price,
+          priceModifier: variant.price_modifier,
+        }),
+      )
+      .filter((price) => Number.isFinite(price) && price >= 0);
+    const priceFrom = effectivePrices.length
+      ? Math.min(...effectivePrices)
+      : Number(product.price ?? 0);
+    const priceTo = effectivePrices.length ? Math.max(...effectivePrices) : priceFrom;
+    return { ...product, price_from: priceFrom, price_to: priceTo };
+  });
+}
+
+/**
  * Catalog listing — single query against v_product_page.
  * Active products only; optional category filter.
  */
@@ -94,7 +151,7 @@ export async function getCatalogFromView(opts?: {
 
   const { data, error } = await query;
   if (error) throw error;
-  return (data || []).map((r) => mapProductPageRow(r as ProductPageRow));
+  return mapCatalogRowsWithLivePrices((data || []) as ProductPageRow[]);
 }
 
 /** Active products flagged as Deal of the Day (shop category). */
@@ -106,7 +163,7 @@ export async function getDealOfTheDayFromView(): Promise<Product[]> {
     .eq('is_deal_of_the_day', true);
 
   if (error) throw error;
-  return (data || []).map((r) => mapProductPageRow(r as ProductPageRow));
+  return mapCatalogRowsWithLivePrices((data || []) as ProductPageRow[]);
 }
 
 /**
@@ -136,7 +193,7 @@ export async function searchCatalogText(query: string): Promise<Product[]> {
       .eq('status', 'active')
       .or(orFilter);
     if (softErr) throw softErr;
-    return (soft || []).map((r) => mapProductPageRow(r as ProductPageRow));
+    return mapCatalogRowsWithLivePrices((soft || []) as ProductPageRow[]);
   }
 
   const ids = (hits || []).map((h: { id: string }) => h.id);
@@ -148,7 +205,7 @@ export async function searchCatalogText(query: string): Promise<Product[]> {
     .in('id', ids)
     .eq('status', 'active');
   if (viewErr) throw viewErr;
-  return (rows || []).map((r) => mapProductPageRow(r as ProductPageRow));
+  return mapCatalogRowsWithLivePrices((rows || []) as ProductPageRow[]);
 }
 
 /** PDP shell from the view (one row). Accepts product UUID or slug. */

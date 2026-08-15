@@ -23,6 +23,7 @@ import { ProductCard } from "../components/ProductCard";
 import { PageBackButton } from "../components/PageBackButton";
 import { PromoCodeInput, type AppliedPromoQuote } from "../components/checkout/PromoCodeInput";
 import { useAppContext } from "../App";
+import { cartPayableTotal, cartSubtotal } from "../lib/cartTotals";
 
 interface CartProps {
   cart: CartItem[];
@@ -57,26 +58,16 @@ export const Cart: React.FC<CartProps> = ({
   compareIds,
   onAddToCart,
   handleCheckout,
-  user,
 }) => {
   const { theme } = useAppContext();
   const isLight = theme === "light";
-  const [deliveryMethod, setDeliveryMethod] = useState<'pickup'>('pickup');
-  const [digitalAddress, setDigitalAddress] = useState(user?.address || '');
-  const [region, setRegion] = useState(user?.region || '');
-  const [town, setTown] = useState(user?.city || '');
   const [appliedPromo, setAppliedPromo] = useState<AppliedPromoQuote | null>(null);
 
   const freeShippingThreshold = 5000;
-  const subtotal = cart.reduce(
-    (acc, item) => acc + item.price * item.quantity,
-    0
-  );
-  const tax = subtotal * 0.125;
-  const shipping = 0;
+  const subtotal = cartSubtotal(cart);
   // Discount display only — value came from promo_quote (pesewas → GHS).
   const discountGhs = appliedPromo ? pesewasToGhs(appliedPromo.discount_pesewas) : 0;
-  const total = Math.max(0, subtotal + tax + shipping - discountGhs);
+  const total = cartPayableTotal(cart, discountGhs);
 
   const progressToFreeShipping = Math.min((subtotal / freeShippingThreshold) * 100, 100);
   const remainingForFreeShipping = Math.max(freeShippingThreshold - subtotal, 0);
@@ -385,19 +376,10 @@ export const Cart: React.FC<CartProps> = ({
                 )}
 
                 <div className="flex justify-between items-center text-xs sm:text-sm">
-                  <span className="font-bold opacity-50 uppercase tracking-widest">Taxes <span className="opacity-50 lowercase tracking-normal font-medium">(12.5%)</span></span>
-                  <span className="font-black tracking-tight">{formatCurrency(tax)}</span>
-                </div>
-
-                <div className="flex justify-between items-center text-xs sm:text-sm">
                   <span className="font-bold opacity-50 uppercase tracking-widest">Pickup</span>
-                  {shipping === 0 ? (
-                    <span className="text-[10px] sm:text-xs uppercase font-black tracking-[0.2em] text-[#CDA032] bg-[#CDA032]/10 px-3 py-1 rounded-full">
-  Free · Store only
-                    </span>
-                  ) : (
-                    <span className="font-black tracking-tight">{formatCurrency(shipping)}</span>
-                  )}
+                  <span className="text-[10px] sm:text-xs uppercase font-black tracking-[0.2em] text-[#CDA032] bg-[#CDA032]/10 px-3 py-1 rounded-full">
+                    Free · Store only
+                  </span>
                 </div>
 
                 <div className="w-full h-px border-b border-dashed border-black/30 dark:border-white/30 my-6" />
@@ -408,7 +390,7 @@ export const Cart: React.FC<CartProps> = ({
                     {formatCurrency(total)}
                   </span>
                 </div>
-                <p className="text-right text-[9px] opacity-40 uppercase tracking-[0.2em] mt-2">Includes all applicable tax</p>
+                <p className="text-right text-[9px] opacity-40 uppercase tracking-[0.2em] mt-2">No tax or service fees</p>
               </div>
 
               {/* Action Button — desktop; mobile uses fixed bar */}
